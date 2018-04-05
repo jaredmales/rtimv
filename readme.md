@@ -14,15 +14,20 @@ Requires qt-5.
 
 Requires the levmar library, which requires a BLAS and Lapack.  See my instructions for this at https://jaredmales.github.io/mxlib/group__levmar.html.
 
+All you should have to do is type make in the top directory.
+
 ## User's Guide
 
-I have not updated the user guide since porting from VisAO.  You can see [the old one here] (https://visao.as.arizona.edu/software_files/visao/html/group__operators__users__guide.html#imviewer_userguide) which is still mostly correct.  In particular the keyboard shortcuts should all work.
+To start it: ./bin/rtimv /tmp/path_to_shm.im.shm
+
+I have not updated the user guide since porting from VisAO.  You can see [the old one here,](https://visao.as.arizona.edu/software_files/visao/html/group__operators__users__guide.html#imviewer_userguide) which is still mostly correct.  In particular the keyboard shortcuts should all work.
+
 
 ## Contributors
 
 Creator: Jared R. Males (jaredmales at gmail)
 
-Users: Many improvements have been made based on inputs from users, especially Kate Follette.
+Users: Many improvements have been made based on inputs from users of MagAO+VisAO, especially Kate Follette.
 
 ## License
 
