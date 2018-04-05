@@ -12,7 +12,7 @@ Originally developed to support the MagAO+VisAO camera.  Now adapted to work wit
 
 Requires qt-5.
 
-Requires the levmar library.
+Requires the levmar library, which requires a BLAS and Lapack.  See my instructions for this at https://jaredmales.github.io/mxlib/group__levmar.html.
 
 ## User's Guide
 
