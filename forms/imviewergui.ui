@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <author>Jared R. Males</author>
+ <class>imviewerForm</class>
+ <widget class="QWidget" name="imviewerForm">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>587</width>
+    <height>655</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="mouseTracking">
+   <bool>true</bool>
+  </property>
+  <property name="windowTitle">
+   <string>imviewer</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="../res/imviewer.qrc">
+    <normaloff>:/icons/scamper_cutout_sq_64.jpeg</normaloff>:/icons/scamper_cutout_sq_64.jpeg</iconset>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="20">
+   <item>
+    <layout class="QGridLayout" name="gridLayout_top" columnstretch="0">
+     <item row="0" column="0" rowspan="2">
+      <widget class="graphicsview" name="graphicsView">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>10</width>
+         <height>10</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>10000000</width>
+         <height>10000000</height>
+        </size>
+       </property>
+       <property name="sizeIncrement">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="baseSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="mouseTracking">
+        <bool>true</bool>
+       </property>
+       <property name="acceptDrops">
+        <bool>false</bool>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::NoFrame</enum>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Plain</enum>
+       </property>
+       <property name="verticalScrollBarPolicy">
+        <enum>Qt::ScrollBarAlwaysOff</enum>
+       </property>
+       <property name="horizontalScrollBarPolicy">
+        <enum>Qt::ScrollBarAlwaysOff</enum>
+       </property>
+       <property name="interactive">
+        <bool>true</bool>
+       </property>
+       <property name="sceneRect">
+        <rectf>
+         <x>0.000000000000000</x>
+         <y>0.000000000000000</y>
+         <width>0.000000000000000</width>
+         <height>0.000000000000000</height>
+        </rectf>
+       </property>
+       <property name="viewportUpdateMode">
+        <enum>QGraphicsView::SmartViewportUpdate</enum>
+       </property>
+       <property name="optimizationFlags">
+        <set>QGraphicsView::DontAdjustForAntialiasing</set>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+  <zorder></zorder>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>graphicsview</class>
+   <extends>QGraphicsView</extends>
+   <header>src/graphicsview.hpp</header>
+   <slots>
+    <signal>centerChanged()</signal>
+    <signal>mouseCoordsChanged()</signal>
+    <signal>focusLost()</signal>
+    <signal>leftClicked(QPointF)</signal>
+    <signal>leftPressed(QPointF)</signal>
+    <signal>rightPressed(QPointF)</signal>
+    <signal>rightClicked(QPointF)</signal>
+    <signal>wheelMoved(int)</signal>
+   </slots>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="../res/imviewer.qrc"/>
+ </resources>
+ <connections>
+  <connection>
+   <sender>graphicsView</sender>
+   <signal>centerChanged()</signal>
+   <receiver>imviewerForm</receiver>
+   <slot>changeCenter()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>309</x>
+     <y>329</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>429</x>
+     <y>445</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>graphicsView</sender>
+   <signal>mouseCoordsChanged()</signal>
+   <receiver>imviewerForm</receiver>
+   <slot>changeMouseCoords()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>309</x>
+     <y>329</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>429</x>
+     <y>445</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>graphicsView</sender>
+   <signal>leftClicked(QPointF)</signal>
+   <receiver>imviewerForm</receiver>
+   <slot>viewLeftClicked(QPointF)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>324</x>
+     <y>309</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>317</x>
+     <y>445</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>graphicsView</sender>
+   <signal>rightPressed(QPointF)</signal>
+   <receiver>imviewerForm</receiver>
+   <slot>viewRightPressed(QPointF)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>324</x>
+     <y>309</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>317</x>
+     <y>331</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>graphicsView</sender>
+   <signal>leftPressed(QPointF)</signal>
+   <receiver>imviewerForm</receiver>
+   <slot>viewLeftPressed(QPointF)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>324</x>
+     <y>309</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>317</x>
+     <y>331</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>graphicsView</sender>
+   <signal>rightClicked(QPointF)</signal>
+   <receiver>imviewerForm</receiver>
+   <slot>viewRightClicked(QPointF)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>324</x>
+     <y>309</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>317</x>
+     <y>331</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>graphicsView</sender>
+   <signal>wheelMoved(int)</signal>
+   <receiver>imviewerForm</receiver>
+   <slot>onWheelMoved(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>324</x>
+     <y>309</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>317</x>
+     <y>331</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>changeCenter()</slot>
+  <slot>changeMouseCoords()</slot>
+  <slot>nullMouseCoords()</slot>
+  <slot>viewLeftClicked(QPointF)</slot>
+  <slot>enableViewViewMode(int)</slot>
+  <slot>set_PointerViewMode(int)</slot>
+  <slot>viewLeftPressed(QPointF)</slot>
+  <slot>viewRightPressed(QPointF)</slot>
+  <slot>viewRightClicked(QPointF)</slot>
+  <slot>onWheelMoved(int)</slot>
+ </slots>
+</ui>
