@@ -15,7 +15,8 @@ Dependencies:
  - qwt.
  - levmar. See my instructions for this at https://jaredmales.github.io/mxlib/group__levmar.html 
  - BLAS & Lapack. See my instructions for this at https://jaredmales.github.io/mxlib/group__mkl.html
-
+ - milk-org/ImageStreamIO from https://github.com/milk-org/ImageStreamIO
+ 
 After installing the dependencies, verify, and edit if necessary, the following variables in `Makefile`
  - QMAKE
  - CACAO_INCLUDE
