@@ -10,11 +10,22 @@ Originally developed to support the MagAO+VisAO camera.  Now adapted to work wit
 
 ## Installation
 
-Requires qt-5.
+Dependencies:
+ - qt-5.
+ - qwt.
+ - levmar. See my instructions for this at https://jaredmales.github.io/mxlib/group__levmar.html 
+ - BLAS & Lapack. See my instructions for this at https://jaredmales.github.io/mxlib/group__mkl.html
 
-Requires the levmar library, which requires a BLAS and Lapack.  See my instructions for this at https://jaredmales.github.io/mxlib/group__levmar.html.
+After installing the dependencies, verify, and edit if necessary, the following variables in `Makefile`
+ - QMAKE
+ - CACAO_INCLUDE
+ - QWT_INCLUDE
+ - QWT_LIB
+ - LEVMAR_INC
+ - LEVMAR_LIB
+ - BLASPACK
 
-All you should have to do is type make in the top directory.
+Now all you should have to do is type make in the top directory.
 
 ## User's Guide
 

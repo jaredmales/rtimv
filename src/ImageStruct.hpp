@@ -5,7 +5,7 @@
 #ifndef ImageStruct_hpp
 #define ImageStruct_hpp
 
-#include "/home/jrmales/Source/CACAO/ImageStreamIO/ImageStruct.h"
+#include <ImageStreamIO/ImageStruct.h>
 
 #define IMAGESTRUCT_UINT8                   1
 #define IMAGESTRUCT_INT8                    2

@@ -6,7 +6,7 @@ TEMPLATE = app
 TARGET = rtimv
 DESTDIR = bin/ 
 DEPENDPATH += src/
-INCLUDEPATH += $(QWT_INCLUDE) $(LEVMAR_INC)
+INCLUDEPATH += $(QWT_INCLUDE) $(LEVMAR_INC) $(CACAO_INCLUDE)  /usr/include/x86_64-linux-gnu/qt5/
 MOC_DIR = moc/
 OBJECTS_DIR = obj/
 RCC_DIR = res/
@@ -29,9 +29,10 @@ HEADERS += src/graphicsview.hpp \
            src/StretchCircle.h \
            src/imviewerstats.hpp \
            src/rtPlotForm.hpp \
-           src/circularTimeSeries.hpp \
+           src/circleTimeSeries.hpp \
            src/pixaccess.h 
            src/colorMaps.hpp
+
 SOURCES += src/graphicsview.cpp \
            src/imviewer.cpp \
            src/imviewer_main.cpp \
@@ -41,6 +42,7 @@ SOURCES += src/graphicsview.cpp \
            src/StretchCircle.cpp \
            src/imviewerstats.cpp \
            src/rtPlotForm.cpp
+           
 FORMS += forms/imviewergui.ui \
          forms/imviewerControlPanel.ui \
          forms/imviewerStats.ui \
