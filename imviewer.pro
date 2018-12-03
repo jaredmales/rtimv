@@ -6,7 +6,7 @@ TEMPLATE = app
 TARGET = rtimv
 DESTDIR = bin/ 
 DEPENDPATH += src/
-INCLUDEPATH += $(QWT_INCLUDE) $(LEVMAR_INC) $(CACAO_INCLUDE)  /usr/include/x86_64-linux-gnu/qt5/
+INCLUDEPATH += $(QWT_INCLUDE) $(LEVMAR_INC) $(IMAGESTREAMIO_INCLUDE)  /usr/include/x86_64-linux-gnu/qt5/
 MOC_DIR = moc/
 OBJECTS_DIR = obj/
 RCC_DIR = res/
@@ -23,7 +23,7 @@ MAKEFILE = makefile.rtimv
 # Input
 HEADERS += src/graphicsview.hpp \
            src/imviewer.hpp \
-           src/imviewerform.h \ 
+           src/imviewerform.hpp \ 
            src/imviewerControlPanel.h \
            src/StretchBox.h \
            src/StretchCircle.h \
@@ -50,7 +50,8 @@ FORMS += forms/imviewergui.ui \
            
 LIBS += $(LEVMAR_LIB) \
         $(BLASPACK) \
-        $(QWT_LIB)
+        $(QWT_LIB) \
+        $(IMAGESTREAMIO_LIB)
         
 RESOURCES += res/imviewer.qrc
 QT += widgets

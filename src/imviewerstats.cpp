@@ -73,10 +73,11 @@ imviewerStats::imviewerStats(float (*pg)(void *, size_t), size_t typeSize, QWidg
 
    maxPlot = new rtPlotForm("Max", "Max (ADU)", 100, 1, updateTimerTimeout*5., this);
    connect(maxPlot, SIGNAL(rejected()), this, SLOT(maxPlotClosed()));
-/*
+
    peakPlot = new rtPlotForm("Peak", "Peak (ADU)", 100, 1, updateTimerTimeout*5., this);
    connect(peakPlot, SIGNAL(rejected()), this, SLOT(peakPlotClosed()));
-
+   
+/*
    fwhmPlot = new rtPlotForm("FWHM", "FWHM (pix)", 100, 1, updateTimerTimeout*5., this);
    connect(fwhmPlot, SIGNAL(rejected()), this, SLOT(fwhmPlotClosed()));
    

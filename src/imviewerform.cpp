@@ -1,4 +1,4 @@
-#include "imviewerform.h"
+#include "imviewerform.hpp"
 
 imviewerForm::imviewerForm(imviewer_shmt shkey, QWidget * Parent, Qt::WindowFlags f) : imviewer(shkey, Parent, f)
 {
@@ -221,7 +221,7 @@ void imviewerForm::postChangeImdata()
 {
    if(fps_ave > 1.0) ui.graphicsView->fpsGageText( fps_ave );
   
-   if(!saturated)
+   if(saturated)
    {
       ui.graphicsView->warningText("Saturated!");
    }

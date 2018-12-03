@@ -36,6 +36,8 @@
 #include <sys/mman.h>
 #include <sys/file.h>
    
+#include "ImageStreamIO/ImageStreamIO.h"
+
 #include "colorMaps.hpp"
 #include "ImageStruct.hpp"
    
@@ -265,6 +267,8 @@ class imviewer : public QWidget
 
    protected:
       virtual void shmem_timerout();
+      
+      ///Function called by timer expiration.  Checks semaphore and updates the FPS.
       virtual void timerout();
       
    /*** Real time frames per second ***/

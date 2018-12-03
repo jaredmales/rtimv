@@ -4,7 +4,7 @@
 
 
 #include "ui_imviewerControlPanel.h"
-#include "imviewerform.h"
+#include "imviewerform.hpp"
 #include "StretchBox.h"
 
 class imviewerForm;

@@ -4,7 +4,7 @@ A qt-based real-time image viewer.
 
 ## Motivation
 
-Displays images streaming from a scientific (primarily astronomical) camera.  Such images are expected to be "monochrome", or rather single-color-channel.  rtimv provides convenient ways to change the "stretch", colortable, and to perform measurements on the images as they are displayed.  Can handle high frame rates (much higher than monitor refresh).
+Displays images streaming from a scientific (primarily astronomical) camera.  Such images are expected to be "monochrome", or rather single-color-channel.  rtimv provides convenient ways to change the "stretch", color table, and to perform measurements on the images as they are displayed.  Can handle high frame rates (much higher than monitor refresh).
 
 Originally developed to support the MagAO+VisAO camera.  Now adapted to work with the shared memory image system developed for SCExAO, and now used in MILK/CACAO.
 
@@ -13,10 +13,10 @@ Originally developed to support the MagAO+VisAO camera.  Now adapted to work wit
 Dependencies:
  - qt-5.
  - qwt.
- - levmar. See my instructions for this at https://jaredmales.github.io/mxlib/group__levmar.html 
+ - levmar. See my instructions for this at https://jaredmales.github.io/mxlib/group__levmar.html
  - BLAS & Lapack. See my instructions for this at https://jaredmales.github.io/mxlib/group__mkl.html
  - milk-org/ImageStreamIO from https://github.com/milk-org/ImageStreamIO
- 
+
 After installing the dependencies, verify, and edit if necessary, the following variables in `Makefile`
  - QMAKE
  - CACAO_INCLUDE

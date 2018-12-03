@@ -2,15 +2,18 @@
 #On some systems may be able to just make this qmake
 QMAKE=/usr/lib/x86_64-linux-gnu/qt5/bin/qmake 
 
-#Give path to CACAO includes
-CACAO_INCLUDE=/home/jrmales/Source/CACAO/
-export CACAO_INCLUDE
+#Give path to ImageStreamIO includes
+IMAGESTREAMIO_INCLUDE=/home/jrmales/Source/CACAO/
+export IMAGESTREAMIO_INCLUDE
+
+IMAGESTREAMIO_LIB=-L/home/jrmales/Source/CACAO/ImageStreamIO -lImageStreamIO
+export IMAGESTREAMIO_LIB
 
 #Give path to QWT includes
 QWT_INCLUDE=/usr/local/qwt-5.2.1/include/
 export QWT_INCLUDE
 
-#Give the link command for qwt
+#Give the link command (-L and -l) for qwt
 QWT_LIB=-L/usr/lib/libqwt-qt5  -lqwt-qt5 
 export QWT_LIB
 
@@ -18,7 +21,7 @@ export QWT_LIB
 LEVMAR_INC=$(HOME)/include
 export LEVMAR_INC
 
-#Give the link command for levmar
+#Give the link command for levmar (-L and -l)
 LEVMAR_LIB=-L$(HOME)/lib -llevmar
 export LEVMAR_LIB
 
