@@ -111,10 +111,12 @@ imviewerForm::imviewerForm(imviewer_shmt shkey, QWidget * Parent, Qt::WindowFlag
 
 void imviewerForm::postSetImsize()
 {
-   ui.graphicsView->xCen(0.5);
-   ui.graphicsView->yCen(0.5);
    
-   ScreenZoom = std::max((float)width()/(float)nx,(float)height()/(float)ny);
+   ScreenZoom = std::min((float) ui.graphicsView->viewport()->width()/(float)nx,(float)ui.graphicsView->viewport()->height()/(float)ny);
+   
+   
+   //ui.graphicsView->centerOn(0.5*(nx-1), 0.5*(ny-1));
+   //set_viewcen(0.5,0.5);
    
    if(imcp)
    {
@@ -124,7 +126,12 @@ void imviewerForm::postSetImsize()
       transform.scale(viewZoom, viewZoom);
       imcp->ui.viewView->setTransform(transform);
    }
+   
    set_ZoomLevel(1.0);
+   
+   //ui.graphicsView->centerOn(0.5*(nx-1), 0.5*(ny-1));
+   
+   //set_viewcen(0.5,0.5);
 
    //Resize the user color box
    userBox_i0 = ny*.25;
@@ -178,8 +185,6 @@ void imviewerForm::post_set_ZoomLevel()
 {
    QTransform transform;
    
-   ui.graphicsView->nX(nx);
-   ui.graphicsView->nY(ny);
    ui.graphicsView->zoomLevel(ZoomLevel);
    ui.graphicsView->screenZoom(ScreenZoom);
    
@@ -188,22 +193,21 @@ void imviewerForm::post_set_ZoomLevel()
    ui.graphicsView->setTransform(transform);
    transform.scale(pointerOverZoom, pointerOverZoom);
    if(imcp) imcp->ui.pointerView->setTransform(transform);
-   change_center();
+   //change_center();
    
    if(nup)
    {
-      nup->setLine(ui.graphicsView->actXCen()*nx, ui.graphicsView->actYCen()*ny-.1*ny/ZoomLevel, ui.graphicsView->actXCen()*nx, ui.graphicsView->actYCen()*ny+.1*ny/ZoomLevel);
-      nup->setTransformOriginPoint ( QPointF(ui.graphicsView->actXCen()*nx,ui.graphicsView->actYCen()*ny) );
+      nup->setLine(ui.graphicsView->xCen(), ui.graphicsView->yCen()-.1*ny/ZoomLevel, ui.graphicsView->xCen(), ui.graphicsView->yCen()+.1*ny/ZoomLevel);
+      
+      nup->setTransformOriginPoint ( QPointF(ui.graphicsView->xCen(),ui.graphicsView->yCen()) );
          
-      nup_tip->setLine(QLineF(ui.graphicsView->actXCen()*nx,ui.graphicsView->actYCen()*ny-.1*ny/ZoomLevel, ui.graphicsView->actXCen()*nx + .02*nx/ZoomLevel,ui.graphicsView->actYCen()*ny-.1*ny/ZoomLevel + .012*ny/ZoomLevel));
-      nup_tip->setTransformOriginPoint (  QPointF(ui.graphicsView->actXCen()*nx,ui.graphicsView->actYCen()*ny) );
+      nup_tip->setLine(QLineF(ui.graphicsView->xCen(),ui.graphicsView->yCen()-.1*ny/ZoomLevel, ui.graphicsView->xCen() + .02*nx/ZoomLevel,ui.graphicsView->yCen()-.1*ny/ZoomLevel + .012*ny/ZoomLevel));
+      nup_tip->setTransformOriginPoint (  QPointF(ui.graphicsView->xCen(),ui.graphicsView->yCen()) );
 
       QPen qp = nup->pen();
    
       float wid = 5/(ZoomLevel*ScreenZoom);
       if(wid > 3) wid = 3;
-      //if(wid < 1) wid = 1;
-      //std::cout << wid << "\n";
       qp.setWidth(wid);
 
       nup->setPen(qp);
@@ -230,7 +234,14 @@ void imviewerForm::postChangeImdata()
       ui.graphicsView->warningText("");
    }
    
-   if(!qpmi) qpmi = qgs->addPixmap(qpm);//QPixmap::fromImage(*qim));
+   if(!qpmi) //This happens on first time through
+   {
+      qpmi = qgs->addPixmap(qpm);
+      //So we need to initialize the viewport center, etc.
+      set_viewcen(0.5,0.5);
+      post_set_ZoomLevel();
+   }
+   
    else qpmi->setPixmap(qpm);
         
    if(userBox) qpmi->stackBefore(userBox);
@@ -258,7 +269,7 @@ void imviewerForm::postChangeImdata()
          imcp->qpmi_view->stackBefore(imcp->viewLineVert);
       }
    }
-   update_MouseCoords(); //This is to update the pixel val box if set.
+   updateMouseCoords(); //This is to update the pixel val box if set.
    
    if(imcp)
    {
@@ -379,15 +390,6 @@ void imviewerForm::reStretch()
 // }
 
 
-float imviewerForm::get_act_xcen()
-{
-   return ui.graphicsView->actXCen();
-}
-
-float imviewerForm::get_act_ycen()
-{
-   return ui.graphicsView->actYCen();
-}
 
 void imviewerForm::setPointerOverZoom(float poz)
 {
@@ -399,13 +401,13 @@ void imviewerForm::setPointerOverZoom(float poz)
 
 void imviewerForm::change_center(bool movezoombox)
 {   
-   ui.graphicsView->centerOn(ui.graphicsView->actXCen()*ui.graphicsView->nX(), ui.graphicsView->actYCen()*ui.graphicsView->nY());
+   ui.graphicsView->centerOn(ui.graphicsView->xCen(), ui.graphicsView->yCen());
   
    if(imcp)
    {
       
-      imcp->viewLineVert->setLine(ui.graphicsView->xCen()*nx, 0, ui.graphicsView->xCen()*nx, ny);
-      imcp->viewLineHorz->setLine(0, ui.graphicsView->yCen()*ny, nx, ui.graphicsView->yCen()*ny);
+      imcp->viewLineVert->setLine(ui.graphicsView->xCen(), 0, ui.graphicsView->xCen(), ny);
+      imcp->viewLineHorz->setLine(0, ui.graphicsView->yCen(), nx, ui.graphicsView->yCen());
       
       if(ZoomLevel <= 1.0) imcp->viewBox->setVisible(false);
       else
@@ -413,23 +415,22 @@ void imviewerForm::change_center(bool movezoombox)
          imcp->viewBox->setVisible(true);
          if(movezoombox)
          {
-            QPointF tmpp = imcp->viewBox->mapFromParent(ui.graphicsView->actXCen()*nx - .5*nx/ZoomLevel, ui.graphicsView->actYCen()*ny-.5*ny/ZoomLevel);
+            QPointF tmpp = imcp->viewBox->mapFromParent(ui.graphicsView->xCen() - .5*nx/ZoomLevel, ui.graphicsView->yCen()-.5*ny/ZoomLevel);
             imcp->viewBox->setRect(tmpp.x(), tmpp.y(), nx/ZoomLevel, ny/ZoomLevel);
-            //imcp->viewBox->xoff = tmpp.x();
-            //imcp->viewBox->yoff = tmpp.y();
          }
          
       }
       imcp->ui.viewView->centerOn(.5*nx, .5*ny);
       imcp->update_panel();
    }
-   
 }
 
 void imviewerForm::set_viewcen(float x, float y, bool movezoombox)
 {
-   ui.graphicsView->xCen(x);
-   ui.graphicsView->yCen(y);
+   QPointF sp( x* qpmi->boundingRect().width(), y*qpmi->boundingRect().height() );
+   QPointF vp = ui.graphicsView->mapFromScene(sp);
+   
+   ui.graphicsView->mapCenterToScene(vp.x(), vp.y());
    change_center(movezoombox);
 }
 
@@ -440,7 +441,7 @@ void imviewerForm::changeCenter()
 
 void imviewerForm::resizeEvent(QResizeEvent *)
 {
-   ScreenZoom = std::max((float)width()/(float)nx,(float)height()/(float)ny);
+   ScreenZoom = std::min((float)width()/(float)nx,(float)height()/(float)ny);
    change_center();
    ui.graphicsView->setGeometry(0,0,width(), height());
    post_set_ZoomLevel();
@@ -470,62 +471,68 @@ void imviewerForm::nullMouseCoords()
    }
 }
 
-void imviewerForm::update_MouseCoords()
+void imviewerForm::updateMouseCoords()
 {
-//   char tmpr[20];
-
    int idx_x, idx_y;
    
    if(!imdata) return;
+   if(!qpmi) return;
    
-   if(ui.graphicsView->mouseImX() < 0 || ui.graphicsView->mouseImY() < 0)
+   QPointF pt = ui.graphicsView->mapToScene(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY());
+   
+   float mx = pt.x();
+   float my = pt.y();
+   
+   if( mx < 0 || mx > qpmi->boundingRect().width()-1 || my < 0 || my > qpmi->boundingRect().height()-1 ) 
    {
       nullMouseCoords();
    }
    
    if(!NullMouseCoords)
    {
-      ui.graphicsView->textCoordX(ui.graphicsView->mouseImX());
-      ui.graphicsView->textCoordY(ui.graphicsView->mouseImY());
+      ui.graphicsView->textCoordX(mx);
+      ui.graphicsView->textCoordY(qpmi->boundingRect().height() - my);
       
       
-      idx_x = ((int)(ui.graphicsView->mouseImX()));
+      idx_x = ((int)(mx));
       if(idx_x < 0) idx_x = 0;
       if(idx_x > nx-1) idx_x = nx-1;
-      idx_y = (int)(ui.graphicsView->mouseImY());
+      
+      idx_y = (int)(qpmi->boundingRect().height() - my);
       if(idx_y < 0) idx_y = 0;
       if(idx_y > ny-1) idx_y = ny-1;
 
-      ui.graphicsView->textPixelVal(pixget(imdata, (int)(idx_y*ny) + (int)(idx_x)));
-      
+      ui.graphicsView->textPixelVal(pixget(imdata, (int)(idx_x*ny) + (int)(idx_y)));
+
       if(imcp)
       {
          #if RT_SYSTEM == RT_SYSTEM_VISAO        
          if(!applyDark)
          {
-            imcp->updateMouseCoords(ui.graphicsView->mouseImX(), ui.graphicsView->mouseImY(), pixget(imdata,idx_y*ny + idx_x ));
+            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), pixget(imdata,idx_y*ny + idx_x ));
          }
          else
          {
-            imcp->updateMouseCoords(ui.graphicsView->mouseImX(), ui.graphicsView->mouseImY(), ( pixget(imdata,idx_y*ny + idx_x)- pixget(dark_sim.imdata,(int)(idx_y*ny) + (int)(idx_x)) ));
+            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), ( pixget(imdata,idx_y*ny + idx_x)- pixget(dark_sim.imdata,(int)(idx_y*ny) + (int)(idx_x)) ));
          }
          #else
-         imcp->updateMouseCoords(ui.graphicsView->mouseImX(), ui.graphicsView->mouseImY(), pixget(imdata,idx_y*ny + idx_x) );
+         imcp->updateMouseCoords(mx, my, pixget(imdata,idx_y*ny + idx_x) );
          #endif
 
       }
    }
    
+   //Adjust bias and contrast
    if(rightClickDragging)
    {
-      float dx = ui.graphicsView->mouseImX() - rightClickStart.x()*nx;
-      float dy = ui.graphicsView->mouseImY() - rightClickStart.y()*ny;
+      float dx = ui.graphicsView->mouseViewX() - rightClickStart.x();
+      float dy = ui.graphicsView->mouseViewY() - rightClickStart.y();
       
-      float dbias = dx/(nx/ZoomLevel);
-      float dcontrast = -1.*dy/(ny/ZoomLevel);
+      float dbias = dx/ui.graphicsView->viewport()->width();
+      float dcontrast = -1.*dy/ui.graphicsView->viewport()->height();
       
-      set_bias(biasStart + .5*dbias*.5*(imdat_max+imdat_min));
-      set_contrast(contrastStart + dcontrast*.5*(imdat_max-imdat_min));
+      set_bias(biasStart + dbias*.5*(imdat_max+imdat_min));
+      set_contrast(contrastStart + dcontrast*(imdat_max-imdat_min));
       if(!amChangingimdata) changeImdata();
    }
 }
@@ -533,7 +540,7 @@ void imviewerForm::update_MouseCoords()
 void imviewerForm::changeMouseCoords()
 {
    NullMouseCoords = false;
-   update_MouseCoords();
+   updateMouseCoords();
 }
 
 void imviewerForm::viewLeftPressed(QPointF mp)
@@ -555,7 +562,8 @@ void imviewerForm::viewLeftClicked(QPointF mp)
 void imviewerForm::viewRightPressed(QPointF mp)
 {
    rightClickDragging = true;
-   rightClickStart = mp;
+   
+   rightClickStart = mp;//ui.graphicsView->mapToScene(mp.x(),mp.y());
    biasStart = get_bias();
    contrastStart = get_contrast();
    
@@ -570,9 +578,8 @@ void imviewerForm::viewRightClicked(QPointF mp)
 void imviewerForm::onWheelMoved(int delta)
 {
    float dz;
-   //std::cout << delta << "\n";
-   if(delta > 0)   dz = 1.41421;//*delta/120.;
-   else dz = 0.70711;//*delta/120.;
+   if(delta > 0)   dz = 1.02;//1.41421;
+   else dz = 0.98;//0.70711;
    
    set_ZoomLevel(dz*get_ZoomLevel());
    

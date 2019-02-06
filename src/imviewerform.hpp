@@ -107,9 +107,19 @@ class imviewerForm : public imviewer
       void nullMouseCoords();
       
       bool NullMouseCoords;
-      void update_MouseCoords();
+      
+      /// Update the GUI for a change in mouse coordinates in the viewport
+      /** Performs the following functions:
+        * - Decides whether or not the mouse is currently in the pixmap.
+        * - If it is not in the pixmap, clears the mouse coord text boxes
+        * - If it is, updates the moust coord text boxes
+        * - If the moust is right-clicked and dragging, updates the strech bias and contrast.
+        */ 
+      void updateMouseCoords();
       
    protected slots:
+      
+      /// Receive signal that the viewport mouse coordinates have changed.
       void changeMouseCoords();
       
       void viewLeftPressed(QPointF mp);

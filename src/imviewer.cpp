@@ -30,7 +30,7 @@ void imviewer::setUserBoxActive(bool usba)
       if(userBox_i0 >= nx) userBox_i0 = nx-(userBox_i1-userBox_i0);
 
       if(userBox_i1 <= 0) userBox_i1 = 0 + (userBox_i1-userBox_i0);
-      if(userBox_i0 > nx) userBox_i1 = nx-1;
+      if(userBox_i1 > nx) userBox_i1 = nx-1;
 
       if(userBox_j0 > userBox_j1)
       {
@@ -40,13 +40,13 @@ void imviewer::setUserBoxActive(bool usba)
       }
 
       if(userBox_j0 < 0) userBox_j0 = 0;
-      if(userBox_j0 >= nx) userBox_j0 = nx-(userBox_j1-userBox_j0);
+      if(userBox_j0 >= nx) userBox_j0 = ny-(userBox_j1-userBox_j0);
 
       if(userBox_j1 <= 0) userBox_j1 = 0 + (userBox_j1-userBox_j0);
-      if(userBox_j0 > nx) userBox_j1 = nx-1;
+      if(userBox_j1 > ny) userBox_j1 = ny-1;
 
 
-      idx = userBox_i0*nx + userBox_j0;
+      idx = userBox_i0*ny + userBox_j0;
       imval = pixget(imdata, idx);
 
       userBox_min = imval;
@@ -55,7 +55,7 @@ void imviewer::setUserBoxActive(bool usba)
       {
          for(int j = userBox_j0; j < userBox_j1; j++)
          {
-            idx = i*nx + j;
+            idx = i*ny + j;
             imval = pixget(imdata, idx);
 
             if(imval < userBox_min) userBox_min = imval;
@@ -142,17 +142,17 @@ void imviewer::changeImdata(bool newdata)
 
       if(userBoxActive)
       {
-         idx = userBox_i0*nx + userBox_j0;
+         idx = userBox_i0*ny + userBox_j0;
          imval = pixget(imdata, idx);
          userBox_min = imval;
          userBox_max = imval;
       }
 
-      for(int i = 0; i < nx; i++)
+      for(int i = 0; i < ny; i++)
       {
-         for(int j=0;j < ny; j++)
+         for(int j=0;j < nx; j++)
          {
-            idx = i*nx + j;
+            idx = j*ny + i;
             imval = pixget(imdata, idx);
 
             if(imval > tmp_max) tmp_max = imval;
@@ -169,7 +169,7 @@ void imviewer::changeImdata(bool newdata)
                }
             }
 
-            qim->setPixel(j, nx-i-1, (int)calcPixval(imval));
+            qim->setPixel(j, ny-i-1, (int)calcPixval(imval));
 
          }
       }
@@ -188,100 +188,100 @@ void imviewer::changeImdata(bool newdata)
 
 void imviewer::changeImdataRecolorOnly()
 {
-   for(int i = 0; i < nx; i++)
+   for(int i = 0; i < ny; i++)
    {
-      for(int j=0;j <ny; j++)
+      for(int j=0;j <nx; j++)
       {
-         qim->setPixel(j, nx-i-1, (int)calcPixval( pixget(imdata,i*nx + j) ));
+         qim->setPixel(j, ny-i-1, (int)calcPixval( pixget(imdata,j*ny + i) ));
       }
    }
 }
 
 void imviewer::changeImdata_applyDark(bool newdata)
 {
-    #if RT_SYSTEM == RT_SYSTEM_VISAO
-   //float pixval;
-   float tmp_min;
-   float tmp_max;
-   //float tmp_mean;
-
-   int idx;
-   float imval, darkval, imv_m_darkv;
-
-   if(!imdata) return;
-
-   amChangingimdata = true;
-
-   if(!newdata)
-   {
-      changeImdataRecolorOnly_applyDark();
-   }
-   else
-   {
-      //Update statistics
-      imval = pixget(imdata, 0);
-      darkval = pixget(dark_sim.imdata, 0);
-      imv_m_darkv = imval-darkval;
-
-      tmp_min = imv_m_darkv;
-      tmp_max = imv_m_darkv;
-      saturated = 0;
-
-      //tmp_mean = 0;
-
-
-      if(userBoxActive)
-      {
-         idx = userBox_i0*nx + userBox_j0;
-         imval = pixget(imdata, idx);
-         darkval = pixget(dark_sim.imdata, idx);
-         imv_m_darkv = imval-darkval;
-
-         userBox_min = imv_m_darkv;
-         userBox_max = imv_m_darkv;
-      }
-
-      for(int i = 0; i < nx; i++)
-      {
-         for(int j=0;j < ny; j++)
-         {
-            idx = i*nx + j;
-            imval = pixget(imdata, idx);
-            darkval = pixget(dark_sim.imdata, idx);
-            imv_m_darkv = imval-darkval;
-
-            if(imv_m_darkv > tmp_max) tmp_max = imv_m_darkv;
-            if(imv_m_darkv < tmp_min) tmp_min = imv_m_darkv;
-
-            if(imval >= sat_level) saturated++;
-
-            if(userBoxActive)
-            {
-               if(i>=userBox_i0 && i<userBox_i1 && j>=userBox_j0 && j < userBox_j1)
-               {
-                  if(imv_m_darkv < userBox_min) userBox_min = imv_m_darkv;
-                  if(imv_m_darkv > userBox_max) userBox_max = imv_m_darkv;
-               }
-            }
-
-            qim->setPixel(j, nx-i-1, (int)calcPixval(imv_m_darkv));
-
-         }
-      }
-
-      imdat_max = tmp_max;//max(*mean_acc);
-      imdat_min = tmp_min;// min(*mean_acc);
-      //imdat_mean = tmp_mean/(nx*ny);//mean(*mean_acc);
-
-      mindat_rel = (mindat - imdat_min)/(imdat_max-imdat_min);
-      maxdat_rel = (maxdat - imdat_min)/(imdat_max-imdat_min);
-
-
-   }
-   qpm = QPixmap::fromImage(*qim,Qt::ThresholdDither);
-
-   postChangeImdata();
-   amChangingimdata = false;
+#if RT_SYSTEM == RT_SYSTEM_VISAO
+//    //float pixval;
+//    float tmp_min;
+//    float tmp_max;
+//    //float tmp_mean;
+// 
+//    int idx;
+//    float imval, darkval, imv_m_darkv;
+// 
+//    if(!imdata) return;
+// 
+//    amChangingimdata = true;
+// 
+//    if(!newdata)
+//    {
+//       changeImdataRecolorOnly_applyDark();
+//    }
+//    else
+//    {
+//       //Update statistics
+//       imval = pixget(imdata, 0);
+//       darkval = pixget(dark_sim.imdata, 0);
+//       imv_m_darkv = imval-darkval;
+// 
+//       tmp_min = imv_m_darkv;
+//       tmp_max = imv_m_darkv;
+//       saturated = 0;
+// 
+//       //tmp_mean = 0;
+// 
+// 
+//       if(userBoxActive)
+//       {
+//          idx = userBox_i0*ny + userBox_j0;
+//          imval = pixget(imdata, idx);
+//          darkval = pixget(dark_sim.imdata, idx);
+//          imv_m_darkv = imval-darkval;
+// 
+//          userBox_min = imv_m_darkv;
+//          userBox_max = imv_m_darkv;
+//       }
+// 
+//       for(int i = 0; i < ny; i++)
+//       {
+//          for(int j=0;j < nx; j++)
+//          {
+//             idx = i*ny + j;
+//             imval = pixget(imdata, idx);
+//             darkval = pixget(dark_sim.imdata, idx);
+//             imv_m_darkv = imval-darkval;
+// 
+//             if(imv_m_darkv > tmp_max) tmp_max = imv_m_darkv;
+//             if(imv_m_darkv < tmp_min) tmp_min = imv_m_darkv;
+// 
+//             if(imval >= sat_level) saturated++;
+// 
+//             if(userBoxActive)
+//             {
+//                if(i>=userBox_i0 && i<userBox_i1 && j>=userBox_j0 && j < userBox_j1)
+//                {
+//                   if(imv_m_darkv < userBox_min) userBox_min = imv_m_darkv;
+//                   if(imv_m_darkv > userBox_max) userBox_max = imv_m_darkv;
+//                }
+//             }
+// 
+//             qim->setPixel(j, ny-i-1, (int)calcPixval(imv_m_darkv));
+// 
+//          }
+//       }
+// 
+//       imdat_max = tmp_max;//max(*mean_acc);
+//       imdat_min = tmp_min;// min(*mean_acc);
+//       //imdat_mean = tmp_mean/(nx*ny);//mean(*mean_acc);
+// 
+//       mindat_rel = (mindat - imdat_min)/(imdat_max-imdat_min);
+//       maxdat_rel = (maxdat - imdat_min)/(imdat_max-imdat_min);
+// 
+// 
+//    }
+//    qpm = QPixmap::fromImage(*qim,Qt::ThresholdDither);
+// 
+//    postChangeImdata();
+//    amChangingimdata = false;
 
 #else
    (void)(newdata);
@@ -290,18 +290,18 @@ void imviewer::changeImdata_applyDark(bool newdata)
 
 void imviewer::changeImdataRecolorOnly_applyDark()
 {
-   #if RT_SYSTEM == RT_SYSTEM_VISAO
-   int idx;
-
-   for(int i = 0; i < nx; i++)
-   {
-      for(int j=0;j <ny; j++)
-      {
-         idx = i*nx + j;
-         qim->setPixel(j, nx-i-1, (int)calcPixval(pixget(imdata,idx)-pixget(dark_sim.imdata, idx)));
-      }
-   }
-  #endif
+//    #if RT_SYSTEM == RT_SYSTEM_VISAO
+//    int idx;
+// 
+//    for(int i = 0; i < ny; i++)
+//    {
+//       for(int j=0;j <nx; j++)
+//       {
+//          idx = i*ny + j;
+//          qim->setPixel(j, ny-i-1, (int)calcPixval(pixget(imdata,idx)-pixget(dark_sim.imdata, idx)));
+//       }
+//    }
+//   #endif
 }
 
 float imviewer::calcPixval(float d)
@@ -595,52 +595,52 @@ void imviewer::shmem_timerout()
          
    setImsize(image.md[0].size[0], image.md[0].size[1]);
          
-      switch(image.md[0].atype)
-      {
-         case IMAGESTRUCT_UINT8:
-            this->pixget = getPixPointer<IMAGESTRUCT_UINT8>();
-            sat_level = (float) imageStructDataType<IMAGESTRUCT_UINT8>::max;
-            break;
-         case IMAGESTRUCT_INT8:
-            this->pixget = getPixPointer<IMAGESTRUCT_INT8>();
-            sat_level = (float) imageStructDataType<IMAGESTRUCT_INT8>::max;
-            break;
-         case IMAGESTRUCT_UINT16:
-            this->pixget = getPixPointer<IMAGESTRUCT_UINT16>();
-            sat_level = (float) imageStructDataType<IMAGESTRUCT_UINT16>::max;
-            break;
-         case IMAGESTRUCT_INT16:
-            this->pixget = getPixPointer<IMAGESTRUCT_INT16>();
-            sat_level = (float) imageStructDataType<IMAGESTRUCT_INT16>::max;
-            break;
-         case IMAGESTRUCT_UINT32:
-            this->pixget = getPixPointer<IMAGESTRUCT_UINT32>();
-            sat_level = (float) imageStructDataType<IMAGESTRUCT_UINT32>::max;
-            break;
-         case IMAGESTRUCT_INT32:
-            this->pixget = getPixPointer<IMAGESTRUCT_INT32>();
-            sat_level = (float) imageStructDataType<IMAGESTRUCT_INT32>::max;
-            break;
-         case IMAGESTRUCT_UINT64:
-            this->pixget = getPixPointer<IMAGESTRUCT_UINT64>();
-            sat_level = (float) imageStructDataType<IMAGESTRUCT_UINT64>::max;
-            break;
-         case IMAGESTRUCT_INT64:
-            this->pixget = getPixPointer<IMAGESTRUCT_INT64>();
-            sat_level = (float) imageStructDataType<IMAGESTRUCT_INT64>::max;
-            break;
-         case IMAGESTRUCT_FLOAT:
-            this->pixget = getPixPointer<IMAGESTRUCT_FLOAT>();
-            sat_level = (float) imageStructDataType<IMAGESTRUCT_FLOAT>::max;
-            break;
-         case IMAGESTRUCT_DOUBLE:
-            this->pixget = getPixPointer<IMAGESTRUCT_DOUBLE>();
-            sat_level = (float) imageStructDataType<IMAGESTRUCT_DOUBLE>::max;
-            break;
-         default:
-            std::cerr << "Unknown or unsupported data type\n";
-            exit(0);
-      }
+   switch(image.md[0].atype)
+   {
+      case IMAGESTRUCT_UINT8:
+         this->pixget = getPixPointer<IMAGESTRUCT_UINT8>();
+         sat_level = (float) imageStructDataType<IMAGESTRUCT_UINT8>::max;
+         break;
+      case IMAGESTRUCT_INT8:
+         this->pixget = getPixPointer<IMAGESTRUCT_INT8>();
+         sat_level = (float) imageStructDataType<IMAGESTRUCT_INT8>::max;
+         break;
+      case IMAGESTRUCT_UINT16:
+         this->pixget = getPixPointer<IMAGESTRUCT_UINT16>();
+         sat_level = (float) imageStructDataType<IMAGESTRUCT_UINT16>::max;
+         break;
+      case IMAGESTRUCT_INT16:
+         this->pixget = getPixPointer<IMAGESTRUCT_INT16>();
+         sat_level = (float) imageStructDataType<IMAGESTRUCT_INT16>::max;
+         break;
+      case IMAGESTRUCT_UINT32:
+         this->pixget = getPixPointer<IMAGESTRUCT_UINT32>();
+         sat_level = (float) imageStructDataType<IMAGESTRUCT_UINT32>::max;
+         break;
+      case IMAGESTRUCT_INT32:
+         this->pixget = getPixPointer<IMAGESTRUCT_INT32>();
+         sat_level = (float) imageStructDataType<IMAGESTRUCT_INT32>::max;
+         break;
+      case IMAGESTRUCT_UINT64:
+         this->pixget = getPixPointer<IMAGESTRUCT_UINT64>();
+         sat_level = (float) imageStructDataType<IMAGESTRUCT_UINT64>::max;
+         break;
+      case IMAGESTRUCT_INT64:
+         this->pixget = getPixPointer<IMAGESTRUCT_INT64>();
+         sat_level = (float) imageStructDataType<IMAGESTRUCT_INT64>::max;
+         break;
+      case IMAGESTRUCT_FLOAT:
+         this->pixget = getPixPointer<IMAGESTRUCT_FLOAT>();
+         sat_level = (float) imageStructDataType<IMAGESTRUCT_FLOAT>::max;
+         break;
+      case IMAGESTRUCT_DOUBLE:
+         this->pixget = getPixPointer<IMAGESTRUCT_DOUBLE>();
+         sat_level = (float) imageStructDataType<IMAGESTRUCT_DOUBLE>::max;
+         break;
+      default:
+         std::cerr << "Unknown or unsupported data type\n";
+         exit(0);
+   }
 
 }
 

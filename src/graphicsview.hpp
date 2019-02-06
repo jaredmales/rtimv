@@ -1,5 +1,5 @@
 /** \file graphicsview.hpp
-  * \brief Declarations for the graphics view class of RTImV
+  * \brief Declarations for the graphics view class of rtimv
   * 
   * \author Jared R. Males (jaredmales@gmail.com)
   * 
@@ -48,8 +48,11 @@ class graphicsview : public QGraphicsView
       ///Constructor
       explicit graphicsview(QWidget *parent = 0);
       
+   /** \name Status Displays
+     * @{
+     */
+      
    protected:     
-   // The status displays 
       ///Setup a text box
       void textEditSetup( QTextEdit * te /**< [in/out] the text box to setup */);
       
@@ -180,8 +183,13 @@ class graphicsview : public QGraphicsView
       void saveBoxText( const char * nt, ///< [in] the new saveBox text
                         const char * fc=0  ///< [in] [optional] color for the saveBox text
                       );
+   
+      ///@}
       
-   // The gages:
+   /** \name The Gages 
+    * @{
+    */
+   
    protected:
       QTextEdit * m_fpsGage; ///< The FPS and age gage
       QTextEdit * m_textCoordX; ///< The x-coordinate of the mouse pointer
@@ -255,8 +263,8 @@ class graphicsview : public QGraphicsView
       float m_zoomFontSize; ///< Font size for the zoom box
       QString m_zoomFontColor; ///< Font color for the zoom color
    
-       QTimer m_zoomTimer; ///< When this timer expires the zoomText box is hidden
-       int    m_zoomTimeOut { RTIMV_DEF_ZOOMTIMEOUT}; ///<The timeout length in msec for hiding the zoom box.
+      QTimer m_zoomTimer; ///< When this timer expires the zoomText box is hidden
+      int    m_zoomTimeOut { RTIMV_DEF_ZOOMTIMEOUT}; ///<The timeout length in msec for hiding the zoom box.
       
    public:
       ///Set the Zoom font size
@@ -305,95 +313,64 @@ class graphicsview : public QGraphicsView
       //************************************
       //Mouse interactions
    protected:
-      int m_nX; ///< The total width of the image, in physicsl pixels.
-      int m_nY; ///< The total height of the image, in physical pixels.
       
       //The image center.  A middle click sets xcen and ycen.  These are then used to update act_xcen and act_ycen such that the 
       // display does not walk off the edge.
       float m_xCen; ///< The requested x-coordinate of the  center of the current view, in fractions of the image width
-      float m_actXCen; ///< The actual x-coordinate of the  center of the current view, as displayed.  In fraction of the image width.
       float m_yCen; ///< The requested y-coordinate of the  center of the current view, in fractions of the image height
-      float m_actYCen; ///< The y-coordinate of the actual center of the current view, as displayed.  In fraction of the image height.
    
+   ///@}
+   
+   /** \name Interaction 
+     * @{
+     */
    public:
-      ///Set the total width of the image in physical pixels
-      void nX(int nx /**< [in] */);
-      
-      ///Set the total width of the image in physical pixels
-      /**
-        * \returns _nX
+   
+      /// Center the view port on the given scene coordinate
+      /** Overloads QGraphicsView::centerOn so we can capture this coordinate
+        * for later use.  After setting m_xCen=x and m_yCen = y, just calls
+        * QGraphicsView::centerOn(x,y).
         */ 
-      int nX();
+      void centerOn( qreal x, ///< [in] The scene x coordinate on which to center
+                     qreal y  ///< [in] The scene y coordinate on which to center
+                   );
       
-      ///Set the total height of the image in physical pixels
-      void nY(int ny /**< [in] */);
-      
-      ///Set the total height of the image in physical pixels
-      /**
-        * \returns _nY
-        */
-      int nY();
-      
-      ///Set the x center
-      /** Sets the requested x center after normlizing to 0 <= xc <= 1.  Then sets
-        * the actual x center so that the view does not go past the edge.
+      /// Set the scene-coordinate center given viewport coordinates.
+      /** 
         */ 
-      void xCen(float xc /**< [in] */);
+      void mapCenterToScene( float xc, ///< [in] the viewport x-coorodinate on which to center
+                             float yc  ///< [in] the viewport x-coorodinate on which to center 
+                           );
       
       ///Get the requested x center
       /**
-        * \returns _xCen
+        * \returns m_xCen
         */ 
       float xCen();
       
-      ///Set the requested y center
-      /** Sets the requested y center after normlizing to 0 <= yc <= 1.  Then sets
-        * the actual y center so that the view does not go past the edge.
-        */ 
-      void yCen(float yc /**< [in] */);
-
       ///Get the requested y center
       /**
-        * \returns _yCen
+        * \returns m_yCen
         */
       float yCen();
-      
-      ///Get the actual x center
-      /** The actual center is corrected from the requested center to avoid shifting off the view port.
-        *
-        * \returns _actXCen
-        */
-      float actXCen();
-      
-      ///Get the actual y center
-      /** The actual center is corrected from the requested center to avoid shifting off the view port.
-        *
-        * \returns _actYCen
-        */
-      float actYCen();
-      
+            
    protected:
-      float m_mouseImX; ///< The current x-coordinate of the mouse
-      float m_mouseImY; ///< The current y-coordinate of the mouse
+      float m_mouseViewX; ///< The current x-coordinate of the mouse in viewport coords
+      float m_mouseViewY; ///< The current y-coordinate of the mouse in viewport coords
    
    public:
-      ///Set the current mouse x coordinate
-      void mouseImX( float mix /**< [in] the new mouse x coordinate*/);
       
       ///Get the current mouse x coordinate
       /**
         * \returns the current mouse x coordinate
         */ 
-      float mouseImX();
+      float mouseViewX();
       
-      ///Set the current mouse y coordinate
-      void mouseImY( float miy /**< [in] the new mouse y coordinate*/ );
-
       ///Get the current mouse y coordinate
       /**
         * \returns the current mouse y coordinate
         */       
-      float mouseImY();
+      float mouseViewY();
     
    protected:
       float m_zoomLevel; ///< The current zoom level
@@ -418,8 +395,6 @@ class graphicsview : public QGraphicsView
         */ 
       float screenZoom();
       
-      ///Calculate the image coordinate for a view coordinate
-      QPointF get_im_coord(const QPoint &viewcoord /**< [in] The view coordinate */ );
       
    signals:
       void centerChanged();
@@ -442,6 +417,8 @@ class graphicsview : public QGraphicsView
       void mouseDoubleClickEvent(QMouseEvent *e);
       
       void wheelEvent(QWheelEvent *e);
+
+   ///@}
       
 };
 
