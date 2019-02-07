@@ -36,7 +36,7 @@
 #include <sys/mman.h>
 #include <sys/file.h>
    
-#include "ImageStreamIO/ImageStreamIO.h"
+#include <ImageStreamIO.h>
 
 #include "colorMaps.hpp"
 #include "ImageStruct.hpp"

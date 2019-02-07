@@ -10,25 +10,14 @@
 #include <QDialog>
 #include <QThread>
 
-#include "levmar.h"
-
 #include "ui_imviewerStats.h"
 
 #include "imviewer.hpp"
-#include "rtPlotForm.hpp"
 
 class imviewerStats;
 
 ///Thread class to start the stats thread.
 class StatsThread : public QThread
-{
-   public:
-      void run();
-      imviewerStats *imvs;
-};
-
-///Thread class to start the stats thread.
-class FitThread : public QThread
 {
    public:
       void run();
@@ -71,35 +60,13 @@ class imviewerStats : public QDialog
       float imdata_mean;
       float imdata_median;
 
-      float fit_info[LM_INFO_SZ];
-      float *work;
-
-      float fit_params[7];
-      float fit_FWHM;
-      float fit_FWHM_min;
-      float fit_FWHM_max;
-      float fit_Ellipt;
-      float fit_x;
-      float fit_y;
-      
-      float * hist_x;
-      float * hist_y;
-      size_t hist_sz;
-      size_t hist_ptr;
-      float stdx;
-      float stdy;
-      
-      int fit_stat;
-      
       int regionChanged;
       int regionSizeChanged;
       int regionChangedFit;
       int statsChanged;
-      int fitChanged;
       int dieNow;
 
       StatsThread sth;
-      FitThread fth;
       
    public:
       void set_imdata(void * id, float ft, void * dd = 0);
@@ -108,38 +75,13 @@ class imviewerStats : public QDialog
       void stats_thread();
       void calc_stats();
 
-      void fit_thread();
-      void calc_fit();
       
    protected slots:
       void updateGUI();
-      void on_maxPlotButton_clicked();
-      void maxPlotClosed();
-
-      void on_peakPlotButton_clicked();
-      void peakPlotClosed();
-
-      void on_fwhmPlotButton_clicked();
-      void fwhmPlotClosed();
-
-      void on_ellipPlotButton_clicked();
-      
-      void on_xPlotButton_clicked();
-      void xPlotClosed();
-      
-      void on_yPlotButton_clicked();
-      void yPlotClosed();
       
    private:
       Ui::statsform ui;
 
-   protected:
-      rtPlotForm * maxPlot;
-      rtPlotForm * peakPlot;
-      rtPlotForm * fwhmPlot;
-      rtPlotForm * ellipPlot;
-      rtPlotForm * xPlot;
-      rtPlotForm * yPlot;
 };
 
 #endif //rtimv_imviewerstats_hpp

@@ -8,31 +8,32 @@ Displays images streaming from a scientific (primarily astronomical) camera.  Su
 
 Originally developed to support the MagAO+VisAO camera.  Now adapted to work with the shared memory image system ImageStreamIO of CACAO.
 
+This is now a stripped down version, with only minimal analysis tools.  A plugin system is under development to enable adding new tools, such as peak fitting.
+
 ## Installation
 
 Dependencies:
  - qt-5.
- - qwt. [on CentOS 7 do not install libqwt with yum. If already installed it may need to be removed.  On COS-7 QWT must be installed from source]
- - levmar. See my instructions for this at https://jaredmales.github.io/mxlib/group__levmar.html
- - BLAS & Lapack. See my instructions for this at https://jaredmales.github.io/mxlib/group__mkl.html
  - milk-org/ImageStreamIO from https://github.com/milk-org/ImageStreamIO
 
-On CentOS-7 mesa-libGL-devel.x86_64
+On CentOS-7 you may need to install mesa-libGL-devel.x86_64
  
 After installing the dependencies, verify, and edit if necessary, the following variables in `Makefile`
  - QMAKE
- - CACAO_INCLUDE
- - QWT_INCLUDE
- - QWT_LIB
- - LEVMAR_INC
- - LEVMAR_LIB
- - BLASPACK
+ - IMAGESTREAMIO_INCLUDE
+ - IMAGESTREAMIO_LIB
+ 
+If a standard install of CACAO was done, then you should not need to modify `IMAGESTREAMIO_*` in `Makefile`.
 
 Now all you should have to do is type make in the top directory.
 
 ## User's Guide
 
-To start it: ./bin/rtimv /tmp/path_to_shm.im.shm
+To start it: 
+```
+./bin/rtimv shm-name
+```
+Where `shm-name` comes from the CACAO standard /tmp/shm-name.im.shm
 
 I have not updated the user guide since porting from VisAO.  You can see [the old one here,](https://visao.as.arizona.edu/software_files/visao/html/group__operators__users__guide.html#imviewer_userguide) which is still mostly correct.  In particular the keyboard shortcuts should all work.
 

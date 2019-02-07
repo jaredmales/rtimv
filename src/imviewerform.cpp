@@ -193,7 +193,7 @@ void imviewerForm::post_set_ZoomLevel()
    ui.graphicsView->setTransform(transform);
    transform.scale(pointerOverZoom, pointerOverZoom);
    if(imcp) imcp->ui.pointerView->setTransform(transform);
-   //change_center();
+   change_center();
    
    if(nup)
    {

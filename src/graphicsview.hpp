@@ -39,7 +39,7 @@
 #define RTIMV_DEF_ZOOMFONTSIZE 18
 #define RTIMV_DEF_ZOOMTIMEOUT 2000
 
-///The RTImV Graphics View
+///The rtimv Graphics View
 class graphicsview : public QGraphicsView
 {
    Q_OBJECT
@@ -310,20 +310,24 @@ class graphicsview : public QGraphicsView
    public:
       QTextEdit * coords;
 
+   /** \name Mouse Interaction 
+     * 
+     * A middle click sets the center coordinate, which is used to center the scene in the viewport.
+     * 
+     * Viewport coordinates of the mouse are reported any time it moves.
+     * 
+     * @{
+     */
+
       //************************************
       //Mouse interactions
    protected:
       
-      //The image center.  A middle click sets xcen and ycen.  These are then used to update act_xcen and act_ycen such that the 
-      // display does not walk off the edge.
       float m_xCen; ///< The requested x-coordinate of the  center of the current view, in fractions of the image width
       float m_yCen; ///< The requested y-coordinate of the  center of the current view, in fractions of the image height
    
    ///@}
    
-   /** \name Interaction 
-     * @{
-     */
    public:
    
       /// Center the view port on the given scene coordinate

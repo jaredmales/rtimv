@@ -8,5 +8,5 @@ makefile.rtimv
 moc/*
 obj/*
 res/qrc_imviewer.cpp
-
-
+*~
+*.stash
