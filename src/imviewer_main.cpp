@@ -9,7 +9,7 @@ void error_report(const char* er, const char* file, int lno)
 }
 
 
-void log_info(const char* li) 
+void log_info(const char* li)
 {
    //Logger::get()->log(Logger::LOG_LEV_INFO, "%s.", li);
    std::cout << li << "\n";
@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
    QApplication app(argc, argv);
 
    std::string shmem_key;
-   
+
    if(argc > 1)
    {
       shmem_key = argv[1];
@@ -32,10 +32,10 @@ int main(int argc, char *argv[])
       std::cerr << "Must provide a SCExAO shared memory file\n";
       exit(0);
    }
-   
+
    imviewerForm imv(shmem_key);
-   
+
    imv.show();
-   
+
    return app.exec();
 }
