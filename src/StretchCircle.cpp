@@ -60,9 +60,6 @@ void StretchCircle::hoverMoveEvent(QGraphicsSceneHoverEvent * e)
    
    double drad = fabs(rad - 0.5*rect().width());
 
-   QPointF np = mapFromScene(QPointF(0, 0));
-   QPointF np2 = mapFromScene(QPointF(edgeTol, edgeTol));
-  
    if(drad > edgeTol)
    {
       emit mouseOut();
@@ -87,6 +84,8 @@ void StretchCircle::hoverMoveEvent(QGraphicsSceneHoverEvent * e)
 
 void StretchCircle::hoverLeaveEvent(QGraphicsSceneHoverEvent * e)
 {  
+   static_cast<void>(e);
+   
    setCursorStatus(0);
    emit mouseOut();
 }
@@ -149,6 +148,7 @@ void StretchCircle::mousePressEvent ( QGraphicsSceneMouseEvent * e )
 
 void StretchCircle::mouseReleaseEvent(QGraphicsSceneMouseEvent * event)
 {
+   static_cast<void>(event);
    if(sizing)
    {
       if(isSizing)
@@ -246,7 +246,7 @@ void StretchCircle::setCursorStatus(int cs)
    {
       cursorTimer.stop();
       setCursor(QCursor(Qt::ClosedHandCursor));
-      isMoving == true;
+      isMoving = true;
       grabbing = false;
       cursorStatus = 3;
       return;

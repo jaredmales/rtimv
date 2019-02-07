@@ -29,9 +29,7 @@ graphicsview::graphicsview(QWidget *parent): QGraphicsView(parent)
    setMouseTracking(true);
    
    m_xCen = .5;
-   m_actXCen = .5;
    m_yCen = .5;
-   m_actYCen = .5;
    
    m_warningText = new QTextEdit(this);
    textEditSetup(m_warningText);
@@ -473,48 +471,24 @@ void graphicsview::zoomTimerOut()
    m_zoomText->setText("");
    m_zoomTimer.stop();
 }
-
-//------------
-
-void graphicsview::nX(int nx)
+      
+void graphicsview::centerOn( qreal x, 
+                             qreal y 
+                           )
 {
-   m_nX = nx;
-}
-
-int graphicsview::nX()
-{
-   return m_nX;
-}
-
-void graphicsview::nY(int ny)
-{
-   m_nY = ny;
-}
-
-int graphicsview::nY()
-{
-   return m_nY;
+   m_xCen = x;
+   m_yCen = y;
+   
+   QGraphicsView::centerOn(x,y);
 }
       
-void graphicsview::xCen(float xc)
+void graphicsview::mapCenterToScene( float xc,
+                                     float yc
+                                   )
 {
-   if(xc < 0) xc = 0;
-   if(xc > 1) xc = 1;
-   
-   m_xCen = xc;
-   
-   //Now set actual x center
-   float nxcen;
-   float vszX;
-   
-   vszX = ((float)m_nX)/m_zoomLevel; //The zoomed x size of the image
-   
-   nxcen = m_xCen* m_nX; //The requested x-pixel center
-   
-   if(nxcen - .5*vszX <  0) nxcen = .5*vszX; //If we're off the left edge
-   if(nxcen + .5*vszX > m_nX) nxcen = m_nX - .5*vszX; //If we're off the right edge
-
-   m_actXCen = (nxcen / (float) m_nX);
+   QPointF p = mapToScene(xc, yc);
+   m_xCen = p.x();
+   m_yCen = p.y();
 }
 
 float graphicsview::xCen()
@@ -522,58 +496,20 @@ float graphicsview::xCen()
    return m_xCen;
 }
 
-void graphicsview::yCen(float yc)
-{
-   if(yc < 0) yc = 0;
-   if(yc > 1) yc = 1;
-   
-   m_yCen = yc;
-   
-   float nycen;
-   float vszY;
-   
-   vszY = ((float)m_nY)/m_zoomLevel;//The zoomed y size of the image
-   nycen = m_yCen*m_nY;//The requested y-pixel center
-   if(nycen - .5*vszY <  0) nycen = .5*vszY; //If we're off the top edge
-   if(nycen + .5*vszY > m_nY) nycen = m_nY - .5*vszY;//If we're off the bottom edge
-
-   m_actYCen = ( nycen / (float) m_nY);
-
-}
 
 float graphicsview::yCen()
 {
    return m_yCen;
 }
 
-float graphicsview::actXCen()
+float graphicsview::mouseViewX()
 {
-   return m_actXCen;
-}
-
-float graphicsview::actYCen()
-{
-   return m_actYCen;
-}
-
-void graphicsview::mouseImX( float mix )
-{
-   m_mouseImX = mix;
+   return m_mouseViewX;
 }
       
-float graphicsview::mouseImX()
+float graphicsview::mouseViewY()
 {
-   return m_mouseImX;
-}
-      
-void graphicsview::mouseImY( float miy )
-{
-   m_mouseImY = miy;
-}
-      
-float graphicsview::mouseImY()
-{
-   return m_mouseImY;
+   return m_mouseViewY;
 }
 
 void graphicsview::zoomLevel( float zl )
@@ -596,19 +532,8 @@ float graphicsview::screenZoom()
    return m_screenZoom;
 }
       
-QPointF graphicsview::get_im_coord(const QPoint &viewcoord)
-{
-   float nxcen, nycen;
-   
-   nxcen = .5*((float)width()) - (float)viewcoord.x();
-   nycen = .5*((float)height()) - (float)viewcoord.y();
-   
-   return QPointF((m_actXCen*m_nX-nxcen/(m_zoomLevel*m_screenZoom))/m_nX, (m_actYCen*m_nY-nycen/(m_zoomLevel*m_screenZoom))/m_nY);
-}
-
 void graphicsview::resizeEvent(QResizeEvent *)
 {
-   
    m_saveBox->setGeometry(1, 1, SAVEWIDTH, SAVEHEIGHT);
    
    m_loopText->setGeometry(SAVEWIDTH, 1, width()-SAVEWIDTH, LOOPHEIGHT);
@@ -621,80 +546,62 @@ void graphicsview::resizeEvent(QResizeEvent *)
    m_textPixelVal->setGeometry(0+COORDWIDTH+COORDWIDTH, height()-GAGEHEIGHT, COORDWIDTH+50, GAGEHEIGHT);   
    
    m_zoomText->setGeometry(width()-ZOOMWIDTH, height()-GAGEHEIGHT-ZOOMHEIGHT, ZOOMWIDTH, ZOOMHEIGHT);
-    
-   
 }
 
 void graphicsview::mouseMoveEvent(QMouseEvent *e)
 {
-   QPointF mp = get_im_coord(e->pos());
+   m_mouseViewX = e->pos().x();
+   m_mouseViewY = e->pos().y();
    
-   m_mouseImX = mp.x()*m_nX;
-   m_mouseImY = m_nY-mp.y()*m_nY;
-   
-   if(m_mouseImX >= 0 && m_mouseImX <= m_nX-1 && m_mouseImY >=0 && m_mouseImY <= m_nY -1)
-   {
-      emit mouseCoordsChanged();
-   }
-   
+   emit mouseCoordsChanged();
+      
    QGraphicsView::mouseMoveEvent(e);
 }
 
 void graphicsview::leaveEvent(QEvent *)
 {
-   m_mouseImX = -1;
-   m_mouseImY = -1;
+   m_mouseViewX = -1;
+   m_mouseViewY = -1;
    emit mouseCoordsChanged();
 }
 
 void graphicsview::mousePressEvent(QMouseEvent *e)
 {
-   QPointF mp;
-   
    if(e->button() == Qt::LeftButton)
    {
-      mp = get_im_coord(e->pos());
-      emit leftPressed(mp);
+      emit leftPressed(e->pos());//mp);
       QGraphicsView::mousePressEvent(e);
    }
+   
    if(e->button() == Qt::RightButton)
    {
-      mp = get_im_coord(e->pos());
-      emit rightPressed(mp);
+      emit rightPressed(e->pos());//mp);
    }
    else QGraphicsView::mousePressEvent(e);
 }
 
 void graphicsview::mouseReleaseEvent(QMouseEvent *e)
 {
-   QPointF mp;
-   
    if(e->button()  == Qt::MidButton)
    {
-      mp = get_im_coord(e->pos());
-      
-      xCen(mp.x());
-      yCen(mp.y());
+      mapCenterToScene(e->pos().x(), e->pos().y());
       emit centerChanged();
    }
    
    if(e->button() == Qt::LeftButton)
    {
-      mp = get_im_coord(e->pos());
-      emit leftClicked(mp);
+      emit leftClicked(e->pos());//mp);
       QGraphicsView::mouseReleaseEvent(e);
    }
    
    if(e->button() == Qt::RightButton)
    {
-      mp = get_im_coord(e->pos());
-      emit rightClicked(mp);
+      emit rightClicked(e->pos());//mp);
    }
 }
 
 void graphicsview::mouseDoubleClickEvent(QMouseEvent *e)
 {
-   //std::cout << "Double click\n";
    (void)(e);
 }
 

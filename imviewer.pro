@@ -6,7 +6,9 @@ TEMPLATE = app
 TARGET = rtimv
 DESTDIR = bin/ 
 DEPENDPATH += src/
-INCLUDEPATH += $(QWT_INCLUDE) $(LEVMAR_INC) $(IMAGESTREAMIO_INCLUDE)  /usr/include/x86_64-linux-gnu/qt5/
+INCLUDEPATH += $(IMAGESTREAMIO_INCLUDE)  
+#INCLUDEPATH += /usr/include/x86_64-linux-gnu/qt5/
+INCLUDEPATH += /usr/include/qt5/
 MOC_DIR = moc/
 OBJECTS_DIR = obj/
 RCC_DIR = res/
@@ -28,9 +30,7 @@ HEADERS += src/graphicsview.hpp \
            src/StretchBox.h \
            src/StretchCircle.h \
            src/imviewerstats.hpp \
-           src/rtPlotForm.hpp \
-           src/circleTimeSeries.hpp \
-           src/pixaccess.h 
+           src/pixaccess.h \
            src/colorMaps.hpp
 
 SOURCES += src/graphicsview.cpp \
@@ -39,19 +39,14 @@ SOURCES += src/graphicsview.cpp \
            src/imviewerform.cpp \
            src/imviewerControlPanel.cpp \
            src/StretchBox.cpp \
-           src/StretchCircle.cpp \
-           src/imviewerstats.cpp \
-           src/rtPlotForm.cpp
+           src/StretchCircle.cpp \ 
+           src/imviewerstats.cpp
            
 FORMS += forms/imviewergui.ui \
          forms/imviewerControlPanel.ui \
-         forms/imviewerStats.ui \
-         forms/rtplot.ui 
+         forms/imviewerStats.ui 
            
-LIBS += $(LEVMAR_LIB) \
-        $(BLASPACK) \
-        $(QWT_LIB) \
-        $(IMAGESTREAMIO_LIB)
+LIBS += $(IMAGESTREAMIO_LIB)
         
 RESOURCES += res/imviewer.qrc
 QT += widgets
