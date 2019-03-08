@@ -172,6 +172,11 @@ class imviewerForm : public imviewer
       
    public:
       virtual void post_setUserBoxActive(bool usba);
+         
+   protected:
+      bool m_showLoopStat {false};
+      bool m_showSaveStat {false};
+      
    private:
       Ui::imviewerForm ui;
 

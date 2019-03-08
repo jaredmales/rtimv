@@ -147,13 +147,13 @@ struct imageStructDataType<IMAGESTRUCT_COMPLEX_DOUBLE>
    static void setPointer( IMAGE & im, char * mapv) { im.array.CD = (type *) mapv;}
 };
 
-template<>
+/*template<>
 struct imageStructDataType<IMAGESTRUCT_EVENT_UI8_UI8_UI16_UI8>
 {
    typedef EVENT_UI8_UI8_UI16_UI8 type;
    constexpr static size_t size = sizeof(type);
 
    static void setPointer( IMAGE & im, char * mapv) { im.array.event1121 = (type *) mapv;}
-};
+};*/
 
 #endif //ImageStruct_hpp

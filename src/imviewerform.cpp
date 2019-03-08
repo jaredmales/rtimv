@@ -8,6 +8,9 @@ imviewerForm::imviewerForm(imviewer_shmt shkey, QWidget * Parent, Qt::WindowFlag
    imcp = 0;
    pointerOverZoom = 4.;
    
+   resize(height(), height()); //make square.
+   setWindowTitle(shkey.c_str());
+   
    //This will come up at some minimal size.
    ui.graphicsView->setGeometry(0,0, width(), height());
    
@@ -89,9 +92,7 @@ imviewerForm::imviewerForm(imviewer_shmt shkey, QWidget * Parent, Qt::WindowFlag
    imStats = 0;
    setImsize(1024,1024); //Just for initial setup.   
 
-   if(shmem_attached) timerout(); //Get first image
-
-   imtimer.start(imtimer_timeout); //and set timer.
+   m_imtimer.start(m_shmemTimeout); //and set timer.
 
 
 
@@ -99,7 +100,9 @@ imviewerForm::imviewerForm(imviewer_shmt shkey, QWidget * Parent, Qt::WindowFlag
    nup_tip = qgs->addLine(QLineF(512,400, 536, 424), QColor("skyblue"));
    nup->setTransformOriginPoint ( QPointF(512,512) );
    nup_tip->setTransformOriginPoint ( QPointF(512,512) );
-
+   nup->setVisible(false);
+   nup_tip->setVisible(false);
+   
    QPen qp = nup->pen();
    qp.setWidth(5);
 
@@ -112,50 +115,42 @@ imviewerForm::imviewerForm(imviewer_shmt shkey, QWidget * Parent, Qt::WindowFlag
 void imviewerForm::postSetImsize()
 {
    
-   ScreenZoom = std::min((float) ui.graphicsView->viewport()->width()/(float)nx,(float)ui.graphicsView->viewport()->height()/(float)ny);
-   
-   
-   //ui.graphicsView->centerOn(0.5*(nx-1), 0.5*(ny-1));
-   //set_viewcen(0.5,0.5);
+   ScreenZoom = std::min((float) ui.graphicsView->viewport()->width()/(float)m_nx,(float)ui.graphicsView->viewport()->height()/(float)m_ny);
    
    if(imcp)
    {
       QTransform transform;
-      float viewZoom = (float)imcp->ui.viewView->width()/(float)nx;
+      float viewZoom = (float)imcp->ui.viewView->width()/(float)m_nx;
       
       transform.scale(viewZoom, viewZoom);
       imcp->ui.viewView->setTransform(transform);
    }
    
    set_ZoomLevel(1.0);
-   
-   //ui.graphicsView->centerOn(0.5*(nx-1), 0.5*(ny-1));
-   
-   //set_viewcen(0.5,0.5);
 
    //Resize the user color box
-   userBox_i0 = ny*.25;
-   userBox_i1 = ny*.75;
+   userBox_i0 = m_ny*.25;
+   userBox_i1 = m_ny*.75;
 
-   userBox_j0 = nx*.25;
-   userBox_j1 = nx*.75;
+   userBox_j0 = m_nx*.25;
+   userBox_j1 = m_nx*.75;
 
    //std::cout << userBox_i0 << " " << userBox_i1 - userBox_i0 << " " << userBox_j0 << " " << userBox_j1 - userBox_j0<< "\n";
    userBox->setRect(userBox->mapRectFromScene(userBox_i0, userBox_j0, userBox_i1-userBox_i0, userBox_j1-userBox_j0));
    userBox->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
 
    //resize the stats box
-   statsBox->setRect(statsBox->mapRectFromScene(ny*.25, nx*.3, .4*ny, .4*nx));
+   statsBox->setRect(statsBox->mapRectFromScene(m_ny*.25, m_nx*.3, .4*m_ny, .4*m_nx));
    statsBox->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
    //statsBoxMoved(statsBox->rect());
    
    //resize the guide box
-   guideBox->setRect(statsBox->mapRectFromScene(ny*.3, nx*.3, .4*ny, .4*nx));
+   guideBox->setRect(statsBox->mapRectFromScene(m_ny*.3, m_nx*.3, .4*m_ny, .4*m_nx));
    guideBox->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
    //guideBoxMoved(guideBox->rect());
    
    //resize the circle
-   userCircle->setRect(userCircle->mapRectFromScene(ny*.35, nx*.35, .4*ny, .4*nx));
+   userCircle->setRect(userCircle->mapRectFromScene(m_ny*.35, m_nx*.35, .4*m_ny, .4*m_nx));
    userCircle->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
    //userCircleMoved(guideBox->rect());
    
@@ -197,11 +192,11 @@ void imviewerForm::post_set_ZoomLevel()
    
    if(nup)
    {
-      nup->setLine(ui.graphicsView->xCen(), ui.graphicsView->yCen()-.1*ny/ZoomLevel, ui.graphicsView->xCen(), ui.graphicsView->yCen()+.1*ny/ZoomLevel);
+      nup->setLine(ui.graphicsView->xCen(), ui.graphicsView->yCen()-.1*m_ny/ZoomLevel, ui.graphicsView->xCen(), ui.graphicsView->yCen()+.1*m_ny/ZoomLevel);
       
       nup->setTransformOriginPoint ( QPointF(ui.graphicsView->xCen(),ui.graphicsView->yCen()) );
          
-      nup_tip->setLine(QLineF(ui.graphicsView->xCen(),ui.graphicsView->yCen()-.1*ny/ZoomLevel, ui.graphicsView->xCen() + .02*nx/ZoomLevel,ui.graphicsView->yCen()-.1*ny/ZoomLevel + .012*ny/ZoomLevel));
+      nup_tip->setLine(QLineF(ui.graphicsView->xCen(),ui.graphicsView->yCen()-.1*m_ny/ZoomLevel, ui.graphicsView->xCen() + .02*m_nx/ZoomLevel,ui.graphicsView->yCen()-.1*m_ny/ZoomLevel + .012*m_ny/ZoomLevel));
       nup_tip->setTransformOriginPoint (  QPointF(ui.graphicsView->xCen(),ui.graphicsView->yCen()) );
 
       QPen qp = nup->pen();
@@ -223,7 +218,7 @@ void imviewerForm::post_set_ZoomLevel()
 
 void imviewerForm::postChangeImdata()
 {
-   if(fps_ave > 1.0) ui.graphicsView->fpsGageText( fps_ave );
+   //if(fps_ave > 1.0) ui.graphicsView->fpsGageText( fps_ave );
   
    if(saturated)
    {
@@ -241,7 +236,6 @@ void imviewerForm::postChangeImdata()
       set_viewcen(0.5,0.5);
       post_set_ZoomLevel();
    }
-   
    else qpmi->setPixmap(qpm);
         
    if(userBox) qpmi->stackBefore(userBox);
@@ -279,15 +273,15 @@ void imviewerForm::postChangeImdata()
 #if RT_SYSTEM == RT_SYSTEM_VISAO
    if(imStats) 
    {
-      if(applyDark && dark_sim.imdata) imStats->set_imdata(imdata, frame_time, dark_sim.imdata);
-      else  imStats->set_imdata(imdata, frame_time,0);
+      if(applyDark && dark_sim.imdata) imStats->set_imdata(m_imdata, frame_time, dark_sim.imdata);
+      else  imStats->set_imdata(m_imdata, frame_time,0);
    }
 #endif
 
 #if RT_SYSTEM == RT_SYSTEM_SCEXAO
    if(imStats) 
    {
-      imStats->set_imdata(imdata, frame_time,0);
+      imStats->set_imdata(m_imdata, frame_time,0);
    }
 #endif
 
@@ -406,8 +400,8 @@ void imviewerForm::change_center(bool movezoombox)
    if(imcp)
    {
       
-      imcp->viewLineVert->setLine(ui.graphicsView->xCen(), 0, ui.graphicsView->xCen(), ny);
-      imcp->viewLineHorz->setLine(0, ui.graphicsView->yCen(), nx, ui.graphicsView->yCen());
+      imcp->viewLineVert->setLine(ui.graphicsView->xCen(), 0, ui.graphicsView->xCen(), m_ny);
+      imcp->viewLineHorz->setLine(0, ui.graphicsView->yCen(), m_nx, ui.graphicsView->yCen());
       
       if(ZoomLevel <= 1.0) imcp->viewBox->setVisible(false);
       else
@@ -415,12 +409,12 @@ void imviewerForm::change_center(bool movezoombox)
          imcp->viewBox->setVisible(true);
          if(movezoombox)
          {
-            QPointF tmpp = imcp->viewBox->mapFromParent(ui.graphicsView->xCen() - .5*nx/ZoomLevel, ui.graphicsView->yCen()-.5*ny/ZoomLevel);
-            imcp->viewBox->setRect(tmpp.x(), tmpp.y(), nx/ZoomLevel, ny/ZoomLevel);
+            QPointF tmpp = imcp->viewBox->mapFromParent(ui.graphicsView->xCen() - .5*m_nx/ZoomLevel, ui.graphicsView->yCen()-.5*m_ny/ZoomLevel);
+            imcp->viewBox->setRect(tmpp.x(), tmpp.y(), m_nx/ZoomLevel, m_ny/ZoomLevel);
          }
          
       }
-      imcp->ui.viewView->centerOn(.5*nx, .5*ny);
+      imcp->ui.viewView->centerOn(.5*m_nx, .5*m_ny);
       imcp->update_panel();
    }
 }
@@ -441,7 +435,7 @@ void imviewerForm::changeCenter()
 
 void imviewerForm::resizeEvent(QResizeEvent *)
 {
-   ScreenZoom = std::min((float)width()/(float)nx,(float)height()/(float)ny);
+   ScreenZoom = std::min((float)width()/(float)m_nx,(float)height()/(float)m_ny);
    change_center();
    ui.graphicsView->setGeometry(0,0,width(), height());
    post_set_ZoomLevel();
@@ -473,9 +467,9 @@ void imviewerForm::nullMouseCoords()
 
 void imviewerForm::updateMouseCoords()
 {
-   int idx_x, idx_y;
+   int64_t idx_x, idx_y; //image size are uint32_t, so this allows signed comparison without overflow issues
    
-   if(!imdata) return;
+   if(!m_imdata) return;
    if(!qpmi) return;
    
    QPointF pt = ui.graphicsView->mapToScene(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY());
@@ -494,29 +488,29 @@ void imviewerForm::updateMouseCoords()
       ui.graphicsView->textCoordY(qpmi->boundingRect().height() - my);
       
       
-      idx_x = ((int)(mx));
+      idx_x = ((int64_t)(mx));
       if(idx_x < 0) idx_x = 0;
-      if(idx_x > nx-1) idx_x = nx-1;
+      if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
       
       idx_y = (int)(qpmi->boundingRect().height() - my);
       if(idx_y < 0) idx_y = 0;
-      if(idx_y > ny-1) idx_y = ny-1;
+      if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;
 
-      ui.graphicsView->textPixelVal(pixget(imdata, (int)(idx_x*ny) + (int)(idx_y)));
+      ui.graphicsView->textPixelVal(pixget(m_imdata, (int)(idx_x*m_ny) + (int)(idx_y)));
 
       if(imcp)
       {
          #if RT_SYSTEM == RT_SYSTEM_VISAO        
          if(!applyDark)
          {
-            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), pixget(imdata,idx_y*ny + idx_x ));
+            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), pixget(m_imdata,idx_y*m_ny + idx_x ));
          }
          else
          {
-            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), ( pixget(imdata,idx_y*ny + idx_x)- pixget(dark_sim.imdata,(int)(idx_y*ny) + (int)(idx_x)) ));
+            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), ( pixget(m_imdata,idx_y*m_ny + idx_x)- pixget(dark_sim.imdata,(int)(idx_y*m_ny) + (int)(idx_x)) ));
          }
          #else
-         imcp->updateMouseCoords(mx, my, pixget(imdata,idx_y*ny + idx_x) );
+         imcp->updateMouseCoords(mx, my, pixget(m_imdata,idx_y*m_ny + idx_x) );
          #endif
 
       }
@@ -598,32 +592,35 @@ void imviewerForm::update_age()
    gettimeofday(&tvtmp, 0);
    double timetmp = (double)tvtmp.tv_sec + ((double)tvtmp.tv_usec)/1e6;
    
-   double age = timetmp - fps_time0;
+   double age = timetmp - m_fpsTime;
    
-   if(age <= 1.0 && fps_ave > 1.0) 
+   if(m_fpsEst > 1 && age < 1.0) 
    {
-      ui.graphicsView->fpsGageText(fps_ave);
+      ui.graphicsView->fpsGageText(m_fpsEst);
    }
    else
    {
-      ui.graphicsView->fpsGageText(timetmp-fps_time0, true);
-      
-      //This reset the fps averaging so that it doesn't jitter when next image shows up.
-      if(fps_hist.size() >= n_ave_fps) fps_hist.clear();      
+      ui.graphicsView->fpsGageText(age, true);
    } 
    
 
    
-   ui.graphicsView->loopText("Loop OPEN", "red");
-  
-  if(curr_saved == 1)
-  {
-     ui.graphicsView->saveBoxText("S", "lime");
-  }
-  else
-  {
-     ui.graphicsView->saveBoxText("X", "red");
-  }   
+   if(m_showLoopStat)
+   {
+      ui.graphicsView->loopText("Loop OPEN", "red");
+   }
+   
+   if(m_showSaveStat)
+   {
+      if(curr_saved == 1)
+      {
+         ui.graphicsView->saveBoxText("S", "lime");
+      }
+      else
+      {
+         ui.graphicsView->saveBoxText("X", "red");
+      }
+   }
 }
 
 
@@ -638,10 +635,10 @@ void imviewerForm::doLaunchStatsBox()
       imStats = new imviewerStats(pixget, type_size, this, 0);
       imStats->setAttribute(Qt::WA_DeleteOnClose); //Qt will delete imstats when it closes.
 #if RT_SYSTEM == RT_SYSTEM_VISAO
-      if(applyDark) imStats->set_imdata(imdata, frame_time, dark_sim.imdata);
-      else imStats->set_imdata(imdata, frame_time, 0);
+      if(applyDark) imStats->set_imdata(m_imdata, frame_time, dark_sim.imdata);
+      else imStats->set_imdata(m_imdata, frame_time, 0);
 #else
-      imStats->set_imdata(imdata, frame_time, 0);
+      imStats->set_imdata(m_imdata, frame_time, 0);
 #endif
       connect(imStats, SIGNAL(finished(int )), this, SLOT(imStatsClosed(int )));
    }
@@ -689,10 +686,10 @@ void imviewerForm::statsBoxMoved(const QRectF & newr)
    if(imStats) 
    {
 #if RT_SYSTEM == RT_SYSTEM_VISAO
-      if(applyDark) imStats->set_imdata(imdata, frame_time, nx, ny, np.x() + .5, np2.x(), ny-np2.y()+.5, ny-np.y(), dark_sim.imdata);
-      else imStats->set_imdata(imdata, frame_time, nx, ny, np.x() + .5, np2.x(), ny-np2.y()+.5, ny-np.y(), 0);
+      if(applyDark) imStats->set_imdata(m_imdata, frame_time, m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y(), dark_sim.imdata);
+      else imStats->set_imdata(m_imdata, frame_time, m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y(), 0);
 #else
-      imStats->set_imdata(imdata, frame_time, nx, ny, np.x() + .5, np2.x(), ny-np2.y()+.5, ny-np.y(), 0);
+      imStats->set_imdata(m_imdata, frame_time, m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y(), 0);
 #endif 
    }
    
@@ -715,8 +712,8 @@ void imviewerForm::userBoxMoved(const QRectF & newr)
 
    userBox_j0 = (int) (np2.x() + .5);
    userBox_j1 = (int) np.x();
-   userBox_i0 = ny-(int) (np2.y() + .5);
-   userBox_i1 = ny-(int) np.y();
+   userBox_i0 = m_ny-(int) (np2.y() + .5);
+   userBox_i1 = m_ny-(int) np.y();
 
    setUserBoxActive(true); //recalcs and recolors.
    
@@ -743,8 +740,8 @@ void imviewerForm::guideBoxMoved(const QRectF & newr)
    guideBox_i0 = np.x() + .5;
    guideBox_i1 = np2.x();
    
-   guideBox_j0 = ny-np2.y() + .5;
-   guideBox_j1 = ny-np.y();
+   guideBox_j0 = m_ny-np2.y() + .5;
+   guideBox_j1 = m_ny-np.y();
   
    //std::cout << guideBox_i0 << " " << guideBox_j0 << " " << guideBox_i1 << " " << guideBox_j1 << "\n";
    

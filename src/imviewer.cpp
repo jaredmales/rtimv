@@ -8,7 +8,7 @@ imviewer::imviewer(imviewer_shmt shkey, QWidget * Parent, Qt::WindowFlags f) : Q
 
    shmem_key = shkey;
 
-   connect(&imtimer, SIGNAL(timeout()), this, SLOT(_shmem_timerout()));
+   connect(&m_imtimer, SIGNAL(timeout()), this, SLOT(_shmem_timerout()));
 }
 
 
@@ -27,10 +27,10 @@ void imviewer::setUserBoxActive(bool usba)
       }
 
       if(userBox_i0 < 0) userBox_i0 = 0;
-      if(userBox_i0 >= nx) userBox_i0 = nx-(userBox_i1-userBox_i0);
+      if(userBox_i0 >= (int64_t) m_nx) userBox_i0 = (int64_t) m_nx-(userBox_i1-userBox_i0);
 
       if(userBox_i1 <= 0) userBox_i1 = 0 + (userBox_i1-userBox_i0);
-      if(userBox_i1 > nx) userBox_i1 = nx-1;
+      if(userBox_i1 > (int64_t) m_nx) userBox_i1 = (int64_t)m_nx-1;
 
       if(userBox_j0 > userBox_j1)
       {
@@ -40,14 +40,14 @@ void imviewer::setUserBoxActive(bool usba)
       }
 
       if(userBox_j0 < 0) userBox_j0 = 0;
-      if(userBox_j0 >= nx) userBox_j0 = ny-(userBox_j1-userBox_j0);
+      if(userBox_j0 >= (int64_t) m_nx) userBox_j0 = (int64_t)m_ny-(userBox_j1-userBox_j0);
 
       if(userBox_j1 <= 0) userBox_j1 = 0 + (userBox_j1-userBox_j0);
-      if(userBox_j1 > ny) userBox_j1 = ny-1;
+      if(userBox_j1 > (int64_t) m_ny) userBox_j1 = (int64_t)m_ny-1;
 
 
-      idx = userBox_i0*ny + userBox_j0;
-      imval = pixget(imdata, idx);
+      idx = userBox_i0*m_ny + userBox_j0;
+      imval = pixget(m_imdata, idx);
 
       userBox_min = imval;
       userBox_max = imval;
@@ -55,8 +55,8 @@ void imviewer::setUserBoxActive(bool usba)
       {
          for(int j = userBox_j0; j < userBox_j1; j++)
          {
-            idx = i*ny + j;
-            imval = pixget(imdata, idx);
+            idx = i*m_ny + j;
+            imval = pixget(m_imdata, idx);
 
             if(imval < userBox_min) userBox_min = imval;
             if(imval > userBox_max) userBox_max = imval;
@@ -74,32 +74,32 @@ void imviewer::setUserBoxActive(bool usba)
 
 }
 
-void imviewer::allocImdata(int x, int y)
+void imviewer::allocImdata(uint32_t x, uint32_t y)
 {
-   if(imdata && localImdata) delete[] imdata;
+   if(m_imdata && localImdata) delete[] m_imdata;
 
    setImsize(x, y);
 
-   imdata = new char[nx*ny*type_size];
+   m_imdata = new char[m_nx*m_ny*type_size];
 
    localImdata = true;
    changeImdata(true);
 }
 
-void imviewer::setImsize(int x, int y)
+void imviewer::setImsize(uint32_t x, uint32_t y)
 {
    int cb;
 
-   if(nx !=x  || ny !=y  || qim == 0)
+   if(m_nx !=x  || m_ny !=y  || qim == 0)
    {
       if(x!=0 && y!=0)
       {
-         nx = x;
-         ny = y;
+         m_nx = x;
+         m_ny = y;
 
          if(qim) delete qim;
 
-         qim = new QImage(nx, ny, QImage::Format_Indexed8);
+         qim = new QImage(m_nx, m_ny, QImage::Format_Indexed8);
 
          cb = current_colorbar; //force a reload.
          current_colorbar = -1;
@@ -124,7 +124,7 @@ void imviewer::changeImdata(bool newdata)
    int idx;
    float imval;
 
-   if(!imdata) return;
+   if(!m_imdata) return;
 
    amChangingimdata = true;
 
@@ -135,25 +135,25 @@ void imviewer::changeImdata(bool newdata)
    else
    {
       //Update statistics
-      imval = pixget(imdata,0);
+      imval = pixget(m_imdata,0);
       tmp_min = imval;
       tmp_max = imval;
       saturated = 0;
 
       if(userBoxActive)
       {
-         idx = userBox_i0*ny + userBox_j0;
-         imval = pixget(imdata, idx);
+         idx = userBox_i0*m_ny + userBox_j0;
+         imval = pixget(m_imdata, idx);
          userBox_min = imval;
          userBox_max = imval;
       }
 
-      for(int i = 0; i < ny; i++)
+      for(uint32_t i = 0; i < m_ny; ++i)
       {
-         for(int j=0;j < nx; j++)
+         for(uint32_t j=0;j < m_nx; ++j)
          {
-            idx = i*nx + j;
-            imval = pixget(imdata, idx);
+            idx = i*m_nx + j;
+            imval = pixget(m_imdata, idx);
 
             if(imval > tmp_max) tmp_max = imval;
             if(imval < tmp_min) tmp_min = imval;
@@ -169,7 +169,7 @@ void imviewer::changeImdata(bool newdata)
                }
             }
 
-            qim->setPixel(j, ny-i-1, (int)calcPixval(imval));
+            qim->setPixel(j, m_ny-i-1, (int)calcPixval(imval));
 
          }
       }
@@ -180,7 +180,8 @@ void imviewer::changeImdata(bool newdata)
       mindat_rel = (mindat - imdat_min)/(imdat_max-imdat_min);
       maxdat_rel = (maxdat - imdat_min)/(imdat_max-imdat_min);
     }
-    qpm = QPixmap::fromImage(*qim,Qt::ThresholdDither);
+    //qpm = QPixmap::fromImage(*qim, Qt::AutoColor | Qt::ThresholdDither);
+    qpm.convertFromImage(*qim, Qt::AutoColor | Qt::ThresholdDither);
 
     postChangeImdata();
     amChangingimdata = false;
@@ -188,11 +189,11 @@ void imviewer::changeImdata(bool newdata)
 
 void imviewer::changeImdataRecolorOnly()
 {
-   for(int i = 0; i < ny; i++)
+   for(uint32_t i = 0; i < m_ny; ++i)
    {
-      for(int j=0;j <nx; j++)
+      for(uint32_t j=0;j <m_nx; ++j)
       {
-         qim->setPixel(j, ny-i-1, (int)calcPixval( pixget(imdata,j*ny + i) ));
+         qim->setPixel(j, m_ny-i-1, (int)calcPixval( pixget(m_imdata,i*m_nx + j) ));
       }
    }
 }
@@ -232,7 +233,7 @@ void imviewer::changeImdata_applyDark(bool newdata)
 // 
 //       if(userBoxActive)
 //       {
-//          idx = userBox_i0*ny + userBox_j0;
+//          idx = userBox_i0*m_ny + userBox_j0;
 //          imval = pixget(imdata, idx);
 //          darkval = pixget(dark_sim.imdata, idx);
 //          imv_m_darkv = imval-darkval;
@@ -241,11 +242,11 @@ void imviewer::changeImdata_applyDark(bool newdata)
 //          userBox_max = imv_m_darkv;
 //       }
 // 
-//       for(int i = 0; i < ny; i++)
+//       for(int i = 0; i < m_ny; i++)
 //       {
-//          for(int j=0;j < nx; j++)
+//          for(int j=0;j < m_nx; j++)
 //          {
-//             idx = i*ny + j;
+//             idx = i*m_ny + j;
 //             imval = pixget(imdata, idx);
 //             darkval = pixget(dark_sim.imdata, idx);
 //             imv_m_darkv = imval-darkval;
@@ -264,14 +265,14 @@ void imviewer::changeImdata_applyDark(bool newdata)
 //                }
 //             }
 // 
-//             qim->setPixel(j, ny-i-1, (int)calcPixval(imv_m_darkv));
+//             qim->setPixel(j, m_ny-i-1, (int)calcPixval(imv_m_darkv));
 // 
 //          }
 //       }
 // 
 //       imdat_max = tmp_max;//max(*mean_acc);
 //       imdat_min = tmp_min;// min(*mean_acc);
-//       //imdat_mean = tmp_mean/(nx*ny);//mean(*mean_acc);
+//       //imdat_mean = tmp_mean/(m_nx*m_ny);//mean(*mean_acc);
 // 
 //       mindat_rel = (mindat - imdat_min)/(imdat_max-imdat_min);
 //       maxdat_rel = (maxdat - imdat_min)/(imdat_max-imdat_min);
@@ -293,12 +294,12 @@ void imviewer::changeImdataRecolorOnly_applyDark()
 //    #if RT_SYSTEM == RT_SYSTEM_VISAO
 //    int idx;
 // 
-//    for(int i = 0; i < ny; i++)
+//    for(int i = 0; i < m_ny; i++)
 //    {
-//       for(int j=0;j <nx; j++)
+//       for(int j=0;j <m_nx; j++)
 //       {
-//          idx = i*ny + j;
-//          qim->setPixel(j, ny-i-1, (int)calcPixval(pixget(imdata,idx)-pixget(dark_sim.imdata, idx)));
+//          idx = i*m_ny + j;
+//          qim->setPixel(j, m_ny-i-1, (int)calcPixval(pixget(imdata,idx)-pixget(dark_sim.imdata, idx)));
 //       }
 //    }
 //   #endif
@@ -307,17 +308,20 @@ void imviewer::changeImdataRecolorOnly_applyDark()
 float imviewer::calcPixval(float d)
 {
    float pixval;
-   float a = 1000;
+   static float a = 1000;
    static float log10_a = log10(a);
 
-   pixval = d - mindatsc;
+   //pixval = d - mindatsc;
+   //if(pixval < 0) pixval = 0;
+
+   //if(pixval > maxdatsc - mindatsc) pixval = maxdatsc-mindatsc;
+
+   //if(maxdatsc > mindatsc) pixval = pixval/((float)(maxdatsc-mindatsc));
+   //else pixval = .5;
+
+   pixval = (d - mindatsc)/((float)(maxdatsc-mindatsc));
    if(pixval < 0) pixval = 0;
-
-   if(pixval > maxdatsc - mindatsc) pixval = maxdatsc-mindatsc;
-
-   if(maxdatsc > mindatsc) pixval = pixval/((float)(maxdatsc-mindatsc));
-   else pixval = .5;
-
+   
    switch(colorbar_type)
    {
       case typelog:
@@ -350,10 +354,12 @@ void imviewer::postChangeImdata()
 
 void imviewer::point_imdata(void * imd)
 {
-   if(imdata && localImdata) delete[] imdata;
-   imdata = (char *)imd;
+   if(m_imdata && localImdata) delete[] m_imdata;
+   
+   m_imdata = (char *)imd;
 
    localImdata = false;
+   
    changeImdata(true);
 }
 
@@ -488,20 +494,9 @@ void imviewer::set_colorbar_type(int ct)
 
    colorbar_type = ct;
 
-   //now update mindatsc and maxdatasc
    set_mindat(mindat);
    set_maxdat(maxdat);
-   /*      if(colorbar_type == typelinear)
-    *       {
-    *               mindatsc = mindat;
-    *               maxdatsc = maxdat;
-    }
 
-    if(colorbar_type == typelog)
-    {
-       mindatsc = log10(mindat);
-       maxdatsc = log10(maxdat);
-    }*/
 }
 
 void imviewer::set_ZoomLevel(float zl)
@@ -530,19 +525,19 @@ void imviewer::set_RealTimeStopped(int rts)
 
    if(RealTimeStopped)
    {
-      imtimer.stop();
-      if(imdata)
+      m_imtimer.stop();
+      if(m_imdata)
       {
          if(tmpim) free(tmpim);
-         tmpim = (char *) malloc(nx*ny*type_size); //new IMDATA_TYPE[nx*ny];
-         //for(int i=0; i< nx*ny; i++) tmpim[i] = imdata[i];
-         memcpy(tmpim, imdata, nx*ny*type_size);
-         imdata = tmpim;
+         tmpim = (char *) malloc(m_nx*m_ny*type_size); //new IMDATA_TYPE[m_nx*m_ny];
+         
+         memcpy(tmpim, m_imdata, m_nx*m_ny*type_size);
+         m_imdata = tmpim;
       }
    }
    else
    {
-      imtimer.start(imtimer_timeout);
+      m_imtimer.start(m_imageTimeout);
 
       if(shmem_attached) timerout();
       else shmem_timerout();
@@ -552,20 +547,26 @@ void imviewer::set_RealTimeStopped(int rts)
    }
 }
 
-void imviewer::set_imtimer_timeout(int to)
+void imviewer::set_imageTimeout(int to)
 {
-   imtimer_timeout = to;
-   imtimer.start(imtimer_timeout);
+   m_imageTimeout = to;
+   m_imtimer.start(m_imageTimeout);
 }
 
 void imviewer::_shmem_timerout()
 {
+   m_imtimer.stop();
    shmem_timerout();
 
    if(shmem_attached)
    {
-      disconnect(&imtimer, SIGNAL(timeout()), this, SLOT(_shmem_timerout()));
-      connect(&imtimer, SIGNAL(timeout()), this, SLOT(_timerout()));
+      disconnect(&m_imtimer, SIGNAL(timeout()), this, SLOT(_shmem_timerout()));
+      connect(&m_imtimer, SIGNAL(timeout()), this, SLOT(_timerout()));
+      m_imtimer.start(m_imageTimeout);
+   }
+   else
+   {
+      m_imtimer.start(m_shmemTimeout);
    }
 }
 
@@ -576,26 +577,23 @@ void imviewer::shmem_timerout()
    if( ImageStreamIO_openIm(&image, shmem_key.c_str()) != 0)
    {
       shmem_attached = 0;
-      sleep(1);
       return; //comeback on next timeout
    }
    
-   if(image.md[0].sem <= semaphoreNumber)  //Creation not complete yet (believe it or not this happens0
+   if(image.md[0].sem <= 1)  //Creation not complete yet (believe it or not this happens0
    {
       ImageStreamIO_closeIm(&image);
       shmem_attached = 0;
-      sleep(1);
       return; //We just need to wait for the server process to finish startup, so come back on next timeout
    }
    
    shmem_attached = 1;
    
-   sem = image.semptr[semaphoreNumber];
-   type_size = ImageStreamIO_typesize(image.md[0].atype);
+   type_size = ImageStreamIO_typesize(image.md[0].datatype);
          
    setImsize(image.md[0].size[0], image.md[0].size[1]);
          
-   switch(image.md[0].atype)
+   switch(image.md[0].datatype)
    {
       case IMAGESTRUCT_UINT8:
          this->pixget = getPixPointer<IMAGESTRUCT_UINT8>();
@@ -651,96 +649,102 @@ void imviewer::_timerout()
 
 void imviewer::timerout()
 {
-   int curr_image;
-   size_t snx, sny;
+   int64_t curr_image;
+   uint64_t cnt0;
+   
+   static uint64_t lastCnt0 = -1; //make huge so we don't skip the 0 image
+   
+   uint32_t snx, sny;
 
-   if(sem_trywait(sem) == 0)
+   static int fps_counter = 0;
+   
+   if(image.md[0].sem <= 0) //Indicates that the server has cleaned up.
    {
-      if(image.md[0].size[2] > 0)
-      {
-         curr_image = image.md[0].cnt1 - 1;
-         if(curr_image < 0) curr_image = image.md[0].size[2] - 1;
-      }
-      else curr_image = 0;
-
-      update_fps(false);
-
-      snx = image.md[0].size[0];
-      sny = image.md[0].size[1];
-      point_imdata(snx,sny, (void *) (image.array.SI8 + curr_image*snx*sny*type_size));
-   }
-   else 
-   {
-      if(image.md[0].sem <= 0) //Indicates that the server has cleaned up.
-      {
-         ImageStreamIO_closeIm(&image);
-         shmem_attached = 0;
-         disconnect(&imtimer, SIGNAL(timeout()), this, SLOT(_timerout()));
-         connect(&imtimer, SIGNAL(timeout()), this, SLOT(_shmem_timerout()));
-        
-         i_fps = -1;
-      }
+      ImageStreamIO_closeIm(&image);
+      shmem_attached = 0;
+      lastCnt0 = -1;
+      disconnect(&m_imtimer, SIGNAL(timeout()), this, SLOT(_timerout()));
+      connect(&m_imtimer, SIGNAL(timeout()), this, SLOT(_shmem_timerout()));
       
-      update_fps(true);
+      return;
    }
+      
+      
+   if(image.md[0].size[2] > 0)
+   {
+      curr_image = image.md[0].cnt1 - 1;
+      if(curr_image < 0) curr_image = image.md[0].size[2] - 1;
+   }
+   else curr_image = 0;
+
+   
+   
+   snx = image.md[0].size[0];
+   sny = image.md[0].size[1];
+   
+   if( snx != m_nx || sny != m_ny ) //Something else changed!
+   {
+      ImageStreamIO_closeIm(&image);
+      shmem_attached = 0;
+      lastCnt0 = -1;
+      disconnect(&m_imtimer, SIGNAL(timeout()), this, SLOT(_timerout()));
+      connect(&m_imtimer, SIGNAL(timeout()), this, SLOT(_shmem_timerout()));
+      
+      return;
+   }
+   
+   cnt0 = image.md[0].cnt0;
+   if(cnt0 != lastCnt0) //Only redraw if it's actually a new image.
+   {
+      point_imdata(snx,sny, (void *) (image.array.SI8 + curr_image*snx*sny*type_size));
+   
+   
+      lastCnt0 = cnt0;
+   
+      if(fps_counter > 1000/m_imageTimeout)
+      {
+         update_fps();
+         fps_counter = 0;
+      }
+      else
+      {
+         ++fps_counter;
+      }
+   }
+   else
+   {
+      fps_counter = 1000/m_imageTimeout+1;
+
+      update_age();
+   }
+      
+      
+
 
 }
 
-void imviewer::update_fps(bool NoAdvance)
+void imviewer::update_fps()
 {
-   struct timeval tvtmp;
-   double dftime, timetmp;
-   static unsigned n_noadvance = 0;
+   double dftime;
 
-   if(i_fps < 0)
+   m_fpsTime = image.md[0].atime.tv_sec + ((double) image.md[0].atime.tv_nsec)/1e9;
+   if(m_fpsTime0 == 0)
    {
-      fps_hist.clear();
-      i_fps = 0;
-      fps_time0 = 0.;
-      fps_ave = 0.0;
-      n_noadvance = 0;
+      m_fpsTime0 = m_fpsTime;
+      m_fpsFrame0 = image.md[0].cnt0;
    }
-   gettimeofday(&tvtmp, 0);
-   timetmp = (double) tvtmp.tv_sec + ((double)tvtmp.tv_usec)/1e6;
-
-   if(fps_time0 > 0)
+   
+   if(m_fpsTime != m_fpsTime0)
    {
-      dftime = timetmp - fps_time0;
+      dftime = m_fpsTime - m_fpsTime0;
 
-      //insert time
-      if(fps_hist.size() < n_ave_fps)
-      {
-         fps_hist.push_back(dftime);
-         i_fps = fps_hist.size()-1;
-      }
-      else
-      {
-         fps_hist[i_fps] = dftime;
-         ++i_fps;
-         if((unsigned) i_fps >= n_ave_fps) i_fps = 0;
-      }
-
-      //calc fps_ave
-      fps_sum = 0.;
-      for(unsigned i=0; i<fps_hist.size(); i++) fps_sum += fps_hist[i];
-      fps_ave = 1./(fps_sum/fps_hist.size());
-
-      if(NoAdvance)
-      {
-
-         --i_fps;
-         if(fps_hist.size() < n_ave_fps) fps_hist.pop_back();
-         if(i_fps < 0) i_fps = n_ave_fps-1;
-
-         ++n_noadvance;
-      }
-      else
-      {
-         n_noadvance = 0;
-      }
+      if(dftime < 1e-9) return;
+      
+      m_fpsEst = (float)((image.md[0].cnt0 - m_fpsFrame0))/dftime;   
+      
+      m_fpsTime0 = m_fpsTime;
+      m_fpsFrame0 = image.md[0].cnt0;
    }
-
-   if(!NoAdvance) fps_time0 =  timetmp;
 
    update_age();
 }

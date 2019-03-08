@@ -911,7 +911,7 @@ void imviewerControlPanel::on_relfixedButton_clicked()
 
 void imviewerControlPanel::on_imtimerspinBox_valueChanged(int to)
 {
-   imv->set_imtimer_timeout(to);
+   imv->set_imageTimeout(to);
 }
 
 void imviewerControlPanel::on_statsBoxButton_clicked()

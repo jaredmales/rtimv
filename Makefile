@@ -1,9 +1,9 @@
 #Seems necessary to give full path.
 #On some systems may be able to just make this qmake
 #ubuntu:
-#QMAKE=/usr/lib/x86_64-linux-gnu/qt5/bin/qmake
+QMAKE=/usr/lib/x86_64-linux-gnu/qt5/bin/qmake
 #CentSO-7:
-QMAKE=/usr/lib64/qt5/bin/qmake
+#QMAKE=/usr/lib64/qt5/bin/qmake
 
 #Give path to ImageStreamIO includes
 IMAGESTREAMIO_INCLUDE=

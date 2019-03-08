@@ -54,12 +54,12 @@ class imviewer : public QWidget
 
    /*** Image Data ***/
    protected:
-      int nx {0}; ///< The number of pixels in the x (horizontal) direction
-      int ny {0}; ///< The number of pixels in the y (vertical) direction
+      uint32_t m_nx {0}; ///< The number of pixels in the x (horizontal) direction
+      uint32_t m_ny {0}; ///< The number of pixels in the y (vertical) direction
 
       float frame_time {0}; ///<The timestamp of the current frame
 
-      char * imdata {nullptr}; ///< Pointer to the image data
+      char * m_imdata {nullptr}; ///< Pointer to the image data
 
       char * tmpim {nullptr}; ///<  A temporary image storage
 
@@ -69,15 +69,12 @@ class imviewer : public QWidget
 
       IMAGE image; ///< A real-time image structure which contains the image data and meta-data.
 
-      int semaphoreNumber {0}; ///< Number of the semaphore to monitor for new image data.  This determines the filename.
-
-      sem_t * sem {nullptr}; ///< The semaphore to monitor for new image data
-
       float (*pixget)(void *, size_t) {nullptr}; ///< Pointer to a function to extract the image data as a float.
 
       size_t type_size; ///< The size, in bytes, of the image data type
 
       QImage * qim {nullptr}; ///<A QT image, used to store the color-map encoded data
+      
       QPixmap qpm; ///<A QT pixmap, used to prep the QImage for display.
 
       /** @name A User Defined Region
@@ -85,15 +82,16 @@ class imviewer : public QWidget
       //@{
       int userBoxActive {0};
 
-      int userBox_i0;
-      int userBox_i1;
-      int userBox_j0;
-      int userBox_j1;
+      //ImageStreamIO images are sized in uint32_t, so we need these big enough for signed comparisons without wraparound
+      int64_t userBox_i0;
+      int64_t userBox_i1;
+      int64_t userBox_j0;
+      int64_t userBox_j1;
 
-      int guideBox_i0;
-      int guideBox_i1;
-      int guideBox_j0;
-      int guideBox_j1;
+      int64_t guideBox_i0;
+      int64_t guideBox_i1;
+      int64_t guideBox_j0;
+      int64_t guideBox_j1;
 
       float userBox_max;
       float userBox_min;
@@ -107,16 +105,16 @@ class imviewer : public QWidget
 
    public:
       ///Get the number of x pixels
-      float getNx(){return nx;}
+      float getNx(){return m_nx;}
 
       ///Get the number of y pixels
-      float getNy(){return ny;}
+      float getNy(){return m_ny;}
 
       ///Get the QPixMap pointer
       QPixmap * getPixmap(){return &qpm;}
 
-      void allocImdata(int x, int y);
-      void setImsize(int x, int y); ///Changes the image size, but only if necessary.
+      void allocImdata(uint32_t x, uint32_t y);
+      void setImsize(uint32_t x, uint32_t y); ///Changes the image size, but only if necessary.
       virtual void postSetImsize(); ///<to call after set_imsize to handle allocations for derived classes
 
       ///Updates the QImage and the statistics after a new image.
@@ -144,7 +142,7 @@ class imviewer : public QWidget
       void point_imdata(void * imd); ///<Points imdata at a new array, no copying is done.
       void point_imdata(int x, int y, void * imd); ///<Points imdata at a new array, changing imsize if necessary, no copying is done.
 
-      char * get_imdata(){return imdata;} ///<Returns the imdata pointer.
+      char * get_imdata(){return m_imdata;} ///<Returns the imdata pointer.
 
    protected:
       float sat_level {0};
@@ -247,8 +245,10 @@ class imviewer : public QWidget
 
 
 
-      QTimer imtimer; ///< When this times out imviewer checks for a new image.
-      int imtimer_timeout {20}; ///<The timeout for checking for a new images, ms.
+      QTimer m_imtimer; ///< When this times out imviewer checks for a new image.
+      int m_shmemTimeout {1000}; ///<The timeout for checking for shared memory file existence.
+      int m_imageTimeout {100}; ///<The timeout for checking for a new images, ms.
+      
       int shmem_attached {false}; ///< Flag denoting whether or not the shared memory is attached.
 
       int curr_saved {0};
@@ -259,7 +259,7 @@ class imviewer : public QWidget
       void set_RealTimeEnabled(int);
       void set_RealTimeStopped(int);
       void set_RealTimeProtocol(int);
-      void set_imtimer_timeout(int);
+      void set_imageTimeout(int);
 
    protected slots:
       void _shmem_timerout();
@@ -268,18 +268,19 @@ class imviewer : public QWidget
    protected:
       virtual void shmem_timerout();
 
-      ///Function called by timer expiration.  Checks semaphore and updates the FPS.
+      ///Function called by timer expiration.  Displays latest image and updates the FPS.
       virtual void timerout();
 
    /*** Real time frames per second ***/
    protected:
-      int i_fps {-1};
-      unsigned n_ave_fps {20};
-      float fps_sum;
-      float fps_ave;
-      double fps_time0;
-      std::vector<float> fps_hist;
-      void update_fps(bool NoAdvance = false);
+      double m_fpsTime {0}; ///< The current image time.
+      double m_fpsTime0 {0}; ///< The reference time for calculate f.p.s.
+      
+      uint64_t m_fpsFrame0 {0}; ///< The reference frame number for calculaiting f.p.s.
+      
+      float m_fpsEst {0}; ///< The current f.p.s. estimate.
+
+      void update_fps(); ///< Update the current f.p.s. estimate from the current timestamp and frame numbers.
 
       virtual void update_age();///<Called every timeout no matter what, to update the image age.
 
