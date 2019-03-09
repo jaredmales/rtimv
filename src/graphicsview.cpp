@@ -19,7 +19,7 @@
 
 #define GAGEHEIGHT  35
 #define COORDWIDTH 100
-#define FPSWIDTH   150
+#define FPSWIDTH   250
 
 #define ZOOMHEIGHT 30
 #define ZOOMWIDTH 150
@@ -39,7 +39,7 @@ graphicsview::graphicsview(QWidget *parent): QGraphicsView(parent)
       
    m_fpsGage = new QTextEdit(this);
    textEditSetup(m_fpsGage);
-   fpsGageText("FPS: 0.000");
+   //fpsGageText("FPS: 0.000");
    
    m_textCoordX = new QTextEdit(this);
    textEditSetup(m_textCoordX);   
@@ -353,15 +353,16 @@ void graphicsview::fpsGageText( float nv,
                                 bool age
                               )
 {
-   char strtmp[16];
+   char strtmp[32];
    if(age)
    {
-      snprintf(strtmp, 16, "Age: %.3f", nv);
+      snprintf(strtmp, 32, "Age: %.3f", nv);
    }
    else
    {
-      snprintf(strtmp, 16, "FPS: %.3f", nv);
+      snprintf(strtmp, 32, "FPS: %.3f", nv);
    }
+   std::cerr << strtmp << "\n";
    fpsGageText(strtmp);
 }
 

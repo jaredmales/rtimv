@@ -739,8 +739,11 @@ void imviewer::update_fps()
       dftime = m_fpsTime - m_fpsTime0;
 
       if(dftime < 1e-9) return;
+
       
       m_fpsEst = (float)((image.md[0].cnt0 - m_fpsFrame0))/dftime;   
+      
+      std::cerr << dftime << " " << m_fpsEst << "\n";
       
       m_fpsTime0 = m_fpsTime;
       m_fpsFrame0 = image.md[0].cnt0;
