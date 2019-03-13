@@ -3,9 +3,6 @@ TARGET = rtimv
 DESTDIR = bin/ 
 DEPENDPATH += src/
 
-#INCLUDEPATH += /usr/include/x86_64-linux-gnu/qt5/
-#INCLUDEPATH += /usr/include/qt5/
-
 MOC_DIR = moc/
 OBJECTS_DIR = obj/
 RCC_DIR = res/
