@@ -16,6 +16,8 @@ rtimv:
 	$(QMAKE) -makefile rtimv.pro
 	$(MAKE) -f makefile.rtimv
 
+install: rtimv
+	install bin/rtimv /usr/local/bin
 
 clean:
 	rm -f obj/*.o *~

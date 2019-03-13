@@ -22,6 +22,8 @@ For `ubuntu` you just need to type `make`.
 
 For `centos 7` you probably need to type `make QMAKE=qmake-qt5`. 
 
+`sudo make install` will install the executable to `/usr/local/bin`.
+
 ## User's Guide
 
 To start it: 
