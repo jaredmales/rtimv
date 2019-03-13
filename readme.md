@@ -1,6 +1,6 @@
 ## Synopsis
 
-A qt-based real-time image viewer.
+A qt5-based real-time image viewer.
 
 ## Motivation
 
@@ -18,24 +18,41 @@ Dependencies:
 
 On CentOS-7 you may need to install mesa-libGL-devel.x86_64
  
-After installing the dependencies, verify, and edit if necessary, the following variables in `Makefile`
- - QMAKE
- - IMAGESTREAMIO_INCLUDE
- - IMAGESTREAMIO_LIB
- 
-If a standard install of CACAO was done, then you should not need to modify `IMAGESTREAMIO_*` in `Makefile`.
+For `ubuntu` you just need to type `make`.
 
-Now all you should have to do is type make in the top directory.
+For `centos 7` you probably need to type `make QMAKE=qmake-qt5`. 
 
 ## User's Guide
 
 To start it: 
 ```
-./bin/rtimv shm-name
+rtimv shm-name
 ```
 Where `shm-name` comes from the CACAO standard /tmp/shm-name.im.shm
 
-I have not updated the user guide since porting from VisAO.  You can see [the old one here,](https://visao.as.arizona.edu/software_files/visao/html/group__operators__users__guide.html#imviewer_userguide) which is still mostly correct.  In particular the keyboard shortcuts should all work.
+### Zoom level
+
+You can zoom in and out using the mouse wheel (which works opposite to ds9).  Pressing the numbers 1-9 also changes the zoom level.  Arbitrary zoom levels can be set using the control panel.
+
+### Centering
+
+Middle clicking selects that point in the image as the center of the display.  You can press `c` any time to center on the center-pixel of the image.  Arrow keys on the control panel (press `p`) can be used to move the center.
+
+### Color
+
+`rtimv` starts out in a linear min-max color stretch, using the first image it sees to set the min and max value gloabally.  These values do not update image to image.  To re-stretch, that is reseetting the min-max values, you can press `r` to set it pased on the currently displayed image.
+
+You can change the bias and contrast by right-click dragging, just as in ds9. 
+
+An alternative to global min-max is to use the "user box", which can be brought up by pressing `b`, the min and max within this box are then used to set the color stretch.  It can be moved and its size changed to affect which pixels are used to set the stretch.
+
+The control panel (press `p`) can be used to select other stretches (e.g. log) and color tables.
+
+### Stats
+
+A red box for calculating statistics can be brought up with the `r` key.  A circle for measuring radii can be displayed with `o`.  
+
+
 
 
 ## Contributors

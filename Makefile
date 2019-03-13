@@ -1,26 +1,21 @@
-#Seems necessary to give full path.
-#On some systems may be able to just make this qmake
-#ubuntu:
-QMAKE=/usr/lib/x86_64-linux-gnu/qt5/bin/qmake
-#CentSO-7:
-#QMAKE=/usr/lib64/qt5/bin/qmake
 
-#Give path to ImageStreamIO includes
-IMAGESTREAMIO_INCLUDE=
-export IMAGESTREAMIO_INCLUDE
+#############################
+# The qt5 qmake 
+#
+# On a system where qt5 qmake is the one in the bath, then no
+# argument is needed.  If not, then invoke with, e.g., `make QMAKE=qmake-qt5`
 
-IMAGESTREAMIO_LIB=-lImageStreamIO
-export IMAGESTREAMIO_LIB
+QMAKE?=qmake
+
+##############################
 
 
-all: imviewerFull
+all: rtimv
 
-imviewerFull:
-	$(QMAKE) -makefile imviewer.pro
+rtimv:
+	$(QMAKE) -makefile rtimv.pro
 	$(MAKE) -f makefile.rtimv
 
-imviewer:
-	$(MAKE) -f makefile.rtimv
 
 clean:
 	rm -f obj/*.o *~
