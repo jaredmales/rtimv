@@ -337,7 +337,7 @@ void imviewerForm::freezeRealTime()
    else
    {
       set_RealTimeStopped(true);
-      ui.graphicsView->fpsGageText(0.0);
+      if(m_showFPSGage) ui.graphicsView->fpsGageText(0.0);
    }
 }
 
@@ -472,20 +472,25 @@ void imviewerForm::updateMouseCoords()
    if(!m_imdata) return;
    if(!qpmi) return;
    
+   if(ui.graphicsView->mouseViewX() < 0 || ui.graphicsView->mouseViewY() < 0)
+   {
+      nullMouseCoords();
+   }
+   
    QPointF pt = ui.graphicsView->mapToScene(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY());
    
    float mx = pt.x();
    float my = pt.y();
    
-   if( mx < 0 || mx > qpmi->boundingRect().width()-1 || my < 0 || my > qpmi->boundingRect().height()-1 ) 
+   if( mx < 0 || mx > qpmi->boundingRect().width() || my < 0 || my > qpmi->boundingRect().height() ) 
    {
       nullMouseCoords();
    }
    
    if(!NullMouseCoords)
    {
-      ui.graphicsView->textCoordX(mx);
-      ui.graphicsView->textCoordY(qpmi->boundingRect().height() - my);
+      ui.graphicsView->textCoordX(mx-0.5);
+      ui.graphicsView->textCoordY(qpmi->boundingRect().height() - my-0.5);
       
       
       idx_x = ((int64_t)(mx));
@@ -587,22 +592,26 @@ void imviewerForm::onWheelMoved(int delta)
 
 void imviewerForm::update_age()
 {
-   struct timeval tvtmp;
+   if(m_showFPSGage)
+   {
+      
+      struct timeval tvtmp;
     
-   gettimeofday(&tvtmp, 0);
-   double timetmp = (double)tvtmp.tv_sec + ((double)tvtmp.tv_usec)/1e6;
+      gettimeofday(&tvtmp, 0);
+      double timetmp = (double)tvtmp.tv_sec + ((double)tvtmp.tv_usec)/1e6;
    
-   double age = timetmp - m_fpsTime;
+      double age = timetmp - m_fpsTime;
    
-   if(m_fpsEst > 1 && age < 1.0) 
-   {
-      ui.graphicsView->fpsGageText(m_fpsEst);
+   
+      if(m_fpsEst > 1) 
+      {
+         ui.graphicsView->fpsGageText(m_fpsEst);
+      }
+      else
+      {
+         ui.graphicsView->fpsGageText(age, true);
+      } 
    }
-   else
-   {
-      ui.graphicsView->fpsGageText(age, true);
-   } 
-   
 
    
    if(m_showLoopStat)
@@ -999,6 +1008,20 @@ void imviewerForm::keyPressEvent(QKeyEvent * ke)
    {
       if(userCircle->isVisible()) userCircle->setVisible(false);
       else userCircle->setVisible(true);
+      
+   }
+   
+   if(ke->text() == "f")
+   {
+      if( m_showFPSGage == true )
+      {
+         m_showFPSGage = false;
+         ui.graphicsView->fpsGageText("");
+      }
+      else
+      {
+         m_showFPSGage = true;
+      }
       
    }
    

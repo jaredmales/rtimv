@@ -176,7 +176,7 @@ class imviewerForm : public imviewer
    protected:
       bool m_showLoopStat {false};
       bool m_showSaveStat {false};
-      
+      bool m_showFPSGage {true};
    private:
       Ui::imviewerForm ui;
 

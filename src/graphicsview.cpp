@@ -362,7 +362,7 @@ void graphicsview::fpsGageText( float nv,
    {
       snprintf(strtmp, 32, "FPS: %.3f", nv);
    }
-   std::cerr << strtmp << "\n";
+   //std::cerr << strtmp << "\n";
    fpsGageText(strtmp);
 }
 

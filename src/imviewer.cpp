@@ -657,6 +657,7 @@ void imviewer::timerout()
    uint32_t snx, sny;
 
    static int fps_counter = 0;
+   static int age_counter = 0;
    
    if(image.md[0].sem <= 0) //Indicates that the server has cleaned up.
    {
@@ -705,6 +706,7 @@ void imviewer::timerout()
       {
          update_fps();
          fps_counter = 0;
+         age_counter = 0;
       }
       else
       {
@@ -713,9 +715,17 @@ void imviewer::timerout()
    }
    else
    {
-      fps_counter = 1000/m_imageTimeout+1;
-
-      update_age();
+      if(age_counter > 1000/m_imageTimeout)
+      {
+         update_age();
+         age_counter = 0;
+         fps_counter = 0;
+         m_fpsEst = 0;
+      }
+      else
+      {
+         ++age_counter;
+      }
    }
       
       
@@ -743,7 +753,7 @@ void imviewer::update_fps()
       
       m_fpsEst = (float)((image.md[0].cnt0 - m_fpsFrame0))/dftime;   
       
-      std::cerr << dftime << " " << m_fpsEst << "\n";
+      //std::cerr << dftime << " " << m_fpsEst << "\n";
       
       m_fpsTime0 = m_fpsTime;
       m_fpsFrame0 = image.md[0].cnt0;
