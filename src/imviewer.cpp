@@ -46,7 +46,8 @@ void imviewer::setUserBoxActive(bool usba)
       if(userBox_j1 > (int64_t) m_ny) userBox_j1 = (int64_t)m_ny-1;
 
 
-      idx = userBox_i0*m_ny + userBox_j0;
+      idx = userBox_j0*m_nx + userBox_i0;
+      
       imval = pixget(m_imdata, idx);
 
       userBox_min = imval;
@@ -55,7 +56,7 @@ void imviewer::setUserBoxActive(bool usba)
       {
          for(int j = userBox_j0; j < userBox_j1; j++)
          {
-            idx = i*m_ny + j;
+            idx = j*m_nx + i;
             imval = pixget(m_imdata, idx);
 
             if(imval < userBox_min) userBox_min = imval;
@@ -142,7 +143,7 @@ void imviewer::changeImdata(bool newdata)
 
       if(userBoxActive)
       {
-         idx = userBox_i0*m_ny + userBox_j0;
+         idx = userBox_j0*m_nx + userBox_i0;
          imval = pixget(m_imdata, idx);
          userBox_min = imval;
          userBox_max = imval;
@@ -325,7 +326,8 @@ float imviewer::calcPixval(float d)
    switch(colorbar_type)
    {
       case typelog:
-         pixval = log10(a*pixval+1.)/log10_a;
+         pixval = log10(pixval*a+1)/log10_a; //log10(a*pixval+1.)/log10_a;
+         
          break;
       case typepow:
          pixval = (pow(a, pixval) - 1.)/a;
@@ -372,15 +374,15 @@ void imviewer::point_imdata(int x, int y, void * imd)
 void imviewer::set_mindat(float md)
 {
    mindat = md;
-   if(colorbar_type == typelinear)
-   {
+//    if(colorbar_type == typelinear)
+//    {
       mindatsc = mindat;
-   }
-   if(colorbar_type == typelog)
-   {
-      mindatsc = 0;
-
-   }
+//    }
+//    if(colorbar_type == typelog)
+//    {
+//       mindatsc = 0;
+// 
+//    }
 }
 
 void imviewer::set_maxdat(float md)

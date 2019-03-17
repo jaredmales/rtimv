@@ -493,29 +493,30 @@ void imviewerForm::updateMouseCoords()
       ui.graphicsView->textCoordY(qpmi->boundingRect().height() - my-0.5);
       
       
-      idx_x = ((int64_t)(mx));
+      idx_x = ((int64_t)(mx-0.5));
       if(idx_x < 0) idx_x = 0;
       if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
       
-      idx_y = (int)(qpmi->boundingRect().height() - my);
+      idx_y = (int)(qpmi->boundingRect().height() - my-0.5);
       if(idx_y < 0) idx_y = 0;
       if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;
 
-      ui.graphicsView->textPixelVal(pixget(m_imdata, (int)(idx_x*m_ny) + (int)(idx_y)));
+      
+      ui.graphicsView->textPixelVal(pixget(m_imdata, (int)(idx_y*m_nx) + (int)(idx_x)));
 
       if(imcp)
       {
          #if RT_SYSTEM == RT_SYSTEM_VISAO        
          if(!applyDark)
          {
-            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), pixget(m_imdata,idx_y*m_ny + idx_x ));
+            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), pixget(m_imdata,idx_y*m_nx + idx_x ));
          }
          else
          {
-            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), ( pixget(m_imdata,idx_y*m_ny + idx_x)- pixget(dark_sim.imdata,(int)(idx_y*m_ny) + (int)(idx_x)) ));
+            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), ( pixget(m_imdata,idx_y*m_nx + idx_x)- pixget(dark_sim.imdata,(int)(idx_y*m_nx) + (int)(idx_x)) ));
          }
          #else
-         imcp->updateMouseCoords(mx, my, pixget(m_imdata,idx_y*m_ny + idx_x) );
+         imcp->updateMouseCoords(mx, my, pixget(m_imdata,idx_y*m_nx + idx_x) );
          #endif
 
       }
@@ -719,11 +720,11 @@ void imviewerForm::userBoxMoved(const QRectF & newr)
    QPointF np = qpmi->mapFromItem(userBox, QPointF(newr.x(),newr.y()));
    QPointF np2 = qpmi->mapFromItem(userBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
 
-   userBox_j0 = (int) (np2.x() + .5);
-   userBox_j1 = (int) np.x();
-   userBox_i0 = m_ny-(int) (np2.y() + .5);
-   userBox_i1 = m_ny-(int) np.y();
-
+   userBox_i1 = (int) (np2.x() + .5);
+   userBox_i0 = (int) np.x();
+   userBox_j0 = m_ny-(int) (np2.y() + .5);
+   userBox_j1 = m_ny-(int) np.y();
+   
    setUserBoxActive(true); //recalcs and recolors.
    
    
