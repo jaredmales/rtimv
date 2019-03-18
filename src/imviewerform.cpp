@@ -92,7 +92,7 @@ imviewerForm::imviewerForm(imviewer_shmt shkey, QWidget * Parent, Qt::WindowFlag
    imStats = 0;
    setImsize(1024,1024); //Just for initial setup.   
 
-   m_imtimer.start(m_shmemTimeout); //and set timer.
+   m_imTimer.start(m_imShmimTimeout); //and set timer.
 
 
 
@@ -273,15 +273,15 @@ void imviewerForm::postChangeImdata()
 #if RT_SYSTEM == RT_SYSTEM_VISAO
    if(imStats) 
    {
-      if(applyDark && dark_sim.imdata) imStats->set_imdata(m_imdata, frame_time, dark_sim.imdata);
-      else  imStats->set_imdata(m_imdata, frame_time,0);
+      if(applyDark && dark_sim.imdata) imStats->set_imdata(m_imData, frame_time, dark_sim.imdata);
+      else  imStats->set_imdata(m_imData, frame_time,0);
    }
 #endif
 
 #if RT_SYSTEM == RT_SYSTEM_SCEXAO
    if(imStats) 
    {
-      imStats->set_imdata(m_imdata, frame_time,0);
+      //imStats->set_imdata(m_imData, frame_time,0);
    }
 #endif
 
@@ -469,7 +469,7 @@ void imviewerForm::updateMouseCoords()
 {
    int64_t idx_x, idx_y; //image size are uint32_t, so this allows signed comparison without overflow issues
    
-   if(!m_imdata) return;
+   if(!m_imData) return;
    if(!qpmi) return;
    
    if(ui.graphicsView->mouseViewX() < 0 || ui.graphicsView->mouseViewY() < 0)
@@ -502,21 +502,21 @@ void imviewerForm::updateMouseCoords()
       if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;
 
       
-      ui.graphicsView->textPixelVal(pixget(m_imdata, (int)(idx_y*m_nx) + (int)(idx_x)));
+      ui.graphicsView->textPixelVal(pixget(m_imData, (int)(idx_y*m_nx) + (int)(idx_x)));
 
       if(imcp)
       {
          #if RT_SYSTEM == RT_SYSTEM_VISAO        
          if(!applyDark)
          {
-            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), pixget(m_imdata,idx_y*m_nx + idx_x ));
+            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), pixget(m_imData,idx_y*m_nx + idx_x ));
          }
          else
          {
-            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), ( pixget(m_imdata,idx_y*m_nx + idx_x)- pixget(dark_sim.imdata,(int)(idx_y*m_nx) + (int)(idx_x)) ));
+            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), ( pixget(m_imData,idx_y*m_nx + idx_x)- pixget(dark_sim.imdata,(int)(idx_y*m_nx) + (int)(idx_x)) ));
          }
          #else
-         imcp->updateMouseCoords(mx, my, pixget(m_imdata,idx_y*m_nx + idx_x) );
+         imcp->updateMouseCoords(mx, my, pixget(m_imData,idx_y*m_nx + idx_x) );
          #endif
 
       }
@@ -620,17 +620,17 @@ void imviewerForm::update_age()
       ui.graphicsView->loopText("Loop OPEN", "red");
    }
    
-   if(m_showSaveStat)
-   {
-      if(curr_saved == 1)
-      {
-         ui.graphicsView->saveBoxText("S", "lime");
-      }
-      else
-      {
-         ui.graphicsView->saveBoxText("X", "red");
-      }
-   }
+//    if(m_showSaveStat)
+//    {
+//       if(curr_saved == 1)
+//       {
+//          ui.graphicsView->saveBoxText("S", "lime");
+//       }
+//       else
+//       {
+//          ui.graphicsView->saveBoxText("X", "red");
+//       }
+//    }
 }
 
 
@@ -645,10 +645,10 @@ void imviewerForm::doLaunchStatsBox()
       imStats = new imviewerStats(pixget, type_size, this, 0);
       imStats->setAttribute(Qt::WA_DeleteOnClose); //Qt will delete imstats when it closes.
 #if RT_SYSTEM == RT_SYSTEM_VISAO
-      if(applyDark) imStats->set_imdata(m_imdata, frame_time, dark_sim.imdata);
-      else imStats->set_imdata(m_imdata, frame_time, 0);
+      if(applyDark) imStats->set_imdata(m_imData, frame_time, dark_sim.imdata);
+      else imStats->set_imdata(m_imData, frame_time, 0);
 #else
-      imStats->set_imdata(m_imdata, frame_time, 0);
+      //imStats->set_imdata(m_imData, frame_time, 0);
 #endif
       connect(imStats, SIGNAL(finished(int )), this, SLOT(imStatsClosed(int )));
    }
@@ -696,10 +696,10 @@ void imviewerForm::statsBoxMoved(const QRectF & newr)
    if(imStats) 
    {
 #if RT_SYSTEM == RT_SYSTEM_VISAO
-      if(applyDark) imStats->set_imdata(m_imdata, frame_time, m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y(), dark_sim.imdata);
-      else imStats->set_imdata(m_imdata, frame_time, m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y(), 0);
+      if(applyDark) imStats->set_imdata(m_imData, frame_time, m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y(), dark_sim.imdata);
+      else imStats->set_imdata(m_imData, frame_time, m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y(), 0);
 #else
-      imStats->set_imdata(m_imdata, frame_time, m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y(), 0);
+      //imStats->set_imdata(m_imData, frame_time, m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y(), 0);
 #endif 
    }
    

@@ -48,31 +48,147 @@ class imviewer : public QWidget
 {
    Q_OBJECT
 
-   public:
+public:
 
-      imviewer(imviewer_shmt shkey, QWidget * Parent = 0, Qt::WindowFlags f = 0);
+   imviewer(imviewer_shmt shkey, QWidget * Parent = 0, Qt::WindowFlags f = 0);
 
    /*** Image Data ***/
-   protected:
-      uint32_t m_nx {0}; ///< The number of pixels in the x (horizontal) direction
-      uint32_t m_ny {0}; ///< The number of pixels in the y (vertical) direction
+protected:
+   uint32_t m_nx {0}; ///< The number of pixels in the x (horizontal) direction
+   uint32_t m_ny {0}; ///< The number of pixels in the y (vertical) direction
 
-      float frame_time {0}; ///<The timestamp of the current frame
+   //----------- The image -----------
+   float * m_imData {nullptr}; ///< Pointer to the image data
 
-      char * m_imdata {nullptr}; ///< Pointer to the image data
+   imviewer_shmt imShmimKey; ///< The path to the shared memory buffer containing the image data.
 
-      char * tmpim {nullptr}; ///<  A temporary image storage
+   IMAGE image; ///< A real-time image structure which contains the image data and meta-data.
 
-      bool localImdata {false}; ///< flag to determine if imdata is locally allocated
+   float (*pixget)(void *, size_t) {nullptr}; ///< Pointer to a function to extract the image data as a float.
 
-      imviewer_shmt shmem_key; ///< The path to the shared memory buffer containing the image data.
+   size_t type_size; ///< The size, in bytes, of the image data type
 
-      IMAGE image; ///< A real-time image structure which contains the image data and meta-data.
+   //----------- The dark -----------
+   
+   float * m_darkData {nullptr}; ///< Pointer to the image data
 
-      float (*pixget)(void *, size_t) {nullptr}; ///< Pointer to a function to extract the image data as a float.
+   imviewer_shmt darkShmimKey; ///< The path to the shared memory buffer containing the image data.
 
-      size_t type_size; ///< The size, in bytes, of the image data type
+   IMAGE darkImage; ///< A real-time image structure which contains the image data and meta-data.
 
+   float (*dark_pixget)(void *, size_t) {nullptr}; ///< Pointer to a function to extract the image data as a float.
+
+   size_t dark_type_size; ///< The size, in bytes, of the image data type
+   
+   //----------- The reference -----------
+   
+   float * m_refData {nullptr}; ///< Pointer to the image data
+
+   imviewer_shmt refShmimKey; ///< The path to the shared memory buffer containing the image data.
+
+   IMAGE refImage; ///< A real-time image structure which contains the image data and meta-data.
+
+   float (*ref_pixget)(void *, size_t) {nullptr}; ///< Pointer to a function to extract the image data as a float.
+
+   size_t ref_type_size; ///< The size, in bytes, of the image data type
+   
+   //----------- The flat -----------
+   
+   float * m_flatData {nullptr}; ///< Pointer to the image data
+
+   imviewer_shmt flatShmimKey; ///< The path to the shared memory buffer containing the image data.
+
+   IMAGE flatImage; ///< A real-time image structure which contains the image data and meta-data.
+
+   float (*flat_pixget)(void *, size_t) {nullptr}; ///< Pointer to a function to extract the image data as a float.
+
+   size_t flat_type_size; ///< The size, in bytes, of the image data type
+   
+    /***** Image Data Management *****/
+public:
+   //memory management
+   
+   void allocImdata(uint32_t x, uint32_t y);
+   
+   void setImsize(uint32_t x, uint32_t y); ///Changes the image size, but only if necessary.
+   
+   virtual void postSetImsize(); ///<to call after set_imsize to handle allocations for derived classes
+      
+   ///Get the number of x pixels
+   float getNx(){return m_nx;}
+
+   ///Get the number of y pixels
+   float getNy(){return m_ny;}
+   
+protected:
+      bool amChangingimdata;
+   
+public:
+      ///< Sets imdata based on the new array, resizing if necessary.
+      void setImdata( void * imd ); 
+
+      virtual void postChangeImdata(); ///<to call after change imdata does its work.
+       
+      //float * get_imdata(){return m_imData;} ///<Returns the imdata pointer.
+
+      
+protected:
+   QTimer m_imTimer; ///< When this times out imviewer checks for a new image.
+   int m_imShmimTimeout {1000}; ///<The timeout for checking for shared memory file existence.
+   int m_imTimeout {100}; ///<The timeout for checking for a new images, ms.
+   
+   int m_imShmimAttached {false}; ///< Flag denoting whether or not the shared memory is attached.
+
+public:
+
+   void imShmimTimeout(int);
+   void imTimeout(int);
+
+protected slots:
+   void _imShmim_timerout();
+   void _imTimerout();
+
+protected:
+   virtual void imShmim_timerout();
+
+   ///Function called by timer expiration.  Displays latest image and updates the FPS.
+   virtual void imUpdate();
+    
+   /***** Dark Data Updates *****/
+public:
+   //memory management
+   void allocDarkData(uint32_t x, uint32_t y);
+   
+   ///< Sets imdata based on the new array, resizing if necessary.
+   void setDarkData( void * imd ); 
+
+protected:
+   QTimer m_darkTimer; ///< When this times out imviewer checks for a new image.
+   int m_darkShmimTimeout {1000}; ///<The timeout for checking for shared memory file existence.
+   int m_darkTimeout {100}; ///<The timeout for checking for a new dark image, ms.
+   
+   int m_darkShmimAttached {false}; ///< Flag denoting whether or not the shared memory is attached.
+
+public:
+
+   void darkShmimTimeout(int);
+   void darkTimeout(int);
+
+protected slots:
+   void _darkShmim_timerout();
+   void _darkTimerout();
+
+protected:
+   virtual void darkShmim_timerout();
+
+   ///Function called by timer expiration.  Displays latest image and updates the FPS.
+   virtual void darkUpdate();
+   
+   
+   //****** The display *************
+protected:
+      
+      
       QImage * qim {nullptr}; ///<A QT image, used to store the color-map encoded data
       
       QPixmap qpm; ///<A QT pixmap, used to prep the QImage for display.
@@ -104,18 +220,12 @@ class imviewer : public QWidget
       //@}
 
    public:
-      ///Get the number of x pixels
-      float getNx(){return m_nx;}
-
-      ///Get the number of y pixels
-      float getNy(){return m_ny;}
+      
+      
 
       ///Get the QPixMap pointer
       QPixmap * getPixmap(){return &qpm;}
 
-      void allocImdata(uint32_t x, uint32_t y);
-      void setImsize(uint32_t x, uint32_t y); ///Changes the image size, but only if necessary.
-      virtual void postSetImsize(); ///<to call after set_imsize to handle allocations for derived classes
 
       ///Updates the QImage and the statistics after a new image.
       /** \param newdata determines whether statistics are calculated (true) or not (false).
@@ -133,16 +243,6 @@ class imviewer : public QWidget
       bool applyDark {false};
       bool applyDarkChanged {true};
 
-   protected:
-      bool amChangingimdata;
-   public:
-
-      virtual void postChangeImdata(); ///<to call after change imdata does its work.
-
-      void point_imdata(void * imd); ///<Points imdata at a new array, no copying is done.
-      void point_imdata(int x, int y, void * imd); ///<Points imdata at a new array, changing imsize if necessary, no copying is done.
-
-      char * get_imdata(){return m_imdata;} ///<Returns the imdata pointer.
 
    protected:
       float sat_level {0};
@@ -237,39 +337,18 @@ class imviewer : public QWidget
       void set_ZoomLevel(float zl);
       virtual void post_set_ZoomLevel();
 
-   /***** Real Time *****/
+  
+
+
+   /*** Real Time Controls ***/   
    protected:
       bool RealTimeEnabled {true}; ///<Controls whether imviewer is using real-time data.
       bool RealTimeStopped {false}; ///<Set when user temporarily freezes real-time data viewing.
 
-
-
-
-      QTimer m_imtimer; ///< When this times out imviewer checks for a new image.
-      int m_shmemTimeout {1000}; ///<The timeout for checking for shared memory file existence.
-      int m_imageTimeout {100}; ///<The timeout for checking for a new images, ms.
-      
-      int shmem_attached {false}; ///< Flag denoting whether or not the shared memory is attached.
-
-      int curr_saved {0};
-      int last_saved {-1};
-
-   /*** Real Time Controls ***/
    public:
       void set_RealTimeEnabled(int);
       void set_RealTimeStopped(int);
-      void set_RealTimeProtocol(int);
-      void set_imageTimeout(int);
-
-   protected slots:
-      void _shmem_timerout();
-      void _timerout();
-
-   protected:
-      virtual void shmem_timerout();
-
-      ///Function called by timer expiration.  Displays latest image and updates the FPS.
-      virtual void timerout();
+      //void set_RealTimeProtocol(int);
 
    /*** Real time frames per second ***/
    protected:
