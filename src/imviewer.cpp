@@ -64,6 +64,11 @@ void imviewer::_timerout()
 {
    int doupdate = m_images[0]->update();
    
+   for(size_t i=1;i<m_images.size(); ++i) 
+   {
+      m_images[i]->update();
+   }
+   
    if(doupdate >= RTIMVIMAGE_IMUPDATE) 
    {
       changeImdata(true);
@@ -115,9 +120,27 @@ void imviewer::setUserBoxActive(bool usba)
       if(userBox_j1 > (int64_t) m_ny) userBox_j1 = (int64_t)m_ny-1;
 
 
+      float (*pixel)(imviewer*,size_t) = &pixel_noCal;
+   
+   if(m_subtractDark == true && m_applyMask == false && m_images.size()>1)
+   {
+      pixel = &imviewer::pixel_subDark;
+   }
+   
+   if(m_subtractDark == false && m_applyMask == true && m_images.size()>2)
+   {
+      pixel = &imviewer::pixel_applyMask;
+   }
+   
+   if(m_subtractDark == true && m_applyMask == true && m_images.size()>1)
+   {
+      if(m_images.size()==2) pixel = &pixel_subDark;
+      else pixel = &pixel_subDarkApplyMask;
+   }
+   
       idx = userBox_j0*m_nx + userBox_i0;
       
-      imval = m_images[0]->pixel(idx); //m_imData[idx];
+      imval = pixel(this, idx); //m_imData[idx];
 
       userBox_min = imval;
       userBox_max = imval;
@@ -126,7 +149,7 @@ void imviewer::setUserBoxActive(bool usba)
          for(int j = userBox_j0; j < userBox_j1; j++)
          {
             idx = j*m_nx + i;
-            imval = m_images[0]->pixel(idx);// m_imData[idx];
+            imval = pixel(this, idx);// m_imData[idx];
 
             if(imval < userBox_min) userBox_min = imval;
             if(imval > userBox_max) userBox_max = imval;
@@ -144,7 +167,33 @@ void imviewer::setUserBoxActive(bool usba)
 
 }
 
+float imviewer::pixel_noCal( imviewer * imv,
+                             size_t idx
+                           )
+{
+   return imv->m_images[0]->pixel(idx);
+}
 
+float imviewer::pixel_subDark( imviewer * imv,
+                             size_t idx
+                           )
+{
+   return imv->m_images[0]->pixel(idx) - imv->m_images[1]->pixel(idx);
+}
+
+float imviewer::pixel_applyMask( imviewer * imv,
+                                 size_t idx
+                               )
+{
+   return imv->m_images[0]->pixel(idx) * imv->m_images[2]->pixel(idx);
+}
+
+float imviewer::pixel_subDarkApplyMask( imviewer * imv,
+                                        size_t idx
+                                      )
+{
+   return (imv->m_images[0]->pixel(idx) - imv->m_images[1]->pixel(idx))*imv->m_images[2]->pixel(idx);
+}
 
 void imviewer::changeImdata(bool newdata)
 {
@@ -156,27 +205,42 @@ void imviewer::changeImdata(bool newdata)
 
    if(!m_images[0]->m_data) return;
 
+   float (*pixel)(imviewer*, size_t) = &pixel_noCal;
+   
+   if(m_subtractDark == true && m_applyMask == false && m_images.size()>1)
+   {
+      pixel = &pixel_subDark;
+   }
+   
+   if(m_subtractDark == false && m_applyMask == true && m_images.size()>2)
+   {
+      pixel = &pixel_applyMask;
+   }
+   
+   if(m_subtractDark == true && m_applyMask == true && m_images.size()>1)
+   {
+      if(m_images.size()==1) pixel = &pixel_subDark;
+      else pixel = &pixel_subDarkApplyMask;
+   }
+   
    if(m_images[0]->m_nx != m_nx || m_images[0]->m_ny != m_ny) 
    {
       setImsize(m_images[0]->m_nx, m_images[0]->m_ny);
       
       //Need to set these at the beginning
-      imdat_min = m_images[0]->pixel(0);
-      imdat_max = m_images[0]->pixel(0);
+      imdat_min = pixel(this,0);
+      imdat_max = pixel(this,0);
       for(uint32_t i = 0; i < m_ny; ++i)
       {
          for(uint32_t j=0;j < m_nx; ++j)
          {
-            if(m_images[0]->pixel(i*m_nx + j) > imdat_max) imdat_max = m_images[0]->pixel(i*m_nx + j);
-            if(m_images[0]->pixel(i*m_nx + j) < imdat_min) imdat_min = m_images[0]->pixel(i*m_nx + j) ;
+            if(pixel(this, i*m_nx + j) > imdat_max) imdat_max = pixel(this, i*m_nx + j);
+            if(pixel(this, i*m_nx + j) < imdat_min) imdat_min = pixel(this, i*m_nx + j) ;
 
          }
       }
       set_mindat(imdat_min);
       set_maxdat(imdat_max);
-      
-      //mindat_rel = (mindat - imdat_min)/(imdat_max-imdat_min);
-      //maxdat_rel = (maxdat - imdat_min)/(imdat_max-imdat_min);
    }
    
    amChangingimdata = true;
@@ -188,7 +252,7 @@ void imviewer::changeImdata(bool newdata)
    else
    {
       //Update statistics
-      imval = m_images[0]->pixel(0);//m_imData[0];
+      imval = pixel(this, 0);//m_imData[0];
       tmp_min = imval;
       tmp_max = imval;
       saturated = 0;
@@ -196,7 +260,7 @@ void imviewer::changeImdata(bool newdata)
       if(userBoxActive)
       {
          idx = userBox_j0*m_nx + userBox_i0;
-         imval = m_images[0]->pixel(idx); //m_imData[idx];
+         imval = pixel(this, idx); //m_imData[idx];
          userBox_min = imval;
          userBox_max = imval;
       }
@@ -206,7 +270,7 @@ void imviewer::changeImdata(bool newdata)
          for(uint32_t j=0;j < m_nx; ++j)
          {
             idx = i*m_nx + j;
-            imval = m_images[0]->pixel(idx); //m_imData[idx];
+            imval = pixel(this, idx); //m_imData[idx];
             
             if(imval > tmp_max) tmp_max = imval;
             if(imval < tmp_min) tmp_min = imval;
@@ -239,11 +303,29 @@ void imviewer::changeImdata(bool newdata)
 
 void imviewer::changeImdataRecolorOnly()
 {
+   float (*pixel)(imviewer*, size_t) = &pixel_noCal;
+   
+   if(m_subtractDark == true && m_applyMask == false && m_images.size()>1)
+   {
+      pixel = &pixel_subDark;
+   }
+   
+   if(m_subtractDark == false && m_applyMask == true  && m_images.size()>2)
+   {
+      pixel = &pixel_applyMask;
+   }
+   
+   if(m_subtractDark == true && m_applyMask == true  && m_images.size()>1)
+   {
+      if(m_images.size() == 2) pixel = &pixel_subDark;
+      else pixel = &pixel_subDarkApplyMask;
+   }
+   
    for(uint32_t i = 0; i < m_ny; ++i)
    {
       for(uint32_t j=0;j <m_nx; ++j)
       {
-         qim->setPixel(j, m_ny-i-1, (int)calcPixval( m_images[0]->pixel(i*m_nx + j) ));
+         qim->setPixel(j, m_ny-i-1, (int)calcPixval( pixel(this, i*m_nx + j) ));
       }
    }
 }

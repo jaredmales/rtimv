@@ -137,16 +137,20 @@ protected:
       QPixmap * getPixmap(){return &qpm;}
 
 
+      bool m_subtractDark {false};
+      bool m_applyMask {false};
+      
+      static float pixel_noCal(imviewer * imv, size_t idx);
+      static float pixel_subDark(imviewer * imv, size_t idx);
+      static float pixel_applyMask(imviewer * imv, size_t idx);
+      static float pixel_subDarkApplyMask(imviewer * imv, size_t idx);
+      
       ///Updates the QImage and the statistics after a new image.
       /** \param newdata determines whether statistics are calculated (true) or not (false).
        */
       void changeImdata(bool newdata = false);
 
       void changeImdataRecolorOnly();///<Only update the QImage with a new color mapping, does not recalc any statistics.
-
-      void changeImdata_applyDark(bool newdata = false);
-
-      void changeImdataRecolorOnly_applyDark();///<Only update the QImage with a new color mapping, does not recalc any statistics.
 
       float calcPixval(float d);///<Actually calculates the color mapped value of each pixel from 0 to 255.
 

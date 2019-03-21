@@ -49,6 +49,10 @@ public:
    
    bool m_shmimAttached {false}; ///< Flag denoting whether or not the shared memory is attached.
 
+   uint64_t lastCnt0 {55555555555}; //make huge so we don't skip the 0 image
+   
+   int fps_counter {0};
+   int age_counter {0};
    
 public:
    

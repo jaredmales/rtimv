@@ -1019,5 +1019,31 @@ void imviewerForm::keyPressEvent(QKeyEvent * ke)
       
    }
    
+   if(ke->text() == "d")
+   {
+      if(m_subtractDark)
+      {
+         m_subtractDark = false;
+      }
+      else
+      {
+         m_subtractDark = true;
+      }
+      changeImdata(false);
+   }
+      
+   if(ke->text() == "m")
+   {
+      if(m_applyMask)
+      {
+         m_applyMask = false;
+      }
+      else
+      {
+         m_applyMask = true;
+      }
+      changeImdata(false);
+   }
+   
    QWidget::keyPressEvent(ke);
 }

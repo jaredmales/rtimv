@@ -97,13 +97,9 @@ int rtimvImage::update()
    
    int64_t curr_image;
    uint64_t cnt0;
-   
-   static uint64_t lastCnt0 = -1; //make huge so we don't skip the 0 image
-   
+      
    uint32_t snx, sny;
 
-   static int fps_counter = 0;
-   static int age_counter = 0;
    
    if(m_image.md[0].sem <= 0) //Indicates that the server has cleaned up.
    {

@@ -84,11 +84,12 @@ int main(int argc, char *argv[])
    //int data_type;
    QApplication app(argc, argv);
 
-   std::string shmem_key;
+   std::string shmem_key, dark_key, mask_key;
 
+   std::vector<std::string> keys;
    if(argc > 1)
    {
-      shmem_key = argv[1];
+      keys.push_back(argv[1]);
    }
    else
    {
@@ -96,7 +97,17 @@ int main(int argc, char *argv[])
       exit(0);
    }
 
-   imviewerForm imv({shmem_key});
+   if(argc > 2)
+   {
+      keys.push_back(argv[2]);
+   }
+
+   if(argc > 3)
+   {
+      keys.push_back(argv[3]);
+   }
+   
+   imviewerForm imv(keys);
 
    imv.show();
 
