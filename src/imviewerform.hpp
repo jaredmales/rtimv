@@ -38,13 +38,18 @@ class imviewerForm : public imviewer
    Q_OBJECT
    
    public:
-      imviewerForm(imviewer_shmt shkey, QWidget * Parent = 0, Qt::WindowFlags f = 0);
+      imviewerForm( const std::vector<std::string> & shkeys, 
+                    QWidget * Parent = 0, 
+                    Qt::WindowFlags f = 0
+                  );
    
       virtual void postSetImsize();
       virtual void post_set_ZoomLevel();
       virtual void postChangeImdata();
-      //virtual void stale_fps();
-      virtual void update_age();
+      
+      virtual void updateFPS();
+      
+      virtual void updateAge();
 
       virtual void keyPressEvent(QKeyEvent *);
       

@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
       exit(0);
    }
 
-   imviewerForm imv(shmem_key);
+   imviewerForm imv({shmem_key});
 
    imv.show();
 

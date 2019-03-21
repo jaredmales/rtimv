@@ -24,6 +24,7 @@ HEADERS += src/graphicsview.hpp \
            src/StretchBox.h \
            src/StretchCircle.h \
            src/imviewerstats.hpp \
+           src/rtimvImage.hpp \
            src/pixaccess.h \
            src/colorMaps.hpp
 
@@ -34,7 +35,8 @@ SOURCES += src/graphicsview.cpp \
            src/imviewerControlPanel.cpp \
            src/StretchBox.cpp \
            src/StretchCircle.cpp \ 
-           src/imviewerstats.cpp
+           src/imviewerstats.cpp \
+           src/rtimvImage.cpp
            
 FORMS += forms/imviewergui.ui \
          forms/imviewerControlPanel.ui \

@@ -1,30 +1,21 @@
 
 #include "imviewer.hpp"
 
-imviewer::imviewer(imviewer_shmt shkey, QWidget * Parent, Qt::WindowFlags f) : QWidget(Parent, f)
+imviewer::imviewer( const std::vector<std::string> & shkeys, 
+                    QWidget * Parent, 
+                    Qt::WindowFlags f
+                  ) : QWidget(Parent, f)
 {
-   pixget = getPixPointer<1>();
-   type_size = imageStructDataType<1>::size;
-
-   imShmimKey = shkey;
-
-   connect(&m_imTimer, SIGNAL(timeout()), this, SLOT(_imShmim_timerout()));
-}
-
-void imviewer::allocImdata(uint32_t x, uint32_t y)
-{
-   //If it's not a size change and we're already allocated and own the pointer, this is a no-op
-   if(x == m_nx && y == m_ny && m_imData) 
+   m_images.resize(shkeys.size());
+   
+   for(size_t i=0; i< m_images.size(); ++i)
    {
-      return;
+      m_images[i] = new rtimvImage;
+      m_images[i]->m_shmimName=shkeys[i]; //Set the key
+      m_images[i]->m_timer.start(m_images[i]->m_shmimTimeout); //and set timers.
    }
    
-   if(m_imData) delete[] m_imData;
-
-   setImsize(x, y);
-
-   m_imData = new float[m_nx*m_ny*sizeof(float)];
-
+   connect(&m_timer, SIGNAL(timeout()), this, SLOT(_timerout()));
 }
 
 void imviewer::setImsize(uint32_t x, uint32_t y)
@@ -57,390 +48,38 @@ void imviewer::postSetImsize()
    return;
 }
 
-void imviewer::setImdata( void * imd)
+void imviewer::timeout(int to)
 {
-   for(size_t idx =0; idx < m_nx*m_ny; ++idx)
+   m_timer.stop();
+   
+   for(size_t i=0; i<m_images.size();++i)
    {
-      m_imData[idx] = pixget(imd, idx);
+      m_images[i]->timeout(to); //just for fps calculations
    }
    
-   changeImdata(true);
+   m_timer.start(to);
 }
 
-
-void imviewer::imShmimTimeout(int to)
+void imviewer::_timerout()
 {
-   m_imShmimTimeout = to;
+   int doupdate = m_images[0]->update();
+   
+   if(doupdate >= RTIMVIMAGE_IMUPDATE) 
+   {
+      changeImdata(true);
+   }
+   
+   if(doupdate == RTIMVIMAGE_FPSUPDATE) 
+   {
+      updateFPS();
+   }
+   
+   if(doupdate == RTIMVIMAGE_AGEUPDATE) 
+   {
+      updateAge();
+   }
+   
 }
-
-void imviewer::imTimeout(int to)
-{
-   m_imTimeout = to;
-}
-
-void imviewer::_imShmim_timerout()
-{
-   m_imTimer.stop();
-   imShmim_timerout();
-
-   if(m_imShmimAttached)
-   {
-      disconnect(&m_imTimer, SIGNAL(timeout()), this, SLOT(_imShmim_timerout()));
-      connect(&m_imTimer, SIGNAL(timeout()), this, SLOT(_imTimerout()));
-      m_imTimer.start(m_imTimeout);
-   }
-   else
-   {
-      m_imTimer.start(m_imShmimTimeout);
-   }
-}
-
-
-void imviewer::imShmim_timerout()
-{
-
-   if( ImageStreamIO_openIm(&image, imShmimKey.c_str()) != 0)
-   {
-      m_imShmimAttached = 0;
-      return; //comeback on next timeout
-   }
-   
-   if(image.md[0].sem <= 1)  //Creation not complete yet (believe it or not this happens0
-   {
-      ImageStreamIO_closeIm(&image);
-      m_imShmimAttached = 0;
-      return; //We just need to wait for the server process to finish startup, so come back on next timeout
-   }
-   
-   m_imShmimAttached = 1;
-   
-   type_size = ImageStreamIO_typesize(image.md[0].datatype);
-         
-   allocImdata(image.md[0].size[0], image.md[0].size[1]);
-         
-   switch(image.md[0].datatype)
-   {
-      case IMAGESTRUCT_UINT8:
-         this->pixget = getPixPointer<IMAGESTRUCT_UINT8>();
-         sat_level = (float) imageStructDataType<IMAGESTRUCT_UINT8>::max;
-         break;
-      case IMAGESTRUCT_INT8:
-         this->pixget = getPixPointer<IMAGESTRUCT_INT8>();
-         sat_level = (float) imageStructDataType<IMAGESTRUCT_INT8>::max;
-         break;
-      case IMAGESTRUCT_UINT16:
-         this->pixget = getPixPointer<IMAGESTRUCT_UINT16>();
-         sat_level = (float) imageStructDataType<IMAGESTRUCT_UINT16>::max;
-         break;
-      case IMAGESTRUCT_INT16:
-         this->pixget = getPixPointer<IMAGESTRUCT_INT16>();
-         sat_level = (float) imageStructDataType<IMAGESTRUCT_INT16>::max;
-         break;
-      case IMAGESTRUCT_UINT32:
-         this->pixget = getPixPointer<IMAGESTRUCT_UINT32>();
-         sat_level = (float) imageStructDataType<IMAGESTRUCT_UINT32>::max;
-         break;
-      case IMAGESTRUCT_INT32:
-         this->pixget = getPixPointer<IMAGESTRUCT_INT32>();
-         sat_level = (float) imageStructDataType<IMAGESTRUCT_INT32>::max;
-         break;
-      case IMAGESTRUCT_UINT64:
-         this->pixget = getPixPointer<IMAGESTRUCT_UINT64>();
-         sat_level = (float) imageStructDataType<IMAGESTRUCT_UINT64>::max;
-         break;
-      case IMAGESTRUCT_INT64:
-         this->pixget = getPixPointer<IMAGESTRUCT_INT64>();
-         sat_level = (float) imageStructDataType<IMAGESTRUCT_INT64>::max;
-         break;
-      case IMAGESTRUCT_FLOAT:
-         this->pixget = getPixPointer<IMAGESTRUCT_FLOAT>();
-         sat_level = (float) imageStructDataType<IMAGESTRUCT_FLOAT>::max;
-         break;
-      case IMAGESTRUCT_DOUBLE:
-         this->pixget = getPixPointer<IMAGESTRUCT_DOUBLE>();
-         sat_level = (float) imageStructDataType<IMAGESTRUCT_DOUBLE>::max;
-         break;
-      default:
-         std::cerr << "Unknown or unsupported data type\n";
-         exit(0);
-   }
-
-}
-
-void imviewer::_imTimerout()
-{
-   imUpdate();
-}
-
-void imviewer::imUpdate()
-{
-   int64_t curr_image;
-   uint64_t cnt0;
-   
-   static uint64_t lastCnt0 = -1; //make huge so we don't skip the 0 image
-   
-   uint32_t snx, sny;
-
-   static int fps_counter = 0;
-   static int age_counter = 0;
-   
-   if(image.md[0].sem <= 0) //Indicates that the server has cleaned up.
-   {
-      ImageStreamIO_closeIm(&image);
-      m_imShmimAttached = 0;
-      lastCnt0 = -1;
-      disconnect(&m_imTimer, SIGNAL(timeout()), this, SLOT(_imTimerout()));
-      connect(&m_imTimer, SIGNAL(timeout()), this, SLOT(_imShmim_timerout()));
-      
-      return;
-   }
-      
-      
-   if(image.md[0].size[2] > 0)
-   {
-      curr_image = image.md[0].cnt1 - 1;
-      if(curr_image < 0) curr_image = image.md[0].size[2] - 1;
-   }
-   else curr_image = 0;
-
-   
-   
-   snx = image.md[0].size[0];
-   sny = image.md[0].size[1];
-   
-   if( snx != m_nx || sny != m_ny ) //Something else changed!
-   {
-      ImageStreamIO_closeIm(&image);
-      m_imShmimAttached = 0;
-      lastCnt0 = -1;
-      disconnect(&m_imTimer, SIGNAL(timeout()), this, SLOT(_timerout()));
-      connect(&m_imTimer, SIGNAL(timeout()), this, SLOT(_imShmim_timerout()));
-      
-      return;
-   }
-   
-   cnt0 = image.md[0].cnt0;
-   if(cnt0 != lastCnt0) //Only redraw if it's actually a new image.
-   {
-      setImdata((void *) (image.array.SI8 + curr_image*snx*sny*type_size));
-   
-   
-      lastCnt0 = cnt0;
-   
-      if(fps_counter > 1000/m_imTimeout)
-      {
-         update_fps();
-         fps_counter = 0;
-         age_counter = 0;
-      }
-      else
-      {
-         ++fps_counter;
-      }
-   }
-   else
-   {
-      if(age_counter > 1000/m_imTimeout)
-      {
-         update_age();
-         age_counter = 0;
-         fps_counter = 0;
-         m_fpsEst = 0;
-      }
-      else
-      {
-         ++age_counter;
-      }
-   }
-}
-
-
-
-void imviewer::allocDarkData(uint32_t x, uint32_t y)
-{
-   ///\todo handle case when x != m_nx, which should be an error causing the dark to not be used.
-   
-   //If it's not a size change and we're already allocated and own the pointer, this is a no-op
-   if(x == m_nx && y == m_ny && m_darkData) 
-   {
-      return;
-   }
-   
-   if(m_darkData) delete[] m_darkData;
-
-   m_darkData = new float[m_nx*m_ny*sizeof(float)];
-
-}
-
-void imviewer::setDarkData( void * imd)
-{
-   for(size_t idx =0; idx < m_nx*m_ny; ++idx)
-   {
-      m_darkData[idx] = dark_pixget(imd, idx);
-   }
-   
-   changeImdata(true);
-}
-
-void imviewer::darkShmimTimeout(int to)
-{
-   m_darkShmimTimeout = to;
-}
-
-void imviewer::darkTimeout(int to)
-{
-   m_darkTimeout = to;
-}
-
-void imviewer::_darkShmim_timerout()
-{
-   m_darkTimer.stop();
-   darkShmim_timerout();
-
-   if(m_darkShmimAttached)
-   {
-      disconnect(&m_darkTimer, SIGNAL(timeout()), this, SLOT(_darkShmim_timerout()));
-      connect(&m_darkTimer, SIGNAL(timeout()), this, SLOT(_darkTimerout()));
-      m_darkTimer.start(m_darkTimeout);
-   }
-   else
-   {
-      m_darkTimer.start(m_darkShmimTimeout);
-   }
-}
-
-
-void imviewer::darkShmim_timerout()
-{
-
-   if( ImageStreamIO_openIm(&darkImage, darkShmimKey.c_str()) != 0)
-   {
-      m_darkShmimAttached = 0;
-      return; //comeback on next timeout
-   }
-   
-   if(darkImage.md[0].sem <= 1)  //Creation not complete yet (believe it or not this happens0
-   {
-      ImageStreamIO_closeIm(&darkImage);
-      m_darkShmimAttached = 0;
-      return; //We just need to wait for the server process to finish startup, so come back on next timeout
-   }
-   
-   m_darkShmimAttached = 1;
-   
-   dark_type_size = ImageStreamIO_typesize(darkImage.md[0].datatype);
-         
-   allocDarkData(darkImage.md[0].size[0], darkImage.md[0].size[1]);
-         
-   switch(darkImage.md[0].datatype)
-   {
-      case IMAGESTRUCT_UINT8:
-         this->dark_pixget = getPixPointer<IMAGESTRUCT_UINT8>();
-         break;
-      case IMAGESTRUCT_INT8:
-         this->dark_pixget = getPixPointer<IMAGESTRUCT_INT8>();
-         break;
-      case IMAGESTRUCT_UINT16:
-         this->dark_pixget = getPixPointer<IMAGESTRUCT_UINT16>();
-         break;
-      case IMAGESTRUCT_INT16:
-         this->dark_pixget = getPixPointer<IMAGESTRUCT_INT16>();
-         break;
-      case IMAGESTRUCT_UINT32:
-         this->dark_pixget = getPixPointer<IMAGESTRUCT_UINT32>();
-         break;
-      case IMAGESTRUCT_INT32:
-         this->dark_pixget = getPixPointer<IMAGESTRUCT_INT32>();
-         break;
-      case IMAGESTRUCT_UINT64:
-         this->dark_pixget = getPixPointer<IMAGESTRUCT_UINT64>();
-         break;
-      case IMAGESTRUCT_INT64:
-         this->dark_pixget = getPixPointer<IMAGESTRUCT_INT64>();
-         break;
-      case IMAGESTRUCT_FLOAT:
-         this->dark_pixget = getPixPointer<IMAGESTRUCT_FLOAT>();
-         break;
-      case IMAGESTRUCT_DOUBLE:
-         this->dark_pixget = getPixPointer<IMAGESTRUCT_DOUBLE>();
-         break;
-      default:
-         std::cerr << "Unknown or unsupported data type for dark\n";
-         exit(0);
-   }
-
-}
-
-void imviewer::_darkTimerout()
-{
-   darkUpdate();
-}
-
-void imviewer::darkUpdate()
-{
-   int64_t curr_image;
-   uint64_t cnt0;
-   
-   static uint64_t lastCnt0 = -1; //make huge so we don't skip the 0 image
-   
-   uint32_t snx, sny;
-
-   if(darkImage.md[0].sem <= 0) //Indicates that the server has cleaned up.
-   {
-      ImageStreamIO_closeIm(&darkImage);
-      m_darkShmimAttached = 0;
-      lastCnt0 = -1;
-      disconnect(&m_darkTimer, SIGNAL(timeout()), this, SLOT(_darkTimerout()));
-      connect(&m_darkTimer, SIGNAL(timeout()), this, SLOT(_darkShmim_timerout()));
-      
-      return;
-   }
-      
-      
-      
-   if(darkImage.md[0].size[2] > 0)
-   {
-      curr_image = darkImage.md[0].cnt1 - 1;
-      if(curr_image < 0) curr_image = darkImage.md[0].size[2] - 1;
-   }
-   else curr_image = 0;
-
-   
-   
-   snx = darkImage.md[0].size[0];
-   sny = darkImage.md[0].size[1];
-   
-   if( snx != m_nx || sny != m_ny ) //Something else changed!
-   {
-      ImageStreamIO_closeIm(&darkImage);
-      m_darkShmimAttached = 0;
-      lastCnt0 = -1;
-      disconnect(&m_darkTimer, SIGNAL(timeout()), this, SLOT(_darkTimerout()));
-      connect(&m_darkTimer, SIGNAL(timeout()), this, SLOT(_darkShmim_timerout()));
-      
-      return;
-   }
-   
-   cnt0 = image.md[0].cnt0;
-   if(cnt0 != lastCnt0) //Only redraw if it's actually a new image.
-   {
-      setDarkData((void *) (darkImage.array.SI8 + curr_image*snx*sny*type_size));
-   
-   
-      lastCnt0 = cnt0;   
-   }
-
-}
-
-
-
-
-
-
-
-
-
-
 
 void imviewer::setUserBoxActive(bool usba)
 {
@@ -478,7 +117,7 @@ void imviewer::setUserBoxActive(bool usba)
 
       idx = userBox_j0*m_nx + userBox_i0;
       
-      imval = m_imData[idx];
+      imval = m_images[0]->pixel(idx); //m_imData[idx];
 
       userBox_min = imval;
       userBox_max = imval;
@@ -487,7 +126,7 @@ void imviewer::setUserBoxActive(bool usba)
          for(int j = userBox_j0; j < userBox_j1; j++)
          {
             idx = j*m_nx + i;
-            imval = m_imData[idx];
+            imval = m_images[0]->pixel(idx);// m_imData[idx];
 
             if(imval < userBox_min) userBox_min = imval;
             if(imval > userBox_max) userBox_max = imval;
@@ -515,8 +154,31 @@ void imviewer::changeImdata(bool newdata)
    int idx;
    float imval;
 
-   if(!m_imData) return;
+   if(!m_images[0]->m_data) return;
 
+   if(m_images[0]->m_nx != m_nx || m_images[0]->m_ny != m_ny) 
+   {
+      setImsize(m_images[0]->m_nx, m_images[0]->m_ny);
+      
+      //Need to set these at the beginning
+      imdat_min = m_images[0]->pixel(0);
+      imdat_max = m_images[0]->pixel(0);
+      for(uint32_t i = 0; i < m_ny; ++i)
+      {
+         for(uint32_t j=0;j < m_nx; ++j)
+         {
+            if(m_images[0]->pixel(i*m_nx + j) > imdat_max) imdat_max = m_images[0]->pixel(i*m_nx + j);
+            if(m_images[0]->pixel(i*m_nx + j) < imdat_min) imdat_min = m_images[0]->pixel(i*m_nx + j) ;
+
+         }
+      }
+      set_mindat(imdat_min);
+      set_maxdat(imdat_max);
+      
+      //mindat_rel = (mindat - imdat_min)/(imdat_max-imdat_min);
+      //maxdat_rel = (maxdat - imdat_min)/(imdat_max-imdat_min);
+   }
+   
    amChangingimdata = true;
 
    if(!newdata)
@@ -526,7 +188,7 @@ void imviewer::changeImdata(bool newdata)
    else
    {
       //Update statistics
-      imval = m_imData[0];
+      imval = m_images[0]->pixel(0);//m_imData[0];
       tmp_min = imval;
       tmp_max = imval;
       saturated = 0;
@@ -534,7 +196,7 @@ void imviewer::changeImdata(bool newdata)
       if(userBoxActive)
       {
          idx = userBox_j0*m_nx + userBox_i0;
-         imval = m_imData[idx];
+         imval = m_images[0]->pixel(idx); //m_imData[idx];
          userBox_min = imval;
          userBox_max = imval;
       }
@@ -544,8 +206,8 @@ void imviewer::changeImdata(bool newdata)
          for(uint32_t j=0;j < m_nx; ++j)
          {
             idx = i*m_nx + j;
-            imval = m_imData[idx];
-
+            imval = m_images[0]->pixel(idx); //m_imData[idx];
+            
             if(imval > tmp_max) tmp_max = imval;
             if(imval < tmp_min) tmp_min = imval;
 
@@ -568,10 +230,7 @@ void imviewer::changeImdata(bool newdata)
       imdat_max = tmp_max;
       imdat_min = tmp_min;
 
-      mindat_rel = (mindat - imdat_min)/(imdat_max-imdat_min);
-      maxdat_rel = (maxdat - imdat_min)/(imdat_max-imdat_min);
     }
-    //qpm = QPixmap::fromImage(*qim, Qt::AutoColor | Qt::ThresholdDither);
     qpm.convertFromImage(*qim, Qt::AutoColor | Qt::ThresholdDither);
 
     postChangeImdata();
@@ -584,7 +243,7 @@ void imviewer::changeImdataRecolorOnly()
    {
       for(uint32_t j=0;j <m_nx; ++j)
       {
-         qim->setPixel(j, m_ny-i-1, (int)calcPixval( m_imData[i*m_nx + j] ));
+         qim->setPixel(j, m_ny-i-1, (int)calcPixval( m_images[0]->pixel(i*m_nx + j) ));
       }
    }
 }
@@ -596,7 +255,7 @@ float imviewer::calcPixval(float d)
    static float a = 1000;
    static float log10_a = log10(a);
 
-   pixval = (d - mindatsc)/((float)(maxdatsc-mindatsc));
+   pixval = (d - mindat)/((float)(maxdat-mindat));
    if(pixval < 0) pixval = 0;
    
    switch(colorbar_type)
@@ -633,14 +292,11 @@ void imviewer::postChangeImdata()
 void imviewer::set_mindat(float md)
 {
    mindat = md;
-   mindatsc = mindat;
-
 }
 
 void imviewer::set_maxdat(float md)
 {
    maxdat = md;
-   maxdatsc = maxdat;
 }
 
 void imviewer::set_bias(float b)
@@ -685,21 +341,21 @@ void imviewer::load_colorbar(int cb)
       {
          case colorbarRed:
             mincol = 0;
-            maxcol = 255;
+            maxcol = 256;
             //qim->setNumColors(256);
             for(int i=mincol; i<maxcol; i++) qim->setColor(i, qRgb(i,0,0));
             warning_color = QColor("lime");
             break;
          case colorbarGreen:
             mincol = 0;
-            maxcol = 255;
+            maxcol = 256;
             //qim->setNumColors(256);
             for(int i=mincol; i<maxcol; i++) qim->setColor(i, qRgb(0,i,0));
             warning_color = QColor("magenta");
             break;
          case colorbarBlue:
             mincol = 0;
-            maxcol = 255;
+            maxcol = 256;
             //qim->setNumColors(256);
             for(int i=mincol; i<maxcol; i++) qim->setColor(i, qRgb(0,0,i));
             warning_color = QColor("yellow");
@@ -722,7 +378,7 @@ void imviewer::load_colorbar(int cb)
             break;
          default:
             mincol = 0;
-            maxcol = 255;
+            maxcol = 256;
             //qim->setNumColors(256);
             for(int i=mincol; i<maxcol; i++) qim->setColor(i, qRgb(i,i,i));
             warning_color = QColor("lime");
@@ -772,49 +428,20 @@ void imviewer::set_RealTimeStopped(int rts)
 
    if(RealTimeStopped)
    {
-      m_imTimer.stop();
+      m_timer.stop();
    }
    else
    {
-      m_imTimer.start(m_imTimeout);
-
-      if(m_imShmimAttached) imUpdate();
-      else imShmim_timerout();
+      m_timer.start(m_timeout);
    }
 }
 
-
-
-void imviewer::update_fps()
+void imviewer::updateFPS()
 {
-   double dftime;
-
-   m_fpsTime = image.md[0].atime.tv_sec + ((double) image.md[0].atime.tv_nsec)/1e9;
-   if(m_fpsTime0 == 0)
-   {
-      m_fpsTime0 = m_fpsTime;
-      m_fpsFrame0 = image.md[0].cnt0;
-   }
-   
-   if(m_fpsTime != m_fpsTime0)
-   {
-      dftime = m_fpsTime - m_fpsTime0;
-
-      if(dftime < 1e-9) return;
-
-      
-      m_fpsEst = (float)((image.md[0].cnt0 - m_fpsFrame0))/dftime;   
-      
-      //std::cerr << dftime << " " << m_fpsEst << "\n";
-      
-      m_fpsTime0 = m_fpsTime;
-      m_fpsFrame0 = image.md[0].cnt0;
-   }
-
-   update_age();
+   return;
 }
 
-void imviewer::update_age()
+void imviewer::updateAge()
 {
    return;
 }

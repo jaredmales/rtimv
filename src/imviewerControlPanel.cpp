@@ -299,12 +299,12 @@ void:: imviewerControlPanel::update_xycenEntry()
    
    if(!ui.xcenEntry->hasFocus())
    {
-      snprintf(tmps,10,"%.1f", imv->get_xcen()*imv->getNx());
+      snprintf(tmps,10,"%.1f", imv->get_xcen());//*imv->getNx());
       ui.xcenEntry->setText(tmps);
    }
    if(!ui.ycenEntry->hasFocus())
    {
-      snprintf(tmps,10,"%.1f", imv->get_ycen()*imv->getNy());
+      snprintf(tmps,10,"%.1f", imv->get_ycen());//*imv->getNy());
       ui.ycenEntry->setText(tmps);
    }
 }
@@ -531,7 +531,6 @@ void imviewerControlPanel::on_scaleTypeCombo_activated(int ct)
 
 void imviewerControlPanel::on_colorbarCombo_activated(int cb)
 {
-   std::cout << cb << "\n";
    imv->load_colorbar(cb);
 }
 
@@ -911,7 +910,7 @@ void imviewerControlPanel::on_relfixedButton_clicked()
 
 void imviewerControlPanel::on_imtimerspinBox_valueChanged(int to)
 {
-   imv->imTimeout(to);
+   imv->timeout(to);
 }
 
 void imviewerControlPanel::on_statsBoxButton_clicked()

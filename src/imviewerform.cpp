@@ -1,15 +1,21 @@
 #include "imviewerform.hpp"
 
-imviewerForm::imviewerForm(imviewer_shmt shkey, QWidget * Parent, Qt::WindowFlags f) : imviewer(shkey, Parent, f)
+imviewerForm::imviewerForm( const std::vector<std::string> & shkeys, 
+                            QWidget * Parent, 
+                            Qt::WindowFlags f
+                          ) : imviewer(shkeys, Parent, f)
 {
    ui.setupUi(this);
+   
+   //m_images.m_shmimName=shkey;
+   
    nup =0;
    
    imcp = 0;
    pointerOverZoom = 4.;
    
    resize(height(), height()); //make square.
-   setWindowTitle(shkey.c_str());
+   setWindowTitle(shkeys[0].c_str());
    
    //This will come up at some minimal size.
    ui.graphicsView->setGeometry(0,0, width(), height());
@@ -90,10 +96,10 @@ imviewerForm::imviewerForm(imviewer_shmt shkey, QWidget * Parent, Qt::WindowFlag
    cenLineHorz = 0;//qgs->addLine(QLineF(0, .5*getNy(), getNx(), .5*getNy()), QColor("lime"));
    
    imStats = 0;
-   setImsize(1024,1024); //Just for initial setup.   
+   //setImsize(1024,1024); //Just for initial setup.   
 
-   m_imTimer.start(m_imShmimTimeout); //and set timer.
-
+  
+   m_timer.start(m_timeout);
 
 
    nup = qgs->addLine(QLineF(512,400, 512, 624), QColor("skyblue"));
@@ -113,9 +119,11 @@ imviewerForm::imviewerForm(imviewer_shmt shkey, QWidget * Parent, Qt::WindowFlag
 }
 
 void imviewerForm::postSetImsize()
-{
-   
+{   
    ScreenZoom = std::min((float) ui.graphicsView->viewport()->width()/(float)m_nx,(float)ui.graphicsView->viewport()->height()/(float)m_ny);
+   set_ZoomLevel(1.0);
+   set_viewcen(.5, .5);
+   post_set_ZoomLevel();
    
    if(imcp)
    {
@@ -126,7 +134,7 @@ void imviewerForm::postSetImsize()
       imcp->ui.viewView->setTransform(transform);
    }
    
-   set_ZoomLevel(1.0);
+   
 
    //Resize the user color box
    userBox_i0 = m_ny*.25;
@@ -220,6 +228,8 @@ void imviewerForm::postChangeImdata()
 {
    //if(fps_ave > 1.0) ui.graphicsView->fpsGageText( fps_ave );
   
+   
+   
    if(saturated)
    {
       ui.graphicsView->warningText("Saturated!");
@@ -469,7 +479,7 @@ void imviewerForm::updateMouseCoords()
 {
    int64_t idx_x, idx_y; //image size are uint32_t, so this allows signed comparison without overflow issues
    
-   if(!m_imData) return;
+   if(!m_images[0]->m_data) return;
    if(!qpmi) return;
    
    if(ui.graphicsView->mouseViewX() < 0 || ui.graphicsView->mouseViewY() < 0)
@@ -502,23 +512,11 @@ void imviewerForm::updateMouseCoords()
       if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;
 
       
-      ui.graphicsView->textPixelVal(pixget(m_imData, (int)(idx_y*m_nx) + (int)(idx_x)));
+      ui.graphicsView->textPixelVal(m_images[0]->pixel( (int)(idx_y*m_nx) + (int)(idx_x)) );
 
       if(imcp)
       {
-         #if RT_SYSTEM == RT_SYSTEM_VISAO        
-         if(!applyDark)
-         {
-            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), pixget(m_imData,idx_y*m_nx + idx_x ));
-         }
-         else
-         {
-            imcp->updateMouseCoords(ui.graphicsView->mouseViewX(), ui.graphicsView->mouseViewY(), ( pixget(m_imData,idx_y*m_nx + idx_x)- pixget(dark_sim.imdata,(int)(idx_y*m_nx) + (int)(idx_x)) ));
-         }
-         #else
-         imcp->updateMouseCoords(mx, my, pixget(m_imData,idx_y*m_nx + idx_x) );
-         #endif
-
+         imcp->updateMouseCoords(mx, my, m_images[0]->pixel(idx_y*m_nx + idx_x) );
       }
    }
    
@@ -586,12 +584,12 @@ void imviewerForm::onWheelMoved(int delta)
 }
 
 
-// void imviewerForm::stale_fps()
-// {
-//    
-// }
+void imviewerForm::updateFPS()
+{
+   updateAge();
+}
 
-void imviewerForm::update_age()
+void imviewerForm::updateAge()
 {
    if(m_showFPSGage)
    {
@@ -601,12 +599,12 @@ void imviewerForm::update_age()
       gettimeofday(&tvtmp, 0);
       double timetmp = (double)tvtmp.tv_sec + ((double)tvtmp.tv_usec)/1e6;
    
-      double age = timetmp - m_fpsTime;
+      double age = timetmp - m_images[0]->m_fpsTime;
    
    
-      if(m_fpsEst > 1) 
+      if(m_images[0]->m_fpsEst > 1) 
       {
-         ui.graphicsView->fpsGageText(m_fpsEst);
+         ui.graphicsView->fpsGageText(m_images[0]->m_fpsEst);
       }
       else
       {
@@ -642,14 +640,9 @@ void imviewerForm::doLaunchStatsBox()
    
    if(!imStats)
    {
-      imStats = new imviewerStats(pixget, type_size, this, 0);
-      imStats->setAttribute(Qt::WA_DeleteOnClose); //Qt will delete imstats when it closes.
-#if RT_SYSTEM == RT_SYSTEM_VISAO
-      if(applyDark) imStats->set_imdata(m_imData, frame_time, dark_sim.imdata);
-      else imStats->set_imdata(m_imData, frame_time, 0);
-#else
+//       imStats = new imviewerStats(pixget, type_size, this, 0);
+//       imStats->setAttribute(Qt::WA_DeleteOnClose); //Qt will delete imstats when it closes.
       //imStats->set_imdata(m_imData, frame_time, 0);
-#endif
       connect(imStats, SIGNAL(finished(int )), this, SLOT(imStatsClosed(int )));
    }
 
