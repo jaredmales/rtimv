@@ -33,9 +33,9 @@ imviewerForm::imviewerForm( const std::vector<std::string> & shkeys,
    NullMouseCoords = true;
    
    
-   set_mindat(400);
+   mindat(400);
    
-   set_maxdat(600);
+   maxdat(600);
    
 
    
@@ -121,9 +121,9 @@ imviewerForm::imviewerForm( const std::vector<std::string> & shkeys,
 void imviewerForm::postSetImsize()
 {   
    ScreenZoom = std::min((float) ui.graphicsView->viewport()->width()/(float)m_nx,(float)ui.graphicsView->viewport()->height()/(float)m_ny);
-   set_ZoomLevel(1.0);
+   zoomLevel(1.0);
    set_viewcen(.5, .5);
-   post_set_ZoomLevel();
+   post_zoomLevel();
    
    if(imcp)
    {
@@ -164,8 +164,8 @@ void imviewerForm::postSetImsize()
    
    if(!cenLineVert)
    {
-      cenLineVert = qgs->addLine(QLineF(.5*getNx(),0, .5*getNx(), getNy()), QColor("lime"));
-      cenLineHorz = qgs->addLine(QLineF(0, .5*getNy(), getNx(), .5*getNy()), QColor("lime"));
+      cenLineVert = qgs->addLine(QLineF(.5*nx(),0, .5*nx(), ny()), QColor("lime"));
+      cenLineHorz = qgs->addLine(QLineF(0, .5*ny(), nx(), .5*ny()), QColor("lime"));
       if(targetVisible)
       {
          cenLineVert->setVisible(true);
@@ -179,19 +179,19 @@ void imviewerForm::postSetImsize()
    }
    else
    {
-      cenLineVert->setLine(QLineF(.5*getNx(),0, .5*getNx(), getNy()));
-      cenLineHorz->setLine(QLineF(0, .5*getNy(), getNx(), .5*getNy()));
+      cenLineVert->setLine(QLineF(.5*nx(),0, .5*nx(), ny()));
+      cenLineHorz->setLine(QLineF(0, .5*ny(), nx(), .5*ny()));
    }
 }
 
-void imviewerForm::post_set_ZoomLevel()
+void imviewerForm::post_zoomLevel()
 {
    QTransform transform;
    
-   ui.graphicsView->zoomLevel(ZoomLevel);
+   ui.graphicsView->zoomLevel(m_zoomLevel);
    ui.graphicsView->screenZoom(ScreenZoom);
    
-   transform.scale(ZoomLevel*ScreenZoom, ZoomLevel*ScreenZoom);
+   transform.scale(m_zoomLevel*ScreenZoom, m_zoomLevel*ScreenZoom);
    
    ui.graphicsView->setTransform(transform);
    transform.scale(pointerOverZoom, pointerOverZoom);
@@ -200,16 +200,16 @@ void imviewerForm::post_set_ZoomLevel()
    
    if(nup)
    {
-      nup->setLine(ui.graphicsView->xCen(), ui.graphicsView->yCen()-.1*m_ny/ZoomLevel, ui.graphicsView->xCen(), ui.graphicsView->yCen()+.1*m_ny/ZoomLevel);
+      nup->setLine(ui.graphicsView->xCen(), ui.graphicsView->yCen()-.1*m_ny/m_zoomLevel, ui.graphicsView->xCen(), ui.graphicsView->yCen()+.1*m_ny/m_zoomLevel);
       
       nup->setTransformOriginPoint ( QPointF(ui.graphicsView->xCen(),ui.graphicsView->yCen()) );
          
-      nup_tip->setLine(QLineF(ui.graphicsView->xCen(),ui.graphicsView->yCen()-.1*m_ny/ZoomLevel, ui.graphicsView->xCen() + .02*m_nx/ZoomLevel,ui.graphicsView->yCen()-.1*m_ny/ZoomLevel + .012*m_ny/ZoomLevel));
+      nup_tip->setLine(QLineF(ui.graphicsView->xCen(),ui.graphicsView->yCen()-.1*m_ny/m_zoomLevel, ui.graphicsView->xCen() + .02*m_nx/m_zoomLevel,ui.graphicsView->yCen()-.1*m_ny/m_zoomLevel + .012*m_ny/m_zoomLevel));
       nup_tip->setTransformOriginPoint (  QPointF(ui.graphicsView->xCen(),ui.graphicsView->yCen()) );
 
       QPen qp = nup->pen();
    
-      float wid = 5/(ZoomLevel*ScreenZoom);
+      float wid = 5/(m_zoomLevel*ScreenZoom);
       if(wid > 3) wid = 3;
       qp.setWidth(wid);
 
@@ -219,7 +219,7 @@ void imviewerForm::post_set_ZoomLevel()
   
   
    char zlstr[16];
-   snprintf(zlstr,16, "%0.1fx", ZoomLevel);
+   snprintf(zlstr,16, "%0.1fx", m_zoomLevel);
    ui.graphicsView->zoomText(zlstr);
    
 }
@@ -244,7 +244,7 @@ void imviewerForm::postChangeImdata()
       qpmi = qgs->addPixmap(qpm);
       //So we need to initialize the viewport center, etc.
       set_viewcen(0.5,0.5);
-      post_set_ZoomLevel();
+      post_zoomLevel();
    }
    else qpmi->setPixmap(qpm);
         
@@ -280,41 +280,12 @@ void imviewerForm::postChangeImdata()
       imcp->update_panel();
    }
    
-#if RT_SYSTEM == RT_SYSTEM_VISAO
-   if(imStats) 
-   {
-      if(applyDark && dark_sim.imdata) imStats->set_imdata(m_imData, frame_time, dark_sim.imdata);
-      else  imStats->set_imdata(m_imData, frame_time,0);
-   }
-#endif
-
-#if RT_SYSTEM == RT_SYSTEM_SCEXAO
    if(imStats) 
    {
       //imStats->set_imdata(m_imData, frame_time,0);
    }
-#endif
 
-#if RT_SYSTEM == RT_SYSTEM_VISAO
-   size_t sz;
-   if(!aosb && useAOStatus) aosb = (VisAO::aosystem_status_board*) attach_shm(&sz,  STATUS_aosystem, 0);
-   
-   if(aosb && useAOStatus)
-   {
-      //std::cout << -aosb->pa << "\n";
-      float sgn = -1;
-      nup->setRotation(aosb->rotoffset+90);//(aosb->rotang-aosb->el)+sgn*aosb->pa);
-      nup_tip->setRotation(aosb->rotoffset+90);//(aosb->rotang-aosb->el)+sgn*aosb->pa);
-   }
-   
-#endif
 
-   if(applyDarkChanged)
-   {
-      applyDarkChanged = 0;
-      reStretch();
-      
-   }
 }
 
 void imviewerForm::launchControlPanel()
@@ -353,52 +324,32 @@ void imviewerForm::freezeRealTime()
 
 void imviewerForm::reStretch()
 {
-   
-   if(get_abs_fixed())
+   if(get_colorbar_mode() == user)
    {
-      if(get_colorbar_mode() == user)
-      {
-         set_colorbar_mode(minmaxglobal);
-      }
-      
-      if(get_colorbar_mode() == minmaxglobal)
-      {
-         set_mindat(get_imdat_min());
-         set_maxdat(get_imdat_max());
-         changeImdata(false);
-      }
+      set_colorbar_mode(minmaxglobal);
+   }
+   
+   if(get_colorbar_mode() == minmaxglobal)
+   {
+      mindat(get_imdat_min());
+      maxdat(get_imdat_max());
+      changeImdata(false);
+   }
 
-      if(get_colorbar_mode() == minmaxbox)
-      {
-         set_mindat(userBox_min);
-         set_maxdat(userBox_max);
-         changeImdata(false);
-      }
+   if(get_colorbar_mode() == minmaxbox)
+   {
+      mindat(userBox_min);
+      maxdat(userBox_max);
+      changeImdata(false);
    }
 }
-// 
-// void imviewerForm::on_darkSubCheckBox_stateChanged(int st)
-// {
-//    if(st == 0)
-//    {
-//       applyDark = 0;
-//       applyDarkChanged = 1;
-//    }
-//    else
-//    {
-//       applyDark = 1;
-//       applyDarkChanged = 1;
-//       //std::cout << dark_sim.imdata << std::endl;
-//       
-//    }
-// }
 
 
 
 void imviewerForm::setPointerOverZoom(float poz)
 {
    pointerOverZoom = poz;
-   post_set_ZoomLevel();
+   post_zoomLevel();
 }
 
 
@@ -413,14 +364,14 @@ void imviewerForm::change_center(bool movezoombox)
       imcp->viewLineVert->setLine(ui.graphicsView->xCen(), 0, ui.graphicsView->xCen(), m_ny);
       imcp->viewLineHorz->setLine(0, ui.graphicsView->yCen(), m_nx, ui.graphicsView->yCen());
       
-      if(ZoomLevel <= 1.0) imcp->viewBox->setVisible(false);
+      if(m_zoomLevel <= 1.0) imcp->viewBox->setVisible(false);
       else
       {
          imcp->viewBox->setVisible(true);
          if(movezoombox)
          {
-            QPointF tmpp = imcp->viewBox->mapFromParent(ui.graphicsView->xCen() - .5*m_nx/ZoomLevel, ui.graphicsView->yCen()-.5*m_ny/ZoomLevel);
-            imcp->viewBox->setRect(tmpp.x(), tmpp.y(), m_nx/ZoomLevel, m_ny/ZoomLevel);
+            QPointF tmpp = imcp->viewBox->mapFromParent(ui.graphicsView->xCen() - .5*m_nx/m_zoomLevel, ui.graphicsView->yCen()-.5*m_ny/m_zoomLevel);
+            imcp->viewBox->setRect(tmpp.x(), tmpp.y(), m_nx/m_zoomLevel, m_ny/m_zoomLevel);
          }
          
       }
@@ -448,7 +399,7 @@ void imviewerForm::resizeEvent(QResizeEvent *)
    ScreenZoom = std::min((float)width()/(float)m_nx,(float)height()/(float)m_ny);
    change_center();
    ui.graphicsView->setGeometry(0,0,width(), height());
-   post_set_ZoomLevel();
+   post_zoomLevel();
    
 }
 
@@ -503,20 +454,20 @@ void imviewerForm::updateMouseCoords()
       ui.graphicsView->textCoordY(qpmi->boundingRect().height() - my-0.5);
       
       
-      idx_x = ((int64_t)(mx-0.5));
+      idx_x = ((int64_t)(mx-0));
       if(idx_x < 0) idx_x = 0;
       if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
       
-      idx_y = (int)(qpmi->boundingRect().height() - my-0.5);
+      idx_y = (int)(qpmi->boundingRect().height() - (my-0));
       if(idx_y < 0) idx_y = 0;
       if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;
 
-      
-      ui.graphicsView->textPixelVal(m_images[0]->pixel( (int)(idx_y*m_nx) + (int)(idx_x)) );
+      pixelF _pixel = pixel();
+      ui.graphicsView->textPixelVal(_pixel(this,  (int)(idx_y*m_nx) + (int)(idx_x)) );
 
       if(imcp)
       {
-         imcp->updateMouseCoords(mx, my, m_images[0]->pixel(idx_y*m_nx + idx_x) );
+         imcp->updateMouseCoords(mx, my, _pixel(this, idx_y*m_nx + idx_x) );
       }
    }
    
@@ -529,8 +480,8 @@ void imviewerForm::updateMouseCoords()
       float dbias = dx/ui.graphicsView->viewport()->width();
       float dcontrast = -1.*dy/ui.graphicsView->viewport()->height();
       
-      set_bias(biasStart + dbias*.5*(imdat_max+imdat_min));
-      set_contrast(contrastStart + dcontrast*(imdat_max-imdat_min));
+      bias(biasStart + dbias*.5*(imdat_max+imdat_min));
+      contrast(contrastStart + dcontrast*(imdat_max-imdat_min));
       if(!amChangingimdata) changeImdata();
    }
 }
@@ -562,8 +513,8 @@ void imviewerForm::viewRightPressed(QPointF mp)
    rightClickDragging = true;
    
    rightClickStart = mp;//ui.graphicsView->mapToScene(mp.x(),mp.y());
-   biasStart = get_bias();
-   contrastStart = get_contrast();
+   biasStart = bias();
+   contrastStart = contrast();
    
 }
 
@@ -579,7 +530,7 @@ void imviewerForm::onWheelMoved(int delta)
    if(delta > 0)   dz = 1.02;//1.41421;
    else dz = 0.98;//0.70711;
    
-   set_ZoomLevel(dz*get_ZoomLevel());
+   zoomLevel(dz*zoomLevel());
    
 }
 
@@ -688,12 +639,7 @@ void imviewerForm::statsBoxMoved(const QRectF & newr)
 
    if(imStats) 
    {
-#if RT_SYSTEM == RT_SYSTEM_VISAO
-      if(applyDark) imStats->set_imdata(m_imData, frame_time, m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y(), dark_sim.imdata);
-      else imStats->set_imdata(m_imData, frame_time, m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y(), 0);
-#else
       //imStats->set_imdata(m_imData, frame_time, m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y(), 0);
-#endif 
    }
    
    (void)(newr);
@@ -746,19 +692,6 @@ void imviewerForm::guideBoxMoved(const QRectF & newr)
    guideBox_j0 = m_ny-np2.y() + .5;
    guideBox_j1 = m_ny-np.y();
   
-   //std::cout << guideBox_i0 << " " << guideBox_j0 << " " << guideBox_i1 << " " << guideBox_j1 << "\n";
-   
-#if RT_SYSTEM == RT_SYSTEM_VISAO
-   if(statusboard_shmemptr > 0)
-   {
-      VisAO::imviewer_status_board * isb = (VisAO::imviewer_status_board *) statusboard_shmemptr;
-      
-      isb->guidebox_x0 = guideBox_i0;
-      isb->guidebox_x1 = guideBox_i1;
-      isb->guidebox_y0 = guideBox_j0;
-      isb->guidebox_y1 = guideBox_j1;
-   }
-#endif
 
 }
 
@@ -864,55 +797,55 @@ void imviewerForm::keyPressEvent(QKeyEvent * ke)
    
    if(ke->text() == "1")
    {
-      set_ZoomLevel(1.0);
+      zoomLevel(1.0);
       return;
    }
    
    if(ke->text() == "2")
    {
-      set_ZoomLevel(2.0);
+      zoomLevel(2.0);
       return;
    }
    
    if(ke->text() == "3")
    {
-      set_ZoomLevel(3.0);
+      zoomLevel(3.0);
       return;
    }
    
    if(ke->text() == "4")
    {
-      set_ZoomLevel(4.0);
+      zoomLevel(4.0);
       return;
    }
    
    if(ke->text() == "5")
    {
-      set_ZoomLevel(5.0);
+      zoomLevel(5.0);
       return;
    }
    
    if(ke->text() == "6")
    {
-      set_ZoomLevel(6.0);
+      zoomLevel(6.0);
       return;
    }
    
    if(ke->text() == "7")
    {
-      set_ZoomLevel(7.0);
+      zoomLevel(7.0);
       return;
    }
    
    if(ke->text() == "8")
    {
-      set_ZoomLevel(8.0);
+      zoomLevel(8.0);
       return;
    }
    
    if(ke->text() == "9")
    {
-      set_ZoomLevel(9.0);
+      zoomLevel(9.0);
       return;
    }
    
@@ -995,7 +928,7 @@ void imviewerForm::keyPressEvent(QKeyEvent * ke)
    if(ke->text() == "c")
    {
       set_viewcen(.5, .5);
-      post_set_ZoomLevel();
+      post_zoomLevel();
    }
    
    if(ke->text() == "o")
@@ -1019,7 +952,7 @@ void imviewerForm::keyPressEvent(QKeyEvent * ke)
       
    }
    
-   if(ke->text() == "d")
+   if(ke->text() == "D")
    {
       if(m_subtractDark)
       {
@@ -1032,7 +965,7 @@ void imviewerForm::keyPressEvent(QKeyEvent * ke)
       changeImdata(false);
    }
       
-   if(ke->text() == "m")
+   if(ke->text() == "M")
    {
       if(m_applyMask)
       {

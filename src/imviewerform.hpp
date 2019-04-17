@@ -44,7 +44,7 @@ class imviewerForm : public imviewer
                   );
    
       virtual void postSetImsize();
-      virtual void post_set_ZoomLevel();
+      virtual void post_zoomLevel();
       virtual void postChangeImdata();
       
       virtual void updateFPS();

@@ -23,14 +23,6 @@
 
 #include "pixaccess.h"
 
-
-//Still needed since we haven't scrubbed all the legacy VisAO code yet...
-#define RT_SYSTEM_VISAO 0
-#define RT_SYSTEM_SCEXAO 1
-#define RT_SYSTEM 1
-
-
-
 #include <cstdio>
 
 #include <unistd.h>
@@ -54,176 +46,245 @@ public:
              Qt::WindowFlags f = 0
            );
 
-   /*** Image Data ***/
+ /** @name Image Data
+     *    
+     * @{
+     */ 
 protected:
    uint32_t m_nx {0}; ///< The number of pixels in the x (horizontal) direction
    uint32_t m_ny {0}; ///< The number of pixels in the y (vertical) direction
 
    std::vector<rtimvImage *> m_images;
       
-    /***** Image Data Management *****/
-
-   
-   QTimer m_timer; ///< When this times out imviewer checks for a new image.
-   
-   int m_timeout {100}; ///<The timeout for checking for a new images, ms.
-
-public:
-   /// Set the image display timeout.
-   void timeout(int);
-      
-protected slots:
-   
-   void _timerout();
-   
 public:   
-   //memory management
-   
    void setImsize(uint32_t x, uint32_t y); ///Changes the image size, but only if necessary.
    
    virtual void postSetImsize(); ///<to call after set_imsize to handle allocations for derived classes
       
    ///Get the number of x pixels
-   float getNx(){return m_nx;}
+   /**
+     * \returns the current vvalue of m_nx
+     */ 
+   uint32_t nx();
 
    ///Get the number of y pixels
-   float getNy(){return m_ny;}
+   /**
+     * \returns the current vvalue of m_ny
+     */
+   uint32_t ny();
    
+   /// @}
+
+   /** @name Image Data Update Interval
+     *    
+     * @{
+     */       
 protected:
-   bool amChangingimdata;
+   QTimer m_timer; ///< When this times out imviewer checks for a new image.
+   
+   int m_timeout {100}; ///<The timeout for checking for a new images, ms.
+
+protected slots:
+   
+   /// Function called by m_timer expiration.
+   /** This is what actually checks for image data updates.
+     */
+   void timerout();
    
 public:
+   
+   /// Set the image display timeout.
+   /** This sets the display frame rate, e.g. a timeout of 100 msec will 
+     * cause the display to update at 10 f.p.s.
+     */ 
+   void timeout(int to /**< [in] the new image display timeout*/);
 
-   virtual void postChangeImdata(); ///<to call after change imdata does its work.
-          
+   /// @}
+   
+   /** @name Calibrated Pixel Access
+     * 
+     * Settings to control which calibrations are applied, and provided acccess to calibrated pixels.
+     * 
+     * Calibrations include dark subtraction, reference subtraction, flat field, mask, and low and high pass filtering.
+     * Note: only dark subtraction and masking are currently implemented.
+     * 
+     * The pixelF function pointer is used so that only a single `if-else` tree needs to be evaluated before 
+     * iterating over all pixels.  The pixel() function returns a pointer to the static pixel_* function appropriate
+     * for the current calibration settings.
+     * 
+     * @{
+     */ 
+public:
+   /// The fuction pointer type for accessing pixels with calibrations applied.
+   typedef float (*pixelF)(imviewer*, size_t);
+
+//protected:   
+   bool m_subtractDark {false};
+   
+   bool m_applyMask {false};
+
+public:
+   
+   /// Returns a pointer to the static pixel value calculation function for the current calibration configuration
+   /** Calibration configuration includes the value of m_subtractDark, m_applyMask.
+     *
+     * \returns a pointer to one of pixel_noCal, pixel_subDark, pixel_applyMask, pixel_subDarkApplyMask.
+     */
+   pixelF pixel();
+      
+   /// Access pixels with no calibrations applied.
+   /** 
+     * \returns the value of pixel idx
+     */ 
+   static float pixel_noCal( imviewer * imv, ///< [in] the imviewer instance to access
+                             size_t idx      ///< [in] the linear pixel number to access
+                           );
+   
+   /// Access pixels with dark subtraction applied.
+   /** 
+     * \returns the value of pixel idx after dark subtraction
+     */
+   static float pixel_subDark( imviewer * imv, ///< [in] the imviewer instance to access 
+                               size_t idx      ///< [in] the linear pixel number to access
+                             );
+   
+   /// Access pixels with the mask applied.
+   /** 
+     * \returns the value of pixel idx after applying the mask
+     */
+   static float pixel_applyMask( imviewer * imv, ///< [in] the imviewer instance to access
+                                 size_t idx      ///< [in] the linear pixel number to access
+                               );
+   
+   /// Access pixels with dark subtraction and masking applied.
+   /** 
+     * \returns the value of pixel idx after subtracting the dark and applying the mask
+     */
+   static float pixel_subDarkApplyMask( imviewer * imv, ///< [in] the imviewer instance to access 
+                                        size_t idx      ///< [in] the linear pixel number to access
+                                      );
+   
+   ///@}
+   
+   /** @name Colorbar Selection
+     * 
+     * @{
+     */
+protected:
+   int mincol {0};
+   int maxcol {256};
+
+   int colorbar_mode {minmaxglobal};
+   int colorbar_type {typelinear};
+
+   int current_colorbar {colorbarBone};
+
+   QColor warning_color;
+
+public:
+
+   enum colorbars{colorbarGrey, colorbarJet, colorbarHot, colorbarBone, colorbarRed, colorbarGreen, colorbarBlue, colorbarMax};
+   void load_colorbar(int);
+   int get_current_colorbar(){return current_colorbar;}
+
+   enum colorbar_modes{minmaxglobal, minmaxview, minmaxbox, user, colorbar_modes_max};
+   void set_colorbar_mode(int mode){ colorbar_mode = mode;}
+   int get_colorbar_mode(){return colorbar_mode;}
+
+   enum colorbar_types{typelinear, typelog, typepow, typesqrt, typesquare, colorbar_types_max};
+   void set_colorbar_type(int);
+   int get_colorbar_type(){return colorbar_type;}
+
+   ///@}
+   
+   /** @name Colorbar Scale Control
+     * 
+     * @{
+     */
+
+protected:
+   /*** Color Map ***/
+   float m_mindat;  ///< The minimum data value used for scaling
+      
+   float m_maxdat; ///< The maximum data valuse used for scaling
+      
+public:
+   void mindat(float md);
+      
+   float mindat();
+      
+   void maxdat(float md);
+      
+   float maxdat();
+
+   void bias(float b);
+
+   float bias();
+   
+   void bias_rel(float b);
+
+   float bias_rel();
+   
+   void contrast(float c);
+
+   float contrast();
+   
+   void contrast_rel(float cr);
+   
+   float contrast_rel();
+
+protected:
+   
+   /// Calculates the color map index of a value.
+   /** Returned value includes the effect of the current color bar stretch (m_mindat and m_maxdat) 
+     * and the current color bar scale (m_colorbarScale) 
+     */
+   int calcPixIndex(float d);
+
+   ///@}
+   
+   /** @name Image Filtering
+     * 
+     * @{
+     */
+
+      float * m_lowPassFiltered {nullptr};
+      
+      bool m_applyLPFilter;
+      
+      int m_lpFilterType;
+   
+   ///@} -- filtering
    
    //****** The display *************
 protected:
       
       
-      QImage * qim {nullptr}; ///<A QT image, used to store the color-map encoded data
+   QImage * qim {nullptr}; ///<A QT image, used to store the color-map encoded data
       
-      QPixmap qpm; ///<A QT pixmap, used to prep the QImage for display.
+   QPixmap qpm; ///<A QT pixmap, used to prep the QImage for display.
 
-      /** @name A User Defined Region
-       */
-      //@{
-      int userBoxActive {0};
-
-      //ImageStreamIO images are sized in uint32_t, so we need these big enough for signed comparisons without wraparound
-      int64_t userBox_i0;
-      int64_t userBox_i1;
-      int64_t userBox_j0;
-      int64_t userBox_j1;
-
-      int64_t guideBox_i0;
-      int64_t guideBox_i1;
-      int64_t guideBox_j0;
-      int64_t guideBox_j1;
-
-      float userBox_max;
-      float userBox_min;
-
-
-   public:
-      int getUserBoxActive(){ return userBoxActive; }
-      void setUserBoxActive(bool usba);
-      //virtual void post_setUserBoxActive(){ return; }
-      //@}
-
-   public:
+   bool amChangingimdata;
+   
+public:
       
-      ///Get the QPixMap pointer
-      QPixmap * getPixmap(){return &qpm;}
+   ///Get the QPixMap pointer
+   QPixmap * getPixmap(){return &qpm;}
 
+   
+   ///Updates the QImage and basic statistics after a new image.
+   /** \param newdata determines whether statistics are calculated (true) or not (false).
+     */
+   void changeImdata(bool newdata = false);
 
-      bool m_subtractDark {false};
-      bool m_applyMask {false};
-      
-      static float pixel_noCal(imviewer * imv, size_t idx);
-      static float pixel_subDark(imviewer * imv, size_t idx);
-      static float pixel_applyMask(imviewer * imv, size_t idx);
-      static float pixel_subDarkApplyMask(imviewer * imv, size_t idx);
-      
-      ///Updates the QImage and the statistics after a new image.
-      /** \param newdata determines whether statistics are calculated (true) or not (false).
-       */
-      void changeImdata(bool newdata = false);
+   virtual void postChangeImdata(); ///<to call after change imdata does its work.
 
-      void changeImdataRecolorOnly();///<Only update the QImage with a new color mapping, does not recalc any statistics.
-
-      float calcPixval(float d);///<Actually calculates the color mapped value of each pixel from 0 to 255.
-
-      bool applyDark {false};
-      
-      bool applyDarkChanged {true};
-
+   
 
    protected:
       float sat_level {1e30};
       int saturated {0};
 
-   /*** Color Map ***/
-   protected:
-      float mindat;
-      
-      float maxdat;
-      
-   public:
-      void set_mindat(float md);
-      float get_mindat(){return mindat;}
-      void set_maxdat(float md);
-      float get_maxdat(){return maxdat;}
-
-      void set_bias(float b);
-      void set_bias_rel(float b);
-      float get_bias(){return 0.5*(maxdat+mindat);}
-      float get_bias_rel(){return 0.5*(maxdat+mindat)/(maxdat-mindat);}
-
-      void set_contrast(float c);
-      void set_contrast_rel(float cr);
-      float get_contrast(){return maxdat-mindat;}
-      float get_contrast_rel(){return (imdat_max-imdat_min)/(maxdat-mindat);}
-
-   protected:
-      int mincol {0};
-      int maxcol {256};
-
-      bool abs_fixed {true};
-      bool rel_fixed {false};
-
-      int colorbar_mode {minmaxglobal};
-      int colorbar_type {typelinear};
-
-      int current_colorbar {colorbarBone};
-
-      QColor warning_color;
-
-   public:
-      bool get_abs_fixed(){return abs_fixed;}
-      bool get_rel_fixed(){return rel_fixed;}
-      void set_abs_fixed()
-      {
-         abs_fixed = true;
-         rel_fixed = false;
-      }
-      void set_rel_fixed()
-      {
-         rel_fixed = true;
-         abs_fixed = false;
-      }
-
-      enum colorbars{colorbarGrey, colorbarJet, colorbarHot, colorbarBone, colorbarRed, colorbarGreen, colorbarBlue, colorbarMax};
-      void load_colorbar(int);
-      int get_current_colorbar(){return current_colorbar;}
-
-      enum colorbar_modes{minmaxglobal, minmaxview, minmaxbox, user, colorbar_modes_max};
-      void set_colorbar_mode(int mode){ colorbar_mode = mode;}
-      int get_colorbar_mode(){return colorbar_mode;}
-
-      enum colorbar_types{typelinear, typelog, typepow, typesqrt, typesquare, colorbar_types_max};
-      void set_colorbar_type(int);
-      int get_colorbar_type(){return colorbar_type;}
 
    /* Image Stats */
    protected:
@@ -236,20 +297,47 @@ protected:
 
    /*** Abstract Zoom ***/
    protected:
-      float ZoomLevel {1};
-      float ZoomLevel_min {0.125};
-      float ZoomLevel_max {64};
+      float m_zoomLevel {1};
+      float m_zoomLevelMin {0.125};
+      float m_zoomLevelMax {64};
 
    public:
-      float get_ZoomLevel(){return ZoomLevel;}
-      float get_ZoomLevel_min(){return ZoomLevel_min;}
-      float get_ZoomLevel_max(){return ZoomLevel_max;}
+      float zoomLevel(){return m_zoomLevel;}
+      float zoomLevelMin(){return m_zoomLevelMin;}
+      float zoomLevelMax(){return m_zoomLevelMax;}
 
       //void set_ZoomLevel(int zlint);
-      void set_ZoomLevel(float zl);
-      virtual void post_set_ZoomLevel();
+      void zoomLevel(float zl);
+      virtual void post_zoomLevel();
 
   
+   /** @name A User Defined Region
+     *
+     * @{
+     */
+protected:
+   int userBoxActive {0};
+
+   //ImageStreamIO images are sized in uint32_t, so we need these big enough for signed comparisons without wraparound
+   int64_t userBox_i0;
+   int64_t userBox_i1;
+   int64_t userBox_j0;
+   int64_t userBox_j1;
+
+   int64_t guideBox_i0;
+   int64_t guideBox_i1;
+   int64_t guideBox_j0;
+   int64_t guideBox_j1;
+
+   float userBox_max;
+   float userBox_min;
+
+public:
+   int getUserBoxActive(){ return userBoxActive; }
+   
+   void setUserBoxActive(bool usba);
+   
+   ///@}
 
 
    /*** Real Time Controls ***/   

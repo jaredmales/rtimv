@@ -151,8 +151,6 @@ class imviewerControlPanel : public QWidget
       void on_contrastSlider_valueChanged(int value);
       void on_contrastEntry_editingFinished();
       
-      void on_absfixedButton_clicked();
-      void on_relfixedButton_clicked();
 
    public:
    /*** Real Time Controls ***/

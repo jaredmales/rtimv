@@ -23,18 +23,18 @@ imviewerControlPanel::imviewerControlPanel(imviewerForm *v, Qt::WindowFlags f): 
       
    ui.viewView->setScene(qgs_view);
    
-   viewLineVert = qgs_view->addLine(QLineF(.5*imv->getNx(),0, .5*imv->getNx(), imv->getNy()), QColor("lime"));
-   viewLineHorz = qgs_view->addLine(QLineF(0, .5*imv->getNy(), imv->getNx(), .5*imv->getNy()), QColor("lime"));
+   viewLineVert = qgs_view->addLine(QLineF(.5*imv->nx(),0, .5*imv->nx(), imv->ny()), QColor("lime"));
+   viewLineHorz = qgs_view->addLine(QLineF(0, .5*imv->ny(), imv->nx(), .5*imv->ny()), QColor("lime"));
    //viewBox = qgs_view->addRect(QRectF(0,0, imv->get_nx(), imv->get_ny()), QColor("lime"));
-   viewBox = new StretchBox(0,0, imv->getNx(), imv->getNy());
+   viewBox = new StretchBox(0,0, imv->nx(), imv->ny());
    viewBox->setPen(QPen("lime"));
    viewBox->setFlag(QGraphicsItem::ItemIsSelectable, true);
    viewBox->setFlag(QGraphicsItem::ItemIsMovable, true);
    viewBox->setStretchable(false);
-   viewBox->setEdgeTol(imv->getNx());//5.*imv->getNx()/ui.viewView->width() < 5 ? 5 : 5.*imv->getNx()/ui.viewView->width() );
+   viewBox->setEdgeTol(imv->nx());//5.*imv->nx()/ui.viewView->width() < 5 ? 5 : 5.*imv->nx()/ui.viewView->width() );
    qgs_view->addItem(viewBox);
    
-   double viewZoom = (double)ui.viewView->width()/(double)imv->getNx();
+   double viewZoom = (double)ui.viewView->width()/(double)imv->nx();
    ui.viewView->scale(viewZoom,viewZoom);
    
    PointerViewFixed = false;
@@ -98,16 +98,16 @@ void imviewerControlPanel::init_panel()
    update_xycenEntry();
    update_whEntry();
    
-   if(imv->get_abs_fixed())
-   {
-      ui.absfixedButton->setEnabled(false);
-      ui.relfixedButton->setEnabled(true);
-   }
-   else
-   {
-      ui.absfixedButton->setEnabled(true);
-      ui.relfixedButton->setEnabled(false);
-   }
+//    if(imv->get_abs_fixed())
+//    {
+//       ui.absfixedButton->setEnabled(false);
+//       ui.relfixedButton->setEnabled(true);
+//    }
+//    else
+//    {
+//       ui.absfixedButton->setEnabled(true);
+//       ui.relfixedButton->setEnabled(false);
+//    }
    
    IgnoremindatSliderChange = true;
    update_mindatSlider();
@@ -185,13 +185,13 @@ void imviewerControlPanel::update_panel()
 
 void imviewerControlPanel::update_ZoomSlider()
 {
-   ui.ZoomSlider->setSliderPosition((int)((imv->get_ZoomLevel()-imv->get_ZoomLevel_min())/(imv->get_ZoomLevel_max()-imv->get_ZoomLevel_min()) * (ui.ZoomSlider->maximum()-ui.ZoomSlider->minimum())+.5));
+   ui.ZoomSlider->setSliderPosition((int)((imv->zoomLevel()-imv->zoomLevelMin())/(imv->zoomLevelMax()-imv->zoomLevelMin()) * (ui.ZoomSlider->maximum()-ui.ZoomSlider->minimum())+.5));
 }
 
 void imviewerControlPanel::update_ZoomEntry()
 {
    char newz[10];
-   sprintf(newz, "%4.2f", imv->get_ZoomLevel());
+   sprintf(newz, "%4.2f", imv->zoomLevel());
    ui.ZoomEntry->setText(newz);
 }
 
@@ -200,15 +200,15 @@ void imviewerControlPanel::on_ZoomSlider_valueChanged(int value)
    double zl;
    if(!IgnoreZoomSliderChange)
    {
-      zl = imv->get_ZoomLevel_min() + ((double)value/((double) ui.ZoomSlider->maximum() - (double)ui.ZoomSlider->minimum()))*(imv->get_ZoomLevel_max()-imv->get_ZoomLevel_min());
-      imv->set_ZoomLevel(zl);
+      zl = imv->zoomLevelMin() + ((double)value/((double) ui.ZoomSlider->maximum() - (double)ui.ZoomSlider->minimum()))*(imv->zoomLevelMax()-imv->zoomLevelMin());
+      imv->zoomLevel(zl);
    }
    update_ZoomEntry();
 }
 
 void imviewerControlPanel::on_Zoom1_clicked()
 {
-   imv->set_ZoomLevel(1.0);
+   imv->zoomLevel(1.0);
    IgnoreZoomSliderChange = true;
    update_ZoomSlider();
    IgnoreZoomSliderChange = false;
@@ -216,7 +216,7 @@ void imviewerControlPanel::on_Zoom1_clicked()
 
 void imviewerControlPanel::on_Zoom2_clicked()
 {
-	imv->set_ZoomLevel(2.0);
+	imv->zoomLevel(2.0);
 	IgnoreZoomSliderChange = true;
 	update_ZoomSlider();
 	IgnoreZoomSliderChange = false;
@@ -224,7 +224,7 @@ void imviewerControlPanel::on_Zoom2_clicked()
 
 void imviewerControlPanel::on_Zoom4_clicked()
 {
-	imv->set_ZoomLevel(4.0);
+	imv->zoomLevel(4.0);
 	IgnoreZoomSliderChange = true;
 	update_ZoomSlider();
 	IgnoreZoomSliderChange = false;
@@ -232,7 +232,7 @@ void imviewerControlPanel::on_Zoom4_clicked()
 
 void imviewerControlPanel::on_Zoom8_clicked()
 {
-	imv->set_ZoomLevel(8.0);
+	imv->zoomLevel(8.0);
 	IgnoreZoomSliderChange = true;
 	update_ZoomSlider();
 	IgnoreZoomSliderChange = false;
@@ -240,7 +240,7 @@ void imviewerControlPanel::on_Zoom8_clicked()
 
 void imviewerControlPanel::on_Zoom16_clicked()
 {
-	imv->set_ZoomLevel(16.0);
+	imv->zoomLevel(16.0);
 	IgnoreZoomSliderChange = true;
 	update_ZoomSlider();
 	IgnoreZoomSliderChange = false;
@@ -248,7 +248,7 @@ void imviewerControlPanel::on_Zoom16_clicked()
 
 void imviewerControlPanel::on_ZoomEntry_editingFinished()
 {
-	imv->set_ZoomLevel(ui.ZoomEntry->text().toDouble());
+	imv->zoomLevel(ui.ZoomEntry->text().toDouble());
 	IgnoreZoomSliderChange = true;
 	update_ZoomSlider();
 	IgnoreZoomSliderChange = false;
@@ -281,7 +281,7 @@ void imviewerControlPanel::set_ViewViewMode(int vvm)
    if(ViewViewMode == ViewViewEnabled)
    {
       qpmi_view = qgs_view->addPixmap(*(imv->getPixmap()));
-      viewBox->setEdgeTol(5.*imv->getNx()/qgs_view->width());
+      viewBox->setEdgeTol(5.*imv->nx()/qgs_view->width());
       
       qpmi_view->stackBefore(viewLineVert);
    }
@@ -299,12 +299,12 @@ void:: imviewerControlPanel::update_xycenEntry()
    
    if(!ui.xcenEntry->hasFocus())
    {
-      snprintf(tmps,10,"%.1f", imv->get_xcen());//*imv->getNx());
+      snprintf(tmps,10,"%.1f", imv->get_xcen());//*imv->nx());
       ui.xcenEntry->setText(tmps);
    }
    if(!ui.ycenEntry->hasFocus())
    {
-      snprintf(tmps,10,"%.1f", imv->get_ycen());//*imv->getNy());
+      snprintf(tmps,10,"%.1f", imv->get_ycen());//*imv->ny());
       ui.ycenEntry->setText(tmps);
    }
 }
@@ -314,13 +314,13 @@ void imviewerControlPanel::update_whEntry()
    char tmps[10];
    if(!ui.widthEntry->hasFocus())
    {
-      snprintf(tmps,10,"%.1f", ((double)imv->getNx())/imv->get_ZoomLevel());
+      snprintf(tmps,10,"%.1f", ((double)imv->nx())/imv->zoomLevel());
       ui.widthEntry->setText(tmps);
    }
    
    if(!ui.heightEntry->hasFocus())
    {
-      snprintf(tmps,10,"%.1f", ((double)imv->getNy())/imv->get_ZoomLevel());
+      snprintf(tmps,10,"%.1f", ((double)imv->ny())/imv->zoomLevel());
       ui.heightEntry->setText(tmps);
    }
 }
@@ -338,27 +338,27 @@ void imviewerControlPanel::enableViewViewMode(int state)
 
 void imviewerControlPanel::on_xcenEntry_editingFinished()
 {
-	imv->set_viewcen(ui.xcenEntry->text().toDouble()/imv->getNx(), imv->get_ycen());;
+	imv->set_viewcen(ui.xcenEntry->text().toDouble()/imv->nx(), imv->get_ycen());;
 }
 
 void imviewerControlPanel::on_ycenEntry_editingFinished()
 {
-	imv->set_viewcen(imv->get_xcen(), ui.ycenEntry->text().toDouble()/imv->getNy());
+	imv->set_viewcen(imv->get_xcen(), ui.ycenEntry->text().toDouble()/imv->ny());
 }
 
 void imviewerControlPanel::on_widthEntry_editingFinished()
 {
 	double newzoom;
-	newzoom = ((double)imv->getNx())/ui.widthEntry->text().toDouble();
-	imv->set_ZoomLevel(newzoom);
+	newzoom = ((double)imv->nx())/ui.widthEntry->text().toDouble();
+	imv->zoomLevel(newzoom);
 	update_panel();
 }
 	
 void imviewerControlPanel::on_heightEntry_editingFinished()
 {
 	double newzoom;
-	newzoom = ((double)imv->getNy())/ui.heightEntry->text().toDouble();
-	imv->set_ZoomLevel(newzoom);
+	newzoom = ((double)imv->ny())/ui.heightEntry->text().toDouble();
+	imv->zoomLevel(newzoom);
 	update_panel();
 }
 
@@ -369,42 +369,42 @@ void imviewerControlPanel::on_view_center_clicked()
 
 void imviewerControlPanel::on_view_ul_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() - 1./imv->get_ZoomLevel(), imv->get_ycen()-1./imv->get_ZoomLevel());
+	imv->set_viewcen(imv->get_xcen() - 1./imv->zoomLevel(), imv->get_ycen()-1./imv->zoomLevel());
 }
 
 void imviewerControlPanel::on_view_up_clicked()
 {
-	imv->set_viewcen(imv->get_xcen(), imv->get_ycen()-1./imv->get_ZoomLevel());
+	imv->set_viewcen(imv->get_xcen(), imv->get_ycen()-1./imv->zoomLevel());
 }
 
 void imviewerControlPanel::on_view_ur_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() + 1./imv->get_ZoomLevel(), imv->get_ycen() - 1./imv->get_ZoomLevel());
+	imv->set_viewcen(imv->get_xcen() + 1./imv->zoomLevel(), imv->get_ycen() - 1./imv->zoomLevel());
 }
 
 void imviewerControlPanel::on_view_right_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() + 1./imv->get_ZoomLevel(), imv->get_ycen());
+	imv->set_viewcen(imv->get_xcen() + 1./imv->zoomLevel(), imv->get_ycen());
 }
 
 void imviewerControlPanel::on_view_dr_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() + 1./imv->get_ZoomLevel(), imv->get_ycen()+1./imv->get_ZoomLevel());
+	imv->set_viewcen(imv->get_xcen() + 1./imv->zoomLevel(), imv->get_ycen()+1./imv->zoomLevel());
 }
 
 void imviewerControlPanel::on_view_down_clicked()
 {
-	imv->set_viewcen(imv->get_xcen(), imv->get_ycen()+1./imv->get_ZoomLevel());
+	imv->set_viewcen(imv->get_xcen(), imv->get_ycen()+1./imv->zoomLevel());
 }
 
 void imviewerControlPanel::on_view_dl_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() - 1./imv->get_ZoomLevel(), imv->get_ycen()+1./imv->get_ZoomLevel());
+	imv->set_viewcen(imv->get_xcen() - 1./imv->zoomLevel(), imv->get_ycen()+1./imv->zoomLevel());
 }
 
 void imviewerControlPanel::on_view_left_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() - 1./imv->get_ZoomLevel(), imv->get_ycen());
+	imv->set_viewcen(imv->get_xcen() - 1./imv->zoomLevel(), imv->get_ycen());
 }
 
 void imviewerControlPanel::updateMouseCoords(double x, double y, double v)
@@ -426,7 +426,7 @@ void imviewerControlPanel::updateMouseCoords(double x, double y, double v)
 			ui.pointerView->setScene(imv->get_qgs());
 			PointerViewEmpty = false;
 		}
-	 	ui.pointerView->centerOn(x, imv->getNy()-y);
+	 	ui.pointerView->centerOn(x, imv->ny()-y);
 	
 	}
 }	
@@ -450,10 +450,10 @@ void imviewerControlPanel::viewLeftPressed(QPointF mp)
    {
       ui.pointerView->setScene(imv->get_qgs());
       PointerViewEmpty = false;
-      if (!PointerViewFixed) ui.pointerView->centerOn(mp.x()*imv->getNx(), mp.y()*imv->getNy());
+      if (!PointerViewFixed) ui.pointerView->centerOn(mp.x()*imv->nx(), mp.y()*imv->ny());
       else
       {
-         ui.pointerView->centerOn(pointerViewCen.x()*imv->getNx(), pointerViewCen.y()*imv->getNy());
+         ui.pointerView->centerOn(pointerViewCen.x()*imv->nx(), pointerViewCen.y()*imv->ny());
       }
    }
 }
@@ -538,7 +538,7 @@ void imviewerControlPanel::update_mindatSlider()
 {
    int pos;
    
-   pos = (int)(ui.mindatSlider->minimum() + (imv->get_mindat()-imv->get_imdat_min())/(imv->get_imdat_max()-imv->get_imdat_min())*(ui.mindatSlider->maximum()-ui.mindatSlider->minimum())+.5);
+   pos = (int)(ui.mindatSlider->minimum() + (imv->mindat()-imv->get_imdat_min())/(imv->get_imdat_max()-imv->get_imdat_min())*(ui.mindatSlider->maximum()-ui.mindatSlider->minimum())+.5);
    
    IgnoremindatSliderChange = true;
    ui.mindatSlider->setSliderPosition(pos);
@@ -550,7 +550,7 @@ void imviewerControlPanel::update_mindatEntry()
    char tmps[15];
    if(!ui.mindatEntry->hasFocus())
    {
-      sprintf(tmps, "%14.1f", imv->get_mindat());
+      sprintf(tmps, "%14.1f", imv->mindat());
       ui.mindatEntry->setText(tmps);
    }
 }
@@ -560,7 +560,7 @@ void imviewerControlPanel::update_mindatRelEntry()
    char tmps[15];
    if(!ui.mindatRelEntry->hasFocus())
    {
-      sprintf(tmps, "%5.3f", (imv->get_mindat()-imv->get_imdat_min())/(imv->get_imdat_max()-imv->get_imdat_min()));
+      sprintf(tmps, "%5.3f", (imv->mindat()-imv->get_imdat_min())/(imv->get_imdat_max()-imv->get_imdat_min()));
       ui.mindatRelEntry->setText(tmps);
    }
 }
@@ -568,7 +568,7 @@ void imviewerControlPanel::update_mindatRelEntry()
 void imviewerControlPanel::update_maxdatSlider()
 {
    int pos;
-   pos = (int)(ui.maxdatSlider->minimum() + (imv->get_maxdat()-imv->get_imdat_min())/(imv->get_imdat_max()-imv->get_imdat_min())*(ui.maxdatSlider->maximum()-ui.maxdatSlider->minimum())+.5);
+   pos = (int)(ui.maxdatSlider->minimum() + (imv->maxdat()-imv->get_imdat_min())/(imv->get_imdat_max()-imv->get_imdat_min())*(ui.maxdatSlider->maximum()-ui.maxdatSlider->minimum())+.5);
    
    IgnoremaxdatSliderChange = true;
    ui.maxdatSlider->setSliderPosition(pos);
@@ -582,7 +582,7 @@ void imviewerControlPanel::update_maxdatEntry()
    char tmps[15];
    if(!ui.maxdatEntry->hasFocus())
    {
-      sprintf(tmps, "%14.1f", imv->get_maxdat());
+      sprintf(tmps, "%14.1f", imv->maxdat());
       ui.maxdatEntry->setText(tmps);
    }
 }
@@ -592,7 +592,7 @@ void imviewerControlPanel::update_maxdatRelEntry()
    char tmps[15];
    if(!ui.maxdatRelEntry->hasFocus())
    {
-      sprintf(tmps, "%5.3f", (imv->get_maxdat()-imv->get_imdat_min())/(imv->get_imdat_max()-imv->get_imdat_min()));
+      sprintf(tmps, "%5.3f", (imv->maxdat()-imv->get_imdat_min())/(imv->get_imdat_max()-imv->get_imdat_min()));
       ui.maxdatRelEntry->setText(tmps);
    }
 }
@@ -600,7 +600,7 @@ void imviewerControlPanel::update_maxdatRelEntry()
 void imviewerControlPanel::update_biasSlider()
 {
    int pos;
-   pos = (int)(ui.biasSlider->minimum() + (.5*(imv->get_maxdat()+imv->get_mindat())-imv->get_imdat_min())/(imv->get_imdat_max()-imv->get_imdat_min())*(ui.biasSlider->maximum()-ui.biasSlider->minimum())+.5);
+   pos = (int)(ui.biasSlider->minimum() + (.5*(imv->maxdat()+imv->mindat())-imv->get_imdat_min())/(imv->get_imdat_max()-imv->get_imdat_min())*(ui.biasSlider->maximum()-ui.biasSlider->minimum())+.5);
    
    IgnorebiasSliderChange = true;
    ui.biasSlider->setSliderPosition(pos);
@@ -612,7 +612,7 @@ void imviewerControlPanel::update_biasEntry()
    char tmps[15];
    if(!ui.biasEntry->hasFocus())
    {
-      sprintf(tmps, "%14.1f", 0.5*(imv->get_maxdat()+imv->get_mindat()));
+      sprintf(tmps, "%14.1f", 0.5*(imv->maxdat()+imv->mindat()));
       ui.biasEntry->setText(tmps);
    }
 }
@@ -622,7 +622,7 @@ void imviewerControlPanel::update_biasRelEntry()
    char tmps[15];
    if(!ui.biasRelEntry->hasFocus())
    {
-      sprintf(tmps, "%5.3f", (0.5*(imv->get_maxdat()+imv->get_mindat())-imv->get_imdat_min())/(imv->get_imdat_max()-imv->get_imdat_min()));
+      sprintf(tmps, "%5.3f", (0.5*(imv->maxdat()+imv->mindat())-imv->get_imdat_min())/(imv->get_imdat_max()-imv->get_imdat_min()));
       ui.biasRelEntry->setText(tmps);
    }
 }
@@ -630,7 +630,7 @@ void imviewerControlPanel::update_biasRelEntry()
 void imviewerControlPanel::update_contrastSlider()
 {
    int pos;
-   pos = (int)(ui.contrastSlider->minimum() + (imv->get_maxdat()-imv->get_mindat())/(imv->get_imdat_max()-imv->get_imdat_min())*(ui.biasSlider->maximum()-ui.biasSlider->minimum())+.5);
+   pos = (int)(ui.contrastSlider->minimum() + (imv->maxdat()-imv->mindat())/(imv->get_imdat_max()-imv->get_imdat_min())*(ui.biasSlider->maximum()-ui.biasSlider->minimum())+.5);
    
    IgnorecontrastSliderChange = true;
    ui.contrastSlider->setSliderPosition(pos);
@@ -642,7 +642,7 @@ void imviewerControlPanel::update_contrastEntry()
    char tmps[15];
    if(!ui.contrastEntry->hasFocus())
    {
-      sprintf(tmps, "%14.1f", (imv->get_maxdat()-imv->get_mindat()));
+      sprintf(tmps, "%14.1f", (imv->maxdat()-imv->mindat()));
       ui.contrastEntry->setText(tmps);
    }
 }
@@ -652,7 +652,7 @@ void imviewerControlPanel::update_contrastRelEntry()
    char tmps[15];
    if(!ui.contrastRelEntry->hasFocus())
    {
-      sprintf(tmps, "%5.1f", imv->get_imdat_max()-imv->get_imdat_min()/(imv->get_maxdat()-imv->get_mindat()));
+      sprintf(tmps, "%5.1f", imv->get_imdat_max()-imv->get_imdat_min()/(imv->maxdat()-imv->mindat()));
       ui.contrastRelEntry->setText(tmps);
    }
 }
@@ -664,8 +664,8 @@ void imviewerControlPanel::on_scaleModeCombo_activated(int index)
    {
       imv->setUserBoxActive(false);
       imv->set_colorbar_mode(imviewer::minmaxglobal);
-      imv->set_maxdat(imv->get_imdat_max());
-      imv->set_mindat(imv->get_imdat_min());
+      imv->maxdat(imv->get_imdat_max());
+      imv->mindat(imv->get_imdat_min());
       imv->changeImdata();
       update_mindatEntry();
       update_maxdatEntry();
@@ -709,29 +709,21 @@ void imviewerControlPanel::on_mindatSlider_valueChanged(int value)
    if(!IgnoremindatSliderChange)
    {
       double sc = ((double)(value - ui.mindatSlider->minimum()))/((double)(ui.mindatSlider->maximum()-ui.mindatSlider->minimum()));
-      imv->set_mindat(imv->get_imdat_min() + (imv->get_imdat_max()-imv->get_imdat_min())*sc);
+      imv->mindat(imv->get_imdat_min() + (imv->get_imdat_max()-imv->get_imdat_min())*sc);
       imv->changeImdata();
       imv->setUserBoxActive(false);
       imv->set_colorbar_mode(imviewer::user);
       ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
-      if(imv->get_abs_fixed())
-      {
-         update_mindatEntry();
-         update_biasEntry();
-         update_contrastEntry();
-      }
-      if(imv->get_rel_fixed())
-      {
-         update_mindatRelEntry();
-         update_biasRelEntry();
-         update_contrastRelEntry();
-      }
+
+      update_mindatEntry();
+      update_biasEntry();
+      update_contrastEntry();
    }
 }
 
 void imviewerControlPanel::on_mindatEntry_editingFinished()
 {
-   imv->set_mindat(ui.mindatEntry->text().toDouble());
+   imv->mindat(ui.mindatEntry->text().toDouble());
    update_mindatEntry();
    update_biasEntry();
    update_contrastEntry();
@@ -749,30 +741,22 @@ void imviewerControlPanel::on_maxdatSlider_valueChanged(int value)
    if(!IgnoremaxdatSliderChange)
    {
       double sc = ((double)(value - ui.maxdatSlider->minimum()))/((double)(ui.maxdatSlider->maximum()-ui.maxdatSlider->minimum()));
-      imv->set_maxdat(imv->get_imdat_min() + (imv->get_imdat_max()-imv->get_imdat_min())*sc);
+      imv->maxdat(imv->get_imdat_min() + (imv->get_imdat_max()-imv->get_imdat_min())*sc);
       imv->changeImdata();
       imv->setUserBoxActive(false);
       imv->set_colorbar_mode(imviewer::user);
       ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
-      if(imv->get_abs_fixed())
-      {
-         update_maxdatEntry();
-         update_biasEntry();
-         update_contrastEntry();
-      }
-      if(imv->get_rel_fixed())
-      {
-         update_maxdatRelEntry();
-         update_biasRelEntry();
-         update_contrastRelEntry();
-      }
+
+      update_maxdatEntry();
+      update_biasEntry();
+      update_contrastEntry();
    }
    
 }
 
 void imviewerControlPanel::on_maxdatEntry_editingFinished()
 {
-   imv->set_maxdat(ui.maxdatEntry->text().toDouble());
+   imv->maxdat(ui.maxdatEntry->text().toDouble());
    update_maxdatEntry();
    update_biasEntry();
    update_maxdatSlider();
@@ -788,51 +772,31 @@ void imviewerControlPanel::on_biasSlider_valueChanged(int value)
    if(!IgnorebiasSliderChange)
    {
       double bias = ((double)(value - ui.biasSlider->minimum()))/((double)(ui.biasSlider->maximum()-ui.biasSlider->minimum()));
-      imv->set_bias_rel(bias);
+      imv->bias_rel(bias);
       imv->changeImdata();
       imv->setUserBoxActive(false);
       imv->set_colorbar_mode(imviewer::user);
       ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
-      if(imv->get_abs_fixed())
-      {
-         update_mindatEntry();
-         update_maxdatEntry();
-         update_biasEntry();
-         update_contrastEntry();
-      }
-      if(imv->get_rel_fixed())
-      {
-         update_mindatRelEntry();
-         update_maxdatRelEntry();
-         update_biasRelEntry();
-         update_contrastRelEntry();
-      }
-   }
-}
 
-void imviewerControlPanel::on_biasEntry_editingFinished()
-{
-   imv->set_bias(ui.biasEntry->text().toDouble());
-   imv->setUserBoxActive(false);
-   imv->set_colorbar_mode(imviewer::user);
-   ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
-   imv->changeImdata();
-   
-   //These are reversed from update_panel().
-   if(imv->get_abs_fixed())
-   {
       update_mindatEntry();
       update_maxdatEntry();
       update_biasEntry();
       update_contrastEntry();
    }
-   if(imv->get_rel_fixed())
-   {
-      update_mindatRelEntry();
-      update_maxdatRelEntry();
-      update_biasRelEntry();
-      update_contrastRelEntry();
-   }
+}
+
+void imviewerControlPanel::on_biasEntry_editingFinished()
+{
+   imv->bias(ui.biasEntry->text().toDouble());
+   imv->setUserBoxActive(false);
+   imv->set_colorbar_mode(imviewer::user);
+   ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
+   imv->changeImdata();
+   
+   update_mindatEntry();
+   update_maxdatEntry();
+   update_biasEntry();
+   update_contrastEntry();
    
 }
 
@@ -842,71 +806,34 @@ void imviewerControlPanel::on_contrastSlider_valueChanged(int value)
    {
       double cont = ((double)(value - ui.contrastSlider->minimum()))/((double)(ui.contrastSlider->maximum()-ui.contrastSlider->minimum()));
       cont = cont * (imv->get_imdat_max() - imv->get_imdat_min());
-      imv->set_contrast(cont);
+      imv->contrast(cont);
       imv->changeImdata();
       imv->setUserBoxActive(false);
       imv->set_colorbar_mode(imviewer::user);
       ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
-      if(imv->get_abs_fixed())
-      {
-         update_mindatEntry();
-         update_maxdatEntry();
-         update_biasEntry();
-         update_contrastEntry();
-      }
-      if(imv->get_rel_fixed())
-      {
-         update_mindatRelEntry();
-         update_maxdatRelEntry();
-         update_biasRelEntry();
-         update_contrastRelEntry();
-      }
+
+      update_mindatEntry();
+      update_maxdatEntry();
+      update_biasEntry();
+      update_contrastEntry();
    }
 }
 
 
 void imviewerControlPanel::on_contrastEntry_editingFinished()
 {
-   imv->set_contrast(ui.contrastEntry->text().toDouble());
+   imv->contrast(ui.contrastEntry->text().toDouble());
    imv->setUserBoxActive(false);
    imv->set_colorbar_mode(imviewer::user);
    ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
    imv->changeImdata();
    
-   //These are reversed from update_panel().
-   if(imv->get_abs_fixed())
-   {
-      update_mindatEntry();
-      update_maxdatEntry();
-      update_biasEntry();
-      update_contrastEntry();
-   }
-   if(imv->get_rel_fixed())
-   {
-      update_mindatRelEntry();
-      update_maxdatRelEntry();
-      update_biasRelEntry();
-      update_contrastRelEntry();
-   }
+   update_mindatEntry();
+   update_maxdatEntry();
+   update_biasEntry();
+   update_contrastEntry();
    
 }
-
-void imviewerControlPanel::on_absfixedButton_clicked()
-{
-   
-   imv->set_abs_fixed();
-   
-   ui.absfixedButton->setEnabled(false);
-   ui.relfixedButton->setEnabled(true);
-}
-
-void imviewerControlPanel::on_relfixedButton_clicked()
-{
-   imv->set_rel_fixed();
-   ui.absfixedButton->setEnabled(true);
-   ui.relfixedButton->setEnabled(false);
-}
-
 
 void imviewerControlPanel::on_imtimerspinBox_valueChanged(int to)
 {
@@ -935,7 +862,7 @@ void imviewerControlPanel::viewBoxMoved ( const QRectF & vbr)
 {
    
    //QPointF newcenV = ui.viewView->mapFromScene(newcen);
-   //double viewZoom = (double)ui.viewView->width()/(double)imv->getNx();
+   //double viewZoom = (double)ui.viewView->width()/(double)imv->nx();
    //QRectF vbr = viewBox->rect();
    
    QPointF np = qpmi_view->mapFromItem(viewBox, QPointF(vbr.x(),vbr.y()));
@@ -950,7 +877,7 @@ void imviewerControlPanel::viewBoxMoved ( const QRectF & vbr)
    double nycen = np.y() + .5*(np2.y()-np.y());
    //std::cout << nxcen/1024. << " " << nycen/1024. << " " << ui.viewView->width() << " " << ui.viewView->height() << "\n";
    
-   imv->set_viewcen(nxcen/(double)imv->getNx(), nycen/(double)imv->getNx(), true);
+   imv->set_viewcen(nxcen/(double)imv->nx(), nycen/(double)imv->nx(), true);
    
    
    
