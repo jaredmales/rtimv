@@ -386,7 +386,7 @@ void imviewer::changeImdata(bool newdata)
          {
             for(uint32_t j=0;j < m_nx; ++j)
             {
-               qim->setPixel(j, m_ny-i-1, calcPixIndex(imval));
+               qim->setPixel(j, m_ny-i-1, 0);
             }
          }
       }
@@ -396,7 +396,9 @@ void imviewer::changeImdata(bool newdata)
          {
             for(uint32_t j=0;j <m_nx; ++j)
             {
-               qim->setPixel(j, m_ny-i-1, 0);
+               idx = i*m_nx + j;
+               imval = _pixel(this, idx);
+               qim->setPixel(j, m_ny-i-1, calcPixIndex(imval));
             }
          }
       }
