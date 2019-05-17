@@ -31,13 +31,15 @@ void rtimvImage::_shmimTimerout()
 
 void rtimvImage::shmimTimerout()
 {
+   
    if( ImageStreamIO_openIm(&m_image, m_shmimName.c_str()) != 0)
    {
       m_shmimAttached = 0;
       return; //comeback on next timeout
    }
    
-   if(m_image.md[0].sem <= 1)  //Creation not complete yet (believe it or not this happens!)
+   
+   if(m_image.md->sem <= 1)  //Creation not complete yet (believe it or not this happens!)
    {
       ImageStreamIO_closeIm(&m_image);
       m_shmimAttached = 0;
@@ -45,12 +47,12 @@ void rtimvImage::shmimTimerout()
    }
    
    
-   m_nx = m_image.md[0].size[0];
-   m_ny = m_image.md[0].size[1];
+   m_nx = m_image.md->size[0];
+   m_ny = m_image.md->size[1];
    
-   m_typeSize = ImageStreamIO_typesize(m_image.md[0].datatype);
+   m_typeSize = ImageStreamIO_typesize(m_image.md->datatype);
          
-   switch(m_image.md[0].datatype)
+   switch(m_image.md->datatype)
    {
       case IMAGESTRUCT_UINT8:
          this->pixget = getPixPointer<IMAGESTRUCT_UINT8>();
@@ -87,12 +89,13 @@ void rtimvImage::shmimTimerout()
          exit(0);
    }
    
+   
    m_shmimAttached = 1;
 
 }
 
 int rtimvImage::update()
-{
+{   
    if(!m_shmimAttached) return 0;
    
    int64_t curr_image;
@@ -101,7 +104,7 @@ int rtimvImage::update()
    uint32_t snx, sny;
 
    
-   if(m_image.md[0].sem <= 0) //Indicates that the server has cleaned up.
+   if(m_image.md->sem <= 0) //Indicates that the server has cleaned up.
    {
       ImageStreamIO_closeIm(&m_image);
       m_shmimAttached = 0;
@@ -110,16 +113,17 @@ int rtimvImage::update()
       
       return RTIMVIMAGE_NOUPDATE;
    }
-      
-   if(m_image.md[0].size[2] > 0)
+   
+   if(m_image.md->size[2] > 0)
    {
-      curr_image = m_image.md[0].cnt1 - 1;
-      if(curr_image < 0) curr_image = m_image.md[0].size[2] - 1;
+      curr_image = m_image.md->cnt1;
+      if(curr_image < 0) curr_image = m_image.md->size[2] - 1;
    }
    else curr_image = 0;
 
-   snx = m_image.md[0].size[0];
-   sny = m_image.md[0].size[1];
+   
+   snx = m_image.md->size[0];
+   sny = m_image.md->size[1];
    
    if( snx != m_nx || sny != m_ny ) //Something else changed!
    {
@@ -130,13 +134,12 @@ int rtimvImage::update()
       return RTIMVIMAGE_NOUPDATE;
    }
    
-   cnt0 = m_image.md[0].cnt0;
+   cnt0 = m_image.md->cnt0;
    
    if(cnt0 != lastCnt0) //Only redraw if it's actually a new image.
    {
-      //setImdata((void *) (m_image.array.SI8 + curr_image*snx*sny*type_size));
-   
-      m_data = ((char *) (m_image.array.SI8 + curr_image*snx*sny*m_typeSize));
+     m_data = ((char *) (m_image.array.raw)) + curr_image*snx*sny*m_typeSize;
+      
       lastCnt0 = cnt0;
    
       if(fps_counter > 1000/m_timeout)
@@ -144,7 +147,6 @@ int rtimvImage::update()
          update_fps();
          fps_counter = 0;
          age_counter = 0;
-         
          return RTIMVIMAGE_FPSUPDATE;
       }
       else
@@ -176,15 +178,23 @@ int rtimvImage::update()
    return RTIMVIMAGE_NOUPDATE; 
 }
 
+void rtimvImage::detach()
+{  
+   ImageStreamIO_closeIm(&m_image);
+   m_shmimAttached = 0;
+   lastCnt0 = -1;
+   m_timer.start(m_shmimTimeout);
+}
+
 void rtimvImage::update_fps()
 {
    double dftime;
 
-   m_fpsTime = m_image.md[0].atime.tv_sec + ((double) m_image.md[0].atime.tv_nsec)/1e9;
+   m_fpsTime = m_image.md->atime.tv_sec + ((double) m_image.md->atime.tv_nsec)/1e9;
    if(m_fpsTime0 == 0)
    {
       m_fpsTime0 = m_fpsTime;
-      m_fpsFrame0 = m_image.md[0].cnt0;
+      m_fpsFrame0 = m_image.md->cnt0;
    }
    
    if(m_fpsTime != m_fpsTime0)
@@ -194,12 +204,12 @@ void rtimvImage::update_fps()
       if(dftime < 1e-9) return;
 
       
-      m_fpsEst = (float)((m_image.md[0].cnt0 - m_fpsFrame0))/dftime;   
+      m_fpsEst = (float)((m_image.md->cnt0 - m_fpsFrame0))/dftime;   
       
       //std::cerr << dftime << " " << m_fpsEst << "\n";
       
       m_fpsTime0 = m_fpsTime;
-      m_fpsFrame0 = m_image.md[0].cnt0;
+      m_fpsFrame0 = m_image.md->cnt0;
    }
 
    emit ageUpdated();
@@ -210,4 +220,5 @@ float rtimvImage::pixel(size_t n)
 {
    return pixget(m_data, n);
 }
+
 

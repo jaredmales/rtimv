@@ -79,6 +79,8 @@ public:
    ///Function called by timer expiration.  Displays latest image and updates the FPS.
    int update();
 
+   void detach();
+   
 public:
 
     /*** Real time frames per second ***/

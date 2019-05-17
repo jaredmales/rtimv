@@ -14,6 +14,8 @@ CONFIG(release, debug|release) {
 
 CONFIG += c++14
 
+CONFIG += -ggdb
+
 MAKEFILE = makefile.rtimv
 
 # Input

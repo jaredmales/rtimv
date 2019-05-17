@@ -1,6 +1,8 @@
 
 #include "imviewer.hpp"
 
+imviewer * globalIMV;
+
 imviewer::imviewer( const std::vector<std::string> & shkeys, 
                     QWidget * Parent, 
                     Qt::WindowFlags f
@@ -16,6 +18,30 @@ imviewer::imviewer( const std::vector<std::string> & shkeys,
    }
    
    connect(&m_timer, SIGNAL(timeout()), this, SLOT(timerout()));
+   
+   
+   //Install signal handling
+   globalIMV = this;
+   
+   struct sigaction act;
+   sigset_t set;
+
+   act.sa_sigaction = &imviewer::st_handleSigSegv;
+   act.sa_flags = SA_SIGINFO;
+   sigemptyset(&set);
+   act.sa_mask = set;
+
+   errno = 0;
+   if( sigaction(SIGBUS, &act, 0) < 0 )
+   {
+      perror("rtimv: error installing SIGBUS handler");
+   }
+   
+   if( sigaction(SIGSEGV, &act, 0) < 0 )
+   {
+      perror("rtimv: error installing SIGSEGV handler");
+   }
+   
 }
 
 void imviewer::setImsize(uint32_t x, uint32_t y)
@@ -62,6 +88,7 @@ void imviewer::timerout()
 {
    int doupdate = m_images[0]->update();
    
+   
    for(size_t i=1;i<m_images.size(); ++i) 
    {
       m_images[i]->update();
@@ -83,6 +110,7 @@ void imviewer::timerout()
    }
    
 }
+
 void imviewer::timeout(int to)
 {
    m_timer.stop();
@@ -352,11 +380,24 @@ void imviewer::changeImdata(bool newdata)
 
    if(!newdata)
    {
-      for(uint32_t i = 0; i < m_ny; ++i)
+      if( m_mindat == m_maxdat )
       {
-         for(uint32_t j=0;j <m_nx; ++j)
+         for(uint32_t i = 0; i < m_ny; ++i)
          {
-            qim->setPixel(j, m_ny-i-1, calcPixIndex( _pixel(this, i*m_nx + j) ));
+            for(uint32_t j=0;j < m_nx; ++j)
+            {
+               qim->setPixel(j, m_ny-i-1, calcPixIndex(imval));
+            }
+         }
+      }
+      else
+      {
+         for(uint32_t i = 0; i < m_ny; ++i)
+         {
+            for(uint32_t j=0;j <m_nx; ++j)
+            {
+               qim->setPixel(j, m_ny-i-1, 0);
+            }
          }
       }
    }
@@ -376,35 +417,66 @@ void imviewer::changeImdata(bool newdata)
          userBox_max = imval;
       }
 
-      for(uint32_t i = 0; i < m_ny; ++i)
+      if( m_mindat == m_maxdat )
       {
-         for(uint32_t j=0;j < m_nx; ++j)
+         for(uint32_t i = 0; i < m_ny; ++i)
          {
-            idx = i*m_nx + j;
-            imval = _pixel(this, idx); //m_imData[idx];
-            
-            if(imval > tmp_max) tmp_max = imval;
-            if(imval < tmp_min) tmp_min = imval;
-
-            if(imval >= sat_level) saturated++;
-
-            if(userBoxActive)
+            for(uint32_t j=0;j < m_nx; ++j)
             {
-               if(i>=userBox_i0 && i<userBox_i1 && j>=userBox_j0 && j < userBox_j1)
+               idx = i*m_nx + j;
+               imval = _pixel(this, idx); //m_imData[idx];
+               
+               if(imval > tmp_max) tmp_max = imval;
+               if(imval < tmp_min) tmp_min = imval;
+      
+               if(imval >= sat_level) saturated++;
+      
+               if(userBoxActive)
                {
-                  if(imval < userBox_min) userBox_min = imval;
-                  if(imval > userBox_max) userBox_max = imval;
+                  if(i>=userBox_i0 && i<userBox_i1 && j>=userBox_j0 && j < userBox_j1)
+                  {
+                     if(imval < userBox_min) userBox_min = imval;
+                     if(imval > userBox_max) userBox_max = imval;
+                  }
                }
+      
+               qim->setPixel(j, m_ny-i-1, 0);
+      
             }
-
-            qim->setPixel(j, m_ny-i-1, calcPixIndex(imval));
-
          }
       }
-
+      else
+      {
+         for(uint32_t i = 0; i < m_ny; ++i)
+         {
+            for(uint32_t j=0;j < m_nx; ++j)
+            {
+               idx = i*m_nx + j;
+               imval = _pixel(this, idx); //m_imData[idx];
+               
+               if(imval > tmp_max) tmp_max = imval;
+               if(imval < tmp_min) tmp_min = imval;
+      
+               if(imval >= sat_level) saturated++;
+      
+               if(userBoxActive)
+               {
+                  if(i>=userBox_i0 && i<userBox_i1 && j>=userBox_j0 && j < userBox_j1)
+                  {
+                     if(imval < userBox_min) userBox_min = imval;
+                     if(imval > userBox_max) userBox_max = imval;
+                  }
+               }
+      
+               qim->setPixel(j, m_ny-i-1, calcPixIndex(imval));
+      
+            }
+         }
+      }
+   
       imdat_max = tmp_max;
       imdat_min = tmp_min;
-
+      
     }
     qpm.convertFromImage(*qim, Qt::AutoColor | Qt::ThresholdDither);
 
@@ -525,4 +597,26 @@ void imviewer::updateFPS()
 void imviewer::updateAge()
 {
    return;
+}
+
+void imviewer::st_handleSigSegv( int signum,
+                                 siginfo_t *siginf,
+                                 void *ucont
+                               )
+{
+   static_cast<void>(signum);
+   static_cast<void>(siginf);
+   static_cast<void>(ucont);
+   
+   globalIMV->handleSigSegv();
+}
+
+void imviewer::handleSigSegv()
+{
+   std::cerr << "\n\n****** sigbus/sigterm ******\n\n";
+   
+   for(size_t i=1;i<m_images.size(); ++i) 
+   {
+      m_images[i]->detach();
+   }
 }

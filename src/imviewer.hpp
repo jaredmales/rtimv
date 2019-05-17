@@ -30,6 +30,8 @@
 #include <sys/mman.h>
 #include <sys/file.h>
 
+#include <signal.h>
+
 #include <ImageStreamIO.h>
 
 #include "colorMaps.hpp"
@@ -341,17 +343,25 @@ public:
 
 
    /*** Real Time Controls ***/   
-   protected:
+protected:
       bool RealTimeEnabled {true}; ///<Controls whether imviewer is using real-time data.
       bool RealTimeStopped {false}; ///<Set when user temporarily freezes real-time data viewing.
 
-   public:
+public:
       void set_RealTimeEnabled(int);
       void set_RealTimeStopped(int);
 
       virtual void updateFPS();///<Called whenever the displayed image updates its FPS.
       virtual void updateAge();///<Called whenever the displayed image updates its Age.
 
+protected:
+   static void st_handleSigSegv( int signum,
+                                 siginfo_t *siginf,
+                                 void *ucont
+                               );
+   
+   void handleSigSegv();
+   
 };
 
 #endif //rtimv_imviewer_hpp
