@@ -96,7 +96,23 @@ void rtimvImage::shmimTimerout()
 
 int rtimvImage::update()
 {   
-   if(!m_shmimAttached) return 0;
+   if(!m_shmimAttached)
+   {
+      if(age_counter > 1000/m_timeout)
+      {
+         emit ageUpdated();
+         age_counter = 0;
+         fps_counter = 0;
+         m_fpsEst = 0;
+         
+         return RTIMVIMAGE_AGEUPDATE;
+      }
+      else 
+      {
+         ++age_counter;
+         return RTIMVIMAGE_NOUPDATE;
+      }
+   }
    
    int64_t curr_image;
    uint64_t cnt0;
