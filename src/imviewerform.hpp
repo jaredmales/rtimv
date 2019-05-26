@@ -96,6 +96,24 @@ class imviewerForm : public imviewer
       float get_xcen(){return ui.graphicsView->xCen();}
       float get_ycen(){return ui.graphicsView->yCen();}
       
+      ///Matches the viewport to the same aspect ratio as the image data, by decreasing the area.
+      /** Maintains the smaller of width and height, decreasing the other to match the aspect of the image.
+        *
+        * Invoked by the "[" key.
+        *
+        * \seealso squareUp()
+        */  
+      void squareDown();
+      
+      ///Matches the viewport to the same aspect ratio as the image data, by increasing the area.
+      /** Maintains the larger of width and height, increasing the other to match the aspect of the image.
+        *
+        * Invoked by the "]" key.
+        *
+        * \seealso squareDown()
+        */
+      void squareUp();
+      
    protected slots:
       void changeCenter();
    

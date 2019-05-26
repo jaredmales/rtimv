@@ -3,6 +3,8 @@
 
 imviewer * globalIMV;
 
+int imviewer::sigsegvFd[2];
+
 imviewer::imviewer( const std::vector<std::string> & shkeys, 
                     QWidget * Parent, 
                     Qt::WindowFlags f
@@ -21,6 +23,13 @@ imviewer::imviewer( const std::vector<std::string> & shkeys,
    
    
    //Install signal handling
+   
+   if (::socketpair(AF_UNIX, SOCK_STREAM, 0, sigsegvFd))
+       qFatal("Couldn't create TERM socketpair");
+   
+   snSegv = new QSocketNotifier(sigsegvFd[1], QSocketNotifier::Read, this);
+   connect(snSegv, SIGNAL(activated(int)), this, SLOT(handleSigSegv()));
+    
    globalIMV = this;
    
    struct sigaction act;
@@ -610,15 +619,26 @@ void imviewer::st_handleSigSegv( int signum,
    static_cast<void>(siginf);
    static_cast<void>(ucont);
    
-   globalIMV->handleSigSegv();
+    char a = 1;
+    int rv = ::write(sigsegvFd[0], &a, sizeof(a));
+    
+    static_cast<void>(rv);
 }
 
 void imviewer::handleSigSegv()
 {
-   std::cerr << "\n\n****** sigbus/sigterm ******\n\n";
+   snSegv->setEnabled(false);
    
+   char tmp;
+   int rv = ::read(sigsegvFd[1], &tmp, sizeof(tmp));
+   static_cast<void>(rv); 
+   
+   std::cerr << "\n\n****** sigbus/sigterm ******\n" << amChangingimdata << "\n" << std::endl;
+     
    for(size_t i=1;i<m_images.size(); ++i) 
    {
       m_images[i]->detach();
    }
+   
+   snSegv->setEnabled(true);
 }

@@ -13,11 +13,13 @@
 #include <iostream>
 #include <vector>
 #include <sys/time.h>
+#include <sys/socket.h>
 
 #include <QImage>
 #include <QPixmap>
 #include <QTimer>
 #include <QWidget>
+#include <QSocketNotifier>
 
 #include "rtimvImage.hpp"
 
@@ -354,13 +356,23 @@ public:
       virtual void updateFPS();///<Called whenever the displayed image updates its FPS.
       virtual void updateAge();///<Called whenever the displayed image updates its Age.
 
-protected:
+public:
    static void st_handleSigSegv( int signum,
                                  siginfo_t *siginf,
                                  void *ucont
                                );
-   
+
+public slots:
    void handleSigSegv();
+
+private:   
+   static int sigsegvFd[2];
+
+   QSocketNotifier *snSegv;
+   
+   
+   
+   
    
 };
 

@@ -389,6 +389,42 @@ void imviewerForm::set_viewcen(float x, float y, bool movezoombox)
    change_center(movezoombox);
 }
 
+void imviewerForm::squareDown()
+{
+   double imrat = ((double)nx())/ny();
+   double winrat = ((double) width())/height();
+   
+   ///\todo make threshold responsive to current dimensions so we don't enter loops.
+   if( fabs( 1.0 - imrat/winrat) < 0.01) return;
+   
+   if(width() <= height())
+   {
+      resize(width(), width()/imrat);
+   }
+   else
+   {
+      resize(height()*imrat, height());
+   }
+}
+
+void imviewerForm::squareUp()
+{
+   double imrat = ((double)nx())/ny();
+   double winrat = ((double) width())/height();
+   
+   ///\todo make threshold responsive to current dimensions so we don't enter loops.
+   if( fabs( 1.0 - imrat/winrat) < 0.01) return;
+   
+   if(width() <= height())
+   {
+      resize(height()*imrat, height());
+   }
+   else
+   {
+      resize(width(), width()/imrat);            
+   }
+}
+      
 void imviewerForm::changeCenter()
 {
    change_center();
@@ -550,15 +586,19 @@ void imviewerForm::updateAge()
       gettimeofday(&tvtmp, 0);
       double timetmp = (double)tvtmp.tv_sec + ((double)tvtmp.tv_usec)/1e6;
    
+      //std::cerr << __FILE__ << " " << __LINE__ << std::endl;
+      
       double age = timetmp - m_images[0]->m_fpsTime;
    
    
       if(m_images[0]->m_fpsEst > 1) 
       {
+        // std::cerr << __FILE__ << " " << __LINE__ << std::endl;
          ui.graphicsView->fpsGageText(m_images[0]->m_fpsEst);
       }
       else
       {
+         //std::cerr << __FILE__ << " " << __LINE__ << std::endl;
          ui.graphicsView->fpsGageText(age, true);
       } 
    }
@@ -976,6 +1016,16 @@ void imviewerForm::keyPressEvent(QKeyEvent * ke)
          m_applyMask = true;
       }
       changeImdata(false);
+   }
+   
+   if(ke->text() == "[")
+   {
+      squareDown();
+   }
+   
+   if(ke->text() == "]")
+   {
+      squareUp();
    }
    
    QWidget::keyPressEvent(ke);

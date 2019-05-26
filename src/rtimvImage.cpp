@@ -31,13 +31,17 @@ void rtimvImage::_shmimTimerout()
 
 void rtimvImage::shmimTimerout()
 {
+   //std::cerr << __FILE__ << " " << __LINE__ << std::endl;
    
    if( ImageStreamIO_openIm(&m_image, m_shmimName.c_str()) != 0)
    {
+      //std::cerr << __FILE__ << " " << __LINE__ << std::endl;
       m_shmimAttached = 0;
       return; //comeback on next timeout
    }
    
+   
+   //std::cerr << __FILE__ << " " << __LINE__ << std::endl;
    
    if(m_image.md->sem <= 1)  //Creation not complete yet (believe it or not this happens!)
    {
@@ -98,13 +102,14 @@ int rtimvImage::update()
 {   
    if(!m_shmimAttached)
    {
+      
       if(age_counter > 1000/m_timeout)
       {
          emit ageUpdated();
          age_counter = 0;
          fps_counter = 0;
          m_fpsEst = 0;
-         
+      
          return RTIMVIMAGE_AGEUPDATE;
       }
       else 
@@ -113,6 +118,7 @@ int rtimvImage::update()
          return RTIMVIMAGE_NOUPDATE;
       }
    }
+   
    
    int64_t curr_image;
    uint64_t cnt0;
@@ -196,6 +202,8 @@ int rtimvImage::update()
 
 void rtimvImage::detach()
 {  
+   if(m_shmimAttached == 0) return;
+   
    ImageStreamIO_closeIm(&m_image);
    m_shmimAttached = 0;
    lastCnt0 = -1;
