@@ -7,8 +7,6 @@ imviewerForm::imviewerForm( const std::vector<std::string> & shkeys,
 {
    ui.setupUi(this);
    
-   //m_images.m_shmimName=shkey;
-   
    nup =0;
    
    imcp = 0;
@@ -96,11 +94,7 @@ imviewerForm::imviewerForm( const std::vector<std::string> & shkeys,
    cenLineHorz = 0;//qgs->addLine(QLineF(0, .5*getNy(), getNx(), .5*getNy()), QColor("lime"));
    
    imStats = 0;
-   //setImsize(1024,1024); //Just for initial setup.   
-
-  
    m_timer.start(m_timeout);
-
 
    nup = qgs->addLine(QLineF(512,400, 512, 624), QColor("skyblue"));
    nup_tip = qgs->addLine(QLineF(512,400, 536, 424), QColor("skyblue"));
@@ -116,6 +110,11 @@ imviewerForm::imviewerForm( const std::vector<std::string> & shkeys,
    nup_tip->setPen(qp);
    
       
+}
+
+void imviewerForm::onConnect()
+{
+   squareDown();
 }
 
 void imviewerForm::postSetImsize()
@@ -466,7 +465,7 @@ void imviewerForm::updateMouseCoords()
 {
    int64_t idx_x, idx_y; //image size are uint32_t, so this allows signed comparison without overflow issues
    
-   if(!m_images[0]->m_data) return;
+   //if(!m_images[0]->valid()) return;
    if(!qpmi) return;
    
    if(ui.graphicsView->mouseViewX() < 0 || ui.graphicsView->mouseViewY() < 0)
@@ -499,10 +498,13 @@ void imviewerForm::updateMouseCoords()
       if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;
 
       pixelF _pixel = pixel();
+      
+      if(_pixel != nullptr)
       ui.graphicsView->textPixelVal(_pixel(this,  (int)(idx_y*m_nx) + (int)(idx_x)) );
 
       if(imcp)
       {
+         if(_pixel != nullptr)
          imcp->updateMouseCoords(mx, my, _pixel(this, idx_y*m_nx + idx_x) );
       }
    }

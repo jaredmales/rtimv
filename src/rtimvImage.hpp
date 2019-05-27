@@ -33,9 +33,9 @@ public:
 
    IMAGE m_image; ///< A real-time image structure which contains the image data and meta-data.
 
-   uint32_t m_nx {0};
+   uint32_t m_nx {0}; ///< Size of the image in pixels in the x direction (horizontal on screen)
    
-   uint32_t m_ny {0};
+   uint32_t m_ny {0}; ///< Size of the image in pixels in the y direction (vertical on screen)
    
    size_t m_typeSize; ///< The size, in bytes, of the image data type
  
@@ -58,28 +58,30 @@ public:
    
    rtimvImage();
    
-   void shmimTimeout(int);
+   /// Set the shared-memory timeout
+   void shmimTimeout(int /**< [in] the new timeout in milliseconds */);
    
-   void timeout(int);
-   
-signals:
-   
-   void updated();
-   
-   void ageUpdated();
+   /// Set the managing processes display timeout, which is only used for F.P.S. calculations
+   void timeout(int /**< [in] the new timeout in milliseconds */);
    
 protected slots:
    
-   void _shmimTimerout();
+   void shmimTimerout();
+   
+signals:
+   void connected();
    
 public:
    
-   virtual void shmimTimerout();
+   virtual void imConnect();
 
-   ///Function called by timer expiration.  Displays latest image and updates the FPS.
+   ///Function called by timer expiration.  Points to latest image and updates the FPS.
    int update();
 
    void detach();
+   
+   /// Returns `true` if this instance is attached to its stream and has valid data.  `false` otherwise.
+   bool valid();
    
 public:
 
@@ -93,7 +95,7 @@ public:
    
    float m_fpsEst {0}; ///< The current f.p.s. estimate.
 
-   void update_fps(); ///< Update the current f.p.s. estimate from the current timestamp and frame numbers.
+   void update_fps(); ///< Update the f.p.s. estimate from the current timestamp and frame numbers.
 
    float (*pixget)(void *, size_t) {nullptr}; ///< Pointer to a function to extract the image data as a float.
 

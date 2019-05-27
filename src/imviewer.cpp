@@ -21,7 +21,6 @@ imviewer::imviewer( const std::vector<std::string> & shkeys,
    
    connect(&m_timer, SIGNAL(timeout()), this, SLOT(timerout()));
    
-   
    //Install signal handling
    
    if (::socketpair(AF_UNIX, SOCK_STREAM, 0, sigsegvFd))
@@ -95,8 +94,9 @@ uint32_t imviewer::ny()
 
 void imviewer::timerout()
 {
-   int doupdate = m_images[0]->update();
+   static bool connected = false;
    
+   int doupdate = m_images[0]->update();
    
    for(size_t i=1;i<m_images.size(); ++i) 
    {
@@ -106,6 +106,12 @@ void imviewer::timerout()
    if(doupdate >= RTIMVIMAGE_IMUPDATE) 
    {
       changeImdata(true);
+      
+      if(!connected)
+      {
+         onConnect();
+         connected = true;
+      }
    }
    
    if(doupdate == RTIMVIMAGE_FPSUPDATE) 
@@ -134,22 +140,30 @@ void imviewer::timeout(int to)
 
 imviewer::pixelF imviewer::pixel()
 {
-   pixelF _pixel = &pixel_noCal;
+   pixelF _pixel = nullptr;
+   
+   if(m_images[0]->valid()) _pixel =  &pixel_noCal; //default if there is a valid base image.
    
    if(m_subtractDark == true && m_applyMask == false && m_images.size()>1)
    {
-      _pixel = &pixel_subDark;
+      if(m_images[0]->valid() && m_images[1]->valid()) _pixel = &pixel_subDark;
    }
    
    if(m_subtractDark == false && m_applyMask == true && m_images.size()>2)
    {
-      _pixel = &pixel_applyMask;
+      if(m_images[0]->valid() && m_images[2]->valid()) _pixel = &pixel_applyMask;
    }
    
    if(m_subtractDark == true && m_applyMask == true && m_images.size()>1)
    {
-      if(m_images.size()==1) _pixel = &pixel_subDark;
-      else _pixel = &pixel_subDarkApplyMask;
+      if(m_images.size()==1)
+      {
+         if(m_images[0]->valid() && m_images[1]->valid()) _pixel = &pixel_subDark;
+      }      
+      else
+      {
+         if(m_images[0]->valid() && m_images[1]->valid() &&  m_images[2]->valid()) _pixel = &pixel_subDarkApplyMask;
+      }
    }
    
    return _pixel;
@@ -361,7 +375,7 @@ void imviewer::changeImdata(bool newdata)
    int idx;
    float imval;
 
-   if(!m_images[0]->m_data) return;
+   if(!m_images[0]->valid()) return;
 
    float (*_pixel)(imviewer*, size_t) = pixel();
    

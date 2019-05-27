@@ -42,7 +42,10 @@ class imviewerForm : public imviewer
                     QWidget * Parent = 0, 
                     Qt::WindowFlags f = 0
                   );
-   
+
+      ///Called on initial connection to the image stream, sets matching aspect ratio.
+      virtual void onConnect();
+      
       virtual void postSetImsize();
       virtual void post_zoomLevel();
       virtual void postChangeImdata();

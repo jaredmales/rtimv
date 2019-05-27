@@ -79,6 +79,9 @@ public:
    
    /// @}
 
+protected:
+   virtual void onConnect() {}
+   
    /** @name Image Data Update Interval
      *    
      * @{

@@ -2,7 +2,7 @@
 
 rtimvImage::rtimvImage()
 {
-   connect(&m_timer, SIGNAL(timeout()), this, SLOT(_shmimTimerout()));
+   connect(&m_timer, SIGNAL(timeout()), this, SLOT(shmimTimerout()));
 }
 
 void rtimvImage::shmimTimeout(int to)
@@ -13,14 +13,12 @@ void rtimvImage::shmimTimeout(int to)
 void rtimvImage::timeout(int to)
 {
    m_timeout = to;
-   
-   
 }
 
-void rtimvImage::_shmimTimerout()
+void rtimvImage::shmimTimerout()
 {
    m_timer.stop();
-   shmimTimerout();
+   imConnect();
 
    if(!m_shmimAttached)
    {
@@ -28,32 +26,26 @@ void rtimvImage::_shmimTimerout()
    }
 }
 
-
-void rtimvImage::shmimTimerout()
+void rtimvImage::imConnect()
 {
-   //std::cerr << __FILE__ << " " << __LINE__ << std::endl;
-   
    if( ImageStreamIO_openIm(&m_image, m_shmimName.c_str()) != 0)
    {
-      //std::cerr << __FILE__ << " " << __LINE__ << std::endl;
+      m_data = nullptr;
       m_shmimAttached = 0;
       return; //comeback on next timeout
    }
-   
-   
-   //std::cerr << __FILE__ << " " << __LINE__ << std::endl;
-   
+      
    if(m_image.md->sem <= 1)  //Creation not complete yet (believe it or not this happens!)
    {
       ImageStreamIO_closeIm(&m_image);
+      m_data = nullptr;
       m_shmimAttached = 0;
       return; //We just need to wait for the server process to finish startup, so come back on next timeout
    }
    
-   
    m_nx = m_image.md->size[0];
    m_ny = m_image.md->size[1];
-   
+      
    m_typeSize = ImageStreamIO_typesize(m_image.md->datatype);
          
    switch(m_image.md->datatype)
@@ -96,6 +88,8 @@ void rtimvImage::shmimTimerout()
    
    m_shmimAttached = 1;
 
+   emit connected();
+   
 }
 
 int rtimvImage::update()
@@ -105,7 +99,6 @@ int rtimvImage::update()
       
       if(age_counter > 1000/m_timeout)
       {
-         emit ageUpdated();
          age_counter = 0;
          fps_counter = 0;
          m_fpsEst = 0;
@@ -128,6 +121,7 @@ int rtimvImage::update()
    
    if(m_image.md->sem <= 0) //Indicates that the server has cleaned up.
    {
+      m_data = nullptr;
       ImageStreamIO_closeIm(&m_image);
       m_shmimAttached = 0;
       lastCnt0 = -1;
@@ -149,6 +143,7 @@ int rtimvImage::update()
    
    if( snx != m_nx || sny != m_ny ) //Something else changed!
    {
+      m_data = nullptr;
       ImageStreamIO_closeIm(&m_image);
       m_shmimAttached = 0;
       lastCnt0 = -1;
@@ -182,7 +177,6 @@ int rtimvImage::update()
    {
       if(age_counter > 1000/m_timeout)
       {
-         emit ageUpdated();
          age_counter = 0;
          fps_counter = 0;
          m_fpsEst = 0;
@@ -204,10 +198,18 @@ void rtimvImage::detach()
 {  
    if(m_shmimAttached == 0) return;
    
+   m_data = nullptr; 
    ImageStreamIO_closeIm(&m_image);
    m_shmimAttached = 0;
    lastCnt0 = -1;
    m_timer.start(m_shmimTimeout);
+}
+
+bool rtimvImage::valid()
+{
+   if(m_shmimAttached && m_data) return true;
+   
+   return false;
 }
 
 void rtimvImage::update_fps()
@@ -227,16 +229,12 @@ void rtimvImage::update_fps()
 
       if(dftime < 1e-9) return;
 
-      
       m_fpsEst = (float)((m_image.md->cnt0 - m_fpsFrame0))/dftime;   
-      
-      //std::cerr << dftime << " " << m_fpsEst << "\n";
       
       m_fpsTime0 = m_fpsTime;
       m_fpsFrame0 = m_image.md->cnt0;
    }
 
-   emit ageUpdated();
 }
 
 
