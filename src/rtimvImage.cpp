@@ -1,8 +1,21 @@
 #include "rtimvImage.hpp"
 
+
+errno_t isio_err_to_ignore = 0;
+errno_t new_printError( const char *file, const char *func, int line, errno_t code, char *errmessage )
+{
+   if(code == isio_err_to_ignore) return IMAGESTREAMIO_SUCCESS;
+   
+   std::cerr << "ImageStreamIO Error:\n\tFile: " << file << "\n\tLine: " << line << "\n\tFunc: " << func << "\n\tMsg:  " << errmessage << std::endl; 
+   return IMAGESTREAMIO_SUCCESS;
+}
+
 rtimvImage::rtimvImage()
 {
+   ImageStreamIO_set_printError(new_printError);
+   
    connect(&m_timer, SIGNAL(timeout()), this, SLOT(shmimTimerout()));
+   
 }
 
 void rtimvImage::shmimTimeout(int to)
@@ -28,13 +41,16 @@ void rtimvImage::shmimTimerout()
 
 void rtimvImage::imConnect()
 {
+   isio_err_to_ignore = IMAGESTREAMIO_FILEOPEN;
    if( ImageStreamIO_openIm(&m_image, m_shmimName.c_str()) != 0)
    {
       m_data = nullptr;
       m_shmimAttached = 0;
+      isio_err_to_ignore = 0;
       return; //comeback on next timeout
    }
-      
+   isio_err_to_ignore = 0;
+   
    if(m_image.md->sem <= 1)  //Creation not complete yet (believe it or not this happens!)
    {
       ImageStreamIO_closeIm(&m_image);
