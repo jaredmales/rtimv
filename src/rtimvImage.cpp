@@ -112,13 +112,11 @@ int rtimvImage::update()
 {   
    if(!m_shmimAttached)
    {
-      
       if(age_counter > 1000/m_timeout)
       {
          age_counter = 0;
          fps_counter = 0;
          m_fpsEst = 0;
-      
          return RTIMVIMAGE_AGEUPDATE;
       }
       else 
@@ -171,15 +169,15 @@ int rtimvImage::update()
    
    if(cnt0 != lastCnt0) //Only redraw if it's actually a new image.
    {
-     m_data = ((char *) (m_image.array.raw)) + curr_image*snx*sny*m_typeSize;
+      m_data = ((char *) (m_image.array.raw)) + curr_image*snx*sny*m_typeSize;
       
       lastCnt0 = cnt0;
-   
+      age_counter = 0;
+      
       if(fps_counter > 1000/m_timeout)
       {
          update_fps();
          fps_counter = 0;
-         age_counter = 0;
          return RTIMVIMAGE_FPSUPDATE;
       }
       else
@@ -194,15 +192,14 @@ int rtimvImage::update()
       if(age_counter > 1000/m_timeout)
       {
          age_counter = 0;
-         fps_counter = 0;
+         fps_counter = 1000/m_timeout+1;
          m_fpsEst = 0;
-         
          return RTIMVIMAGE_AGEUPDATE;
       }
       else
       {
          ++age_counter;
-         
+         ++fps_counter;
          return RTIMVIMAGE_NOUPDATE;
       }
    }
@@ -233,6 +230,7 @@ void rtimvImage::update_fps()
    double dftime;
 
    m_fpsTime = m_image.md->atime.tv_sec + ((double) m_image.md->atime.tv_nsec)/1e9;
+   
    if(m_fpsTime0 == 0)
    {
       m_fpsTime0 = m_fpsTime;
