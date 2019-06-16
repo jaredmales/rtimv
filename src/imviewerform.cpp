@@ -582,21 +582,21 @@ void imviewerForm::updateAge()
 {
    if(m_showFPSGage && m_images[0]->valid() )
    {      
-      if(m_images[0]->m_fpsEst > 1) 
+      struct timeval tvtmp;
+    
+      gettimeofday(&tvtmp, 0);
+      double timetmp = (double)tvtmp.tv_sec + ((double)tvtmp.tv_usec)/1e6;
+ 
+      double fpsTime = m_images[0]->m_image.md->atime.tv_sec + ((double) m_images[0]->m_image.md->atime.tv_nsec)/1e9;
+      
+      double age = timetmp - fpsTime;
+         
+      if(m_images[0]->m_fpsEst > 1.0 && age < 2.0) 
       {
          ui.graphicsView->fpsGageText(m_images[0]->m_fpsEst);
       }
       else
       {
-         struct timeval tvtmp;
-    
-         gettimeofday(&tvtmp, 0);
-         double timetmp = (double)tvtmp.tv_sec + ((double)tvtmp.tv_usec)/1e6;
- 
-         double fpsTime = m_images[0]->m_image.md->atime.tv_sec + ((double) m_images[0]->m_image.md->atime.tv_nsec)/1e9;
-      
-         double age = timetmp - fpsTime;
-
          ui.graphicsView->fpsGageText(age, true);
       } 
    }

@@ -189,11 +189,10 @@ int rtimvImage::update()
    }
    else
    {
-      if(age_counter > 1000/m_timeout)
+      if(age_counter > 250/m_timeout)
       {
          age_counter = 0;
          fps_counter = 1000/m_timeout+1;
-         m_fpsEst = 0;
          return RTIMVIMAGE_AGEUPDATE;
       }
       else
