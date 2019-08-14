@@ -582,10 +582,11 @@ void imviewerForm::updateAge()
 {
    if(m_showFPSGage && m_images[0]->valid() )
    {      
-      struct timeval tvtmp;
+      struct timespec tstmp;
     
-      gettimeofday(&tvtmp, 0);
-      double timetmp = (double)tvtmp.tv_sec + ((double)tvtmp.tv_usec)/1e6;
+      clock_gettime(CLOCK_REALTIME, &tstmp);
+         
+      double timetmp = (double)tstmp.tv_sec + ((double)tstmp.tv_nsec)/1e9;
  
       double fpsTime = m_images[0]->m_image.md->atime.tv_sec + ((double) m_images[0]->m_image.md->atime.tv_nsec)/1e9;
       
