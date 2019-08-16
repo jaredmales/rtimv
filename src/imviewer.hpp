@@ -216,6 +216,9 @@ protected:
    float m_maxdat; ///< The maximum data valuse used for scaling
       
 public:
+   
+   bool m_autoScale {false};
+   
    void mindat(float md);
       
    float mindat();

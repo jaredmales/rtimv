@@ -379,7 +379,7 @@ void imviewer::changeImdata(bool newdata)
 
    float (*_pixel)(imviewer*, size_t) = pixel();
    
-   if(m_images[0]->m_nx != m_nx || m_images[0]->m_ny != m_ny) 
+   if(m_images[0]->m_nx != m_nx || m_images[0]->m_ny != m_ny || m_autoScale) 
    {
       setImsize(m_images[0]->m_nx, m_images[0]->m_ny);
       

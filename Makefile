@@ -7,8 +7,16 @@
 
 QMAKE?=qmake
 
-##############################
+QMAKE_PATH := $(shell which qmake 2>/dev/null)
 
+$(info $(QMAKE_PATH))
+
+ifeq "$(QMAKE_PATH)" ""
+  QMAKE=qmake-qt5
+endif
+
+
+##############################
 
 all: rtimv
 

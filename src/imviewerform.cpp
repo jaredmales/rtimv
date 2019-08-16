@@ -805,6 +805,14 @@ void imviewerForm::keyPressEvent(QKeyEvent * ke)
       return;
    }
 
+   if(ke->text() == "a")
+   {
+      if(m_autoScale) m_autoScale = false;
+      else m_autoScale = true;
+      
+      return;
+   }
+   
    if(ke->text() == "s")
    {
       if(statsBox->isVisible())
