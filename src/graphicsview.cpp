@@ -22,7 +22,7 @@
 #define FPSWIDTH   250
 
 #define ZOOMHEIGHT 30
-#define ZOOMWIDTH 150
+#define ZOOMWIDTH 250
 
 graphicsview::graphicsview(QWidget *parent): QGraphicsView(parent)
 {

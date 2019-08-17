@@ -807,8 +807,16 @@ void imviewerForm::keyPressEvent(QKeyEvent * ke)
 
    if(ke->text() == "a")
    {
-      if(m_autoScale) m_autoScale = false;
-      else m_autoScale = true;
+      if(m_autoScale) 
+      {
+         m_autoScale = false;
+         ui.graphicsView->zoomText("autoscale off");
+      }
+      else 
+      {
+         m_autoScale = true;
+         ui.graphicsView->zoomText("autoscale on");
+      }
       
       return;
    }
