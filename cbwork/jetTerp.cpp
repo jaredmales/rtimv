@@ -11,9 +11,9 @@ int main()
 
    std::vector<double> xt, rt, gt, bt;
 
-   readColumns("bone_r.dat", r);
-   readColumns("bone_g.dat", g);
-   readColumns("bone_b.dat", b);
+   readColumns("jet_r.dat", r);
+   readColumns("jet_g.dat", g);
+   readColumns("jet_b.dat", b);
    
    x.resize(64);
    
@@ -27,9 +27,9 @@ int main()
    for(int i=0; i< 254; ++i) xt[i] = i;
    
    
-   mx::gsl_interpolate( gsl_interp_cspline, x, r, xt, rt);
-   mx::gsl_interpolate( gsl_interp_cspline, x, g, xt, gt);
-   mx::gsl_interpolate( gsl_interp_cspline, x, b, xt, bt);
+   mx::gsl_interpolate( gsl_interp_steffen, x, r, xt, rt);
+   mx::gsl_interpolate( gsl_interp_steffen, x, g, xt, gt);
+   mx::gsl_interpolate( gsl_interp_steffen, x, b, xt, bt);
    
 
    int i;

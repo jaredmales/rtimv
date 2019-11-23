@@ -125,10 +125,13 @@ public:
    /// The fuction pointer type for accessing pixels with calibrations applied.
    typedef float (*pixelF)(imviewer*, size_t);
 
+   
 //protected:   
    bool m_subtractDark {false};
    
    bool m_applyMask {false};
+   
+   bool m_applySatMask {false};
 
 public:
    
@@ -177,9 +180,17 @@ public:
      * 
      * @{
      */
+public:
+   typedef int (*pixelIndexF)(float);
+   
 protected:
-   int mincol {0};
-   int maxcol {256};
+   int m_mincol {0}; ///< The minimum index to use for the color table.
+   
+   int m_maxcol {253}; ///< The maximum index to use for the color table.
+   
+   int m_maskcol {254}; ///< The index in the color table to use for the mask color.
+   
+   int m_satcol {255}; ///< The index in the color table to use for the saturation color.
 
    int colorbar_mode {minmaxglobal};
    int colorbar_type {typelinear};
@@ -187,6 +198,8 @@ protected:
    int current_colorbar {colorbarBone};
 
    QColor warning_color;
+   
+   
 
 public:
 
@@ -202,6 +215,18 @@ public:
    void set_colorbar_type(int);
    int get_colorbar_type(){return colorbar_type;}
 
+   pixelIndexF pixelIndex();
+   
+   static int pixelIndex_linear(float d);
+   
+   static int pixelIndex_log(float d);
+   
+   static int pixelIndex_pow(float d);
+   
+   static int pixelIndex_sqrt(float d);
+   
+   static int pixelIndex_square(float d);
+   
    ///@}
    
    /** @name Colorbar Scale Control
@@ -214,10 +239,11 @@ protected:
    float m_mindat;  ///< The minimum data value used for scaling
       
    float m_maxdat; ///< The maximum data valuse used for scaling
-      
-public:
-   
+
    bool m_autoScale {false};
+
+public:
+
    
    void mindat(float md);
       
@@ -226,7 +252,7 @@ public:
    void maxdat(float md);
       
    float maxdat();
-
+   
    void bias(float b);
 
    float bias();
@@ -270,7 +296,7 @@ protected:
 protected:
       
       
-   QImage * qim {nullptr}; ///<A QT image, used to store the color-map encoded data
+   QImage * m_qim {nullptr}; ///<A QT image, used to store the color-map encoded data
       
    QPixmap qpm; ///<A QT pixmap, used to prep the QImage for display.
 

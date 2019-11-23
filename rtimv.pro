@@ -2,6 +2,7 @@ TEMPLATE = app
 TARGET = rtimv
 DESTDIR = bin/ 
 DEPENDPATH += src/
+INCLUDEPATH += /home/jrmales/include 
 
 MOC_DIR = moc/
 OBJECTS_DIR = obj/
@@ -14,7 +15,7 @@ CONFIG(release, debug|release) {
 
 CONFIG += c++14
 
-CONFIG += -ggdb
+CONFIG += -O3
 
 MAKEFILE = makefile.rtimv
 
@@ -45,6 +46,7 @@ FORMS += forms/imviewergui.ui \
          forms/imviewerStats.ui 
            
 LIBS += -lImageStreamIO
+LIBS += -lcfitsio
         
 RESOURCES += res/imviewer.qrc
 

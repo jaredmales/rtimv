@@ -203,9 +203,34 @@ class imviewerForm : public imviewer
       bool m_showLoopStat {false};
       bool m_showSaveStat {false};
       bool m_showFPSGage {true};
+      
+      
+   public:
+      
+      int setAutoScale( bool as );
+      
+      int toggleAutoScale();
+      
+      int showFPSGage( bool sfg );
+      
+      int toggleFPSGage();
+      
+      int setDarkSub( bool ds );
+      
+      int toggleDarkSub();
+      
+      int setApplyMask( bool am );
+      
+      int toggleApplyMask();
+      
+      int setApplySatMask( bool as );
+      
+      int toggleApplySatMask();
+      
    private:
       Ui::imviewerForm ui;
 
+   
 
 };
 

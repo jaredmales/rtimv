@@ -465,7 +465,6 @@ void imviewerForm::updateMouseCoords()
 {
    int64_t idx_x, idx_y; //image size are uint32_t, so this allows signed comparison without overflow issues
    
-   //if(!m_images[0]->valid()) return;
    if(!qpmi) return;
    
    if(ui.graphicsView->mouseViewX() < 0 || ui.graphicsView->mouseViewY() < 0)
@@ -580,26 +579,29 @@ void imviewerForm::updateFPS()
 
 void imviewerForm::updateAge()
 {
-   if(m_showFPSGage && m_images[0]->valid() )
+   if(m_showFPSGage && m_images[0] != nullptr  )
    {      
-      struct timespec tstmp;
-    
-      clock_gettime(CLOCK_REALTIME, &tstmp);
-         
-      double timetmp = (double)tstmp.tv_sec + ((double)tstmp.tv_nsec)/1e9;
- 
-      double fpsTime = m_images[0]->m_image.md->atime.tv_sec + ((double) m_images[0]->m_image.md->atime.tv_nsec)/1e9;
-      
-      double age = timetmp - fpsTime;
-         
-      if(m_images[0]->m_fpsEst > 1.0 && age < 2.0) 
+      if(m_images[0]->valid())    //have to check this after checking nullptr
       {
-         ui.graphicsView->fpsGageText(m_images[0]->m_fpsEst);
+         struct timespec tstmp;
+         
+         clock_gettime(CLOCK_REALTIME, &tstmp);
+            
+         double timetmp = (double)tstmp.tv_sec + ((double)tstmp.tv_nsec)/1e9;
+         
+         double fpsTime = m_images[0]->m_image.md->atime.tv_sec + ((double) m_images[0]->m_image.md->atime.tv_nsec)/1e9;
+         
+         double age = timetmp - fpsTime;
+            
+         if(m_images[0]->m_fpsEst > 1.0 && age < 2.0) 
+         {
+            ui.graphicsView->fpsGageText(m_images[0]->m_fpsEst);
+         }
+         else
+         {
+            ui.graphicsView->fpsGageText(age, true);
+         } 
       }
-      else
-      {
-         ui.graphicsView->fpsGageText(age, true);
-      } 
    }
 
    
@@ -626,6 +628,9 @@ void imviewerForm::updateAge()
 
 void imviewerForm::doLaunchStatsBox()
 {
+   return;
+   
+   /*
    statsBox->setVisible(true);
    
    if(!imStats)
@@ -641,10 +646,13 @@ void imviewerForm::doLaunchStatsBox()
    imStats->show();
     
    imStats->activateWindow();
+   */
 }
 
 void imviewerForm::doHideStatsBox()
 {
+   return;
+   /*
    statsBox->setVisible(false);
 
    if (imStats)
@@ -653,10 +661,12 @@ void imviewerForm::doHideStatsBox()
       imStats->close(); 
       imStats = 0; //imStats is set to delete on close
    }
+   */
 }
 
 void imviewerForm::imStatsClosed(int result)
 {
+   /*
    statsBox->setVisible(false);
    imStats = 0; //imStats is set to delete on close
    if(imcp)
@@ -666,13 +676,14 @@ void imviewerForm::imStatsClosed(int result)
    }
    //imcp->on_statsBoxButton_clicked();
    //doHideStatsBox();
-   
+   */
    (void)(result);
+   
 }
 
 void imviewerForm::statsBoxMoved(const QRectF & newr)
 {
-
+   /*
    QPointF np = qpmi->mapFromItem(statsBox, QPointF(statsBox->rect().x(),statsBox->rect().y()));
    QPointF np2 = qpmi->mapFromItem(statsBox, QPointF(statsBox->rect().x()+statsBox->rect().width(),statsBox->rect().y()+statsBox->rect().height()));
 
@@ -680,7 +691,7 @@ void imviewerForm::statsBoxMoved(const QRectF & newr)
    {
       //imStats->set_imdata(m_imData, frame_time, m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y(), 0);
    }
-   
+   */
    (void)(newr);
 
 }
@@ -807,16 +818,7 @@ void imviewerForm::keyPressEvent(QKeyEvent * ke)
 
    if(ke->text() == "a")
    {
-      if(m_autoScale) 
-      {
-         m_autoScale = false;
-         ui.graphicsView->zoomText("autoscale off");
-      }
-      else 
-      {
-         m_autoScale = true;
-         ui.graphicsView->zoomText("autoscale on");
-      }
+      toggleAutoScale();
       
       return;
    }
@@ -995,41 +997,24 @@ void imviewerForm::keyPressEvent(QKeyEvent * ke)
    
    if(ke->text() == "f")
    {
-      if( m_showFPSGage == true )
-      {
-         m_showFPSGage = false;
-         ui.graphicsView->fpsGageText("");
-      }
-      else
-      {
-         m_showFPSGage = true;
-      }
-      
+      toggleFPSGage();
    }
    
    if(ke->text() == "D")
    {
-      if(m_subtractDark)
-      {
-         m_subtractDark = false;
-      }
-      else
-      {
-         m_subtractDark = true;
-      }
+      toggleDarkSub();
       changeImdata(false);
    }
       
    if(ke->text() == "M")
    {
-      if(m_applyMask)
-      {
-         m_applyMask = false;
-      }
-      else
-      {
-         m_applyMask = true;
-      }
+      toggleApplyMask();
+      changeImdata(false);
+   }
+   
+   if(ke->text() == "S")
+   {
+      toggleApplySatMask();
       changeImdata(false);
    }
    
@@ -1044,4 +1029,140 @@ void imviewerForm::keyPressEvent(QKeyEvent * ke)
    }
    
    QWidget::keyPressEvent(ke);
+}
+
+int imviewerForm::setAutoScale( bool as )
+{
+   m_autoScale = as;
+   if(m_autoScale) 
+   {
+      ui.graphicsView->zoomText("autoscale on");
+   }
+   else 
+   {
+      ui.graphicsView->zoomText("autoscale off");
+   }
+
+   return 0;
+}
+
+int imviewerForm::toggleAutoScale()
+{
+   if(m_autoScale) 
+   {
+      return setAutoScale(false);
+   }
+   else 
+   {
+      return setAutoScale(true);
+   }      
+}
+
+int imviewerForm::showFPSGage( bool sfg )
+{
+   m_showFPSGage = sfg;
+   if(m_showFPSGage)
+   {
+      ui.graphicsView->zoomText("fps gage on");
+   }
+   else
+   {
+      ui.graphicsView->fpsGageText("");
+      ui.graphicsView->zoomText("fps gage off");
+   }
+   
+   return 0;
+}
+
+int imviewerForm::toggleFPSGage()
+{
+   if(m_showFPSGage)
+   {
+      return showFPSGage(false);
+   }
+   else
+   {
+      return showFPSGage(true);
+   }
+}
+
+int imviewerForm::setDarkSub( bool ds )
+{
+   m_subtractDark = ds;
+   if(m_subtractDark)
+   {
+      ui.graphicsView->zoomText("dark sub. on");
+   }
+   else
+   {
+      ui.graphicsView->zoomText("dark sub. off");
+   }
+   
+   return 0;
+}
+
+int imviewerForm::toggleDarkSub()
+{
+   if(m_subtractDark)
+   {
+      return setDarkSub(false);
+   }
+   else
+   {
+      return setDarkSub(true);
+   }
+}
+
+int imviewerForm::setApplyMask( bool am )
+{
+   m_applyMask = am;
+   if(m_applyMask)
+   {
+      ui.graphicsView->zoomText("mask on");
+   }
+   else
+   {
+      ui.graphicsView->zoomText("mask off");
+   }
+   
+   return 0;
+}
+
+int imviewerForm::toggleApplyMask()
+{
+   if(m_applyMask)
+   {
+      return setApplyMask(false);
+   }
+   else
+   {
+      return setApplyMask(true);
+   }
+}
+
+int imviewerForm::setApplySatMask( bool as )
+{
+   m_applySatMask = as;
+   if(m_applySatMask)
+   {
+      ui.graphicsView->zoomText("sat mask on");
+   }
+   else
+   {
+      ui.graphicsView->zoomText("sat mask off");
+   }
+   
+   return 0;
+}
+
+int imviewerForm::toggleApplySatMask()
+{
+   if(m_applySatMask)
+   {
+      return setApplySatMask(false);
+   }
+   else
+   {
+      return setApplySatMask(true);
+   }
 }

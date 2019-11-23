@@ -10,13 +10,19 @@ imviewer::imviewer( const std::vector<std::string> & shkeys,
                     Qt::WindowFlags f
                   ) : QWidget(Parent, f)
 {
-   m_images.resize(shkeys.size());
+   m_images.resize(4, nullptr);
    
    for(size_t i=0; i< m_images.size(); ++i)
    {
-      m_images[i] = new rtimvImage;
-      m_images[i]->m_shmimName=shkeys[i]; //Set the key
-      m_images[i]->m_timer.start(m_images[i]->m_shmimTimeout); //and set timers.
+      if(shkeys.size() > i)
+      {
+         if(shkeys[i] != "")
+         {
+            m_images[i] = new rtimvImage;
+            m_images[i]->shmimName(shkeys[i]); // Set the key
+            m_images[i]->shmimTimerout(); // And start checking for the image
+         }
+      }
    }
    
    connect(&m_timer, SIGNAL(timeout()), this, SLOT(timerout()));
@@ -56,16 +62,16 @@ void imviewer::setImsize(uint32_t x, uint32_t y)
 {
    int cb;
 
-   if(m_nx !=x  || m_ny !=y  || qim == 0)
+   if(m_nx !=x  || m_ny !=y  || m_qim == 0)
    {
       if(x!=0 && y!=0)
       {
          m_nx = x;
          m_ny = y;
 
-         if(qim) delete qim;
+         if(m_qim) delete m_qim;
 
-         qim = new QImage(m_nx, m_ny, QImage::Format_Indexed8);
+         m_qim = new QImage(m_nx, m_ny, QImage::Format_Indexed8);
 
          cb = current_colorbar; //force a reload.
          current_colorbar = -1;
@@ -96,11 +102,13 @@ void imviewer::timerout()
 {
    static bool connected = false;
    
-   int doupdate = m_images[0]->update();
+   int doupdate = RTIMVIMAGE_NOUPDATE;
+   
+   if(m_images[0] != nullptr) doupdate = m_images[0]->update();
    
    for(size_t i=1;i<m_images.size(); ++i) 
    {
-      m_images[i]->update();
+      if(m_images[i] != nullptr) m_images[i]->update();
    }
    
    if(doupdate >= RTIMVIMAGE_IMUPDATE) 
@@ -132,7 +140,7 @@ void imviewer::timeout(int to)
    
    for(size_t i=0; i<m_images.size();++i)
    {
-      m_images[i]->timeout(to); //just for fps calculations
+      if(m_images[i] != nullptr) m_images[i]->timeout(to); //just for fps calculations
    }
    
    m_timer.start(to);
@@ -142,27 +150,40 @@ imviewer::pixelF imviewer::pixel()
 {
    pixelF _pixel = nullptr;
    
-   if(m_images[0]->valid()) _pixel =  &pixel_noCal; //default if there is a valid base image.
+   if(m_images[0] == nullptr) return _pixel; //no valid base image
    
-   if(m_subtractDark == true && m_applyMask == false && m_images.size()>1)
+   if(m_images[0]->valid()) _pixel =  &pixel_noCal; //default if there is a valid base image.
+   else return _pixel; //no valid base image
+   
+   if(m_subtractDark == true)// && m_applyMask == false)
    {
+      if(m_images[1] == nullptr) return _pixel;
+      
       if(m_images[0]->valid() && m_images[1]->valid()) _pixel = &pixel_subDark;
    }
    
-   if(m_subtractDark == false && m_applyMask == true && m_images.size()>2)
+   if(m_subtractDark == false && m_applyMask == true)
    {
+      if(m_images[2] == nullptr) return _pixel;
+      
       if(m_images[0]->valid() && m_images[2]->valid()) _pixel = &pixel_applyMask;
    }
    
-   if(m_subtractDark == true && m_applyMask == true && m_images.size()>1)
+   if(m_subtractDark == true && m_applyMask == true)
    {
-      if(m_images.size()==1)
+      
+      if( m_images[1] == nullptr && m_images[2] == nullptr) return _pixel;
+      else if( m_images[2] == nullptr )
       {
-         if(m_images[0]->valid() && m_images[1]->valid()) _pixel = &pixel_subDark;
-      }      
+         if(m_images[1]->valid()) _pixel = &pixel_subDark;
+      } 
+      else if(m_images[1] == nullptr)
+      {
+         if(m_images[2]->valid()) _pixel = &pixel_applyMask;
+      }
       else
       {
-         if(m_images[0]->valid() && m_images[1]->valid() &&  m_images[2]->valid()) _pixel = &pixel_subDarkApplyMask;
+         if(m_images[1]->valid() &&  m_images[2]->valid()) _pixel = &pixel_subDarkApplyMask;
       }
    }
    
@@ -199,53 +220,45 @@ float imviewer::pixel_subDarkApplyMask( imviewer * imv,
 
 void imviewer::load_colorbar(int cb)
 {
-   if(current_colorbar != cb && qim)
+   if(current_colorbar != cb && m_qim)
    {
       current_colorbar = cb;
       switch(cb)
       {
-         case colorbarRed:
-            mincol = 0;
-            maxcol = 256;
-            //qim->setNumColors(256);
-            for(int i=mincol; i<maxcol; i++) qim->setColor(i, qRgb(i,0,0));
-            warning_color = QColor("lime");
-            break;
-         case colorbarGreen:
-            mincol = 0;
-            maxcol = 256;
-            //qim->setNumColors(256);
-            for(int i=mincol; i<maxcol; i++) qim->setColor(i, qRgb(0,i,0));
-            warning_color = QColor("magenta");
-            break;
-         case colorbarBlue:
-            mincol = 0;
-            maxcol = 256;
-            //qim->setNumColors(256);
-            for(int i=mincol; i<maxcol; i++) qim->setColor(i, qRgb(0,0,i));
-            warning_color = QColor("yellow");
-            break;
          case colorbarJet:
-
-            mincol = 0;
-            maxcol = load_colorbar_jet(qim);
+            m_mincol = 0;
+            m_maxcol = load_colorbar_jet(m_qim);
+            m_maskcol = m_maxcol + 1;
+            m_satcol = m_maxcol + 2;
             warning_color = QColor("white");
             break;
          case colorbarHot:
-            mincol = 0;
-            maxcol = load_colorbar_hot(qim);
+            m_mincol = 0;
+            m_maxcol = load_colorbar_hot(m_qim);
+            m_maskcol = m_maxcol + 1;
+            m_satcol = m_maxcol + 2;
             warning_color = QColor("cyan");
             break;
          case colorbarBone:
-            mincol = 0;
-            maxcol = load_colorbar_bone(qim);
+            m_mincol = 0;
+            m_maxcol = load_colorbar_bone(m_qim);
+            m_maskcol = m_maxcol + 1;
+            m_satcol = m_maxcol + 2;
             warning_color = QColor("lime");
             break;
          default:
-            mincol = 0;
-            maxcol = 256;
-            //qim->setNumColors(256);
-            for(int i=mincol; i<maxcol; i++) qim->setColor(i, qRgb(i,i,i));
+            m_mincol = 0;
+            m_maxcol = 253;
+            m_maskcol = m_maxcol + 1;
+            m_satcol = m_maxcol + 2;
+            for(int i=m_mincol; i <= m_maxcol; i++) 
+            {
+               int c = (( (float) i) / 253. * 255.) + 0.5;
+               m_qim->setColor(i, qRgb(c,c,c));
+            }
+            m_qim->setColor(254, qRgb(0,0,0));
+            m_qim->setColor(255, qRgb(255,0,0));
+            
             warning_color = QColor("lime");
             break;
       }
@@ -342,7 +355,8 @@ int imviewer::calcPixIndex(float d)
    static float log10_a = log10(a);
 
    pixval = (d - m_mindat)/((float)(m_maxdat-m_mindat));
-   if(pixval < 0) pixval = 0;
+   
+   if(pixval < 0) return 0;
    
    switch(colorbar_type)
    {
@@ -364,7 +378,7 @@ int imviewer::calcPixIndex(float d)
 
    if(pixval > 1.) pixval = 1.;
 
-   return pixval*(maxcol-1-mincol);
+   return pixval*(m_maxcol-m_mincol);
 }
 
 void imviewer::changeImdata(bool newdata)
@@ -375,6 +389,7 @@ void imviewer::changeImdata(bool newdata)
    int idx;
    float imval;
 
+   if(m_images[0] == nullptr) return;
    if(!m_images[0]->valid()) return;
 
    float (*_pixel)(imviewer*, size_t) = pixel();
@@ -409,7 +424,7 @@ void imviewer::changeImdata(bool newdata)
          {
             for(uint32_t j=0;j < m_nx; ++j)
             {
-               qim->setPixel(j, m_ny-i-1, 0);
+               m_qim->setPixel(j, m_ny-i-1, 0);
             }
          }
       }
@@ -421,7 +436,7 @@ void imviewer::changeImdata(bool newdata)
             {
                idx = i*m_nx + j;
                imval = _pixel(this, idx);
-               qim->setPixel(j, m_ny-i-1, calcPixIndex(imval));
+               m_qim->setPixel(j, m_ny-i-1, calcPixIndex(imval));
             }
          }
       }
@@ -465,7 +480,7 @@ void imviewer::changeImdata(bool newdata)
                   }
                }
       
-               qim->setPixel(j, m_ny-i-1, 0);
+               m_qim->setPixel(j, m_ny-i-1, 0);
       
             }
          }
@@ -493,7 +508,7 @@ void imviewer::changeImdata(bool newdata)
                   }
                }
       
-               qim->setPixel(j, m_ny-i-1, calcPixIndex(imval));
+               m_qim->setPixel(j, m_ny-i-1, calcPixIndex(imval));
       
             }
          }
@@ -503,7 +518,32 @@ void imviewer::changeImdata(bool newdata)
       imdat_min = tmp_min;
       
     }
-    qpm.convertFromImage(*qim, Qt::AutoColor | Qt::ThresholdDither);
+    
+   if(m_applyMask)
+   {
+      for(uint32_t i = 0; i < m_ny; ++i)
+      {
+         for(uint32_t j=0;j < m_nx; ++j)
+         {
+            idx = i*m_nx + j;
+            if( m_images[2]->pixel(idx) == 0 ) m_qim->setPixel(j, m_ny-i-1, m_maskcol);
+         }
+      }
+   }
+
+   if(m_applySatMask)
+   {
+      for(uint32_t i = 0; i < m_ny; ++i)
+      {
+         for(uint32_t j=0;j < m_nx; ++j)
+         {
+            idx = i*m_nx + j;
+            if( m_images[3]->pixel(idx) == 1 ) m_qim->setPixel(j, m_ny-i-1, m_satcol);
+         }
+      }
+   }
+   
+    qpm.convertFromImage(*m_qim, Qt::AutoColor | Qt::ThresholdDither);
 
     postChangeImdata();
     amChangingimdata = false;
@@ -651,7 +691,7 @@ void imviewer::handleSigSegv()
      
    for(size_t i=1;i<m_images.size(); ++i) 
    {
-      m_images[i]->detach();
+      if(m_images[i] != nullptr) m_images[i]->detach();
    }
    
    snSegv->setEnabled(true);

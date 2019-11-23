@@ -405,7 +405,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="imviewer.qrc">
+      <iconset resource="../res/imviewer.qrc">
        <normaloff>:/icons/arrow_left_128.png</normaloff>:/icons/arrow_left_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -477,7 +477,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="imviewer.qrc">
+      <iconset resource="../res/imviewer.qrc">
        <normaloff>:/icons/arrow_up_right_128.png</normaloff>:/icons/arrow_up_right_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -500,7 +500,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="imviewer.qrc">
+      <iconset resource="../res/imviewer.qrc">
        <normaloff>:/icons/arrow_down_right_128.png</normaloff>:/icons/arrow_down_right_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -589,7 +589,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="imviewer.qrc">
+      <iconset resource="../res/imviewer.qrc">
        <normaloff>:/icons/square_128.png</normaloff>:/icons/square_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -674,7 +674,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="imviewer.qrc">
+      <iconset resource="../res/imviewer.qrc">
        <normaloff>:/icons/arrow_right_128.png</normaloff>:/icons/arrow_right_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -703,7 +703,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="imviewer.qrc">
+      <iconset resource="../res/imviewer.qrc">
        <normaloff>:/icons/arrow_down_128.png</normaloff>:/icons/arrow_down_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -865,7 +865,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="imviewer.qrc">
+      <iconset resource="../res/imviewer.qrc">
        <normaloff>:/icons/arrow_up_left_128.png</normaloff>:/icons/arrow_up_left_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -995,7 +995,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="imviewer.qrc">
+      <iconset resource="../res/imviewer.qrc">
        <normaloff>:/icons/arrow_down_left_128.png</normaloff>:/icons/arrow_down_left_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -1064,7 +1064,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="imviewer.qrc">
+      <iconset resource="../res/imviewer.qrc">
        <normaloff>:/icons/arrow_up_128.png</normaloff>:/icons/arrow_up_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -1862,7 +1862,7 @@
   <tabstop>imtimerspinBox</tabstop>
  </tabstops>
  <resources>
-  <include location="imviewer.qrc"/>
+  <include location="../res/imviewer.qrc"/>
  </resources>
  <connections/>
 </ui>
