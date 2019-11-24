@@ -10,3 +10,5 @@ obj/*
 res/qrc_imviewer.cpp
 *~
 *.stash
+doc/html
+

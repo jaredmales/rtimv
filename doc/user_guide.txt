@@ -1,6 +1,9 @@
-/** \page imviewer_userguide The Real Time Image Viewer
- * \ingroup operators_users_guide
+/** \page rtimv_userguide User's Guide
+ * 
 
+ 
+\note This is completely out of date, please stay tuned for a comprehensive update for the latest version 
+ 
 This is the user's guide to the VisAO imviewer, the real time image viewer.
 
 \section imviewer_mainwin Main Window
