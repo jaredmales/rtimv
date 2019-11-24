@@ -64,13 +64,13 @@ void imviewerControlPanel::setupCombos()
    ui.scaleModeCombo->setCurrentIndex(imviewer::user);
    ui.scaleModeCombo->setMaxCount(imviewer::colorbar_modes_max);
 
-   for(int i=0;i<imviewer::colorbar_types_max;i++) ui.scaleTypeCombo->insertItem(i,"");
-   ui.scaleTypeCombo->insertItem(imviewer::typelinear, "Linear");
-   ui.scaleTypeCombo->insertItem(imviewer::typelog, "Log");
-   ui.scaleTypeCombo->insertItem(imviewer::typepow, "Power");
-   ui.scaleTypeCombo->insertItem(imviewer::typesqrt, "Square Root");
-   ui.scaleTypeCombo->insertItem(imviewer::typesquare, "Squared");
-   ui.scaleTypeCombo->setMaxCount(imviewer::colorbar_types_max);
+   for(int i=0;i<imviewer::cbStretches_max;i++) ui.scaleTypeCombo->insertItem(i,"");
+   ui.scaleTypeCombo->insertItem(imviewer::stretchLinear, "Linear");
+   ui.scaleTypeCombo->insertItem(imviewer::stretchLog, "Log");
+   ui.scaleTypeCombo->insertItem(imviewer::stretchPow, "Power");
+   ui.scaleTypeCombo->insertItem(imviewer::stretchSqrt, "Square Root");
+   ui.scaleTypeCombo->insertItem(imviewer::stretchSquare, "Squared");
+   ui.scaleTypeCombo->setMaxCount(imviewer::cbStretches_max);
    
    for(int i=0;i<imviewer::colorbarMax;i++) ui.colorbarCombo->insertItem(i,"");
    ui.colorbarCombo->insertItem(imviewer::colorbarGrey, "Grey");
@@ -133,7 +133,7 @@ void imviewerControlPanel::init_panel()
    update_contrastEntry();
    update_contrastRelEntry();
 
-   ui.scaleTypeCombo->setCurrentIndex(imv->get_colorbar_type());
+   ui.scaleTypeCombo->setCurrentIndex(imv->get_cbStretch());
    ui.scaleModeCombo->setCurrentIndex(imv->get_colorbar_mode());
    ui.colorbarCombo->setCurrentIndex(imv->get_current_colorbar());
 }
@@ -178,7 +178,7 @@ void imviewerControlPanel::update_panel()
    update_contrastSlider();
    IgnorecontrastSliderChange = false;
 
-   ui.scaleTypeCombo->setCurrentIndex(imv->get_colorbar_type());
+   ui.scaleTypeCombo->setCurrentIndex(imv->get_cbStretch());
    ui.scaleModeCombo->setCurrentIndex(imv->get_colorbar_mode());
    ui.colorbarCombo->setCurrentIndex(imv->get_current_colorbar());
 }
@@ -523,7 +523,7 @@ void imviewerControlPanel::set_pointerViewCen(QPointF mp)
 
 void imviewerControlPanel::on_scaleTypeCombo_activated(int ct)
 {
-   imv->set_colorbar_type(ct);
+   imv->set_cbStretch(ct);
    
    
    imv->changeImdata();

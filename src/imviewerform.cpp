@@ -88,10 +88,10 @@ imviewerForm::imviewerForm( const std::vector<std::string> & shkeys,
   
    
    
-   targetVisible = false;
+   m_targetVisible = false;
    
-   cenLineVert = 0;//qgs->addLine(QLineF(.5*getNx(),0, .5*getNx(), getNy()), QColor("lime"));
-   cenLineHorz = 0;//qgs->addLine(QLineF(0, .5*getNy(), getNx(), .5*getNy()), QColor("lime"));
+   m_cenLineVert = 0;//qgs->addLine(QLineF(.5*getNx(),0, .5*getNx(), getNy()), QColor("lime"));
+   m_cenLineHorz = 0;//qgs->addLine(QLineF(0, .5*getNy(), getNx(), .5*getNy()), QColor("lime"));
    
    imStats = 0;
    m_timer.start(m_timeout);
@@ -161,25 +161,30 @@ void imviewerForm::postSetImsize()
    userCircle->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
    //userCircleMoved(guideBox->rect());
    
-   if(!cenLineVert)
+   setTarget();
+}
+
+void imviewerForm::setTarget()
+{
+   if(!m_cenLineVert)
    {
-      cenLineVert = qgs->addLine(QLineF(.5*nx(),0, .5*nx(), ny()), QColor("lime"));
-      cenLineHorz = qgs->addLine(QLineF(0, .5*ny(), nx(), .5*ny()), QColor("lime"));
-      if(targetVisible)
+      m_cenLineVert = qgs->addLine(QLineF(m_targetXc*nx(),0, m_targetXc*nx(), ny()), QColor("lime"));
+      m_cenLineHorz = qgs->addLine(QLineF(0, (1.0-m_targetYc)*ny(), nx(), (1.0-m_targetYc)*ny()), QColor("lime"));
+      if(m_targetVisible)
       {
-         cenLineVert->setVisible(true);
-         cenLineHorz->setVisible(true);
+         m_cenLineVert->setVisible(true);
+         m_cenLineHorz->setVisible(true);
       }
       else
       {
-         cenLineVert->setVisible(false);
-         cenLineHorz->setVisible(false);
+         m_cenLineVert->setVisible(false);
+         m_cenLineHorz->setVisible(false);
       } 
    }
    else
    {
-      cenLineVert->setLine(QLineF(.5*nx(),0, .5*nx(), ny()));
-      cenLineHorz->setLine(QLineF(0, .5*ny(), nx(), .5*ny()));
+      m_cenLineVert->setLine(QLineF(m_targetXc*nx(),0, m_targetXc*nx(), ny()));
+      m_cenLineHorz->setLine(QLineF(0, (1.0-m_targetYc)*ny(), nx(), (1.0-m_targetYc)*ny()));
    }
 }
 
@@ -240,34 +245,23 @@ void imviewerForm::postChangeImdata()
    
    if(!qpmi) //This happens on first time through
    {
-      qpmi = qgs->addPixmap(qpm);
+      qpmi = qgs->addPixmap(m_qpm);
       //So we need to initialize the viewport center, etc.
       set_viewcen(0.5,0.5);
       post_zoomLevel();
    }
-   else qpmi->setPixmap(qpm);
+   else qpmi->setPixmap(m_qpm);
         
    if(userBox) qpmi->stackBefore(userBox);
    if(statsBox) qpmi->stackBefore(statsBox);
    if(guideBox) qpmi->stackBefore(guideBox);
    
-   
-   
-//    else
-//    {
-      
-//    if(targetVisible)
-//    {
-//       qpmi->stackBefore(cenLineVert);
-//       qpmi->stackBefore(cenLineHorz);
-//    }
-   
    if(imcp)
    {
       if(imcp->ViewViewMode == ViewViewEnabled)
       {
-         if(!imcp->qpmi_view) imcp->qpmi_view = imcp->qgs_view->addPixmap(qpm);
-         imcp->qpmi_view->setPixmap(qpm);
+         if(!imcp->qpmi_view) imcp->qpmi_view = imcp->qgs_view->addPixmap(m_qpm);
+         imcp->qpmi_view->setPixmap(m_qpm);
          
          imcp->qpmi_view->stackBefore(imcp->viewLineVert);
       }
@@ -624,7 +618,40 @@ void imviewerForm::updateAge()
 }
 
 
-
+int imviewerForm::targetXc( float txc )
+{
+   if(txc < 0) txc = 0;
+   if(txc > 1) txc = 1;
+   
+   m_targetXc = txc;
+   
+   setTarget();
+   
+   return 0;
+}
+     
+float imviewerForm::targetXc()
+{
+   return m_targetXc;
+}
+      
+int imviewerForm::targetYc( float tyc )
+{
+   if(tyc < 0) tyc = 0;
+   if(tyc > 1) tyc = 1;
+   
+   m_targetYc = tyc;
+   
+   setTarget();
+   
+   return 0;
+}
+     
+float imviewerForm::targetYc()
+{
+   return m_targetYc;
+}
+      
 
 void imviewerForm::doLaunchStatsBox()
 {
@@ -803,136 +830,82 @@ void imviewerForm::post_setUserBoxActive(bool usba)
 
 void imviewerForm::keyPressEvent(QKeyEvent * ke)
 {
-
-   if(ke->text() == "p")
-   {
-      launchControlPanel();
-      return;
-   }
-
-   if(ke->text() == "r")
-   {
-      reStretch();
-      return;
-   }
-
-   if(ke->text() == "a")
-   {
-      toggleAutoScale();
-      
-      return;
-   }
+   char key = ke->text()[0].toLatin1();
    
-   if(ke->text() == "s")
+   switch(key)
    {
-      if(statsBox->isVisible())
-      {
-         doHideStatsBox();
-         if(imcp)
-         {
-            imcp->statsBoxButtonState = false;
-            imcp->ui.statsBoxButton->setText("Show Stats Box");
-         }
-      }
-      else
-      {
-         doLaunchStatsBox();
-         if(imcp)
-         {
-            imcp->statsBoxButtonState = true;
-            imcp->ui.statsBoxButton->setText("Hide Stats Box");
-         }
-      }
-      return;
-   }
-
-   if(ke->text() == "x")
-   {
-      freezeRealTime();
-      return;
-   }
-   
-   if(ke->text() == "1")
-   {
-      zoomLevel(1.0);
-      return;
-   }
-   
-   if(ke->text() == "2")
-   {
-      zoomLevel(2.0);
-      return;
-   }
-   
-   if(ke->text() == "3")
-   {
-      zoomLevel(3.0);
-      return;
-   }
-   
-   if(ke->text() == "4")
-   {
-      zoomLevel(4.0);
-      return;
-   }
-   
-   if(ke->text() == "5")
-   {
-      zoomLevel(5.0);
-      return;
-   }
-   
-   if(ke->text() == "6")
-   {
-      zoomLevel(6.0);
-      return;
-   }
-   
-   if(ke->text() == "7")
-   {
-      zoomLevel(7.0);
-      return;
-   }
-   
-   if(ke->text() == "8")
-   {
-      zoomLevel(8.0);
-      return;
-   }
-   
-   if(ke->text() == "9")
-   {
-      zoomLevel(9.0);
-      return;
-   }
-   
-   if(ke->text() == "b")
-   {
-      if(!userBoxActive)
-      {
-         if(imcp)
-         {
-            imcp->on_scaleModeCombo_activated(imviewer::minmaxbox);
-         }
-         else
-         {
-            userBox->setVisible(true);
-            setUserBoxActive(true);
-         }
-      }
-      else
-      {
-         if(imcp)
-         {
-            imcp->on_scaleModeCombo_activated(imviewer::minmaxglobal);
-         }
-         else
-         {
-            userBox->setVisible(false);
-            setUserBoxActive(false);
-         }
-      }
-      return;
+      case 'a':
+         toggleAutoScale();
+         break;
+      case 'b':
+         toggleUserBox();
+         break;
+      case 'c':
+         center();
+         break;
+      case 'f':
+         toggleFPSGage();
+         break;
+      case 'p':
+         launchControlPanel();
+         break;
+      case 'r':
+         reStretch();
+         break;
+      case 's':
+         toggleStatsBox();
+         break;
+      case 't':
+         toggleTarget();
+         break;
+      case 'x':
+         freezeRealTime();
+         break;
+      case 'D':
+         toggleDarkSub();
+         break;
+      case 'L':
+         toggleLogLinear();
+         break;
+      case 'M':
+         toggleApplyMask();
+         break;
+      case 'S':
+         toggleApplySatMask();
+         break;
+      case '1':
+         zoomLevel(1.0);
+         break;
+      case '2':
+         zoomLevel(2.0);
+         break;
+      case '3':
+         zoomLevel(3.0);
+         break;
+      case '4':
+         zoomLevel(4.0);
+         break;
+      case '5':
+         zoomLevel(5.0);
+         break;
+      case '6':
+         zoomLevel(6.0);
+         break;
+      case '7':
+         zoomLevel(7.0);
+         break;
+      case '8':
+         zoomLevel(8.0);
+         break;
+      case '9':
+         zoomLevel(9.0);
+         break;
+      case '[':
+         squareDown();
+         break;
+      case ']':
+         squareUp();
+         break;
    }
    
    if(ke->text() == "n")
@@ -966,66 +939,14 @@ void imviewerForm::keyPressEvent(QKeyEvent * ke)
       return;
    }
    
-   if(ke->text() == "t")
-   {
-      if(targetVisible)
-      {
-         cenLineVert->setVisible(false);
-         cenLineHorz->setVisible(false);
-         targetVisible = false;
-      }
-      else
-      {
-         cenLineVert->setVisible(true);
-         cenLineHorz->setVisible(true);
-         targetVisible=true;
-      }
-   } 
+    
    
-   if(ke->text() == "c")
-   {
-      set_viewcen(.5, .5);
-      post_zoomLevel();
-   }
    
    if(ke->text() == "o")
    {
       if(userCircle->isVisible()) userCircle->setVisible(false);
       else userCircle->setVisible(true);
       
-   }
-   
-   if(ke->text() == "f")
-   {
-      toggleFPSGage();
-   }
-   
-   if(ke->text() == "D")
-   {
-      toggleDarkSub();
-      changeImdata(false);
-   }
-      
-   if(ke->text() == "M")
-   {
-      toggleApplyMask();
-      changeImdata(false);
-   }
-   
-   if(ke->text() == "S")
-   {
-      toggleApplySatMask();
-      changeImdata(false);
-   }
-   
-   if(ke->text() == "[")
-   {
-      squareDown();
-   }
-   
-   if(ke->text() == "]")
-   {
-      squareUp();
    }
    
    QWidget::keyPressEvent(ke);
@@ -1056,6 +977,73 @@ int imviewerForm::toggleAutoScale()
    {
       return setAutoScale(true);
    }      
+}
+
+int imviewerForm::center()
+{
+   set_viewcen(.5, .5);
+   post_zoomLevel();
+      
+   ui.graphicsView->zoomText("centered");
+   
+   return 0;
+}
+
+int imviewerForm::toggleUserBox()
+{
+   if(!userBoxActive)
+   {
+      if(imcp)
+      {
+         imcp->on_scaleModeCombo_activated(imviewer::minmaxbox);
+      }
+      else
+      {
+         userBox->setVisible(true);
+         setUserBoxActive(true);
+      }
+      ui.graphicsView->zoomText("user box scale");
+   }
+   else
+   {
+      if(imcp)
+      {
+         imcp->on_scaleModeCombo_activated(imviewer::minmaxglobal);
+      }
+      else
+      {
+         userBox->setVisible(false);
+         setUserBoxActive(false);
+      }
+      ui.graphicsView->zoomText("global scale");
+   }
+   return 0;   
+}
+
+int imviewerForm::toggleStatsBox()
+{
+   if(statsBox->isVisible())
+   {
+      doHideStatsBox();
+      ui.graphicsView->zoomText("stats off");
+      if(imcp)
+      {
+         imcp->statsBoxButtonState = false;
+         imcp->ui.statsBoxButton->setText("Show Stats Box");
+      }
+   }
+   else
+   {
+      doLaunchStatsBox();
+      ui.graphicsView->zoomText("stats on");
+      if(imcp)
+      {
+         imcp->statsBoxButtonState = true;
+         imcp->ui.statsBoxButton->setText("Hide Stats Box");
+      }
+   }
+   
+   return 0;
 }
 
 int imviewerForm::showFPSGage( bool sfg )
@@ -1097,7 +1085,7 @@ int imviewerForm::setDarkSub( bool ds )
    {
       ui.graphicsView->zoomText("dark sub. off");
    }
-   
+   changeImdata(false);
    return 0;
 }
 
@@ -1124,7 +1112,7 @@ int imviewerForm::setApplyMask( bool am )
    {
       ui.graphicsView->zoomText("mask off");
    }
-   
+   changeImdata(false);
    return 0;
 }
 
@@ -1152,6 +1140,8 @@ int imviewerForm::setApplySatMask( bool as )
       ui.graphicsView->zoomText("sat mask off");
    }
    
+   changeImdata(false);
+   
    return 0;
 }
 
@@ -1165,4 +1155,42 @@ int imviewerForm::toggleApplySatMask()
    {
       return setApplySatMask(true);
    }
+}
+
+int imviewerForm::toggleLogLinear()
+{
+   int s = get_cbStretch();
+   
+   if(s == stretchLog)
+   {
+      set_cbStretch(stretchLinear);
+      ui.graphicsView->zoomText("linear stretch");
+   }
+   else
+   {
+      set_cbStretch(stretchLog);
+      ui.graphicsView->zoomText("log stretch");
+   }
+      
+   return 0;
+}
+
+int imviewerForm::toggleTarget()
+{
+   if(m_targetVisible)
+   {
+      m_cenLineVert->setVisible(false);
+      m_cenLineHorz->setVisible(false);
+      m_targetVisible = false;
+      ui.graphicsView->zoomText("target off");
+   }
+   else
+   {
+      m_cenLineVert->setVisible(true);
+      m_cenLineHorz->setVisible(true);
+      m_targetVisible=true;
+      ui.graphicsView->zoomText("target on");
+   }
+      
+   return 0;
 }

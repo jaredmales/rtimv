@@ -183,6 +183,14 @@ public:
 public:
    typedef int (*pixelIndexF)(float);
    
+   enum en_cbStretches{ stretchLinear,       ///< The pixel values are scaled linearly to between m_mindat and m_maxdat 
+                        stretchLog,          ///< The pixel values are scaled logarithmically between m_mindat and m_maxdat 
+                        stretchPow,          ///< the pixel values are scaled as \f$ 1000^p/1000 \f$ between m_mindat and m_maxdat
+                        stretchSqrt,         ///< the pixel values are scaled as \f$ \sqrt(p) \f$ between m_mindat and m_maxdat
+                        stretchSquare,       ///< the pixel values are scaled as \f$ p^2 \f$ between m_mindat and m_maxdat
+                        cbStretches_max
+                      };
+   
 protected:
    int m_mincol {0}; ///< The minimum index to use for the color table.
    
@@ -193,7 +201,7 @@ protected:
    int m_satcol {255}; ///< The index in the color table to use for the saturation color.
 
    int colorbar_mode {minmaxglobal};
-   int colorbar_type {typelinear};
+   int m_cbStretch {stretchLinear};
 
    int current_colorbar {colorbarBone};
 
@@ -211,9 +219,9 @@ public:
    void set_colorbar_mode(int mode){ colorbar_mode = mode;}
    int get_colorbar_mode(){return colorbar_mode;}
 
-   enum colorbar_types{typelinear, typelog, typepow, typesqrt, typesquare, colorbar_types_max};
-   void set_colorbar_type(int);
-   int get_colorbar_type(){return colorbar_type;}
+   
+   void set_cbStretch(int);
+   int get_cbStretch();
 
    pixelIndexF pixelIndex();
    
@@ -298,14 +306,14 @@ protected:
       
    QImage * m_qim {nullptr}; ///<A QT image, used to store the color-map encoded data
       
-   QPixmap qpm; ///<A QT pixmap, used to prep the QImage for display.
+   QPixmap m_qpm; ///<A QT pixmap, used to prep the QImage for display.
 
    bool amChangingimdata;
    
 public:
       
    ///Get the QPixMap pointer
-   QPixmap * getPixmap(){return &qpm;}
+   QPixmap * getPixmap(){return &m_qpm;}
 
    
    ///Updates the QImage and basic statistics after a new image.

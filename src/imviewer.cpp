@@ -159,12 +159,16 @@ imviewer::pixelF imviewer::pixel()
    {
       if(m_images[1] == nullptr) return _pixel;
       
+      if(m_images[1]->m_nx != m_images[0]->m_nx || m_images[1]->m_ny != m_images[0]->m_ny) return _pixel;
+      
       if(m_images[0]->valid() && m_images[1]->valid()) _pixel = &pixel_subDark;
    }
    
    if(m_subtractDark == false && m_applyMask == true)
    {
       if(m_images[2] == nullptr) return _pixel;
+      
+      if(m_images[2]->m_nx != m_images[0]->m_nx || m_images[2]->m_ny != m_images[0]->m_ny) return _pixel;
       
       if(m_images[0]->valid() && m_images[2]->valid()) _pixel = &pixel_applyMask;
    }
@@ -175,14 +179,18 @@ imviewer::pixelF imviewer::pixel()
       if( m_images[1] == nullptr && m_images[2] == nullptr) return _pixel;
       else if( m_images[2] == nullptr )
       {
+         if(m_images[1]->m_nx != m_images[0]->m_nx || m_images[1]->m_ny != m_images[0]->m_ny) return _pixel;
          if(m_images[1]->valid()) _pixel = &pixel_subDark;
       } 
       else if(m_images[1] == nullptr)
       {
+         if(m_images[2]->m_nx != m_images[0]->m_nx || m_images[2]->m_ny != m_images[0]->m_ny) return _pixel;
          if(m_images[2]->valid()) _pixel = &pixel_applyMask;
       }
       else
       {
+         if(m_images[1]->m_nx != m_images[0]->m_nx || m_images[1]->m_ny != m_images[0]->m_ny) return _pixel;
+         if(m_images[2]->m_nx != m_images[0]->m_nx || m_images[2]->m_ny != m_images[0]->m_ny) return _pixel;
          if(m_images[1]->valid() &&  m_images[2]->valid()) _pixel = &pixel_subDarkApplyMask;
       }
    }
@@ -266,15 +274,20 @@ void imviewer::load_colorbar(int cb)
    }
 }
 
-void imviewer::set_colorbar_type(int ct)
+void imviewer::set_cbStretch(int ct)
 {
-   if(ct < 0 || ct >= colorbar_types_max)
+   if(ct < 0 || ct >= cbStretches_max)
    {
-      ct = typelinear;
+      ct = stretchLinear;
    }
 
-   colorbar_type = ct;
+   m_cbStretch = ct;
 
+}
+
+int imviewer::get_cbStretch()
+{
+   return m_cbStretch;
 }
 
 void imviewer::mindat(float md)
@@ -348,37 +361,39 @@ void imviewer::contrast_rel(float cr)
    maxdat(b + .5*(imdat_max-imdat_min)/cr);
 }
 
-int imviewer::calcPixIndex(float d)
+int imviewer::calcPixIndex(float pixval)
 {
-   float pixval;
    static float a = 1000;
    static float log10_a = log10(a);
 
-   pixval = (d - m_mindat)/((float)(m_maxdat-m_mindat));
-   
+   //We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
+   pixval = (pixval - m_mindat)/((float)(m_maxdat-m_mindat));
    if(pixval < 0) return 0;
    
-   switch(colorbar_type)
+   //Now we stretch it
+   switch(m_cbStretch)
    {
-      case typelog:
+      case stretchLog:
          pixval = log10(pixval*a+1)/log10_a; 
          break;
-      case typepow:
+      case stretchPow:
          pixval = (pow(a, pixval))/a;
          break;
-      case typesqrt:
+      case stretchSqrt:
          pixval = sqrt(pixval);
          break;
-      case typesquare:
+      case stretchSquare:
          pixval = pixval*pixval;
          break;
       default:
          break;
    }
 
+   //Clamp it to <= 1
    if(pixval > 1.) pixval = 1.;
 
-   return pixval*(m_maxcol-m_mincol);
+   //And finally put it in the color bar index range
+   return pixval*(m_maxcol-m_mincol) + 0.5;
 }
 
 void imviewer::changeImdata(bool newdata)
@@ -519,31 +534,37 @@ void imviewer::changeImdata(bool newdata)
       
     }
     
-   if(m_applyMask)
+   if(m_applyMask && m_images[2] != nullptr)
    {
-      for(uint32_t i = 0; i < m_ny; ++i)
+      if(m_images[2]->m_nx == m_images[0]->m_nx || m_images[2]->m_ny == m_images[0]->m_ny)
       {
-         for(uint32_t j=0;j < m_nx; ++j)
+         for(uint32_t i = 0; i < m_ny; ++i)
          {
-            idx = i*m_nx + j;
-            if( m_images[2]->pixel(idx) == 0 ) m_qim->setPixel(j, m_ny-i-1, m_maskcol);
+            for(uint32_t j=0;j < m_nx; ++j)
+            {
+               idx = i*m_nx + j;
+               if( m_images[2]->pixel(idx) == 0 ) m_qim->setPixel(j, m_ny-i-1, m_maskcol);
+            }
          }
       }
    }
 
-   if(m_applySatMask)
+   if(m_applySatMask && m_images[3] != nullptr)
    {
-      for(uint32_t i = 0; i < m_ny; ++i)
+      if(m_images[3]->m_nx == m_images[0]->m_nx || m_images[3]->m_ny == m_images[0]->m_ny)
       {
-         for(uint32_t j=0;j < m_nx; ++j)
+         for(uint32_t i = 0; i < m_ny; ++i)
          {
-            idx = i*m_nx + j;
-            if( m_images[3]->pixel(idx) == 1 ) m_qim->setPixel(j, m_ny-i-1, m_satcol);
+            for(uint32_t j=0;j < m_nx; ++j)
+            {
+               idx = i*m_nx + j;
+               if( m_images[3]->pixel(idx) == 1 ) m_qim->setPixel(j, m_ny-i-1, m_satcol);
+            }
          }
       }
    }
    
-    qpm.convertFromImage(*m_qim, Qt::AutoColor | Qt::ThresholdDither);
+    m_qpm.convertFromImage(*m_qim, Qt::AutoColor | Qt::ThresholdDither);
 
     postChangeImdata();
     amChangingimdata = false;

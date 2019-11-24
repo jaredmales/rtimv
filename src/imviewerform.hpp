@@ -47,6 +47,10 @@ class imviewerForm : public imviewer
       virtual void onConnect();
       
       virtual void postSetImsize();
+
+      /// Setup the target lines
+      void setTarget();
+      
       virtual void post_zoomLevel();
       virtual void postChangeImdata();
       
@@ -170,10 +174,45 @@ class imviewerForm : public imviewer
 
       void launchImStats();
       
-      bool targetVisible;
+   protected:
+      float m_targetXc {0.5}; ///< The x-coordinate of the target, 0<= x <= 1
+      float m_targetYc {0.5}; ///< The y-coordinate of the target, 0<= y <= 1
       
-      QGraphicsLineItem * cenLineVert;
-      QGraphicsLineItem * cenLineHorz;
+      bool m_targetVisible;  ///< Flag controlling whether the target is visible
+      
+      QGraphicsLineItem * m_cenLineVert; ///< The vertical line component of the target
+      QGraphicsLineItem * m_cenLineHorz; ///< The horizontal line component of the target
+   
+      
+   public:
+      
+      /// Set the x-coordinate of the target 
+      /** The coordinate is set as a fraction of the image, 0 <= targetXc <= 1.0
+        * It will be clamped to this range by this function..
+        * 
+        * \returns 0 on success
+        */ 
+      int targetXc( float txc /**< [in] the new target x coordinate*/);
+      
+      /// Get the x-coordinate of the target
+      /** 
+        * \returns the current value of m_targetXc
+        */ 
+      float targetXc();
+      
+      /// Set the y-coordinate of the target 
+      /** The coordinate is set as a fraction of the image, 0 <= targetYc <= 1.0
+        * It will be clamped to this range by this function..
+        * 
+        * \returns 0 on success
+        */
+      int targetYc( float tyc /**< [in] the new target y coordinate*/);
+      
+      /// Get the y-coordinate of the target
+      /** 
+        * \returns the current value of m_targetYc
+        */
+      float targetYc();
       
    protected slots:
       void doLaunchStatsBox();
@@ -211,9 +250,15 @@ class imviewerForm : public imviewer
       
       int toggleAutoScale();
       
+      int center();
+      
       int showFPSGage( bool sfg );
       
       int toggleFPSGage();
+      
+      int toggleUserBox();
+      
+      int toggleStatsBox();
       
       int setDarkSub( bool ds );
       
@@ -226,6 +271,10 @@ class imviewerForm : public imviewer
       int setApplySatMask( bool as );
       
       int toggleApplySatMask();
+      
+      int toggleLogLinear();
+      
+      int toggleTarget();
       
    private:
       Ui::imviewerForm ui;
