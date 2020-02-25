@@ -2,7 +2,6 @@ TEMPLATE = app
 TARGET = rtimv
 DESTDIR = bin/ 
 DEPENDPATH += src/
-INCLUDEPATH += /home/jrmales/include 
 
 MOC_DIR = moc/
 OBJECTS_DIR = obj/
@@ -16,6 +15,8 @@ CONFIG(release, debug|release) {
 CONFIG += c++14
 
 CONFIG += -O3
+
+QT += widgets
 
 MAKEFILE = makefile.rtimv
 
@@ -51,4 +52,17 @@ LIBS += -lcfitsio
         
 RESOURCES += res/imviewer.qrc
 
-QT += widgets
+#########################
+# installation 
+#########################
+
+unix:target.path = /usr/local/bin
+INSTALLS += target
+
+unix:includefiles.path = /usr/local/include/rtimv
+includefiles.files = src/rtimvInterfaces.hpp
+INSTALLS += includefiles
+
+
+
+

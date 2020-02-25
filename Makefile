@@ -2,7 +2,7 @@
 #############################
 # The qt5 qmake 
 #
-# On a system where qt5 qmake is the one in the bath, then no
+# On a system where qt5 qmake is the one in the path, then no
 # argument is needed.  If not, then invoke with, e.g., `make QMAKE=qmake-qt5`
 
 QMAKE?=qmake
@@ -25,7 +25,7 @@ rtimv:
 	$(MAKE) -f makefile.rtimv
 
 install: rtimv
-	install bin/rtimv /usr/local/bin
+	$(MAKE) -f makefile.rtimv install 
 
 clean:
 	rm -f obj/*.o *~
