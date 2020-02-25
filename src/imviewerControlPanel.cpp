@@ -1,6 +1,6 @@
 #include "imviewerControlPanel.h"
 
-imviewerControlPanel::imviewerControlPanel(imviewerForm *v, Qt::WindowFlags f): QWidget(0, f)
+imviewerControlPanel::imviewerControlPanel(rtimvMainWindow *v, Qt::WindowFlags f): QWidget(0, f)
 {
    ui.setupUi(this);
    imv = v;

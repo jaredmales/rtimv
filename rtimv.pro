@@ -22,7 +22,8 @@ MAKEFILE = makefile.rtimv
 # Input
 HEADERS += src/graphicsview.hpp \
            src/imviewer.hpp \
-           src/imviewerform.hpp \ 
+           src/rtimvMainWindow.hpp \
+           src/rtimvInterfaces.hpp \
            src/imviewerControlPanel.h \
            src/StretchBox.h \
            src/StretchCircle.h \
@@ -33,15 +34,15 @@ HEADERS += src/graphicsview.hpp \
 
 SOURCES += src/graphicsview.cpp \
            src/imviewer.cpp \
+           src/rtimvMainWindow.cpp \
            src/imviewer_main.cpp \
-           src/imviewerform.cpp \
            src/imviewerControlPanel.cpp \
            src/StretchBox.cpp \
            src/StretchCircle.cpp \ 
            src/imviewerstats.cpp \
            src/rtimvImage.cpp
            
-FORMS += forms/imviewergui.ui \
+FORMS += forms/rtimvMainWindow.ui \
          forms/imviewerControlPanel.ui \
          forms/imviewerStats.ui 
            

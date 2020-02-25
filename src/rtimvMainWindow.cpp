@@ -1,6 +1,6 @@
-#include "imviewerform.hpp"
+#include "rtimvMainWindow.hpp"
 
-imviewerForm::imviewerForm( const std::vector<std::string> & shkeys, 
+rtimvMainWindow::rtimvMainWindow( const std::vector<std::string> & shkeys, 
                             QWidget * Parent, 
                             Qt::WindowFlags f
                           ) : imviewer(shkeys, Parent, f)
@@ -109,15 +109,61 @@ imviewerForm::imviewerForm( const std::vector<std::string> & shkeys,
    nup->setPen(qp);
    nup_tip->setPen(qp);
    
-      
+   
+   /* ========================================= */
+   /* now load plugins                          */
+   /* ========================================= */
+   
+   /* -- static plugins -- */
+   const auto staticInstances = QPluginLoader::staticInstances();
+   
+   for (QObject *plugin : staticInstances)
+   {
+      static_cast<void>(plugin);
+      std::cerr << "loaded static plugins\n";
+   }
+   
+   QDir pluginsDir = QDir(QCoreApplication::applicationDirPath());
+
+   #if defined(Q_OS_WIN)
+   if (pluginsDir.dirName().toLower() == "debug" || pluginsDir.dirName().toLower() == "release")
+   {
+      pluginsDir.cdUp();
+   }
+   #elif defined(Q_OS_MAC)
+   if (pluginsDir.dirName() == "MacOS") 
+   {
+      pluginsDir.cdUp();
+      pluginsDir.cdUp();
+      pluginsDir.cdUp();
+   }
+   #endif
+   
+   if(pluginsDir.cd("plugins"))   
+   {
+      const auto entryList = pluginsDir.entryList(QDir::Files);
+   
+      for (const QString &fileName : entryList) 
+      {
+         std::cerr << "fileName: " << fileName.toStdString() << "\n";
+         QPluginLoader loader(pluginsDir.absoluteFilePath(fileName));
+         QObject *plugin = loader.instance();
+         if (plugin) 
+         {
+            std::cerr << "loading dynamic\n";
+            loadPlugin(plugin);
+            m_pluginFileNames += fileName;
+         }
+      }
+   }
 }
 
-void imviewerForm::onConnect()
+void rtimvMainWindow::onConnect()
 {
    squareDown();
 }
 
-void imviewerForm::postSetImsize()
+void rtimvMainWindow::postSetImsize()
 {   
    ScreenZoom = std::min((float) ui.graphicsView->viewport()->width()/(float)m_nx,(float)ui.graphicsView->viewport()->height()/(float)m_ny);
    zoomLevel(1.0);
@@ -164,7 +210,7 @@ void imviewerForm::postSetImsize()
    setTarget();
 }
 
-void imviewerForm::setTarget()
+void rtimvMainWindow::setTarget()
 {
    if(!m_cenLineVert)
    {
@@ -188,7 +234,7 @@ void imviewerForm::setTarget()
    }
 }
 
-void imviewerForm::post_zoomLevel()
+void rtimvMainWindow::post_zoomLevel()
 {
    QTransform transform;
    
@@ -228,7 +274,7 @@ void imviewerForm::post_zoomLevel()
    
 }
 
-void imviewerForm::postChangeImdata()
+void rtimvMainWindow::postChangeImdata()
 {
    //if(fps_ave > 1.0) ui.graphicsView->fpsGageText( fps_ave );
   
@@ -278,10 +324,11 @@ void imviewerForm::postChangeImdata()
       //imStats->set_imdata(m_imData, frame_time,0);
    }
 
+   
 
 }
 
-void imviewerForm::launchControlPanel()
+void rtimvMainWindow::launchControlPanel()
 {
    if(!imcp)
    {
@@ -297,12 +344,12 @@ void imviewerForm::launchControlPanel()
 
 
 
-// void imviewerForm::on_buttonPanelLaunch_clicked()
+// void rtimvMainWindow::on_buttonPanelLaunch_clicked()
 // {
 //    launchControlPanel();
 // }
 // 
-void imviewerForm::freezeRealTime()
+void rtimvMainWindow::freezeRealTime()
 {
    if(RealTimeStopped)
    {
@@ -315,7 +362,7 @@ void imviewerForm::freezeRealTime()
    }
 }
 
-void imviewerForm::reStretch()
+void rtimvMainWindow::reStretch()
 {
    if(get_colorbar_mode() == user)
    {
@@ -339,7 +386,7 @@ void imviewerForm::reStretch()
 
 
 
-void imviewerForm::setPointerOverZoom(float poz)
+void rtimvMainWindow::setPointerOverZoom(float poz)
 {
    pointerOverZoom = poz;
    post_zoomLevel();
@@ -347,7 +394,7 @@ void imviewerForm::setPointerOverZoom(float poz)
 
 
 
-void imviewerForm::change_center(bool movezoombox)
+void rtimvMainWindow::change_center(bool movezoombox)
 {   
    ui.graphicsView->centerOn(ui.graphicsView->xCen(), ui.graphicsView->yCen());
   
@@ -373,7 +420,7 @@ void imviewerForm::change_center(bool movezoombox)
    }
 }
 
-void imviewerForm::set_viewcen(float x, float y, bool movezoombox)
+void rtimvMainWindow::set_viewcen(float x, float y, bool movezoombox)
 {
    QPointF sp( x* qpmi->boundingRect().width(), y*qpmi->boundingRect().height() );
    QPointF vp = ui.graphicsView->mapFromScene(sp);
@@ -382,7 +429,7 @@ void imviewerForm::set_viewcen(float x, float y, bool movezoombox)
    change_center(movezoombox);
 }
 
-void imviewerForm::squareDown()
+void rtimvMainWindow::squareDown()
 {
    double imrat = ((double)nx())/ny();
    double winrat = ((double) width())/height();
@@ -400,7 +447,7 @@ void imviewerForm::squareDown()
    }
 }
 
-void imviewerForm::squareUp()
+void rtimvMainWindow::squareUp()
 {
    double imrat = ((double)nx())/ny();
    double winrat = ((double) width())/height();
@@ -418,12 +465,12 @@ void imviewerForm::squareUp()
    }
 }
       
-void imviewerForm::changeCenter()
+void rtimvMainWindow::changeCenter()
 {
    change_center();
 }
 
-void imviewerForm::resizeEvent(QResizeEvent *)
+void rtimvMainWindow::resizeEvent(QResizeEvent *)
 {
    ScreenZoom = std::min((float)width()/(float)m_nx,(float)height()/(float)m_ny);
    change_center();
@@ -432,13 +479,13 @@ void imviewerForm::resizeEvent(QResizeEvent *)
    
 }
 
-void imviewerForm::mouseMoveEvent(QMouseEvent *e)
+void rtimvMainWindow::mouseMoveEvent(QMouseEvent *e)
 {
    nullMouseCoords();
    (void)(e);
 }
 
-void imviewerForm::nullMouseCoords()
+void rtimvMainWindow::nullMouseCoords()
 {
    if(!NullMouseCoords)
    {
@@ -455,7 +502,7 @@ void imviewerForm::nullMouseCoords()
    }
 }
 
-void imviewerForm::updateMouseCoords()
+void rtimvMainWindow::updateMouseCoords()
 {
    int64_t idx_x, idx_y; //image size are uint32_t, so this allows signed comparison without overflow issues
    
@@ -517,13 +564,13 @@ void imviewerForm::updateMouseCoords()
    }
 }
 
-void imviewerForm::changeMouseCoords()
+void rtimvMainWindow::changeMouseCoords()
 {
    NullMouseCoords = false;
    updateMouseCoords();
 }
 
-void imviewerForm::viewLeftPressed(QPointF mp)
+void rtimvMainWindow::viewLeftPressed(QPointF mp)
 {
    if(imcp)
    {
@@ -531,7 +578,7 @@ void imviewerForm::viewLeftPressed(QPointF mp)
    }
 }
 
-void imviewerForm::viewLeftClicked(QPointF mp)
+void rtimvMainWindow::viewLeftClicked(QPointF mp)
 {
    if(imcp)
    {
@@ -539,7 +586,7 @@ void imviewerForm::viewLeftClicked(QPointF mp)
    }
 }
 
-void imviewerForm::viewRightPressed(QPointF mp)
+void rtimvMainWindow::viewRightPressed(QPointF mp)
 {
    rightClickDragging = true;
    
@@ -549,13 +596,13 @@ void imviewerForm::viewRightPressed(QPointF mp)
    
 }
 
-void imviewerForm::viewRightClicked(QPointF mp)
+void rtimvMainWindow::viewRightClicked(QPointF mp)
 {
    rightClickDragging = false;  
    (void)(mp);
 }
 
-void imviewerForm::onWheelMoved(int delta)
+void rtimvMainWindow::onWheelMoved(int delta)
 {
    float dz;
    if(delta > 0)   dz = 1.02;//1.41421;
@@ -566,12 +613,12 @@ void imviewerForm::onWheelMoved(int delta)
 }
 
 
-void imviewerForm::updateFPS()
+void rtimvMainWindow::updateFPS()
 {
    updateAge();
 }
 
-void imviewerForm::updateAge()
+void rtimvMainWindow::updateAge()
 {
    if(m_showFPSGage && m_images[0] != nullptr  )
    {      
@@ -598,6 +645,10 @@ void imviewerForm::updateAge()
       }
    }
 
+   for(size_t n=0;n<m_overlays.size(); ++n)
+   {
+      m_overlays[n]->updateOverlay();
+   }
    
    if(m_showLoopStat)
    {
@@ -618,7 +669,7 @@ void imviewerForm::updateAge()
 }
 
 
-int imviewerForm::targetXc( float txc )
+int rtimvMainWindow::targetXc( float txc )
 {
    if(txc < 0) txc = 0;
    if(txc > 1) txc = 1;
@@ -630,12 +681,12 @@ int imviewerForm::targetXc( float txc )
    return 0;
 }
      
-float imviewerForm::targetXc()
+float rtimvMainWindow::targetXc()
 {
    return m_targetXc;
 }
       
-int imviewerForm::targetYc( float tyc )
+int rtimvMainWindow::targetYc( float tyc )
 {
    if(tyc < 0) tyc = 0;
    if(tyc > 1) tyc = 1;
@@ -647,13 +698,13 @@ int imviewerForm::targetYc( float tyc )
    return 0;
 }
      
-float imviewerForm::targetYc()
+float rtimvMainWindow::targetYc()
 {
    return m_targetYc;
 }
       
 
-void imviewerForm::doLaunchStatsBox()
+void rtimvMainWindow::doLaunchStatsBox()
 {
    return;
    
@@ -676,7 +727,7 @@ void imviewerForm::doLaunchStatsBox()
    */
 }
 
-void imviewerForm::doHideStatsBox()
+void rtimvMainWindow::doHideStatsBox()
 {
    return;
    /*
@@ -691,7 +742,7 @@ void imviewerForm::doHideStatsBox()
    */
 }
 
-void imviewerForm::imStatsClosed(int result)
+void rtimvMainWindow::imStatsClosed(int result)
 {
    /*
    statsBox->setVisible(false);
@@ -708,7 +759,7 @@ void imviewerForm::imStatsClosed(int result)
    
 }
 
-void imviewerForm::statsBoxMoved(const QRectF & newr)
+void rtimvMainWindow::statsBoxMoved(const QRectF & newr)
 {
    /*
    QPointF np = qpmi->mapFromItem(statsBox, QPointF(statsBox->rect().x(),statsBox->rect().y()));
@@ -723,14 +774,14 @@ void imviewerForm::statsBoxMoved(const QRectF & newr)
 
 }
 
-void imviewerForm::statsBoxRejectMouse()
+void rtimvMainWindow::statsBoxRejectMouse()
 {
    statsBox->stackBefore(userBox);
    statsBox->stackBefore(guideBox);
    statsBox->stackBefore(userCircle);
 }
 
-void imviewerForm::userBoxMoved(const QRectF & newr)
+void rtimvMainWindow::userBoxMoved(const QRectF & newr)
 {
    
    QPointF np = qpmi->mapFromItem(userBox, QPointF(newr.x(),newr.y()));
@@ -746,7 +797,7 @@ void imviewerForm::userBoxMoved(const QRectF & newr)
    
 }
 
-void imviewerForm::userBoxRejectMouse()
+void rtimvMainWindow::userBoxRejectMouse()
 {
    
    userBox->stackBefore(statsBox);
@@ -756,7 +807,7 @@ void imviewerForm::userBoxRejectMouse()
 }
 
 
-void imviewerForm::guideBoxMoved(const QRectF & newr)
+void rtimvMainWindow::guideBoxMoved(const QRectF & newr)
 {
    
    QPointF np = qpmi->mapFromItem(guideBox, QPointF(newr.x(),newr.y()));
@@ -772,7 +823,7 @@ void imviewerForm::guideBoxMoved(const QRectF & newr)
 
 }
 
-void imviewerForm::guideBoxRejectMouse()
+void rtimvMainWindow::guideBoxRejectMouse()
 {
    
    guideBox->stackBefore(statsBox);
@@ -780,7 +831,7 @@ void imviewerForm::guideBoxRejectMouse()
    guideBox->stackBefore(userCircle);
 }
 
-void imviewerForm::userCircleResized(const float &rad)
+void rtimvMainWindow::userCircleResized(const float &rad)
 {
    //std::cout << rad << "\n";
 
@@ -790,7 +841,7 @@ void imviewerForm::userCircleResized(const float &rad)
    ui.graphicsView->coords->setText(tmp);
 }
 
-void imviewerForm::userCircleMoved(const QRectF &newr)
+void rtimvMainWindow::userCircleMoved(const QRectF &newr)
 {
    QPointF np = qpmi->mapFromItem(userCircle, QPointF(newr.x(),newr.y()));
    
@@ -802,17 +853,17 @@ void imviewerForm::userCircleMoved(const QRectF &newr)
   
 }
 
-void imviewerForm::userCircleMouseIn()
+void rtimvMainWindow::userCircleMouseIn()
 {
    ui.graphicsView->coords->setVisible(true);
    
 }
-void imviewerForm::userCircleMouseOut()
+void rtimvMainWindow::userCircleMouseOut()
 {
    ui.graphicsView->coords->setVisible(false);
 }
 
-void imviewerForm::userCircleRejectMouse()
+void rtimvMainWindow::userCircleRejectMouse()
 {
    
    userCircle->stackBefore(statsBox);
@@ -822,13 +873,13 @@ void imviewerForm::userCircleRejectMouse()
 }
 
 
-void imviewerForm::post_setUserBoxActive(bool usba)
+void rtimvMainWindow::post_setUserBoxActive(bool usba)
 {
    userBox->setVisible(usba);
 }
 
 
-void imviewerForm::keyPressEvent(QKeyEvent * ke)
+void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
 {
    char key = ke->text()[0].toLatin1();
    
@@ -952,7 +1003,7 @@ void imviewerForm::keyPressEvent(QKeyEvent * ke)
    QWidget::keyPressEvent(ke);
 }
 
-int imviewerForm::setAutoScale( bool as )
+int rtimvMainWindow::setAutoScale( bool as )
 {
    m_autoScale = as;
    if(m_autoScale) 
@@ -967,7 +1018,7 @@ int imviewerForm::setAutoScale( bool as )
    return 0;
 }
 
-int imviewerForm::toggleAutoScale()
+int rtimvMainWindow::toggleAutoScale()
 {
    if(m_autoScale) 
    {
@@ -979,7 +1030,7 @@ int imviewerForm::toggleAutoScale()
    }      
 }
 
-int imviewerForm::center()
+int rtimvMainWindow::center()
 {
    set_viewcen(.5, .5);
    post_zoomLevel();
@@ -989,7 +1040,7 @@ int imviewerForm::center()
    return 0;
 }
 
-int imviewerForm::toggleUserBox()
+int rtimvMainWindow::toggleUserBox()
 {
    if(!userBoxActive)
    {
@@ -1020,7 +1071,7 @@ int imviewerForm::toggleUserBox()
    return 0;   
 }
 
-int imviewerForm::toggleStatsBox()
+int rtimvMainWindow::toggleStatsBox()
 {
    if(statsBox->isVisible())
    {
@@ -1046,7 +1097,7 @@ int imviewerForm::toggleStatsBox()
    return 0;
 }
 
-int imviewerForm::showFPSGage( bool sfg )
+int rtimvMainWindow::showFPSGage( bool sfg )
 {
    m_showFPSGage = sfg;
    if(m_showFPSGage)
@@ -1062,7 +1113,7 @@ int imviewerForm::showFPSGage( bool sfg )
    return 0;
 }
 
-int imviewerForm::toggleFPSGage()
+int rtimvMainWindow::toggleFPSGage()
 {
    if(m_showFPSGage)
    {
@@ -1074,7 +1125,7 @@ int imviewerForm::toggleFPSGage()
    }
 }
 
-int imviewerForm::setDarkSub( bool ds )
+int rtimvMainWindow::setDarkSub( bool ds )
 {
    m_subtractDark = ds;
    if(m_subtractDark)
@@ -1089,7 +1140,7 @@ int imviewerForm::setDarkSub( bool ds )
    return 0;
 }
 
-int imviewerForm::toggleDarkSub()
+int rtimvMainWindow::toggleDarkSub()
 {
    if(m_subtractDark)
    {
@@ -1101,7 +1152,7 @@ int imviewerForm::toggleDarkSub()
    }
 }
 
-int imviewerForm::setApplyMask( bool am )
+int rtimvMainWindow::setApplyMask( bool am )
 {
    m_applyMask = am;
    if(m_applyMask)
@@ -1116,7 +1167,7 @@ int imviewerForm::setApplyMask( bool am )
    return 0;
 }
 
-int imviewerForm::toggleApplyMask()
+int rtimvMainWindow::toggleApplyMask()
 {
    if(m_applyMask)
    {
@@ -1128,7 +1179,7 @@ int imviewerForm::toggleApplyMask()
    }
 }
 
-int imviewerForm::setApplySatMask( bool as )
+int rtimvMainWindow::setApplySatMask( bool as )
 {
    m_applySatMask = as;
    if(m_applySatMask)
@@ -1145,7 +1196,7 @@ int imviewerForm::setApplySatMask( bool as )
    return 0;
 }
 
-int imviewerForm::toggleApplySatMask()
+int rtimvMainWindow::toggleApplySatMask()
 {
    if(m_applySatMask)
    {
@@ -1157,7 +1208,7 @@ int imviewerForm::toggleApplySatMask()
    }
 }
 
-int imviewerForm::toggleLogLinear()
+int rtimvMainWindow::toggleLogLinear()
 {
    int s = get_cbStretch();
    
@@ -1175,7 +1226,7 @@ int imviewerForm::toggleLogLinear()
    return 0;
 }
 
-int imviewerForm::toggleTarget()
+int rtimvMainWindow::toggleTarget()
 {
    if(m_targetVisible)
    {
@@ -1193,4 +1244,20 @@ int imviewerForm::toggleTarget()
    }
       
    return 0;
+}
+
+void rtimvMainWindow::loadPlugin(QObject *plugin)
+{
+   auto rdi = qobject_cast<rtimvDictionaryInterface *>(plugin);
+   if (rdi)
+   {
+      rdi->attachDictionary(&m_dictionary);
+   }
+   
+   auto roi = qobject_cast<rtimvOverlayInterface *>(plugin);
+   if (roi)
+   {
+      roi->attachOverlay(qgs, &m_dictionary);
+      m_overlays.push_back(roi);
+   }
 }

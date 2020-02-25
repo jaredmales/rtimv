@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <author>Jared R. Males</author>
- <class>imviewerForm</class>
- <widget class="QWidget" name="imviewerForm">
+ <class>rtimvMainWindow</class>
+ <widget class="QWidget" name="rtimvMainWindow">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -128,7 +128,7 @@
   <connection>
    <sender>graphicsView</sender>
    <signal>centerChanged()</signal>
-   <receiver>imviewerForm</receiver>
+   <receiver>rtimvMainWindow</receiver>
    <slot>changeCenter()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -144,7 +144,7 @@
   <connection>
    <sender>graphicsView</sender>
    <signal>mouseCoordsChanged()</signal>
-   <receiver>imviewerForm</receiver>
+   <receiver>rtimvMainWindow</receiver>
    <slot>changeMouseCoords()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -160,7 +160,7 @@
   <connection>
    <sender>graphicsView</sender>
    <signal>leftClicked(QPointF)</signal>
-   <receiver>imviewerForm</receiver>
+   <receiver>rtimvMainWindow</receiver>
    <slot>viewLeftClicked(QPointF)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -176,7 +176,7 @@
   <connection>
    <sender>graphicsView</sender>
    <signal>rightPressed(QPointF)</signal>
-   <receiver>imviewerForm</receiver>
+   <receiver>rtimvMainWindow</receiver>
    <slot>viewRightPressed(QPointF)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -192,7 +192,7 @@
   <connection>
    <sender>graphicsView</sender>
    <signal>leftPressed(QPointF)</signal>
-   <receiver>imviewerForm</receiver>
+   <receiver>rtimvMainWindow</receiver>
    <slot>viewLeftPressed(QPointF)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -208,7 +208,7 @@
   <connection>
    <sender>graphicsView</sender>
    <signal>rightClicked(QPointF)</signal>
-   <receiver>imviewerForm</receiver>
+   <receiver>rtimvMainWindow</receiver>
    <slot>viewRightClicked(QPointF)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -224,7 +224,7 @@
   <connection>
    <sender>graphicsView</sender>
    <signal>wheelMoved(int)</signal>
-   <receiver>imviewerForm</receiver>
+   <receiver>rtimvMainWindow</receiver>
    <slot>onWheelMoved(int)</slot>
    <hints>
     <hint type="sourcelabel">

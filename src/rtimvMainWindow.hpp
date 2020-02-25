@@ -1,16 +1,20 @@
 
-#ifndef __imviewerform_h__
-#define __imviewerform_h__
+#ifndef rtimvMainWindow_hpp
+#define rtimvMainWindow_hpp
 
 #include <QWidget>
 #include <QScrollBar>
 #include <QMouseEvent>
 #include <QTimer>
 #include <QGraphicsPixmapItem>
+#include <QPluginLoader>
+#include <QDir>
 
-#include "ui_imviewergui.h"
+#include "ui_rtimvMainWindow.h"
 #include "imviewer.hpp"
 #include "imviewerControlPanel.h"
+
+#include "rtimvInterfaces.hpp"
 
 #include "StretchBox.h"
 #include "StretchCircle.h"
@@ -33,12 +37,12 @@
 
 class imviewerControlPanel;
 
-class imviewerForm : public imviewer
+class rtimvMainWindow : public imviewer
 {
    Q_OBJECT
    
    public:
-      imviewerForm( const std::vector<std::string> & shkeys, 
+      rtimvMainWindow( const std::vector<std::string> & shkeys, 
                     QWidget * Parent = 0, 
                     Qt::WindowFlags f = 0
                   );
@@ -276,11 +280,35 @@ class imviewerForm : public imviewer
       
       int toggleTarget();
       
+   /** \name Data Dictionary
+     *
+     * A map of key=binary-blog pairs to be used and managed by plugins.
+     * 
+     * @{
+     */
+   
+      std::unordered_map<std::string, rtimvDictBlob> m_dictionary;
+   
+   ///@}
+   
+   /** \name Plugins
+     *
+     *@{
+     */ 
+   protected:
+      QStringList m_pluginFileNames;
+      
+      void loadPlugin(QObject *plugin);
+      
+      std::vector<rtimvOverlayInterface *> m_overlays;
+      
+   ///@}
+      
    private:
-      Ui::imviewerForm ui;
+      Ui::rtimvMainWindow ui;
 
    
 
 };
 
-#endif //__imviewerform_h__
+#endif //rtimvMainWindow_hpp

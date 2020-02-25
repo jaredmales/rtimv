@@ -2,7 +2,7 @@ old/*
 bin/*
 forms/ui_imviewerControlPanel.h
 forms/ui_imviewerStats.h
-forms/ui_imviewergui.h
+forms/ui_rtimvMainWindow.h
 forms/ui_rtplot.h
 makefile.rtimv
 moc/*

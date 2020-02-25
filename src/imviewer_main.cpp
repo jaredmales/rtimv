@@ -1,6 +1,6 @@
 #include <QApplication>
 
-#include "imviewerform.hpp"
+#include "rtimvMainWindow.hpp"
 
 
 #if 1
@@ -101,8 +101,11 @@ struct rtimvAppConfig : public mx::app::application
 
       if(config.nonOptions.size() > 2) m_keys[2] = config.nonOptions[2];
       
-      if(config.nonOptions.size() > 3) m_keys[3] = config.nonOptions[3];
-
+      if(config.nonOptions.size() > 3) 
+      {
+         m_keys[3] = config.nonOptions[3];
+      }
+      
       config(m_autoscale, "autoscale");
       config(m_nofpsgage, "nofpsgage");
       
@@ -122,40 +125,37 @@ int main(int argc, char *argv[])
    //int data_type;
    QApplication app(argc, argv);
 
-   rtimvAppConfig rtimv;
+   rtimvAppConfig rtimvConf;
    
    //Run the app to get config, and check if help called
-   if( rtimv.main(argc,argv) != 0)
+   if( rtimvConf.main(argc,argv) != 0)
    {
       return 0;
    }
 
    //If we don't have at least the first image file, we can't go on.
-   if(rtimv.m_keys[0] == "")
+   if(rtimvConf.m_keys[0] == "")
    {
       std::cerr << "Must provide a SCExAO shared memory file\n";
       return -1;
    }
       
-   imviewerForm imv(rtimv.m_keys);
+   rtimvMainWindow imv(rtimvConf.m_keys);
 
    
-   if(rtimv.m_autoscale)
+   if(rtimvConf.m_autoscale)
    {
       imv.setAutoScale(true);
    }
    
    
-   if(rtimv.m_nofpsgage)
+   if(rtimvConf.m_nofpsgage)
    {
       imv.showFPSGage(false);
    }
    
-   imv.targetXc(rtimv.m_targetXc);
-   imv.targetYc(rtimv.m_targetYc);
-   
-
-   
+   imv.targetXc(rtimvConf.m_targetXc);
+   imv.targetYc(rtimvConf.m_targetYc);
    
    imv.show();
 

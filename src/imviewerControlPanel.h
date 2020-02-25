@@ -4,20 +4,20 @@
 
 
 #include "ui_imviewerControlPanel.h"
-#include "imviewerform.hpp"
+#include "rtimvMainWindow.hpp"
 #include "StretchBox.h"
 
-class imviewerForm;
+class rtimvMainWindow;
 
 class imviewerControlPanel : public QWidget
 {
    Q_OBJECT
    
    public:
-      imviewerControlPanel(imviewerForm *imv, Qt::WindowFlags f = 0);
+      imviewerControlPanel(rtimvMainWindow *imv, Qt::WindowFlags f = 0);
    
    protected:
-      imviewerForm * imv;
+      rtimvMainWindow * imv;
       
       void setupMode();
       void setupCombos();
