@@ -18,7 +18,7 @@
 #define WARNHEIGHT  30
 
 #define GAGEHEIGHT  35
-#define COORDWIDTH 100
+#define COORDWIDTH 120
 #define FPSWIDTH   250
 
 #define ZOOMHEIGHT 30
@@ -374,8 +374,8 @@ void graphicsview::textCoordX( const char * nt )
 
 void graphicsview::textCoordX( float nv )
 {
-   char strtmp[16];
-   snprintf(strtmp, 16, "X: %.1f", nv);
+   char strtmp[32];
+   snprintf(strtmp, sizeof(strtmp), "X: %.1f", nv);
    textCoordX(strtmp);   
 }
 
@@ -387,8 +387,8 @@ void graphicsview::textCoordY( const char * nt )
 
 void graphicsview::textCoordY( float nv )
 {
-   char strtmp[16];
-   snprintf(strtmp, 16, "Y: %.1f", nv);
+   char strtmp[32];
+   snprintf(strtmp, sizeof(strtmp), "Y: %.1f", nv);
    textCoordY(strtmp);   
 }
 
