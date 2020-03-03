@@ -957,6 +957,11 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
       case ']':
          squareUp();
          break;
+      default:
+         for(size_t n=0;n<m_overlays.size(); ++n)
+         {
+            m_overlays[n]->keyPressEvent(ke);
+         }
    }
    
    if(ke->text() == "n")

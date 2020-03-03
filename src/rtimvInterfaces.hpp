@@ -4,6 +4,7 @@
 
 #include <QtPlugin>
 #include <QGraphicsScene>
+#include <QKeyEvent>
 
 #include <unordered_map>
 
@@ -94,12 +95,16 @@ class rtimvOverlayInterface
       
       virtual int updateOverlay() = 0;
 
+      /// Handle a key press event
+      virtual void keyPressEvent(QKeyEvent * ke) = 0;
+      
       /// Check if the overlay is currently enabled.
       virtual bool overlayEnabled() = 0;
       
       virtual void enableOverlay() = 0;
 
       virtual void disableOverlay() = 0;
+      
 };
 
 #define rtimvOverlayInterface_iid "rtimv.overlayInterface/1.0"
