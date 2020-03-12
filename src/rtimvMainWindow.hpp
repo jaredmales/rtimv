@@ -10,6 +10,11 @@
 #include <QPluginLoader>
 #include <QDir>
 
+#include <mx/app/application.hpp>
+
+using namespace mx::app;
+
+
 #include "ui_rtimvMainWindow.h"
 #include "imviewer.hpp"
 #include "imviewerControlPanel.h"
@@ -37,16 +42,21 @@
 
 class imviewerControlPanel;
 
-class rtimvMainWindow : public imviewer
+class rtimvMainWindow : public imviewer, public application
 {
    Q_OBJECT
    
    public:
-      rtimvMainWindow( const std::vector<std::string> & shkeys, 
-                    QWidget * Parent = 0, 
-                    Qt::WindowFlags f = 0
-                  );
-
+      rtimvMainWindow( int argc,
+                       char ** argv,
+                       QWidget * Parent = 0, 
+                       Qt::WindowFlags f = 0
+                     );
+      
+      virtual void setupConfig();
+      
+      virtual void loadConfig();
+      
       ///Called on initial connection to the image stream, sets matching aspect ratio.
       virtual void onConnect();
       

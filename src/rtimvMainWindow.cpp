@@ -1,10 +1,12 @@
 #include "rtimvMainWindow.hpp"
 
-rtimvMainWindow::rtimvMainWindow( const std::vector<std::string> & shkeys, 
-                            QWidget * Parent, 
-                            Qt::WindowFlags f
-                          ) : imviewer(shkeys, Parent, f)
+rtimvMainWindow::rtimvMainWindow( int argc,
+                                  char ** argv,
+                                  QWidget * Parent, 
+                                  Qt::WindowFlags f
+                                ) : imviewer(Parent, f)
 {
+   setup(argc,argv);
    ui.setupUi(this);
    
    nup =0;
@@ -13,7 +15,7 @@ rtimvMainWindow::rtimvMainWindow( const std::vector<std::string> & shkeys,
    pointerOverZoom = 4.;
    
    resize(height(), height()); //make square.
-   setWindowTitle(shkeys[0].c_str());
+   
    
    //This will come up at some minimal size.
    ui.graphicsView->setGeometry(0,0, width(), height());
@@ -156,6 +158,77 @@ rtimvMainWindow::rtimvMainWindow( const std::vector<std::string> & shkeys,
          }
       }
    }
+}
+void rtimvMainWindow::setupConfig()
+{
+   config.add("image.shmim_name", "", "image.shmim_name", argType::Required, "image", "shmim_name", false, "string", "The shared memory image file name for the image, or a FITS file path.");
+   config.add("image.shmim_timeout", "", "image.shmim_timeout", argType::Required, "image", "shmim_timeout", false, "int", "The timeout for checking for the shared memory image for the image.  Default is 1000 msec.");
+   config.add("image.timeout", "", "image.timeout", argType::Required, "image", "timeout", false, "int", "The timeout for checking for a new image.  Default is 100 msec (10 f.p.s.).");
+      
+   config.add("dark.shmim_name", "", "dark.shmim_name", argType::Required, "dark", "shmim_name", false, "string", "The shared memory image file name for the dark, or a FITS image path.");
+   config.add("dark.shmim_timeout", "", "dark.shmim_timeout", argType::Required, "dark", "shmim_timeout", false, "int", "The timeout for checking for the shared memory image for the dark.  Default is 1000 msec.");
+   config.add("dark.timeout", "", "dark.timeout", argType::Required, "dark", "timeout", false, "int", "The timeout for checking for a new dark.  Default is 100 msec (10 f.p.s.).");
+      
+   config.add("mask.shmim_name", "", "mask.shmim_name", argType::Required, "mask", "shmim_name", false, "string", "The shared memory image file name for the mask, or a FITS image path.");
+   config.add("mask.shmim_timeout", "", "mask.shmim_timeout", argType::Required, "mask", "shmim_timeout", false, "int", "The timeout for checking for the shared memory image for the mask.  Default is 1000 msec.");
+   config.add("mask.timeout", "", "mask.timeout", argType::Required, "mask", "timeout", false, "int", "The timeout for checking for a new mask.  Default is 100 msec (10 f.p.s.).");
+
+   config.add("satMask.shmim_name", "", "satMask.shmim_name", argType::Required, "satMask", "shmim_name", false, "string", "The shared memory image file name for the saturation , or a FITS image path.");
+   config.add("satMask.shmim_timeout", "", "satMask.shmim_timeout", argType::Required, "satMask", "shmim_timeout", false, "int", "The timeout for checking for the shared memory image for the saturation mask.  Default is 1000 msec.");
+   config.add("satMask.timeout", "", "satMask.timeout", argType::Required, "satMask", "timeout", false, "int", "The timeout for checking for a new saturation mask.  Default is 100 msec (10 f.p.s.).");
+
+      
+      
+   config.add("autoscale", "", "autoscale", argType::True, "", "autoscale", false, "bool", "Set to turn autoscaling on at startup");
+   config.add("nofpsgage", "", "nofpsgage", argType::True, "", "nofpsgage", false, "bool", "Set to turn the fps gage off at startup");
+   config.add("targetXc", "", "targetXc", argType::Required, "", "targetXc", false, "float", "The fractional x-coordinate of the target, 0<= x <=1");
+   config.add("targetYc", "", "targetYc", argType::Required, "", "targetXc", false, "float", "The fractional y-coordinate of the target, 0<= y <=1");
+}
+
+void rtimvMainWindow::loadConfig()
+{
+   std::string imShmimKey;
+   std::string darkShmimKey;
+   
+   std::string flatShmimKey;
+   
+   std::string maskShmimKey;
+  
+   std::string satMaskShmimKey;
+   
+   std::vector<std::string> keys;
+   
+   config(imShmimKey, "image.shmim_name");
+   config(darkShmimKey, "dark.shmim_name");
+   config(maskShmimKey, "mask.shmim_name");
+   config(satMaskShmimKey, "satMask.shmim_name");
+      
+   keys.resize(4);
+      
+   if(imShmimKey != "") keys[0] = imShmimKey;
+   if(darkShmimKey != "") keys[1] = darkShmimKey;
+   if(maskShmimKey != "") keys[2] = maskShmimKey;
+   if(satMaskShmimKey != "") keys[3] = satMaskShmimKey;
+   
+   //The command line always overrides the config
+   if(config.nonOptions.size() > 0) keys[0] = config.nonOptions[0];
+   if(config.nonOptions.size() > 1) keys[1] = config.nonOptions[1];
+   if(config.nonOptions.size() > 2) keys[2] = config.nonOptions[2];
+   if(config.nonOptions.size() > 3) keys[3] = config.nonOptions[3];
+   startup(keys);
+   setWindowTitle(keys[0].c_str());
+   
+   //Now load remaining options, respecting coded defaults.
+   config(m_autoScale, "autoscale");
+
+   bool nofpsgage = !m_showFPSGage;
+   config(nofpsgage, "nofpsgage");
+   m_showFPSGage = !nofpsgage;
+
+   config(m_targetXc, "targetXc");
+   config(m_targetYc, "targetYc");
+   
+
 }
 
 void rtimvMainWindow::onConnect()

@@ -45,11 +45,26 @@ class imviewer : public QWidget
 
 public:
 
-   imviewer( const std::vector<std::string> & shkeys, 
+   /// Basic c'tor.  Does not startup the images.
+   /** startup should be called with the list of keys.
+     */
+   imviewer( QWidget * Parent = 0, 
+             Qt::WindowFlags f = 0
+           );
+   
+   /// Image c'tor, starts up the images.
+   /** startup should not be called.
+     */
+   imviewer( const std::vector<std::string> & shkeys,  ///< [in] The shmim keys used ot access the images.
              QWidget * Parent = 0, 
              Qt::WindowFlags f = 0
            );
 
+   /// Start the images checking for updates.
+   /** 
+     */
+   void startup( const std::vector<std::string> & shkeys /**< [in] The shmim keys used ot access the images.*/);
+   
  /** @name Image Data
      *    
      * @{
@@ -277,14 +292,7 @@ public:
    
    float contrast_rel();
 
-protected:
    
-   /// Calculates the color map index of a value.
-   /** Returned value includes the effect of the current color bar stretch (m_mindat and m_maxdat) 
-     * and the current color bar scale (m_colorbarScale) 
-     */
-   int calcPixIndex(float d);
-
    ///@}
    
    /** @name Image Filtering

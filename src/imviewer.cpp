@@ -5,10 +5,21 @@ imviewer * globalIMV;
 
 int imviewer::sigsegvFd[2];
 
+imviewer::imviewer( QWidget * Parent, 
+                    Qt::WindowFlags f
+                  ) : QWidget(Parent, f)
+{
+}
+
 imviewer::imviewer( const std::vector<std::string> & shkeys, 
                     QWidget * Parent, 
                     Qt::WindowFlags f
                   ) : QWidget(Parent, f)
+{
+   startup(shkeys);
+}
+
+void imviewer::startup( const std::vector<std::string> & shkeys )
 {
    m_images.resize(4, nullptr);
    
@@ -361,39 +372,83 @@ void imviewer::contrast_rel(float cr)
    maxdat(b + .5*(imdat_max-imdat_min)/cr);
 }
 
-int imviewer::calcPixIndex(float pixval)
-{
-   static float a = 1000;
-   static float log10_a = log10(a);
 
+int calcPixIndex_linear( float pixval, float mindat, float maxdat, int mincol, int maxcol)
+{
    //We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
-   pixval = (pixval - m_mindat)/((float)(m_maxdat-m_mindat));
+   pixval = (pixval - mindat)/((float)(maxdat-mindat));
    if(pixval < 0) return 0;
    
-   //Now we stretch it
-   switch(m_cbStretch)
-   {
-      case stretchLog:
-         pixval = log10(pixval*a+1)/log10_a; 
-         break;
-      case stretchPow:
-         pixval = (pow(a, pixval))/a;
-         break;
-      case stretchSqrt:
-         pixval = sqrt(pixval);
-         break;
-      case stretchSquare:
-         pixval = pixval*pixval;
-         break;
-      default:
-         break;
-   }
-
    //Clamp it to <= 1
    if(pixval > 1.) pixval = 1.;
 
    //And finally put it in the color bar index range
-   return pixval*(m_maxcol-m_mincol) + 0.5;
+   return pixval*(maxcol-mincol) + 0.5;
+}
+
+int calcPixIndex_log( float pixval, float mindat, float maxdat, int mincol, int maxcol)
+{
+   static float a = 1000;
+   static float log10_a = log10(a);
+   
+   //We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
+   pixval = (pixval - mindat)/((float)(maxdat-mindat));
+   if(pixval < 0) return 0;
+   
+   pixval = log10(pixval*a+1)/log10_a; 
+   
+   //Clamp it to <= 1
+   if(pixval > 1.) pixval = 1.;
+
+   //And finally put it in the color bar index range
+   return pixval*(maxcol-mincol) + 0.5;
+}
+
+int calcPixIndex_pow( float pixval, float mindat, float maxdat, int mincol, int maxcol)
+{
+   static float a = 1000;
+   
+   //We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
+   pixval = (pixval - mindat)/((float)(maxdat-mindat));
+   if(pixval < 0) return 0;
+   
+   pixval = (pow(a, pixval))/a;
+   
+   //Clamp it to <= 1
+   if(pixval > 1.) pixval = 1.;
+
+   //And finally put it in the color bar index range
+   return pixval*(maxcol-mincol) + 0.5;
+}
+
+int calcPixIndex_sqrt( float pixval, float mindat, float maxdat, int mincol, int maxcol)
+{
+   //We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
+   pixval = (pixval - mindat)/((float)(maxdat-mindat));
+   if(pixval < 0) return 0;
+   
+   pixval = sqrt(pixval);
+   
+   //Clamp it to <= 1
+   if(pixval > 1.) pixval = 1.;
+
+   //And finally put it in the color bar index range
+   return pixval*(maxcol-mincol) + 0.5;
+}
+
+int calcPixIndex_square( float pixval, float mindat, float maxdat, int mincol, int maxcol)
+{
+   //We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
+   pixval = (pixval - mindat)/((float)(maxdat-mindat));
+   if(pixval < 0) return 0;
+   
+   pixval = pixval*pixval;
+   
+   //Clamp it to <= 1
+   if(pixval > 1.) pixval = 1.;
+
+   //And finally put it in the color bar index range
+   return pixval*(maxcol-mincol) + 0.5;
 }
 
 void imviewer::changeImdata(bool newdata)
@@ -407,7 +462,28 @@ void imviewer::changeImdata(bool newdata)
    if(m_images[0] == nullptr) return;
    if(!m_images[0]->valid()) return;
 
+   //Get the pixel calculating function
    float (*_pixel)(imviewer*, size_t) = pixel();
+   
+   //Get the color index calculating function
+   int (*_index)(float,float,float,int,int);
+   switch(m_cbStretch)
+   {
+      case stretchLog:
+         _index = calcPixIndex_log;
+         break;
+      case stretchPow:
+         _index = calcPixIndex_pow;
+         break;
+      case stretchSqrt:
+         _index = calcPixIndex_sqrt;
+         break;
+      case stretchSquare:
+         _index = calcPixIndex_square;
+         break;
+      default:
+         _index = calcPixIndex_linear;
+   }
    
    if(m_images[0]->m_nx != m_nx || m_images[0]->m_ny != m_ny || m_autoScale) 
    {
@@ -451,7 +527,7 @@ void imviewer::changeImdata(bool newdata)
             {
                idx = i*m_nx + j;
                imval = _pixel(this, idx);
-               m_qim->setPixel(j, m_ny-i-1, calcPixIndex(imval));
+               m_qim->setPixel(j, m_ny-i-1, _index(imval,m_mindat, m_maxdat, m_mincol, m_maxcol));
             }
          }
       }
@@ -523,7 +599,7 @@ void imviewer::changeImdata(bool newdata)
                   }
                }
       
-               m_qim->setPixel(j, m_ny-i-1, calcPixIndex(imval));
+               m_qim->setPixel(j, m_ny-i-1, _index(imval,m_mindat, m_maxdat, m_mincol, m_maxcol));
       
             }
          }
