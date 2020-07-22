@@ -1,12 +1,12 @@
-/** \file graphicsview.hpp
+/** \file rtimvGraphicsView.hpp
   * \brief Declarations for the graphics view class of rtimv
   * 
   * \author Jared R. Males (jaredmales@gmail.com)
   * 
   */
 
-#ifndef rtimv_graphicsview_hpp
-#define rtimv_graphicsview_hpp
+#ifndef rtimv_rtimvGraphicsView_hpp
+#define rtimv_rtimvGraphicsView_hpp
 
 #include <iostream>
 
@@ -39,14 +39,18 @@
 #define RTIMV_DEF_ZOOMFONTSIZE 18
 #define RTIMV_DEF_ZOOMTIMEOUT 2000
 
+#define RTIMV_DEF_STATUSTEXTFONTFAMILY "LKLUG"
+#define RTIMV_DEF_STATUSTEXTFONTCOLOR "skyblue"
+#define RTIMV_DEF_STATUSTEXTFONTSIZE 14
+
 ///The rtimv Graphics View
-class graphicsview : public QGraphicsView
+class rtimvGraphicsView : public QGraphicsView
 {
    Q_OBJECT
    
    public:
       ///Constructor
-      explicit graphicsview(QWidget *parent = 0);
+      explicit rtimvGraphicsView(QWidget *parent = 0);
       
    /** \name Status Displays
      * @{
@@ -97,6 +101,7 @@ class graphicsview : public QGraphicsView
       void warningText( const char * nt, ///< [in] the new warning text
                         const char * fc=0  ///< [in] [optional] color for the warning text
                       );
+      
       
    protected:
       ///The loop status text box
@@ -184,13 +189,70 @@ class graphicsview : public QGraphicsView
                         const char * fc=0  ///< [in] [optional] color for the saveBox text
                       );
    
+   protected:
+      ///The system status grid
+      std::vector<QTextEdit *> m_statusText;
+      QString m_statusTextFontFamily;
+      float m_statusTextFontSize;
+      QString m_statusTextFontColor;
+      
+   public:
+      /// Set the number of status text fields
+      /** This resizes m_statusText, first deleting any existing text boxes.
+        * Does not currently handle what to do if these are currently being used, so if,
+        * say, there are competing extensions this could lead to segfaults.
+        */
+      void statusTextNo(size_t no /**< [in] the new number of status text fields*/);
+      
+      /// Get the number of status text fields
+      /**
+        * \returns m_statusText.size(), the number of available fields in the status text grid
+        */ 
+      size_t statusTextNo();
+      
+      ///Set the statusText font size
+      void statusTextFontFamily( const char * ff /**< [in] The new font family */ );
+      
+      ///Set the statusText font size
+      void statusTextFontSize( float fs /**< [in] The new font size */ );
+
+      ///Set the statusText font color
+      void statusTextFontColor( const char * fc /**< [in] The new font color */ );
+      
+      ///Get the current statusText font family
+      /**
+        * \returns the statusText font family
+        */ 
+      QString statusTextFontFamily();
+      
+      ///Get the current statusText font size
+      /**
+        * \returns the statusText font size
+        */
+      float statusTextFontSize();
+      
+      ///Get the current statusText font color
+      /**
+        * \returns the statusText font color
+        */
+      QString statusTextFontColor();
+      
+      ///Set the statusText text
+      /** If a font color is supplied the statusText text is set to that color.  Otherwise (fc == 0), then _statusTextFontColor is used.
+        */
+      void statusTextText( size_t fieldNo,    ///< [in] the field number (0- statusTextNo()-1)
+                           const char * nt,   ///< [in] the new statusText text
+                           const char * fc=0  ///< [in] [optional] color for the statusText text
+                         );
+      
+      
       ///@}
       
    /** \name The Gages 
     * @{
     */
    
-   protected:
+   public:
       QTextEdit * m_fpsGage; ///< The FPS and age gage
       QTextEdit * m_textCoordX; ///< The x-coordinate of the mouse pointer
       QTextEdit * m_textCoordY; ///< The y-coordinate of the mouse pointer
@@ -201,6 +263,8 @@ class graphicsview : public QGraphicsView
       QString m_gageFontColor; ///< The font color of the gages
       
    public:
+      
+      const QTextEdit * fpsGage();
       
       ///Set the gage font family
       void gageFontFamily( const char * ff /**< [in] The new font family */ );
@@ -254,6 +318,7 @@ class graphicsview : public QGraphicsView
 
       ///Set the Value Gage text by value.
       void textPixelVal( float nv /**< [in] The new value */ );
+      
       
    protected:
       ///The zoom level box
@@ -426,5 +491,5 @@ class graphicsview : public QGraphicsView
       
 };
 
-#endif //rtimv_graphicsview_hpp
+#endif //rtimv_rtimvGraphicsView_hpp
 

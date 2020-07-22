@@ -31,7 +31,7 @@
    <item>
     <layout class="QGridLayout" name="gridLayout_top" columnstretch="0">
      <item row="0" column="0" rowspan="2">
-      <widget class="graphicsview" name="graphicsView">
+      <widget class="rtimvGraphicsView" name="graphicsView">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
          <horstretch>0</horstretch>
@@ -106,9 +106,9 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>graphicsview</class>
+   <class>rtimvGraphicsView</class>
    <extends>QGraphicsView</extends>
-   <header>src/graphicsview.hpp</header>
+   <header>src/rtimvGraphicsView.hpp</header>
    <slots>
     <signal>centerChanged()</signal>
     <signal>mouseCoordsChanged()</signal>

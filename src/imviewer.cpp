@@ -237,6 +237,38 @@ float imviewer::pixel_subDarkApplyMask( imviewer * imv,
    return (imv->m_images[0]->pixel(idx) - imv->m_images[1]->pixel(idx))*imv->m_images[2]->pixel(idx);
 }
 
+// https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color/56678483#56678483
+template<typename realT>
+realT sRGBtoLinRGB( int rgb )
+{
+   realT V = ((realT) rgb)/255.0;
+   
+   if( V <= 0.0405 ) return V/12.92;
+   
+   return pow( (V+0.055)/1.055, 2.4);
+}
+
+template<typename realT>
+realT linRGBtoLuminance( realT linR,
+                         realT linG,
+                         realT linB
+                       )
+{
+   return  0.2126*linR + 0.7152*linG + 0.0722*linB;
+}
+
+template<typename realT>
+realT pLightness( realT lum )
+{
+   if(lum <= static_cast<realT>(216)/static_cast<realT>(24389))
+   {
+      return lum*static_cast<realT>(24389)/static_cast<realT>(27);
+   }
+   
+   return pow(lum, static_cast<realT>(1)/static_cast<realT>(3))*116 - 16;
+      
+}
+
 void imviewer::load_colorbar(int cb)
 {
    if(current_colorbar != cb && m_qim)
@@ -281,6 +313,18 @@ void imviewer::load_colorbar(int cb)
             warning_color = QColor("lime");
             break;
       }
+      
+      
+      m_lightness.resize(256);
+      
+      for(int n=0;n<256;++n)
+      {
+         //QRgb rgb = m_qim->color(n);
+         
+         //m_lightness[n] = pLightness(linRGBtoLuminance( sRGBtoLinRGB<double>(qRed(rgb)), sRGBtoLinRGB<double>(qGreen(rgb)), sRGBtoLinRGB<double>(qBlue(rgb))));
+         m_lightness[n] = QColor(m_qim->color(n)).lightness();
+      }
+      
       changeImdata();
    }
 }

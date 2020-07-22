@@ -1,5 +1,5 @@
 
-#include "StretchBox.h"
+#include "StretchBox.hpp"
 #include <iostream>
 
 StretchBox::StretchBox(QGraphicsItem * parent) : QGraphicsRectItem(parent)

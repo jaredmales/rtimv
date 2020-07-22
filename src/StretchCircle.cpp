@@ -1,5 +1,5 @@
 
-#include "StretchCircle.h"
+#include "StretchCircle.hpp"
 #include <iostream>
 #include <cmath>
 

@@ -1,11 +1,11 @@
-/** \file graphicsview.cpp
+/** \file rtimvGraphicsView.cpp
   * \brief Definitions for the graphics view class of RTImV
   * 
   * \author Jared R. Males (jaredmales@gmail.com)
   * 
   */
 
-#include "graphicsview.hpp"
+#include "rtimvGraphicsView.hpp"
 
 
 //Geometries of the various text boxes.
@@ -24,7 +24,7 @@
 #define ZOOMHEIGHT 30
 #define ZOOMWIDTH 250
 
-graphicsview::graphicsview(QWidget *parent): QGraphicsView(parent)
+rtimvGraphicsView::rtimvGraphicsView(QWidget *parent): QGraphicsView(parent)
 {
    setMouseTracking(true);
    
@@ -70,6 +70,9 @@ graphicsview::graphicsview(QWidget *parent): QGraphicsView(parent)
    saveBoxFontColor(RTIMV_DEF_SAVEBOXFONTCOLOR);
    m_saveBox->setText("");
    
+   statusTextNo(10);
+   
+   
    m_zoomText = new QTextEdit(this);
    textEditSetup(m_zoomText);
    zoomFontSize(RTIMV_DEF_ZOOMFONTSIZE);
@@ -94,7 +97,7 @@ graphicsview::graphicsview(QWidget *parent): QGraphicsView(parent)
    return;
 }
 
-void graphicsview::textEditSetup( QTextEdit * te )
+void rtimvGraphicsView::textEditSetup( QTextEdit * te )
 {
    te->setFrameStyle(QFrame::Plain | QFrame::NoFrame);
    te->viewport()->setAutoFillBackground(false);
@@ -107,7 +110,7 @@ void graphicsview::textEditSetup( QTextEdit * te )
 }
 
 
-void graphicsview::warningFontFamily(const char * ff)
+void rtimvGraphicsView::warningFontFamily(const char * ff)
 {
    m_warningFontFamily = ff;
    
@@ -117,7 +120,7 @@ void graphicsview::warningFontFamily(const char * ff)
    m_warningText->setCurrentFont(qf);
 }
 
-void graphicsview::warningFontSize( float fs )
+void rtimvGraphicsView::warningFontSize( float fs )
 {
    m_warningFontSize = fs;
    
@@ -127,28 +130,28 @@ void graphicsview::warningFontSize( float fs )
    m_warningText->setCurrentFont(qf);
 }
 
-void graphicsview::warningFontColor(const char * fc)
+void rtimvGraphicsView::warningFontColor(const char * fc)
 {
    m_warningFontColor = fc;
    m_warningText->setTextColor(QColor(m_warningFontColor));
 }
 
-QString graphicsview::warningFontFamily()
+QString rtimvGraphicsView::warningFontFamily()
 {
    return m_warningFontFamily;
 }
 
-float graphicsview::warningFontSize()
+float rtimvGraphicsView::warningFontSize()
 {
    return m_warningFontSize;
 }
 
-QString graphicsview::warningFontColor()
+QString rtimvGraphicsView::warningFontColor()
 {
    return m_warningFontColor;
 }
       
-void graphicsview::warningText( const char * nt,
+void rtimvGraphicsView::warningText( const char * nt,
                                 const char * fc
                               )
 {
@@ -166,7 +169,7 @@ void graphicsview::warningText( const char * nt,
 }
 
 //-------------
-void graphicsview::loopFontFamily( const char * ff )
+void rtimvGraphicsView::loopFontFamily( const char * ff )
 {
    m_loopFontFamily = ff;
    
@@ -176,7 +179,7 @@ void graphicsview::loopFontFamily( const char * ff )
    m_loopText->setCurrentFont(qf);
 }
 
-void graphicsview::loopFontSize( float fs )
+void rtimvGraphicsView::loopFontSize( float fs )
 {
    m_loopFontSize = fs;
    
@@ -186,30 +189,30 @@ void graphicsview::loopFontSize( float fs )
    m_loopText->setCurrentFont(qf);
 }
 
-void graphicsview::loopFontColor( const char * fc )
+void rtimvGraphicsView::loopFontColor( const char * fc )
 {
    m_loopFontColor = fc;
    m_loopText->setTextColor(QColor(m_loopFontColor));
 }
 
-QString graphicsview::loopFontFamily()
+QString rtimvGraphicsView::loopFontFamily()
 {
    return m_loopFontFamily;
 }
 
-float graphicsview::loopFontSize()
+float rtimvGraphicsView::loopFontSize()
 {
    return m_loopFontSize;
 }
 
-QString graphicsview::loopFontColor()
+QString rtimvGraphicsView::loopFontColor()
 {
    return m_loopFontColor;
 }
       
-void graphicsview::loopText( const char * nt,
-                                const char * fc
-                              )
+void rtimvGraphicsView::loopText( const char * nt,
+                                  const char * fc
+                                )
 {
    m_loopText->setPlainText(nt);
    m_loopText->setAlignment(Qt::AlignRight);  
@@ -222,14 +225,13 @@ void graphicsview::loopText( const char * nt,
    {
       m_loopText->setTextColor(QColor(m_loopFontColor));
    }
-   
 }
 
 
 
 //-------------
 
-void graphicsview::saveBoxFontFamily(const char * ff)
+void rtimvGraphicsView::saveBoxFontFamily(const char * ff)
 {
    m_saveBoxFontFamily = ff;
    
@@ -239,7 +241,7 @@ void graphicsview::saveBoxFontFamily(const char * ff)
    m_saveBox->setCurrentFont(qf);
 }
 
-void graphicsview::saveBoxFontSize( float fs )
+void rtimvGraphicsView::saveBoxFontSize( float fs )
 {
    m_saveBoxFontSize = fs;
    
@@ -249,28 +251,28 @@ void graphicsview::saveBoxFontSize( float fs )
    m_saveBox->setCurrentFont(qf);
 }
 
-void graphicsview::saveBoxFontColor(const char * fc)
+void rtimvGraphicsView::saveBoxFontColor(const char * fc)
 {
    m_saveBoxFontColor = fc;
    m_saveBox->setTextColor(QColor(m_saveBoxFontColor));
 }
 
-QString graphicsview::saveBoxFontFamily()
+QString rtimvGraphicsView::saveBoxFontFamily()
 {
    return m_saveBoxFontFamily;
 }
 
-float graphicsview::saveBoxFontSize()
+float rtimvGraphicsView::saveBoxFontSize()
 {
    return m_saveBoxFontSize;
 }
 
-QString graphicsview::saveBoxFontColor()
+QString rtimvGraphicsView::saveBoxFontColor()
 {
    return m_saveBoxFontColor;
 }
       
-void graphicsview::saveBoxText( const char * nt,
+void rtimvGraphicsView::saveBoxText( const char * nt,
                                    const char * fc
                                  )
 {
@@ -289,9 +291,129 @@ void graphicsview::saveBoxText( const char * nt,
 }
 
 
+//---------------------------------------------------------
+// Status Text Array
+//--------------------------------------------------------
+void rtimvGraphicsView::statusTextNo(size_t no)
+{
+   for(size_t n=0; n<m_statusText.size(); ++n)
+   {
+      m_statusText[n]->deleteLater();
+   }
+   
+   m_statusText.clear();
+   
+   m_statusText.resize(no);
+   
+   for(size_t n=0; n<m_statusText.size(); ++n)
+   {
+      m_statusText[n] =  new QTextEdit(this);
+      textEditSetup(m_statusText[n]);
+   }
+   
+   statusTextFontFamily(RTIMV_DEF_STATUSTEXTFONTFAMILY);
+   statusTextFontSize(RTIMV_DEF_STATUSTEXTFONTSIZE);
+   statusTextFontColor(RTIMV_DEF_STATUSTEXTFONTCOLOR);
+   
+   for(size_t n=0; n<m_statusText.size(); ++n)
+   {
+      m_statusText[n]->setText("");
+      m_statusText[n]->setAlignment(Qt::AlignRight);  
+   }
+}
+
+size_t rtimvGraphicsView::statusTextNo()
+{
+   return m_statusText.size();
+}
+
+
+void rtimvGraphicsView::statusTextFontFamily( const char * ff /* [in] The new font family */ )
+{
+   m_statusTextFontFamily = ff;
+   
+   
+   for(size_t n=0; n<m_statusText.size(); ++n)
+   {
+      QFont qf = m_statusText[n]->currentFont();
+      qf.setFamily(m_statusTextFontFamily);
+      m_statusText[n]->setCurrentFont(qf);
+   }
+}
+
+void rtimvGraphicsView::statusTextFontSize( float fs /* [in] The new font size */ )
+{
+   m_statusTextFontSize = fs;
+   
+   for(size_t n=0; n<m_statusText.size(); ++n)
+   {
+      QFont qf = m_statusText[n]->currentFont();
+      qf.setPointSizeF(m_statusTextFontSize);
+   
+      m_statusText[n]->setCurrentFont(qf);
+   }
+}
+
+
+void rtimvGraphicsView::statusTextFontColor( const char * fc /* [in] The new font color */ )
+{
+   m_statusTextFontColor = fc;
+   
+   for(size_t n=0; n<m_statusText.size(); ++n)
+   {
+      m_statusText[n]->setTextColor(QColor(m_statusTextFontColor));
+   }
+}
+
+QString rtimvGraphicsView::statusTextFontFamily()
+{
+   return m_statusTextFontFamily;
+}
+
+float rtimvGraphicsView::statusTextFontSize()
+{
+   return m_statusTextFontSize;
+}
+
+QString rtimvGraphicsView::statusTextFontColor()
+{
+   return m_statusTextFontColor;
+}
+
+
+void rtimvGraphicsView::statusTextText( size_t n,        ///< [in] the field number (0- statusTextNo()-1)
+                                        const char * nt, ///< [in] the new statusText text
+                                        const char * fc  ///< [in] [optional] color for the statusText text
+                                      )
+{
+   if(n > m_statusText.size()-1)
+   {
+      std::cerr << "statusTextText: n too large for current vector size\n";
+      return;
+   }
+   
+   m_statusText[n]->setPlainText(nt);
+   m_statusText[n]->setAlignment(Qt::AlignRight);  
+   
+   if(fc)
+   {
+      m_statusText[n]->setTextColor(QColor(fc));
+   }
+   else
+   {
+      m_statusText[n]->setTextColor(QColor(m_statusTextFontColor));
+   }
+
+}
+
 
 //-------------
-void graphicsview::gageFontFamily(const char * ff)
+const QTextEdit * rtimvGraphicsView::fpsGage()
+{
+   return m_fpsGage;
+}
+
+void rtimvGraphicsView::gageFontFamily(const char * ff)
 {
    m_gageFontFamily = ff;
    
@@ -305,7 +427,7 @@ void graphicsview::gageFontFamily(const char * ff)
    
 }
 
-void graphicsview::gageFontSize( float fs )
+void rtimvGraphicsView::gageFontSize( float fs )
 {
    m_gageFontSize = fs;
    
@@ -318,7 +440,7 @@ void graphicsview::gageFontSize( float fs )
    m_textPixelVal->setCurrentFont(qf);
 }
 
-void graphicsview::gageFontColor(const char * fc)
+void rtimvGraphicsView::gageFontColor(const char * fc)
 {
    m_gageFontColor = fc;
    m_fpsGage->setTextColor(QColor(m_gageFontColor));
@@ -328,28 +450,28 @@ void graphicsview::gageFontColor(const char * fc)
    
 }
 
-QString graphicsview::gageFontFamily()
+QString rtimvGraphicsView::gageFontFamily()
 {
    return m_gageFontFamily;
 }
 
-float graphicsview::gageFontSize()
+float rtimvGraphicsView::gageFontSize()
 {
    return m_gageFontSize;
 }
 
-QString graphicsview::gageFontColor()
+QString rtimvGraphicsView::gageFontColor()
 {
    return m_gageFontColor;
 }
       
-void graphicsview::fpsGageText( const char * nt )
+void rtimvGraphicsView::fpsGageText( const char * nt )
 {
    m_fpsGage->setPlainText(nt);
    m_fpsGage->setAlignment(Qt::AlignRight);  
 }
 
-void graphicsview::fpsGageText( float nv,
+void rtimvGraphicsView::fpsGageText( float nv,
                                 bool age
                               )
 {
@@ -366,39 +488,39 @@ void graphicsview::fpsGageText( float nv,
    fpsGageText(strtmp);
 }
 
-void graphicsview::textCoordX( const char * nt )
+void rtimvGraphicsView::textCoordX( const char * nt )
 {
    m_textCoordX->setPlainText(nt);
    m_textCoordX->setAlignment(Qt::AlignLeft);  
 }      
 
-void graphicsview::textCoordX( float nv )
+void rtimvGraphicsView::textCoordX( float nv )
 {
    char strtmp[32];
    snprintf(strtmp, sizeof(strtmp), "X: %.1f", nv);
    textCoordX(strtmp);   
 }
 
-void graphicsview::textCoordY( const char * nt )
+void rtimvGraphicsView::textCoordY( const char * nt )
 {
    m_textCoordY->setPlainText(nt);
    m_textCoordY->setAlignment(Qt::AlignLeft);  
 }            
 
-void graphicsview::textCoordY( float nv )
+void rtimvGraphicsView::textCoordY( float nv )
 {
    char strtmp[32];
    snprintf(strtmp, sizeof(strtmp), "Y: %.1f", nv);
    textCoordY(strtmp);   
 }
 
-void graphicsview::textPixelVal( const char * nt )
+void rtimvGraphicsView::textPixelVal( const char * nt )
 {
    m_textPixelVal->setPlainText(nt);
    m_textPixelVal->setAlignment(Qt::AlignLeft);  
 }      
 
-void graphicsview::textPixelVal( float nv )
+void rtimvGraphicsView::textPixelVal( float nv )
 {
    char strtmp[24];
    snprintf(strtmp, 24, "Val: %.1f", nv);
@@ -407,7 +529,7 @@ void graphicsview::textPixelVal( float nv )
 
 //----------------
 
-void graphicsview::zoomFontFamily( const char * ff )
+void rtimvGraphicsView::zoomFontFamily( const char * ff )
 {
    m_zoomFontFamily = ff;
    
@@ -417,7 +539,7 @@ void graphicsview::zoomFontFamily( const char * ff )
    m_zoomText->setCurrentFont(qf);
 }
 
-void graphicsview::zoomFontSize( float fs )
+void rtimvGraphicsView::zoomFontSize( float fs )
 {
    m_zoomFontSize = fs;
    
@@ -427,28 +549,28 @@ void graphicsview::zoomFontSize( float fs )
    m_zoomText->setCurrentFont(qf);
 }
 
-void graphicsview::zoomFontColor( const char * fc )
+void rtimvGraphicsView::zoomFontColor( const char * fc )
 {
    m_zoomFontColor = fc;
    m_zoomText->setTextColor(QColor(m_zoomFontColor));
 }
 
-QString graphicsview::zoomFontFamily()
+QString rtimvGraphicsView::zoomFontFamily()
 {
    return m_zoomFontFamily;
 }
 
-float graphicsview::zoomFontSize()
+float rtimvGraphicsView::zoomFontSize()
 {
    return m_zoomFontSize;
 }
 
-QString graphicsview::zoomFontColor()
+QString rtimvGraphicsView::zoomFontColor()
 {
    return m_zoomFontColor;
 }
     
-void graphicsview::zoomText( const char * nt,
+void rtimvGraphicsView::zoomText( const char * nt,
                              const char * fc
                            )
 {
@@ -467,13 +589,13 @@ void graphicsview::zoomText( const char * nt,
    m_zoomTimer.start( m_zoomTimeOut );
 }
 
-void graphicsview::zoomTimerOut()
+void rtimvGraphicsView::zoomTimerOut()
 {
    m_zoomText->setText("");
    m_zoomTimer.stop();
 }
       
-void graphicsview::centerOn( qreal x, 
+void rtimvGraphicsView::centerOn( qreal x, 
                              qreal y 
                            )
 {
@@ -483,7 +605,7 @@ void graphicsview::centerOn( qreal x,
    QGraphicsView::centerOn(x,y);
 }
       
-void graphicsview::mapCenterToScene( float xc,
+void rtimvGraphicsView::mapCenterToScene( float xc,
                                      float yc
                                    )
 {
@@ -492,53 +614,58 @@ void graphicsview::mapCenterToScene( float xc,
    m_yCen = p.y();
 }
 
-float graphicsview::xCen()
+float rtimvGraphicsView::xCen()
 {
    return m_xCen;
 }
 
 
-float graphicsview::yCen()
+float rtimvGraphicsView::yCen()
 {
    return m_yCen;
 }
 
-float graphicsview::mouseViewX()
+float rtimvGraphicsView::mouseViewX()
 {
    return m_mouseViewX;
 }
       
-float graphicsview::mouseViewY()
+float rtimvGraphicsView::mouseViewY()
 {
    return m_mouseViewY;
 }
 
-void graphicsview::zoomLevel( float zl )
+void rtimvGraphicsView::zoomLevel( float zl )
 {
    m_zoomLevel = zl;
 }
 
-float graphicsview::zoomLevel()
+float rtimvGraphicsView::zoomLevel()
 {
    return m_zoomLevel;
 }
       
-void graphicsview::screenZoom( float sz )
+void rtimvGraphicsView::screenZoom( float sz )
 {
    m_screenZoom = sz;
 }
 
-float graphicsview::screenZoom()
+float rtimvGraphicsView::screenZoom()
 {
    return m_screenZoom;
 }
       
-void graphicsview::resizeEvent(QResizeEvent *)
+void rtimvGraphicsView::resizeEvent(QResizeEvent *)
 {
    m_saveBox->setGeometry(1, 1, SAVEWIDTH, SAVEHEIGHT);
    
    m_loopText->setGeometry(SAVEWIDTH, 1, width()-SAVEWIDTH, LOOPHEIGHT);
       
+   for(size_t n=0; n<m_statusText.size(); ++n)
+   {
+      m_statusText[n]->setGeometry(1,LOOPHEIGHT+GAGEHEIGHT*n, width(), GAGEHEIGHT);
+   }
+   
    m_warningText->setGeometry(0, height()-GAGEHEIGHT-WARNHEIGHT, WARNWIDTH, WARNHEIGHT);
 
    m_fpsGage->setGeometry(width()-FPSWIDTH, height()-GAGEHEIGHT, FPSWIDTH, GAGEHEIGHT);
@@ -549,7 +676,7 @@ void graphicsview::resizeEvent(QResizeEvent *)
    m_zoomText->setGeometry(width()-ZOOMWIDTH, height()-GAGEHEIGHT-ZOOMHEIGHT, ZOOMWIDTH, ZOOMHEIGHT);
 }
 
-void graphicsview::mouseMoveEvent(QMouseEvent *e)
+void rtimvGraphicsView::mouseMoveEvent(QMouseEvent *e)
 {
    m_mouseViewX = e->pos().x();
    m_mouseViewY = e->pos().y();
@@ -559,14 +686,14 @@ void graphicsview::mouseMoveEvent(QMouseEvent *e)
    QGraphicsView::mouseMoveEvent(e);
 }
 
-void graphicsview::leaveEvent(QEvent *)
+void rtimvGraphicsView::leaveEvent(QEvent *)
 {
    m_mouseViewX = -1;
    m_mouseViewY = -1;
    emit mouseCoordsChanged();
 }
 
-void graphicsview::mousePressEvent(QMouseEvent *e)
+void rtimvGraphicsView::mousePressEvent(QMouseEvent *e)
 {
    if(e->button() == Qt::LeftButton)
    {
@@ -581,7 +708,7 @@ void graphicsview::mousePressEvent(QMouseEvent *e)
    else QGraphicsView::mousePressEvent(e);
 }
 
-void graphicsview::mouseReleaseEvent(QMouseEvent *e)
+void rtimvGraphicsView::mouseReleaseEvent(QMouseEvent *e)
 {
    if(e->button()  == Qt::MidButton)
    {
@@ -601,12 +728,12 @@ void graphicsview::mouseReleaseEvent(QMouseEvent *e)
    }
 }
 
-void graphicsview::mouseDoubleClickEvent(QMouseEvent *e)
+void rtimvGraphicsView::mouseDoubleClickEvent(QMouseEvent *e)
 {
    (void)(e);
 }
 
-void graphicsview::wheelEvent(QWheelEvent *e)
+void rtimvGraphicsView::wheelEvent(QWheelEvent *e)
 {
    emit wheelMoved(e->delta());
 }

@@ -635,6 +635,8 @@ void rtimvMainWindow::updateMouseCoords()
       contrast(contrastStart + dcontrast*(imdat_max-imdat_min));
       if(!amChangingimdata) changeImdata();
    }
+   
+   fontLuminance();
 }
 
 void rtimvMainWindow::changeMouseCoords()
@@ -1324,18 +1326,123 @@ int rtimvMainWindow::toggleTarget()
    return 0;
 }
 
+
+// https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color/56678483#56678483
+template<typename realT>
+realT sRGBtoLinRGB( int rgb )
+{
+   realT V = ((realT) rgb)/255.0;
+   
+   if( V <= 0.0405 ) return V/12.92;
+   
+   return pow( (V+0.055)/1.055, 2.4);
+}
+
+template<typename realT>
+realT linRGBtoLuminance( realT linR,
+                         realT linG,
+                         realT linB
+                       )
+{
+   return  0.2126*linR + 0.7152*linG + 0.0722*linB;
+}
+
+template<typename realT>
+realT pLightness( realT lum )
+{
+   if(lum <= static_cast<realT>(216)/static_cast<realT>(24389))
+   {
+      return lum*static_cast<realT>(24389)/static_cast<realT>(27);
+   }
+   
+   return pow(lum, static_cast<realT>(1)/static_cast<realT>(3))*116 - 16;
+      
+}
+
+
+int rtimvMainWindow::fontLuminance()
+{
+   const QTextEdit* qte = ui.graphicsView->fpsGage();
+   
+   QPointF ptul = ui.graphicsView->mapToScene(qte->x(),qte->y());
+   QPointF ptlr = ui.graphicsView->mapToScene(qte->x()+qte->width(),qte->y()+qte->height());
+   
+   unsigned myul = ptul.y();
+   if(myul > m_ny-1) myul = 0;
+
+   unsigned mxul = ptul.x();
+   if(mxul > m_nx-1) mxul = 0;
+   
+   unsigned mylr = ptlr.y();
+   if(mylr > m_ny-1) mylr = m_ny-1;
+   
+   unsigned mxlr = ptlr.x();
+   if(mxlr > m_nx-1) mxlr = m_nx-1;
+   
+   //std::cerr << mxul << " " << myul << " " << mxlr << " " << mylr << "\n";
+   //std::cerr << m_qim->pixelIndex(mxul, myul) << " " << m_qim->pixelIndex(mxlr, mylr) << "\n";
+   
+   double avgLum = 0;
+   int N =0;
+   for(unsigned x = mxul; x<= mxlr; ++x)
+   {
+      for(unsigned y=myul; y<=mylr; ++y)
+      {
+         avgLum += pow(m_lightness[ m_qim->pixelIndex(x,y) ],2);
+         ++N;
+      }
+   }
+   avgLum/=N;
+   avgLum = sqrt(avgLum);
+   //std::cerr << "avgLum: " << avgLum << "\n";
+   
+   QColor sb("skyblue");
+   
+   int flight = sb.lightness();
+   //std::cerr << "skyblue: ";// << pLightness(linRGBtoLuminance( sRGBtoLinRGB<double>(qRed(fc)), sRGBtoLinRGB<double>(qGreen(fc)), sRGBtoLinRGB<double>(qBlue(fc)))) << "\n";
+   //std::cerr << QColor("skyblue").lightness() << "\n";
+   
+   if( flight - avgLum < 50)
+   {
+      //std::cerr << flight-avgLum << " ";
+      int nl = abs(flight-avgLum);
+      if(nl > 255) nl -= 255;
+      if(nl < 0 ) nl = 0;
+      
+      //std::cerr << nl << "\n";
+      
+      QColor nc = QColor::fromHsl(sb.hslHue(), sb.hslSaturation(), nl);
+      
+      ui.graphicsView->m_fpsGage->setTextColor(nc);
+      ui.graphicsView->m_textCoordX->setTextColor(nc);
+      ui.graphicsView->m_textCoordY->setTextColor(nc);
+      ui.graphicsView->m_textPixelVal->setTextColor(nc);
+   }
+   else 
+   {
+      ui.graphicsView->m_fpsGage->setTextColor(sb);
+      ui.graphicsView->m_textCoordX->setTextColor(sb);
+      ui.graphicsView->m_textCoordY->setTextColor(sb);
+      ui.graphicsView->m_textPixelVal->setTextColor(sb);
+   }
+   
+   return 0;
+   
+}
+
+
 void rtimvMainWindow::loadPlugin(QObject *plugin)
 {
    auto rdi = qobject_cast<rtimvDictionaryInterface *>(plugin);
    if (rdi)
    {
-      rdi->attachDictionary(&m_dictionary);
+      rdi->attachDictionary(&m_dictionary, config);
    }
    
    auto roi = qobject_cast<rtimvOverlayInterface *>(plugin);
    if (roi)
    {
-      roi->attachOverlay(qgs, &m_dictionary);
+      roi->attachOverlay(ui.graphicsView, &m_dictionary, config);
       m_overlays.push_back(roi);
    }
 }

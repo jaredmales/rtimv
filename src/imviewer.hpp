@@ -125,7 +125,7 @@ public:
    
    /** @name Calibrated Pixel Access
      * 
-     * Settings to control which calibrations are applied, and provided acccess to calibrated pixels.
+     * Settings to control which calibrations are applied, and provide acccess to calibrated pixels.
      * 
      * Calibrations include dark subtraction, reference subtraction, flat field, mask, and low and high pass filtering.
      * Note: only dark subtraction and masking are currently implemented.
@@ -313,7 +313,9 @@ protected:
       
       
    QImage * m_qim {nullptr}; ///<A QT image, used to store the color-map encoded data
-      
+
+   std::vector<double> m_lightness; ///< The perceived lightness values of the colormap RGB values
+   
    QPixmap m_qpm; ///<A QT pixmap, used to prep the QImage for display.
 
    bool amChangingimdata;

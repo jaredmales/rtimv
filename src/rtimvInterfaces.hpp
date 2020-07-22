@@ -2,11 +2,16 @@
 #ifndef rtimvInterfaces_hpp
 #define rtimvInterfaces_hpp
 
+
 #include <QtPlugin>
 #include <QGraphicsScene>
 #include <QKeyEvent>
 
+#include "rtimvGraphicsView.hpp"
+
 #include <unordered_map>
+
+#include <mx/app/application.hpp>
 
 struct rtimvDictBlob
 {
@@ -79,7 +84,9 @@ class rtimvDictionaryInterface
    public:
       virtual ~rtimvDictionaryInterface() = default;
       
-      virtual int attachDictionary(std::unordered_map<std::string, rtimvDictBlob> *) = 0;
+      virtual int attachDictionary( std::unordered_map<std::string, rtimvDictBlob> *,
+                                    mx::app::appConfigurator &
+                                  ) = 0;
 };
 
 #define rtimvDictionaryInterface_iid "rtimv.dictionaryInterface/1.0"
@@ -91,7 +98,10 @@ class rtimvOverlayInterface
    public:
       virtual ~rtimvOverlayInterface() = default;
 
-      virtual int attachOverlay(QGraphicsScene*, std::unordered_map<std::string, rtimvDictBlob> *) = 0; 
+      virtual int attachOverlay( rtimvGraphicsView *, 
+                                 std::unordered_map<std::string, rtimvDictBlob> *,
+                                 mx::app::appConfigurator &
+                               ) = 0; 
       
       virtual int updateOverlay() = 0;
 

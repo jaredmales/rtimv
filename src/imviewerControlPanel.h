@@ -5,7 +5,7 @@
 
 #include "ui_imviewerControlPanel.h"
 #include "rtimvMainWindow.hpp"
-#include "StretchBox.h"
+#include "StretchBox.hpp"
 
 class rtimvMainWindow;
 

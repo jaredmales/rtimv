@@ -21,25 +21,20 @@ QT += widgets
 MAKEFILE = makefile.rtimv
 
 # Input
-HEADERS += src/graphicsview.hpp \
+HEADERS += src/rtimvGraphicsView.hpp \
            src/imviewer.hpp \
            src/rtimvMainWindow.hpp \
            src/rtimvInterfaces.hpp \
            src/imviewerControlPanel.h \
-           src/StretchBox.h \
-           src/StretchCircle.h \
            src/imviewerstats.hpp \
            src/rtimvImage.hpp \
            src/pixaccess.h \
            src/colorMaps.hpp
 
-SOURCES += src/graphicsview.cpp \
-           src/imviewer.cpp \
+SOURCES += src/imviewer.cpp \
            src/rtimvMainWindow.cpp \
            src/imviewer_main.cpp \
            src/imviewerControlPanel.cpp \
-           src/StretchBox.cpp \
-           src/StretchCircle.cpp \ 
            src/imviewerstats.cpp \
            src/rtimvImage.cpp
            
@@ -49,6 +44,7 @@ FORMS += forms/rtimvMainWindow.ui \
            
 LIBS += -lImageStreamIO
 LIBS += -lcfitsio
+LIBS += -lrtimv
         
 RESOURCES += res/imviewer.qrc
 
@@ -59,9 +55,9 @@ RESOURCES += res/imviewer.qrc
 unix:target.path = /usr/local/bin
 INSTALLS += target
 
-unix:includefiles.path = /usr/local/include/rtimv
-includefiles.files = src/rtimvInterfaces.hpp
-INSTALLS += includefiles
+# unix:includefiles.path = /usr/local/include/rtimv
+# includefiles.files = src/rtimvInterfaces.hpp src/rtimvGraphicsView.hpp
+# INSTALLS += includefiles
 
 
 

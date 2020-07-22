@@ -4,6 +4,7 @@ forms/ui_imviewerControlPanel.h
 forms/ui_imviewerStats.h
 forms/ui_rtimvMainWindow.h
 forms/ui_rtplot.h
+makefile.librtimv
 makefile.rtimv
 moc/*
 obj/*

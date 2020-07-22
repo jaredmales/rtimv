@@ -21,8 +21,8 @@ using namespace mx::app;
 
 #include "rtimvInterfaces.hpp"
 
-#include "StretchBox.h"
-#include "StretchCircle.h"
+#include "StretchBox.hpp"
+#include "StretchCircle.hpp"
 
 #include "imviewerstats.hpp"
 
@@ -289,6 +289,8 @@ class rtimvMainWindow : public imviewer, public application
       int toggleLogLinear();
       
       int toggleTarget();
+      
+      int fontLuminance();
       
    /** \name Data Dictionary
      *
