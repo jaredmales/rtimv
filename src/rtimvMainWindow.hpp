@@ -299,7 +299,8 @@ class rtimvMainWindow : public imviewer, public application
      * @{
      */
    
-      std::unordered_map<std::string, rtimvDictBlob> m_dictionary;
+      ///The data dictionary.
+      dictionaryT m_dictionary;
    
    ///@}
    

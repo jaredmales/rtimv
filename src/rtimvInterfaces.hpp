@@ -79,12 +79,18 @@ struct rtimvDictBlob
    
 };
 
+///The dictionary type, a std::map
+typedef std::map<std::string, rtimvDictBlob> dictionaryT;
+      
+///The dictionary iterator type.
+typedef std::map<std::string, rtimvDictBlob>::iterator dictionaryIteratorT;
+      
 class rtimvDictionaryInterface
 {
    public:
       virtual ~rtimvDictionaryInterface() = default;
       
-      virtual int attachDictionary( std::unordered_map<std::string, rtimvDictBlob> *,
+      virtual int attachDictionary( dictionaryT *,
                                     mx::app::appConfigurator &
                                   ) = 0;
 };
@@ -99,7 +105,7 @@ class rtimvOverlayInterface
       virtual ~rtimvOverlayInterface() = default;
 
       virtual int attachOverlay( rtimvGraphicsView *, 
-                                 std::unordered_map<std::string, rtimvDictBlob> *,
+                                 dictionaryT *,
                                  mx::app::appConfigurator &
                                ) = 0; 
       
