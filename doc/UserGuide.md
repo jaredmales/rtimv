@@ -5,16 +5,16 @@ An image viewer optimized for real-time image stream display.
 
 Works with MILK/CACAO shared memory image streams.
 
-# Startup and Configuration
+## Startup and Configuration
 
-## Basic Startup
+### Basic Startup
 The basic way to start `rtimv` is to provide a list of stream names:
 ```
 $ rtimv image dark mask sat_mask
 ```
 where each of the streamn names corresponds to an image, e.g. `image` => `/milk/shm/image.im.shm` but note that you only pass `image`.  Order matters in this list, and it must be the last thing on the command line (after any options).
 
-## Configuration Options
+### Configuration Options
 These can also be specified with command line options:
 
 ```
@@ -40,7 +40,7 @@ shmim_name=sat_mask
 ```
 Many more options are available.
 
-## Configuration Options
+### Configuration Options
 | Short | Long              | Config-File*         | Type          | Description |
 |-------|-------------------|----------------------|---------------|-----------|
 | `-h`  | `--help`          |                      | bool          | Print a help message and exit |
@@ -69,9 +69,9 @@ keyword=value
 ```
 in the configuration file.
 
-# Operating rtimv
+## Operating rtimv
 
-## Keyboard Shortcuts
+### Keyboard Shortcuts
 
 | Key     | Action                            | Description      |
 |---------|-----------------------------------|------------------|
@@ -80,7 +80,7 @@ in the configuration file.
 | `c`     | center the display                | |
 | `f`     | toggle the FPS gage               | |
 | `p`     | open control panel                | |
-| `r`     | re-stretch the display            | re-set the min/max in the color table using the current image |
+| `r`     | re-stretch the display            | reset the min/max in the color table using the current image |
 | `s`     | toggle the statistics box         | |
 | `t`     | toggle the target cross           | |
 | `x`     | freeze the display                | |
@@ -93,6 +93,6 @@ in the configuration file.
 | `]`     | fit gui to image, increasing size | |
 
 
-## Pixel Conventions
+### Pixel Conventions
 
 The displayed coordinate is for the center of a pixel, counting from `0,0` for the center of the lower left pixel.  The center of the array (and default target-cross coordinate) is `0.5*(Nx-1), 0.5*(Ny-1)`.
