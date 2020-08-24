@@ -8,7 +8,7 @@ Displays images streaming from a scientific (primarily astronomical) camera.  Su
 
 Originally developed to support the MagAO+VisAO camera.  Now adapted to work with the shared memory image system ImageStreamIO of CACAO.
 
-This is now a stripped down version, with only minimal analysis tools.  A plugin system is under development to enable adding new tools, such as peak fitting.
+This is now a stripped down version, with only minimal analysis tools.  A plugin system enables adding new tools, such as peak fitting.
 
 ## Installation
 
@@ -18,43 +18,13 @@ Dependencies:
 
 On CentOS-7 you may need to install mesa-libGL-devel.x86_64
  
-For `ubuntu` you just need to type `make`.
+For `ubuntu` you just need to type `make`.  This should work on `CentOS 7` as well, but if not try calling it with `make QMAKE=qmake-qt5`. 
 
-For `centos 7` you probably need to type `make QMAKE=qmake-qt5`. 
-
-`sudo make install` will install the executable to `/usr/local/bin`.
+You will be asked for sudo privileges to install the plulgin library.  `sudo make install` will install the executable to `/usr/local/bin`.
 
 ## User's Guide
 
-To start it: 
-```
-rtimv shm-name
-```
-Where `shm-name` comes from the CACAO standard /tmp/shm-name.im.shm
-
-### Zoom level
-
-You can zoom in and out using the mouse wheel (which works opposite to ds9).  Pressing the numbers 1-9 also changes the zoom level.  Arbitrary zoom levels can be set using the control panel.
-
-### Centering
-
-Middle clicking selects that point in the image as the center of the display.  You can press `c` any time to center on the center-pixel of the image.  Arrow keys on the control panel (press `p`) can be used to move the center.
-
-### Color
-
-`rtimv` starts out in a linear min-max color stretch, using the first image it sees to set the min and max value gloabally.  These values do not update image to image.  To re-stretch, that is reseetting the min-max values, you can press `r` to set it pased on the currently displayed image.
-
-You can change the bias and contrast by right-click dragging, just as in ds9. 
-
-An alternative to global min-max is to use the "user box", which can be brought up by pressing `b`, the min and max within this box are then used to set the color stretch.  It can be moved and its size changed to affect which pixels are used to set the stretch.
-
-The control panel (press `p`) can be used to select other stretches (e.g. log) and color tables.
-
-### Stats
-
-A red box for calculating statistics can be brought up with the `r` key.  A circle for measuring radii can be displayed with `o`.  
-
-
+A user's guide is located in doc/Userguide.md.
 
 
 ## Contributors

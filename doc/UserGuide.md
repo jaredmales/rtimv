@@ -14,7 +14,7 @@ $ rtimv image dark mask sat_mask
 ```
 where each of the streamn names corresponds to an image, e.g. `image` => `/milk/shm/image.im.shm` but note that you only pass `image`.  Order matters in this list, and it must be the last thing on the command line (after any options).
 
-### Configuration Options
+### Configuration
 These can also be specified with command line options:
 
 ```
