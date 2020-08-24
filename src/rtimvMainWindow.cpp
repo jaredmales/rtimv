@@ -215,8 +215,12 @@ void rtimvMainWindow::loadConfig()
    if(config.nonOptions.size() > 1) keys[1] = config.nonOptions[1];
    if(config.nonOptions.size() > 2) keys[2] = config.nonOptions[2];
    if(config.nonOptions.size() > 3) keys[3] = config.nonOptions[3];
+   
+   m_title= keys[0];
    startup(keys);
-   setWindowTitle(keys[0].c_str());
+   
+   
+   
    
    //Now load remaining options, respecting coded defaults.
    config(m_autoScale, "autoscale");
@@ -233,6 +237,9 @@ void rtimvMainWindow::loadConfig()
 
 void rtimvMainWindow::onConnect()
 {
+   setWindowTitle(m_title.c_str());
+   
+
    squareDown();
 }
 

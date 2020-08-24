@@ -58,6 +58,10 @@ class rtimvMainWindow : public imviewer, public application
       
       virtual void loadConfig();
       
+   protected:
+      std::string m_title {"rtimv"};
+   public:
+   
       ///Called on initial connection to the image stream, sets matching aspect ratio.
       virtual void onConnect();
       
