@@ -30,7 +30,7 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    
    rightClickDragging = false;
    
-   NullMouseCoords = true;
+   m_nullMouseCoords = true;
    
    
    mindat(400);
@@ -560,14 +560,14 @@ void rtimvMainWindow::mouseMoveEvent(QMouseEvent *e)
 
 void rtimvMainWindow::nullMouseCoords()
 {
-   if(!NullMouseCoords)
+   if(!m_nullMouseCoords)
    {
       if(imcp)
       {
          imcp->nullMouseCoords();
       }
       
-      NullMouseCoords = true;
+      m_nullMouseCoords = true;
       
       ui.graphicsView->textCoordX("");
       ui.graphicsView->textCoordY("");
@@ -596,7 +596,7 @@ void rtimvMainWindow::updateMouseCoords()
       nullMouseCoords();
    }
    
-   if(!NullMouseCoords)
+   if(!m_nullMouseCoords)
    {
       ui.graphicsView->textCoordX(mx-0.5);
       ui.graphicsView->textCoordY(qpmi->boundingRect().height() - my-0.5);
@@ -636,12 +636,12 @@ void rtimvMainWindow::updateMouseCoords()
       if(!amChangingimdata) changeImdata();
    }
    
-   fontLuminance();
+   
 }
 
 void rtimvMainWindow::changeMouseCoords()
 {
-   NullMouseCoords = false;
+   m_nullMouseCoords = false;
    updateMouseCoords();
 }
 
@@ -695,6 +695,9 @@ void rtimvMainWindow::updateFPS()
 
 void rtimvMainWindow::updateAge()
 {
+   //Check the font luminance to make sure it is visible
+   fontLuminance();
+   
    if(m_showFPSGage && m_images[0] != nullptr  )
    {      
       if(m_images[0]->valid())    //have to check this after checking nullptr
@@ -729,18 +732,8 @@ void rtimvMainWindow::updateAge()
    {
       ui.graphicsView->loopText("Loop OPEN", "red");
    }
-   
-//    if(m_showSaveStat)
-//    {
-//       if(curr_saved == 1)
-//       {
-//          ui.graphicsView->saveBoxText("S", "lime");
-//       }
-//       else
-//       {
-//          ui.graphicsView->saveBoxText("X", "red");
-//       }
-//    }
+
+
 }
 
 
@@ -1359,10 +1352,8 @@ realT pLightness( realT lum )
       
 }
 
-
-int rtimvMainWindow::fontLuminance()
+int rtimvMainWindow::fontLuminance(QTextEdit* qte)
 {
-   const QTextEdit* qte = ui.graphicsView->fpsGage();
    
    QPointF ptul = ui.graphicsView->mapToScene(qte->x(),qte->y());
    QPointF ptlr = ui.graphicsView->mapToScene(qte->x()+qte->width(),qte->y()+qte->height());
@@ -1413,18 +1404,33 @@ int rtimvMainWindow::fontLuminance()
       
       QColor nc = QColor::fromHsl(sb.hslHue(), sb.hslSaturation(), nl);
       
-      ui.graphicsView->m_fpsGage->setTextColor(nc);
-      ui.graphicsView->m_textCoordX->setTextColor(nc);
-      ui.graphicsView->m_textCoordY->setTextColor(nc);
-      ui.graphicsView->m_textPixelVal->setTextColor(nc);
+      qte->setTextColor(nc);
    }
    else 
    {
-      ui.graphicsView->m_fpsGage->setTextColor(sb);
-      ui.graphicsView->m_textCoordX->setTextColor(sb);
-      ui.graphicsView->m_textCoordY->setTextColor(sb);
-      ui.graphicsView->m_textPixelVal->setTextColor(sb);
+      qte->setTextColor(sb);
    }
+   
+   return 0;
+   
+}
+
+int rtimvMainWindow::fontLuminance()
+{   
+   fontLuminance(ui.graphicsView->m_fpsGage);
+   
+   if(!m_nullMouseCoords)
+   {
+      fontLuminance(ui.graphicsView->m_textCoordX);
+      fontLuminance(ui.graphicsView->m_textCoordY);
+      fontLuminance(ui.graphicsView->m_textPixelVal);
+   }
+   
+   for(size_t n=0; n< ui.graphicsView->m_statusText.size(); ++n)
+   {
+      if(ui.graphicsView->m_statusText[n]->toPlainText().size() > 0) fontLuminance(ui.graphicsView->m_statusText[n]);
+   }
+   
    
    return 0;
    

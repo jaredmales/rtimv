@@ -48,6 +48,8 @@ class rtimvGraphicsView : public QGraphicsView
 {
    Q_OBJECT
    
+   friend class rtimvMainWindow;
+   
    public:
       ///Constructor
       explicit rtimvGraphicsView(QWidget *parent = 0);

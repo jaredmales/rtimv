@@ -150,7 +150,7 @@ class rtimvMainWindow : public imviewer, public application
       void mouseMoveEvent(QMouseEvent *e);
       void nullMouseCoords();
       
-      bool NullMouseCoords;
+      bool m_nullMouseCoords {true}; ///< Flag indicating whether or not the mouse coordinates have been nulled.
       
       /// Update the GUI for a change in mouse coordinates in the viewport
       /** Performs the following functions:
@@ -289,6 +289,8 @@ class rtimvMainWindow : public imviewer, public application
       int toggleLogLinear();
       
       int toggleTarget();
+      
+      int fontLuminance(QTextEdit* qte);
       
       int fontLuminance();
       
