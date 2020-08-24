@@ -69,6 +69,8 @@ keyword=value
 ```
 in the configuration file.
 
+The location of the configuration file can be set via the environment variable `RTIMV_CONFIG_PATH`.  If set, this path will be added to the front of the filename specified with the `-c` or `--config` command line option.
+
 ## Operating rtimv
 
 ### Keyboard Shortcuts
@@ -79,7 +81,9 @@ in the configuration file.
 | `b`     | toggle user box                   | the yellow box used for changing the color table limits|
 | `c`     | center the display                | |
 | `f`     | toggle the FPS gage               | |
+| `n`     | toggle display of the North arrow | |
 | `p`     | open control panel                | |
+| `o`     | toggle display of the circle      | |
 | `r`     | re-stretch the display            | reset the min/max in the color table using the current image |
 | `s`     | toggle the statistics box         | |
 | `t`     | toggle the target cross           | |
