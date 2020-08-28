@@ -17,131 +17,217 @@ StretchCircle::StretchCircle(const QRectF & rect, QGraphicsItem * parent) : QGra
       
 StretchCircle::StretchCircle(qreal x, qreal y, qreal width, qreal height, QGraphicsItem * parent) : QGraphicsEllipseItem(x,y,width,height,parent)
 {
-   xoff = x;
-   yoff = y;
-   
    initStretchCircle();
    return;
 }
 
 void StretchCircle::initStretchCircle()
-{
-   setFlag(QGraphicsItem::ItemIsSelectable, false);
+{   
+   setFlag(QGraphicsItem::ItemIsFocusable, true);
+   setFlag(QGraphicsItem::ItemIsSelectable, true);
    setAcceptHoverEvents(true);
+   
+   setCursorStatus (cursorOff);
+   
+   m_cursorTimer.setSingleShot(true);
+   connect(&m_cursorTimer, SIGNAL(timeout()), this, SLOT(cursorTimerOut()));
+   
+}
 
-   edgeTol = 5;
+void StretchCircle::setStretchable(bool is)
+{
+   m_stretchable = is;
+}
+
+bool StretchCircle::stretchable()
+{
+   return m_stretchable;
+}
+
+float StretchCircle::radius()
+{
+   return 0.5*rect().width();
+}
+
+void StretchCircle::setCursorStatus(int cs) //same
+{
+   if(cs == cursorOff)
+   {
+      m_cursorTimer.stop();
+      m_grabbing = false;
+      m_isMoving = false;
+      m_sizing = szOff;
+      setCursor(QCursor(Qt::ArrowCursor));
+      m_cursorStatus = cursorOff;
+      return;
+   }
    
-   sizing = szOff;
-   isSizing = false;   
-   isMoving = false;
-   grabbing = false;
+   if(cs == cursorGrabbing)
+   {
+      if(m_grabbing) return;
+      setCursor(QCursor(Qt::OpenHandCursor));
+      m_grabbing = true;
+      m_cursorTimer.start(m_cursorTimeout);
+      m_cursorStatus = cursorGrabbing;
+      return;
+   }
    
-   setStretchable(true);
+   if(cs == cursorSizing)
+   {
+      m_grabbing = false;
+
+      if(m_sizing == szTopl)  setCursor(QCursor(Qt::SizeFDiagCursor));
+      if(m_sizing == szBotl)  setCursor(QCursor(Qt::SizeBDiagCursor));
+      if(m_sizing == szTopr)  setCursor(QCursor(Qt::SizeBDiagCursor));
+      if(m_sizing == szBotr)  setCursor(QCursor(Qt::SizeFDiagCursor));
+      if(m_sizing == szLeft)  setCursor(QCursor(Qt::SizeHorCursor));
+      if(m_sizing == szRight) setCursor(QCursor(Qt::SizeHorCursor));
+      if(m_sizing == szTop)   setCursor(QCursor(Qt::SizeVerCursor));
+      if(m_sizing == szBot)   setCursor(QCursor(Qt::SizeVerCursor));
+      m_cursorStatus = cursorSizing;
       
-   setCursorStatus (0);
-   cursorTimeout = 750;
+      return;
+   }
+ 
+   if(cs == cursorGrabbed)
+   {
+      m_cursorTimer.stop();
+      setCursor(QCursor(Qt::ClosedHandCursor));
+      m_isMoving = true;
+      m_grabbing = false;
+      m_cursorStatus = cursorGrabbed;
+      
+      return;
+   }
+}       
+
+int StretchCircle::edgeTol()
+{ 
+   return m_edgeTol;
+}
    
-   cursorTimer.setSingleShot(true);
-   connect(&cursorTimer, SIGNAL(timeout()), this, SLOT(cursorTimerOut()));
-   
-   
+void StretchCircle::setEdgeTol(int et)
+{ 
+   m_edgeTol = et;
+}
+
+void StretchCircle::cursorTimerOut()
+{
+   setCursorStatus(cursorSizing);
 }
 
 void StretchCircle::hoverMoveEvent(QGraphicsSceneHoverEvent * e)
 {   
+   //bool onHoverComputeSizing(QGraphicsSceneHoverEvent * e)
+   //{
    double xcen, ycen, rad;
    
    xcen = rect().x() + .5*rect().width();
    ycen = rect().y() + .5*rect().height();
    
    rad = sqrt(pow(e->pos().x() - xcen,2) +  pow(e->pos().y() - ycen,2));
-   cursorAngle = atan2(e->pos().y() - ycen, e->pos().x() - xcen) * 180./3.14159;
-   if(cursorAngle < 0) cursorAngle += 360.;
    
    double drad = fabs(rad - 0.5*rect().width());
 
-   if(drad > edgeTol)
+   if(drad > m_edgeTol)
    {
-      emit mouseOut();
-      setCursorStatus(0);
-      return;
+      //return false
+      setCursorStatus(cursorOff);
+      clearFocus();
+      setSelected(false);
+      emit mouseOut(this);
+      return; 
    }
    
-   sizing = szOn;
-   emit mouseIn();
+   m_cursorAngle = atan2(e->pos().y() - ycen, e->pos().x() - xcen) * 180./3.14159;
+   if(m_cursorAngle < 0) m_cursorAngle += 360.;
    
-   if(cursorStatus == 0)
+   if( m_cursorAngle <= 20 || m_cursorAngle > 340 ||  (m_cursorAngle > 160 && m_cursorAngle <= 200)) m_sizing = szLeft;
+   if( (m_cursorAngle > 20 && m_cursorAngle <= 70) || (m_cursorAngle > 200 && m_cursorAngle <= 250)) m_sizing = szBotr;
+   if( (m_cursorAngle >70 && m_cursorAngle <= 110) || (m_cursorAngle > 250 && m_cursorAngle <= 290))  m_sizing = szTop;
+   if( (m_cursorAngle > 110 && m_cursorAngle <= 160) || (m_cursorAngle > 290 && m_cursorAngle <= 340)) m_sizing = szTopr; 
+
+   //return true
+   //}
+   emit mouseIn(this);
+   
+   if(m_cursorStatus == cursorOff)
    {
-      setCursorStatus(1);
+      setCursorStatus(cursorGrabbing);
    }
    
-   if(cursorStatus == 2)
+   if(m_cursorStatus == cursorSizing)
    {
-      setCursorStatus(2);
+      setCursorStatus(cursorSizing);
    }
-   
 }
 
 void StretchCircle::hoverLeaveEvent(QGraphicsSceneHoverEvent * e)
 {  
    static_cast<void>(e);
    
-   setCursorStatus(0);
-   emit mouseOut();
+   setCursorStatus(cursorOff);
+   clearFocus();
+   setSelected(false);
+   emit mouseOut(this);
 }
 
 void StretchCircle::mousePressEvent ( QGraphicsSceneMouseEvent * e )
 {
-   if(grabbing || !stretchable)
+   setSelected(true);
+   if(m_grabbing || !m_stretchable)
    {
+      //onMousePressCalcGrab
+      //{
       double xcen, ycen, rad;
    
       xcen = rect().x() + .5*rect().width();
       ycen = rect().y() + .5*rect().height();
    
       rad = sqrt(pow(e->pos().x() - xcen,2) +  pow(e->pos().y() - ycen,2));
-      cursorAngle = atan2(e->pos().y() - ycen, e->pos().x() - xcen) * 180./3.14159;
-      if(cursorAngle < 0) cursorAngle += 360.;  
+      m_cursorAngle = atan2(e->pos().y() - ycen, e->pos().x() - xcen) * 180./3.14159;
+      if(m_cursorAngle < 0) m_cursorAngle += 360.;  
       
       double drad = fabs(rad - 0.5*rect().width());
    
-      if(drad > edgeTol)
+      //}
+      if(drad > m_edgeTol) //if true
       {
-         setCursorStatus(0);
+         setCursorStatus(cursorOff);
          return;
       }
       else
       {
-         setCursorStatus(3);
-         x0 = x();
-         y0 = y();
-         mx0 = e->scenePos().x();
-         my0 = e->scenePos().y();
-         isMoving=true;
-         isSizing=false;
-         sizing=szOff;
+         setCursorStatus(cursorGrabbed);
+         m_ul_x = x();
+         m_ul_y = y();
+         m_mv_x0 = e->scenePos().x();
+         m_mv_y0 = e->scenePos().y();
+         m_isMoving=true;
+         m_isSizing=false;
+         m_sizing=szOff;
          return;
       }
    }
-   else if(sizing)
+   else if(m_sizing)
    {
-      grabbing = false;
-      x0 = rect().x();
-      y0 = rect().y();
-      w0 = rect().width();
-      h0 = rect().height();
+      m_grabbing = false;
+      m_ul_x = rect().x();
+      m_ul_y = rect().y();
+      m_width = rect().width();
+      m_height = rect().height();
      
-      xc0 = rect().x() + 0.5*rect().width();
-      yc0 = rect().y() + 0.5*rect().height();
+      m_cen_x = rect().x() + 0.5*rect().width();
+      m_cen_y = rect().y() + 0.5*rect().height();
       
-      mx0 = e->scenePos().x();
-      my0 = e->scenePos().y();
+      m_mv_x0 = e->scenePos().x();
+      m_mv_y0 = e->scenePos().y();
       
-      drad0 = (sqrt(pow(e->pos().x() - xc0, 2) + pow(e->pos().y() - yc0,2)));
+      m_drad0 = (sqrt(pow(e->pos().x() - m_cen_x, 2) + pow(e->pos().y() - m_cen_y,2)));
    }
    else
    {
-      emit rejectMouse();
+      emit rejectMouse(this);
    }
    
 }
@@ -149,117 +235,102 @@ void StretchCircle::mousePressEvent ( QGraphicsSceneMouseEvent * e )
 void StretchCircle::mouseReleaseEvent(QGraphicsSceneMouseEvent * event)
 {
    static_cast<void>(event);
-   if(sizing)
+   if(m_sizing)
    {
-      if(isSizing)
+      if(m_isSizing)
       {
-         sizing = szOff;
-         isSizing = false;
-         emit(moved(rect()));
+         m_sizing = szOff;
+         m_isSizing = false;
+         emit moved(this);
          return;
       }
       else
       {
-         sizing = szOff;
-         setCursorStatus(1);
+         m_sizing = szOff;
+         setCursorStatus(cursorGrabbing);
          return;
       }
    }
    
-   if(isMoving)
+   if(m_isMoving)
    {
-      isMoving = false;
-      emit(moved(rect()));
-      setCursorStatus(1);
+      m_isMoving = false;
+      emit moved(this);
+      setCursorStatus(cursorGrabbing);
       return;
    }
-   setCursorStatus(0);
+   setCursorStatus(cursorOff);
 }
 
 void StretchCircle::mouseMoveEvent ( QGraphicsSceneMouseEvent * e )
 {
    double drad, newx, newy, neww, newh;
     
-   if(sizing && !isMoving)
+   if(m_sizing && !m_isMoving)
    {
-      isSizing = true;
+      //sizingCalcNewRect
+      m_isSizing = true;
       
-      double rad = sqrt(pow(e->pos().x() - xc0, 2) + pow(e->pos().y() - yc0,2));
-      drad = (rad - drad0)*4.;
+      double rad = sqrt(pow(e->pos().x() - m_cen_x, 2) + pow(e->pos().y() - m_cen_y,2));
+      drad = (rad - m_drad0)*4.;
       
-      newx = x0 - .25*drad;
-      newy = y0 - .25*drad;
-      neww = w0 + 0.5*drad;
+      newx = m_ul_x - .25*drad;
+      newy = m_ul_y - .25*drad;
+      neww = m_width + 0.5*drad;
       newh = neww;
       
       setRect(newx, newy, neww, newh);
 
-      emit(resized(0.5*neww));
+      emit resized(this);
       
    }
-   else if(isMoving)
+   else if(m_isMoving)
    {
-      isSizing = false;
-      newx = x0 + (e->scenePos().x() - mx0);
-      newy = y0 + (e->scenePos().y() - my0);
+      m_isSizing = false;
+      newx = m_ul_x + (e->scenePos().x() - m_mv_x0);
+      newy = m_ul_y + (e->scenePos().y() - m_mv_y0);
       setPos(newx, newy);
-      emit(moved(rect()));
+      emit moved(this);
    }
 }
 
-void StretchCircle::setCursorStatus(int cs)
+void StretchCircle::keyPressEvent(QKeyEvent * ke)
 {
-   if(cs == 0)
+   if(ke->key() == Qt::Key_Delete)
    {
-      cursorTimer.stop();
-      grabbing = false;
-      isMoving = false;
-      sizing = szOff;
-      setCursor(QCursor(Qt::ArrowCursor));
-      cursorStatus = 0;
+      emit remove(this);
       return;
    }
    
-   if(cs == 1)
-   {
-      if(grabbing) return;
-      setCursor(QCursor(Qt::OpenHandCursor));
-      grabbing=true;
-      cursorTimer.start(cursorTimeout);
-      cursorStatus = 1;
-      return;
-   }
-   
-   if(cs == 2)
-   {
-      grabbing = false;
-      sizing = szOn;
-      if( cursorAngle <= 20 || cursorAngle > 340 ||  (cursorAngle > 160 && cursorAngle <= 200)) setCursor(QCursor(Qt::SizeHorCursor));
-      if( (cursorAngle > 20 && cursorAngle <= 70) || (cursorAngle > 200 && cursorAngle <= 250)) setCursor(QCursor(Qt::SizeFDiagCursor));
-      if( (cursorAngle >70 && cursorAngle <= 110) || (cursorAngle > 250 && cursorAngle <= 290))  setCursor(QCursor(Qt::SizeVerCursor));
-      if( (cursorAngle > 110 && cursorAngle <= 160) || (cursorAngle > 290 && cursorAngle <= 340)) setCursor(QCursor(Qt::SizeBDiagCursor));   
-      cursorStatus = 2;
-      return;
-   }
- 
-   if(cs == 3)
-   {
-      cursorTimer.stop();
-      setCursor(QCursor(Qt::ClosedHandCursor));
-      isMoving = true;
-      grabbing = false;
-      cursorStatus = 3;
-      return;
-   }
-}       
-
-void StretchCircle::cursorTimerOut()
-{
-   setCursorStatus(2);
+   QGraphicsEllipseItem::keyPressEvent(ke);
 }
 
 
-void StretchCircle::setStretchable(bool is)
+
+
+QColor StretchCircle::penColor()
 {
-   stretchable = is;
+   return pen().color();
 }
+
+void StretchCircle::penColor(const QColor & newcol)
+{
+   QPen p = pen();
+   p.setColor(newcol);
+   setPen(p);
+}
+
+float StretchCircle::penWidth()
+{
+   return pen().widthF();
+}
+
+void StretchCircle::penWidth(float newwidth)
+{
+   QPen p = pen();
+   p.setWidthF(newwidth);
+   setPen(p);
+}
+
+
+
