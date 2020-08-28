@@ -1,6 +1,6 @@
 
 #include "StretchBox.hpp"
-#include <iostream>
+#include <cmath>
 
 StretchBox::StretchBox(QGraphicsItem * parent) : QGraphicsRectItem(parent)
 {
@@ -16,345 +16,234 @@ StretchBox::StretchBox(const QRectF & rect, QGraphicsItem * parent) : QGraphicsR
       
 StretchBox::StretchBox(qreal x, qreal y, qreal width, qreal height, QGraphicsItem * parent) : QGraphicsRectItem(x,y,width,height,parent)
 {
-   xoff = x;
-   yoff = y;
-   
    initStretchBox();
    return;
 }
 
 void StretchBox::initStretchBox()
-{
-   setFlag(QGraphicsItem::ItemIsSelectable, false);
-   setAcceptHoverEvents(true);
-
-   edgeTol = 5;
-   
-   sizing = szOff;
-   isSizing = false;   
-   isMoving = false;
-   grabbing = false;
-   
-   setStretchable(true);
-   
-   //setAltSelected(false);
-   
-   setCursorStatus (0);
-   cursorTimeout = 750;
-   
-   cursorTimer.setSingleShot(true);
-   connect(&cursorTimer, SIGNAL(timeout()), this, SLOT(cursorTimerOut()));
-  
+{   
+   connect(&m_cursorTimer, SIGNAL(timeout()), this, SLOT(cursorTimerOut()));
 }
 
+
 void StretchBox::hoverMoveEvent(QGraphicsSceneHoverEvent * e)
+{
+   handleHoverMoveEvent(e);
+}
+
+void StretchBox::hoverLeaveEvent(QGraphicsSceneHoverEvent * e)
+{
+   handleHoverLeaveEvent(e);
+}
+
+void StretchBox::mousePressEvent (QGraphicsSceneMouseEvent * e)
+{
+   handleMousePressEvent(e);
+}
+
+void StretchBox::mouseReleaseEvent(QGraphicsSceneMouseEvent * e)
+{
+   handleMouseReleaseEvent(e);
+}
+
+void StretchBox::mouseMoveEvent(QGraphicsSceneMouseEvent * e)
+{
+   handleMouseMoveEvent(e);
+}
+
+void StretchBox::keyPressEvent(QKeyEvent * ke)
+{
+   handleKeyPressEvent(ke);
+}
+
+void StretchBox::passKeyPressEvent(QKeyEvent * ke)
+{
+   QGraphicsRectItem::keyPressEvent(ke);
+}
+
+void StretchBox::cursorTimerOut()
+{
+   slotCursorTimerOut();
+}
+
+bool StretchBox::onHoverComputeSizing(QGraphicsSceneHoverEvent * e)
 {
    double rx, ry;
    
    rx = e->lastPos().x() - rect().x();
    ry = e->lastPos().y() - rect().y();
 
-   //QPointF np = mapFromScene(QPointF(0, 0));
-   //QPointF np2 = mapFromScene(QPointF(edgeTol, edgeTol));
-   
-   if(rx > edgeTol && rx < rect().width()-edgeTol && ry > edgeTol && ry < rect().height() -edgeTol)
+   if(rx > m_edgeTol && rx < rect().width()-m_edgeTol && ry > m_edgeTol && ry < rect().height() -m_edgeTol)
    { 
-      //Mouse hover outside the edge band
-      setCursorStatus(0);
-      return;
+      return false;
    }
 
-   
    //Upper Left Corner
-   if(rx > -edgeTol && rx < edgeTol && ry > -edgeTol && ry < edgeTol)
+   if(rx > -m_edgeTol && rx < m_edgeTol && ry > -m_edgeTol && ry < m_edgeTol)
    {
-      sizing = szTopl;
+      m_sizing = szTopl;
    }
-   else if(rx > -edgeTol && rx < edgeTol && ry > rect().height()-edgeTol && ry < rect().height()+edgeTol)
+   else if(rx > -m_edgeTol && rx < m_edgeTol && ry > rect().height()-m_edgeTol && ry < rect().height()+m_edgeTol)
    {
-      sizing = szBotl; //Bottom Left
+      m_sizing = szBotl; //Bottom Left
    }
-   else if(rx > rect().width()-edgeTol && rx < rect().width()+edgeTol && ry > -edgeTol && ry < edgeTol)
+   else if(rx > rect().width()-m_edgeTol && rx < rect().width()+m_edgeTol && ry > -m_edgeTol && ry < m_edgeTol)
    {
-      sizing = szTopr;
+      m_sizing = szTopr;
    }
-   else if(rx > rect().width()-edgeTol && rx < rect().width()+edgeTol && ry > rect().height()-edgeTol && ry < rect().height()+edgeTol)
+   else if(rx > rect().width()-m_edgeTol && rx < rect().width()+m_edgeTol && ry > rect().height()-m_edgeTol && ry < rect().height()+m_edgeTol)
    {
-      sizing = szBotr;
+      m_sizing = szBotr;
    }
-   else if(rx > -edgeTol && rx < edgeTol && ry > -edgeTol && ry < rect().height()+edgeTol)
+   else if(rx > -m_edgeTol && rx < m_edgeTol && ry > -m_edgeTol && ry < rect().height()+m_edgeTol)
    {
-      sizing = szLeft;
+      m_sizing = szLeft;
    }
-   else  if(rx > rect().width()-edgeTol && rx < rect().width()+edgeTol && ry > -edgeTol && ry < rect().height()+edgeTol)
+   else  if(rx > rect().width()-m_edgeTol && rx < rect().width()+m_edgeTol && ry > -m_edgeTol && ry < rect().height()+m_edgeTol)
    {
-      sizing = szRight;
+      m_sizing = szRight;
    }
-   else if(rx > -edgeTol && rx < rect().width()+edgeTol && ry > -edgeTol && ry < edgeTol)
+   else if(rx > -m_edgeTol && rx < rect().width()+m_edgeTol && ry > -m_edgeTol && ry < m_edgeTol)
    {
-      sizing = szTop;
+      m_sizing = szTop;
    }
-   else if(rx > -edgeTol && rx < rect().width()+edgeTol && ry > rect().height()-edgeTol && ry < rect().height()+edgeTol)
+   else if(rx > -m_edgeTol && rx < rect().width()+m_edgeTol && ry > rect().height()-m_edgeTol && ry < rect().height()+m_edgeTol)
    {
-      sizing = szBot;
-   }
-
-   //next:
-   
-   if(cursorStatus == 0)
-   {
-      setCursorStatus(1);
-      return;
+      m_sizing = szBot;
    }
    
-   if(cursorStatus == 2 ) 
-   {
-      setCursorStatus(2);
-      return;
-   }
-   
-  
-
+   return true;
 }
 
-void StretchBox::hoverLeaveEvent(QGraphicsSceneHoverEvent * e)
+bool StretchBox::onMousePressCalcGrabbed(QGraphicsSceneMouseEvent * e)
 {
-   setCursorStatus(0);
-   (void)(e);
-}
+   double rx, ry;
+   rx = e->pos().x() - rect().x();
+   ry = e->pos().y() - rect().y();
    
-void StretchBox::mousePressEvent ( QGraphicsSceneMouseEvent * e )
-{
-   if(grabbing || !stretchable)
-   {
-      double rx, ry;
-      rx = e->pos().x() - rect().x();
-      ry = e->pos().y() - rect().y();
-      
-      if(rx > edgeTol && rx < rect().width()-edgeTol && ry > edgeTol && ry < rect().height() -edgeTol)
-      { 
-         //Mouse pressed outside the edge band
-         setCursorStatus(0);
-         return;
-      }
-      else
-      {
-         //Mouse pressed inside the edge band while in Open Hand
-         setCursorStatus(3);
-         x0 = x();
-         y0 = y();
-         mx0 = e->scenePos().x();
-         my0 = e->scenePos().y();
-         isMoving=true;
-         isSizing = false;
-         sizing=szOff;
-         return;
-      }
-   }
-   else if(sizing)
-   {
-      grabbing = false;
-      x0 = rect().x();
-      y0 = rect().y();
-      w0 = rect().width();
-      h0 = rect().height();
-      mx0 = e->scenePos().x();
-      my0 = e->scenePos().y();
+   if(rx > m_edgeTol && rx < rect().width()-m_edgeTol && ry > m_edgeTol && ry < rect().height() - m_edgeTol)
+   { 
+      return false;
    }
    else
    {
-      emit rejectMouse();
+      return true;
    }
-   
-   (void)(e);
 }
-
-void StretchBox::mouseReleaseEvent(QGraphicsSceneMouseEvent * event)
+ 
+void StretchBox::setGrabbedGeometry(QGraphicsSceneMouseEvent * e)
 {
-   if(sizing)
-   {
-      if(isSizing)
-      {
-         sizing = szOff;
-         isSizing = false;
-         emit(moved(rect()));
-         return;
-      }
-      else
-      {
-         sizing=szOff;
-         setCursorStatus(1);
-         return;
-      }
-   }
+   m_ul_x = x();
+   m_ul_y = y();
+   m_mv_x0 = e->scenePos().x();
+   m_mv_y0 = e->scenePos().y();
    
-   if(isMoving)
-   {
-      isMoving = false;
-      //setAltSelected(true);
-      emit(moved(rect()));
-      setCursorStatus(1);
-      return;
-   }
-     
-   setCursorStatus(0);
-   
-   (void)(event);
 }
 
-void StretchBox::mouseMoveEvent ( QGraphicsSceneMouseEvent * e )
+void StretchBox::setMovingGeometry(QGraphicsSceneMouseEvent * e)
+{
+   static_cast<void>(e);
+   return;
+}
+
+QRectF StretchBox::sizingCalcNewRect(QGraphicsSceneMouseEvent * e)
 {
    double newx, newy, neww, newh;
    
-   if(sizing && !isMoving)
+   if(m_sizing == szLeft)
    {
-      isSizing = true;
-      if(sizing == szLeft)
-      {
-         newx = x0 + (e->scenePos().x() - mx0);
-         newy = y0;
-         neww = w0 - (e->scenePos().x() - mx0);
-         newh = h0; 
-         setRect(newx, newy, neww, newh);
-         return;
-      }
-      if(sizing == szTopl)
-      {
-         newx = x0 + (e->scenePos().x() - mx0);
-         newy = y0 + (e->scenePos().y() - my0);
-         neww = w0 - (e->scenePos().x() - mx0);
-         newh = h0 - (e->scenePos().y() - my0); 
-         setRect(newx, newy, neww, newh);
-         return;
-      }
-      if(sizing == szTop)
-      {
-         newx = x0;
-         newy = y0 + (e->scenePos().y() - my0);
-         neww = w0;
-         newh = h0 - (e->scenePos().y() - my0); 
-         setRect(newx, newy, neww, newh);
-         return;
-      }
-      if(sizing == szTopr)
-      {
-         newx = x0;
-         newy = y0 + (e->scenePos().y() - my0);
-         neww = w0 + (e->scenePos().x() - mx0);
-         newh = h0 - (e->scenePos().y() - my0); 
-         setRect(newx, newy, neww, newh);
-         return;
-      }
-      if(sizing == szRight)
-      {
-         newx = x0;
-         newy = y0;
-         neww = w0 + (e->scenePos().x() - mx0);
-         newh = h0; 
-         setRect(newx, newy, neww, newh);
-         return;
-      }
-      if(sizing == szBotr)
-      {
-         newx = x0;
-         newy = y0;
-         neww = w0 + (e->scenePos().x() - mx0);
-         newh = h0 + (e->scenePos().y() - my0);
-         setRect(newx, newy, neww, newh);
-         return;
-      }
-      if(sizing == szBot)
-      {
-         newx = x0;
-         newy = y0;
-         neww = w0;
-         newh = h0 + (e->scenePos().y() - my0);
-         setRect(newx, newy, neww, newh);
-         return;
-      }
-      if(sizing == szBotl)
-      {
-         newx = x0 + (e->scenePos().x() - mx0);
-         newy = y0;
-         neww = w0 - (e->scenePos().x() - mx0);
-         newh = h0 + (e->scenePos().y() - my0);
-         setRect(newx, newy, neww, newh);
-         return;
-      }
+      newx = m_ul_x + (e->scenePos().x() - m_mv_x0);
+      newy = m_ul_y;
+      neww = m_width - (e->scenePos().x() - m_mv_x0);
+      newh = m_height; 
    }
-   else if(isMoving)
+   else if(m_sizing == szTopl)
    {
-      isSizing = false;
-      newx = x0 + (e->scenePos().x() - mx0);
-      newy = y0 + (e->scenePos().y() - my0);
-      setPos(newx, newy);
+      newx = m_ul_x + (e->scenePos().x() - m_mv_x0);
+      newy = m_ul_y + (e->scenePos().y() - m_mv_y0);
+      neww = m_width - (e->scenePos().x() - m_mv_x0);
+      newh = m_height - (e->scenePos().y() - m_mv_y0);    
    }
+   else if(m_sizing == szTop)
+   {
+      newx = m_ul_x;
+      newy = m_ul_y + (e->scenePos().y() - m_mv_y0);
+      neww = m_width;
+      newh = m_height - (e->scenePos().y() - m_mv_y0); 
+   }
+   else if(m_sizing == szTopr)
+   {
+      newx = m_ul_x;
+      newy = m_ul_y + (e->scenePos().y() - m_mv_y0);
+      neww = m_width + (e->scenePos().x() - m_mv_x0);
+      newh = m_height - (e->scenePos().y() - m_mv_y0); 
+   }
+   else if(m_sizing == szRight)
+   {
+      newx = m_ul_x;
+      newy = m_ul_y;
+      neww = m_width + (e->scenePos().x() - m_mv_x0);
+      newh = m_height; 
+   }
+   else if(m_sizing == szBotr)
+   {
+      newx = m_ul_x;
+      newy = m_ul_y;
+      neww = m_width + (e->scenePos().x() - m_mv_x0);
+      newh = m_height + (e->scenePos().y() - m_mv_y0);
+   }
+   else if(m_sizing == szBot)
+   {
+      newx = m_ul_x;
+      newy = m_ul_y;
+      neww = m_width;
+      newh = m_height + (e->scenePos().y() - m_mv_y0);
+   }
+   else if(m_sizing == szBotl)
+   {
+      newx = m_ul_x + (e->scenePos().x() - m_mv_x0);
+      newy = m_ul_y;
+      neww = m_width - (e->scenePos().x() - m_mv_x0);
+      newh = m_height + (e->scenePos().y() - m_mv_y0);
+   }
+      
+   return QRectF(newx, newy, neww, newh);
 }
 
-void StretchBox::setCursorStatus(int cs)
+QPointF StretchBox::movingCalcNewPos( QGraphicsSceneMouseEvent * e )
 {
-   if(cs == 0)
-   {
-      cursorTimer.stop();
-      grabbing = false;
-      isMoving = false;
-      sizing = szOff;
-      setCursor(QCursor(Qt::ArrowCursor));
-      cursorStatus = 0;
-      return;
-   }
-   
-   if(cs == 1)
-   {
-      if(grabbing) return;
-      setCursor(QCursor(Qt::OpenHandCursor));
-      grabbing=true;
-      cursorTimer.start(cursorTimeout);
-      cursorStatus = 1;
-      return;
-   }
-   
-   if(cs == 2)
-   {
-      grabbing = false;
-      if(sizing == szTopl)  setCursor(QCursor(Qt::SizeFDiagCursor));
-      if(sizing == szBotl)  setCursor(QCursor(Qt::SizeBDiagCursor));
-      if(sizing == szTopr)  setCursor(QCursor(Qt::SizeBDiagCursor));
-      if(sizing == szBotr)  setCursor(QCursor(Qt::SizeFDiagCursor));
-      if(sizing == szLeft)  setCursor(QCursor(Qt::SizeHorCursor));
-      if(sizing == szRight) setCursor(QCursor(Qt::SizeHorCursor));
-      if(sizing == szTop)   setCursor(QCursor(Qt::SizeVerCursor));
-      if(sizing == szBot)   setCursor(QCursor(Qt::SizeVerCursor));
-      cursorStatus = 2;
-      return;
-   }
+   float newx = m_ul_x + (e->scenePos().x() - m_mv_x0);
+   float newy = m_ul_y + (e->scenePos().y() - m_mv_y0);
  
-   if(cs == 3)
-   {
-      cursorTimer.stop();
-      setCursor(QCursor(Qt::ClosedHandCursor));
-      isMoving = true;
-      grabbing = false;
-      cursorStatus = 3;
-   }
-}       
-
-void StretchBox::cursorTimerOut()
-{
-   setCursorStatus(2);
+   return QPointF(newx, newy);
 }
 
-void StretchBox::setStretchable(bool is)
+void StretchBox::emitMoved()
 {
-   stretchable = is;
+   emit moved(this);
 }
 
-void StretchBox::setCursorTimeout(int cto)
+void StretchBox::emitResized()
 {
-   cursorTimeout = cto;
+   emit resized(this);
 }
 
-int StretchBox::getCursorTimeout()
+void StretchBox::emitRejectMouse()
 {
-   return cursorTimeout;
+   emit rejectMouse(this);
+}
+
+void StretchBox::emitMouseIn()
+{
+   emit mouseIn(this);
+}
+
+void StretchBox::emitMouseOut()
+{
+   emit mouseOut(this);
+}
+
+void StretchBox::emitRemove()
+{
+   emit remove(this);
 }

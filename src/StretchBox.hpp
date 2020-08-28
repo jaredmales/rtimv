@@ -4,88 +4,100 @@
 
 
 #include <QGraphicsRectItem>
-#include <QGraphicsSceneMouseEvent>
-#include <QCursor>
-#include <QObject>
-#include <QTimer>
 
-class StretchBox : public QObject, public QGraphicsRectItem
+
+#include "StretchGraphicsItem.hpp"
+
+class StretchBox : public QObject, public QGraphicsRectItem, public StretchGraphicsItem<StretchBox>
 {
    Q_OBJECT
 
-   public:
-
-      StretchBox(QGraphicsItem * parent = 0);
-      StretchBox(const QRectF & rect, QGraphicsItem * parent = 0 );
-      StretchBox(qreal x, qreal y, qreal width, qreal height, QGraphicsItem * parent = 0 );
-
-      QCursor defCursor;
-      qreal xoff, yoff;
-   private:
-      void initStretchBox();
-      
-   protected:
-      
-      int edgeTol;
-      
-      void hoverMoveEvent(QGraphicsSceneHoverEvent * e);
-      void hoverLeaveEvent(QGraphicsSceneHoverEvent * e);
-      
-      void mousePressEvent ( QGraphicsSceneMouseEvent * event );
-      void mouseReleaseEvent(QGraphicsSceneMouseEvent * event );
-      
-      void mouseMoveEvent(QGraphicsSceneMouseEvent * event);
-
-      ///Tracks how the box is currently being resized.
-      int sizing;
-      
-      ///Describes how the box is being resized.
-      enum sizingMode{szOff, szLeft, szTopl, szTop, szTopr, szRight, szBotr, szBot, szBotl};
-      
-      ///Tracks whether the box is being resized.
-      bool isSizing;
-      
-      ///Trackes whether the box is moving.
-      bool isMoving;
-      
-      double x0, y0, w0, h0, mx0, my0;
-            
-      ///Is this box stretchable?  If not goes straight to grab for move.
-      /** If stretchable == false, then mouse over goes straight to the hand.
-        */
-      bool stretchable;
-      
-      bool grabbing;
-      
-      int cursorStatus;
-      
-      void setCursorStatus(int cs);
-      
-      int cursorTimeout;
-      
-      QTimer cursorTimer; ///< When this times out change cursor.
-
-protected slots:
+   friend class StretchGraphicsItem<StretchBox>;
    
-   virtual void cursorTimerOut();
-      
 public:
 
-   int getEdgeTol(){ return edgeTol;}
-   void setEdgeTol(int et){ edgeTol = et;}
+   StretchBox(QGraphicsItem * parent = 0);
+   StretchBox(const QRectF & rect, QGraphicsItem * parent = 0 );
+   StretchBox(qreal x, qreal y, qreal width, qreal height, QGraphicsItem * parent = 0 );
+   
+private:
+   /// Initialize the stretch circle
+   /** This connects m_cursorTimer (from StretchGraphicsItem) to the required cursorTimerOut slot.
+     *
+     */ 
+   void initStretchBox(); 
       
-//    void setAltSelected(bool);
-//    bool isAltSelected(){return altSelected;}
+   
+protected:
+   
+   /** \name Event Handlers
+     * Each of these calls the associated handleXXXX from StretchGraphicsItem
+     * 
+     * @{
+     */
+   void hoverMoveEvent(QGraphicsSceneHoverEvent * e);
+   
+   void hoverLeaveEvent(QGraphicsSceneHoverEvent * e);
       
-   void setStretchable(bool);
-   bool isStretchable(){return stretchable;}
+   void mousePressEvent ( QGraphicsSceneMouseEvent * event );
+   
+   void mouseReleaseEvent(QGraphicsSceneMouseEvent * event );
+      
+   void mouseMoveEvent(QGraphicsSceneMouseEvent * event);
 
-   void setCursorTimeout(int cto);
-   int getCursorTimeout();
+   void keyPressEvent(QKeyEvent * ke);
+
+   ///@}
+
+   /** \name StretchGraphicsItem Interface
+     *
+     * @{
+     */ 
+
+   bool onHoverComputeSizing(QGraphicsSceneHoverEvent * e);
+
+   bool onMousePressCalcGrabbed(QGraphicsSceneMouseEvent * e);
+
+   void setGrabbedGeometry(QGraphicsSceneMouseEvent * e);
+
+   void setMovingGeometry(QGraphicsSceneMouseEvent * e);
+
+   QRectF sizingCalcNewRect(QGraphicsSceneMouseEvent * e);
+
+   QPointF movingCalcNewPos(QGraphicsSceneMouseEvent * e);
+
+   void passKeyPressEvent(QKeyEvent * ke);
+
+protected slots:
+
+   /// When the cursor timer times-out, the cursor is changed to the double-arrow
+   virtual void cursorTimerOut();
+   
+   ///@}
+   
+   /** \name Signals
+     * The emitXXXX are required by StretchGraphicsItem, and each
+     * emits the associated signal.
+     * @{
+     */
+   void emitMoved();
+   void emitResized();
+   void emitRejectMouse();
+   void emitMouseIn();
+   void emitMouseOut();
+   void emitRemove();
    
 signals:
-   void moved(const QRectF &);
-   void rejectMouse();
+   void moved(StretchBox * s);
+   void resized(StretchBox * s);
+   void rejectMouse(StretchBox * s);
+   void mouseIn(StretchBox * s);
+   void mouseOut(StretchBox * s);
+   void remove(StretchBox * s);   
+   
+   ///@}
+   
+
 };
 
 #endif //__StretchBox_h__

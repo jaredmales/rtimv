@@ -24,7 +24,7 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    ui.graphicsView->setScene(qgs);
    
    qpmi = 0;
-   userBox = 0;
+   colorBox = 0;
    statsBox = 0;
    
    
@@ -40,54 +40,40 @@ rtimvMainWindow::rtimvMainWindow( int argc,
 
    
 
-   userBox_i0 = 0;
-   userBox_i1 = 32;
-   userBox_j0 = 0;
-   userBox_j1 = 32;
-   userBox = new StretchBox(0,0,32,32);
-   userBox->setPen(QPen("Yellow"));
-   userBox->setVisible(false);
-   userBox->setStretchable(true);
-   connect(userBox, SIGNAL(moved(const QRectF & )), this, SLOT(userBoxMoved(const QRectF & )));
-   connect(userBox, SIGNAL(rejectMouse()), this, SLOT(userBoxRejectMouse()));
-   
-   qgs->addItem(userBox);
+   colorBox_i0 = 0;
+   colorBox_i1 = 32;
+   colorBox_j0 = 0;
+   colorBox_j1 = 32;
+   colorBox = new StretchBox(0,0,32,32);
+   colorBox->setPenColor("Yellow");
+   colorBox->setPenWidth(0.1);
+   colorBox->setVisible(false);
+   colorBox->setStretchable(true);
+   colorBox->setRemovable(false);
+   m_userBoxes.insert(colorBox);
+   connect(colorBox, SIGNAL(moved(StretchBox *)), this, SLOT(colorBoxMoved(StretchBox * )));
+   connect(colorBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
+   qgs->addItem(colorBox);
 
    statsBox = new StretchBox(0,0,32,32);
    statsBox->setPen(QPen("Red"));
    statsBox->setVisible(false);
    statsBox->setStretchable(true);
-   connect(statsBox, SIGNAL(moved(const QRectF & )), this, SLOT(statsBoxMoved(const QRectF & )));
-   connect(statsBox, SIGNAL(rejectMouse()), this, SLOT(statsBoxRejectMouse()));
-   
+   statsBox->setRemovable(false);
+   connect(statsBox, SIGNAL(moved(StretchBox *)), this, SLOT(statsBoxMoved(StretchBox *)));
+   connect(statsBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
    qgs->addItem(statsBox);
 
-   guideBox = new StretchBox(0,0,32,32);
-   guideBox->setPen(QPen("Cyan"));
-   guideBox->setVisible(false);
-   guideBox->setStretchable(true);
-   connect(guideBox, SIGNAL(moved(const QRectF & )), this, SLOT(guideBoxMoved(const QRectF & )));
-   connect(guideBox, SIGNAL(rejectMouse()), this, SLOT(guideBoxRejectMouse()));
-   
-   qgs->addItem(guideBox);
+//    guideBox = new StretchBox(0,0,32,32);
+//    guideBox->setPen(QPen("Cyan"));
+//    guideBox->setVisible(false);
+//    guideBox->setStretchable(true);
+//    guideBox->setRemovable(false)
+//    connect(guideBox, SIGNAL(moved(StretchBox *)), this, SLOT(guideBoxMoved(StretchBox * )));
+//    connect(guideBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(guideBoxRejectMouse(StretchBox *)));
+//    
+//    qgs->addItem(guideBox);
 
-
-   userCircle = new StretchCircle(512,512, 64, 64);
-   userCircle->setPen(QPen("lime"));
-   userCircle->setStretchable(true);
-   userCircle->setVisible(false);
-   
-
-      
-   connect(userCircle, SIGNAL(resized(const float &)), this, SLOT(userCircleResized(const float &)));
-   connect(userCircle, SIGNAL(moved(const QRectF & )), this, SLOT(userCircleMoved(const QRectF & )));
-   connect(userCircle, SIGNAL(mouseIn()), this, SLOT(userCircleMouseIn()));
-   connect(userCircle, SIGNAL(mouseOut()), this, SLOT(userCircleMouseOut()));
-   connect(userCircle, SIGNAL(rejectMouse()), this, SLOT(userCircleRejectMouse()));
-
-   
-   qgs->addItem(userCircle);
-  
    
    
    m_targetVisible = false;
@@ -262,15 +248,15 @@ void rtimvMainWindow::postSetImsize()
    
 
    //Resize the user color box
-   userBox_i0 = m_ny*.25;
-   userBox_i1 = m_ny*.75;
+   colorBox_i0 = m_ny*.25;
+   colorBox_i1 = m_ny*.75;
 
-   userBox_j0 = m_nx*.25;
-   userBox_j1 = m_nx*.75;
+   colorBox_j0 = m_nx*.25;
+   colorBox_j1 = m_nx*.75;
 
-   //std::cout << userBox_i0 << " " << userBox_i1 - userBox_i0 << " " << userBox_j0 << " " << userBox_j1 - userBox_j0<< "\n";
-   userBox->setRect(userBox->mapRectFromScene(userBox_i0, userBox_j0, userBox_i1-userBox_i0, userBox_j1-userBox_j0));
-   userBox->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
+   //std::cout << colorBox_i0 << " " << colorBox_i1 - colorBox_i0 << " " << colorBox_j0 << " " << colorBox_j1 - colorBox_j0<< "\n";
+   colorBox->setRect(colorBox->mapRectFromScene(colorBox_i0, colorBox_j0, colorBox_i1-colorBox_i0, colorBox_j1-colorBox_j0));
+   colorBox->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
 
    //resize the stats box
    statsBox->setRect(statsBox->mapRectFromScene(m_ny*.25, m_nx*.3, .4*m_ny, .4*m_nx));
@@ -278,15 +264,20 @@ void rtimvMainWindow::postSetImsize()
    //statsBoxMoved(statsBox->rect());
    
    //resize the guide box
-   guideBox->setRect(statsBox->mapRectFromScene(m_ny*.3, m_nx*.3, .4*m_ny, .4*m_nx));
-   guideBox->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
+   //guideBox->setRect(statsBox->mapRectFromScene(m_ny*.3, m_nx*.3, .4*m_ny, .4*m_nx));
+   //guideBox->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
    //guideBoxMoved(guideBox->rect());
    
-   //resize the circle
-   userCircle->setRect(userCircle->mapRectFromScene(m_ny*.35, m_nx*.35, .4*m_ny, .4*m_nx));
-   userCircle->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
-   //userCircleMoved(guideBox->rect());
-   
+   //resize the circles 
+   std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
+   while(ucit != m_userCircles.end())
+   {
+      StretchCircle *sc = *ucit;
+      sc->setRect(sc->mapRectFromScene(m_ny*.35, m_nx*.35, .4*m_ny, .4*m_nx));
+      sc->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
+      ++ucit;
+   }
+      
    setTarget();
 }
 
@@ -378,9 +369,9 @@ void rtimvMainWindow::postChangeImdata()
    }
    else qpmi->setPixmap(m_qpm);
         
-   if(userBox) qpmi->stackBefore(userBox);
+   if(colorBox) qpmi->stackBefore(colorBox);
    if(statsBox) qpmi->stackBefore(statsBox);
-   if(guideBox) qpmi->stackBefore(guideBox);
+   //if(guideBox) qpmi->stackBefore(guideBox);
    
    if(imcp)
    {
@@ -458,8 +449,8 @@ void rtimvMainWindow::reStretch()
 
    if(get_colorbar_mode() == minmaxbox)
    {
-      mindat(userBox_min);
-      maxdat(userBox_max);
+      mindat(colorBox_min);
+      maxdat(colorBox_max);
       changeImdata(false);
    }
 }
@@ -743,6 +734,57 @@ void rtimvMainWindow::updateAge()
 
 }
 
+void rtimvMainWindow::addUserBox()
+{
+   float w;
+   if(m_nx < m_ny) w = m_nx/4;
+   else w = m_ny/4;
+   
+   std::pair<std::unordered_set<StretchBox *>::iterator,bool> it = m_userBoxes.insert(new StretchBox(0.5*(m_nx)-w/2,0.5*(m_ny)-w/2, w, w));
+   
+   StretchBox * sb = *it.first;
+   
+   sb->setPenColor("lime");
+   sb->setPenWidth(0.1);
+   
+   sb->setStretchable(true);
+   sb->setVisible(true);
+   
+   connect(sb, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
+   connect(sb, SIGNAL(remove(StretchBox*)), this, SLOT(userBoxRemove(StretchBox*)));
+
+   
+   qgs->addItem(sb);
+      
+}
+
+void rtimvMainWindow::addUserCircle()
+{
+   float w;
+   if(m_nx < m_ny) w = m_nx/4;
+   else w = m_ny/4;
+   
+   std::pair<std::unordered_set<StretchCircle *>::iterator,bool> it = m_userCircles.insert(new StretchCircle(0.5*(m_nx)-w/2,0.5*(m_ny)-w/2, w, w));
+   
+   StretchCircle * sc = *it.first;
+   
+   sc->setPenColor("lime");
+   sc->setPenWidth(0.1);
+   
+   sc->setStretchable(true);
+   sc->setVisible(true);
+   
+   connect(sc, SIGNAL(resized(StretchCircle *)), this, SLOT(userCircleResized(StretchCircle *)));
+   connect(sc, SIGNAL(moved(StretchCircle *)), this, SLOT(userCircleMoved(StretchCircle *)));
+   connect(sc, SIGNAL(mouseIn(StretchCircle *)), this, SLOT(userCircleMouseIn(StretchCircle *)));
+   connect(sc, SIGNAL(mouseOut(StretchCircle *)), this, SLOT(userCircleMouseOut(StretchCircle *)));
+   connect(sc, SIGNAL(rejectMouse(StretchCircle *)), this, SLOT(userCircleRejectMouse(StretchCircle *)));
+   connect(sc, SIGNAL(remove(StretchCircle*)), this, SLOT(userCircleRemove(StretchCircle*)));
+
+   
+   qgs->addItem(sc);
+      
+}
 
 int rtimvMainWindow::targetXc( float txc )
 {
@@ -781,25 +823,25 @@ float rtimvMainWindow::targetYc()
 
 void rtimvMainWindow::doLaunchStatsBox()
 {
-   return;
+   //return;
    
-   /*
+   
    statsBox->setVisible(true);
    
-   if(!imStats)
+   /*if(!imStats)
    {
 //       imStats = new imviewerStats(pixget, type_size, this, 0);
 //       imStats->setAttribute(Qt::WA_DeleteOnClose); //Qt will delete imstats when it closes.
       //imStats->set_imdata(m_imData, frame_time, 0);
       connect(imStats, SIGNAL(finished(int )), this, SLOT(imStatsClosed(int )));
    }
+*/
+   statsBoxMoved(statsBox);
 
-   statsBoxMoved(statsBox->rect());
-
-   imStats->show();
+   //imStats->show();
     
-   imStats->activateWindow();
-   */
+   //imStats->activateWindow();
+   
 }
 
 void rtimvMainWindow::doHideStatsBox()
@@ -834,8 +876,9 @@ void rtimvMainWindow::imStatsClosed(int result)
    
 }
 
-void rtimvMainWindow::statsBoxMoved(const QRectF & newr)
+void rtimvMainWindow::statsBoxMoved(StretchBox * sb)
 {
+   static_cast<void>(sb);
    /*
    QPointF np = qpmi->mapFromItem(statsBox, QPointF(statsBox->rect().x(),statsBox->rect().y()));
    QPointF np2 = qpmi->mapFromItem(statsBox, QPointF(statsBox->rect().x()+statsBox->rect().width(),statsBox->rect().y()+statsBox->rect().height()));
@@ -845,112 +888,163 @@ void rtimvMainWindow::statsBoxMoved(const QRectF & newr)
       //imStats->set_imdata(m_imData, frame_time, m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y(), 0);
    }
    */
-   (void)(newr);
 
 }
 
-void rtimvMainWindow::statsBoxRejectMouse()
-{
-   statsBox->stackBefore(userBox);
-   statsBox->stackBefore(guideBox);
-   statsBox->stackBefore(userCircle);
-}
 
-void rtimvMainWindow::userBoxMoved(const QRectF & newr)
+void rtimvMainWindow::colorBoxMoved(StretchBox * sb)
 {
+   QRectF newr = sb->rect();
    
-   QPointF np = qpmi->mapFromItem(userBox, QPointF(newr.x(),newr.y()));
-   QPointF np2 = qpmi->mapFromItem(userBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
+   QPointF np = qpmi->mapFromItem(colorBox, QPointF(newr.x(),newr.y()));
+   QPointF np2 = qpmi->mapFromItem(colorBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
 
-   userBox_i1 = (int) (np2.x() + .5);
-   userBox_i0 = (int) np.x();
-   userBox_j0 = m_ny-(int) (np2.y() + .5);
-   userBox_j1 = m_ny-(int) np.y();
+   colorBox_i1 = (int) (np2.x() + .5);
+   colorBox_i0 = (int) np.x();
+   colorBox_j0 = m_ny-(int) (np2.y() + .5);
+   colorBox_j1 = m_ny-(int) np.y();
    
    setUserBoxActive(true); //recalcs and recolors.
    
    
 }
 
-void rtimvMainWindow::userBoxRejectMouse()
+void rtimvMainWindow::userBoxRejectMouse(StretchBox * sb)
 {
+   std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
+   while(ubit != m_userBoxes.end())
+   {
+      if(sb != *ubit) sb->stackBefore(*ubit);
+      ++ubit;
+   }
    
-   userBox->stackBefore(statsBox);
-   userBox->stackBefore(guideBox);
-   userBox->stackBefore(userCircle);
-   
+   std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
+   while(ucit != m_userCircles.end())
+   {
+      sb->stackBefore(*ucit);
+      ++ucit;
+   }
 }
 
-
-void rtimvMainWindow::guideBoxMoved(const QRectF & newr)
+void rtimvMainWindow::userBoxRemove(StretchBox * sb)
 {
-   
-   QPointF np = qpmi->mapFromItem(guideBox, QPointF(newr.x(),newr.y()));
-   QPointF np2 = qpmi->mapFromItem(guideBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
-
-   
-   guideBox_i0 = np.x() + .5;
-   guideBox_i1 = np2.x();
-   
-   guideBox_j0 = m_ny-np2.y() + .5;
-   guideBox_j1 = m_ny-np.y();
-  
-
+   m_userBoxes.erase(sb); //Remove it from our list
+   qgs->removeItem(sb); //Remove it from the scene
+   sb->deleteLater(); //clean it up after we're no longer in an asynch function
 }
 
-void rtimvMainWindow::guideBoxRejectMouse()
-{
-   
-   guideBox->stackBefore(statsBox);
-   guideBox->stackBefore(userBox);
-   guideBox->stackBefore(userCircle);
-}
+// void rtimvMainWindow::colorBoxRejectMouse(StretchBox * sb)
+// {
+//    static_cast<void>(sb);
+//    
+//    colorBox->stackBefore(statsBox);
+//    colorBox->stackBefore(guideBox);
+//    
+//    std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
+//    while(ucit != m_userCircles.end())
+//    {
+//       colorBox->stackBefore(*ucit);
+//       ++ucit;
+//    }
+//    
+// }
 
-void rtimvMainWindow::userCircleResized(const float &rad)
-{
-   //std::cout << rad << "\n";
 
+// void rtimvMainWindow::guideBoxMoved(StretchBox * sb)
+// {
+//    
+//    QRectF newr = sb->rect();
+//    
+//    QPointF np = qpmi->mapFromItem(guideBox, QPointF(newr.x(),newr.y()));
+//    QPointF np2 = qpmi->mapFromItem(guideBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
+// 
+//    
+//    guideBox_i0 = np.x() + .5;
+//    guideBox_i1 = np2.x();
+//    
+//    guideBox_j0 = m_ny-np2.y() + .5;
+//    guideBox_j1 = m_ny-np.y();
+//   
+// 
+// }
+// 
+// void rtimvMainWindow::guideBoxRejectMouse(StretchBox * sb)
+// {
+//    static_cast<void>(sb);
+//    
+//    guideBox->stackBefore(statsBox);
+//    guideBox->stackBefore(colorBox);
+//    //guideBox->stackBefore(*(userCircle.begin()));
+//    
+//    std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
+//    while(ucit != m_userCircles.end())
+//    {
+//       guideBox->stackBefore(*ucit);
+//       ++ucit;
+//    }
+// }
+
+void rtimvMainWindow::userCircleResized(StretchCircle * sc)
+{
    char tmp[256];
-   snprintf(tmp, 256, "%0.1f", rad);
+   snprintf(tmp, 256, "%0.1f", sc->radius());
    
    ui.graphicsView->coords->setText(tmp);
 }
 
-void rtimvMainWindow::userCircleMoved(const QRectF &newr)
+void rtimvMainWindow::userCircleMoved(StretchCircle * sc)
 {
-   QPointF np = qpmi->mapFromItem(userCircle, QPointF(newr.x(),newr.y()));
+   QRectF newr = sc->rect();
+   QPointF np = qpmi->mapFromItem(sc, QPointF(newr.x(),newr.y()));
    
    float x = np.x()+.5*newr.width();
    float y = np.y()+.5*newr.height();
    
-   //std::cout << ScreenZoom << " " << ZoomLevel << "\n";
    ui.graphicsView->coords->setGeometry(x*ScreenZoom-35., y*ScreenZoom-20., 70,40);
   
 }
 
-void rtimvMainWindow::userCircleMouseIn()
+void rtimvMainWindow::userCircleMouseIn(StretchCircle * sc)
 {
+   userCircleResized(sc);
+   userCircleMoved(sc);
    ui.graphicsView->coords->setVisible(true);
    
 }
-void rtimvMainWindow::userCircleMouseOut()
+void rtimvMainWindow::userCircleMouseOut(StretchCircle * sc)
 {
+   static_cast<void>(sc);
    ui.graphicsView->coords->setVisible(false);
 }
 
-void rtimvMainWindow::userCircleRejectMouse()
-{
+void rtimvMainWindow::userCircleRejectMouse(StretchCircle * sc)
+{  
+   std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
+   while(ubit != m_userBoxes.end())
+   {
+      sc->stackBefore(*ubit);
+      ++ubit;
+   }
    
-   userCircle->stackBefore(statsBox);
-   userCircle->stackBefore(guideBox);
-   userCircle->stackBefore(userBox);
-   
+   std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
+   while(ucit != m_userCircles.end())
+   {
+      if(sc != *ucit) sc->stackBefore(*ucit);
+      ++ucit;
+   }   
 }
 
+void rtimvMainWindow::userCircleRemove(StretchCircle * sc)
+{
+   userCircleMouseOut(sc); //This cleans up any gui items associated with the circle
+   m_userCircles.erase(sc); //Remove it from our list
+   qgs->removeItem(sc); //Remove it from the scene
+   sc->deleteLater(); //clean it up after we're no longer in an asynch function
+}
 
 void rtimvMainWindow::post_setUserBoxActive(bool usba)
 {
-   userBox->setVisible(usba);
+   colorBox->setVisible(usba);
 }
 
 
@@ -964,13 +1058,16 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
          toggleAutoScale();
          break;
       case 'b':
-         toggleUserBox();
+         addUserBox();
          break;
       case 'c':
          center();
          break;
       case 'f':
          toggleFPSGage();
+         break;
+      case 'o':
+         addUserCircle();
          break;
       case 'p':
          launchControlPanel();
@@ -986,6 +1083,9 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
          break;
       case 'x':
          freezeRealTime();
+         break;
+      case 'z':
+         toggleColorBox();
          break;
       case 'D':
          toggleDarkSub();
@@ -1055,31 +1155,6 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
       return;
    }
 
-   if(ke->text() == "g")
-   {
-      if(!guideBox->isVisible())
-      {
-         guideBox->setVisible(true);
-         
-      }
-      else
-      {
-         guideBox->setVisible(false);
-         
-      }
-      return;
-   }
-   
-    
-   
-   
-   if(ke->text() == "o")
-   {
-      if(userCircle->isVisible()) userCircle->setVisible(false);
-      else userCircle->setVisible(true);
-      
-   }
-   
    QWidget::keyPressEvent(ke);
 }
 
@@ -1120,9 +1195,9 @@ int rtimvMainWindow::center()
    return 0;
 }
 
-int rtimvMainWindow::toggleUserBox()
+int rtimvMainWindow::toggleColorBox()
 {
-   if(!userBoxActive)
+   if(!colorBoxActive)
    {
       if(imcp)
       {
@@ -1130,10 +1205,10 @@ int rtimvMainWindow::toggleUserBox()
       }
       else
       {
-         userBox->setVisible(true);
+         colorBox->setVisible(true);
          setUserBoxActive(true);
       }
-      ui.graphicsView->zoomText("user box scale");
+      ui.graphicsView->zoomText("color box scale");
    }
    else
    {
@@ -1143,7 +1218,7 @@ int rtimvMainWindow::toggleUserBox()
       }
       else
       {
-         userBox->setVisible(false);
+         colorBox->setVisible(false);
          setUserBoxActive(false);
       }
       ui.graphicsView->zoomText("global scale");
@@ -1431,6 +1506,7 @@ int rtimvMainWindow::fontLuminance()
       fontLuminance(ui.graphicsView->m_textCoordX);
       fontLuminance(ui.graphicsView->m_textCoordY);
       fontLuminance(ui.graphicsView->m_textPixelVal);
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
    
    for(size_t n=0; n< ui.graphicsView->m_statusText.size(); ++n)

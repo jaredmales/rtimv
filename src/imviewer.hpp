@@ -370,24 +370,24 @@ public:
      * @{
      */
 protected:
-   int userBoxActive {0};
+   int colorBoxActive {0};
 
    //ImageStreamIO images are sized in uint32_t, so we need these big enough for signed comparisons without wraparound
-   int64_t userBox_i0;
-   int64_t userBox_i1;
-   int64_t userBox_j0;
-   int64_t userBox_j1;
+   int64_t colorBox_i0;
+   int64_t colorBox_i1;
+   int64_t colorBox_j0;
+   int64_t colorBox_j1;
 
    int64_t guideBox_i0;
    int64_t guideBox_i1;
    int64_t guideBox_j0;
    int64_t guideBox_j1;
 
-   float userBox_max;
-   float userBox_min;
+   float colorBox_max;
+   float colorBox_min;
 
 public:
-   int getUserBoxActive(){ return userBoxActive; }
+   int getUserBoxActive(){ return colorBoxActive; }
    
    void setUserBoxActive(bool usba);
    

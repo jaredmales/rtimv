@@ -584,12 +584,12 @@ void imviewer::changeImdata(bool newdata)
       tmp_max = imval;
       saturated = 0;
 
-      if(userBoxActive)
+      if(colorBoxActive)
       {
-         idx = userBox_j0*m_nx + userBox_i0;
+         idx = colorBox_j0*m_nx + colorBox_i0;
          imval = _pixel(this, idx); //m_imData[idx];
-         userBox_min = imval;
-         userBox_max = imval;
+         colorBox_min = imval;
+         colorBox_max = imval;
       }
 
       if( m_mindat == m_maxdat )
@@ -606,12 +606,12 @@ void imviewer::changeImdata(bool newdata)
       
                if(imval >= sat_level) saturated++;
       
-               if(userBoxActive)
+               if(colorBoxActive)
                {
-                  if(i>=userBox_i0 && i<userBox_i1 && j>=userBox_j0 && j < userBox_j1)
+                  if(i>=colorBox_i0 && i<colorBox_i1 && j>=colorBox_j0 && j < colorBox_j1)
                   {
-                     if(imval < userBox_min) userBox_min = imval;
-                     if(imval > userBox_max) userBox_max = imval;
+                     if(imval < colorBox_min) colorBox_min = imval;
+                     if(imval > colorBox_max) colorBox_max = imval;
                   }
                }
       
@@ -634,12 +634,12 @@ void imviewer::changeImdata(bool newdata)
       
                if(imval >= sat_level) saturated++;
       
-               if(userBoxActive)
+               if(colorBoxActive)
                {
-                  if(i>=userBox_i0 && i<userBox_i1 && j>=userBox_j0 && j < userBox_j1)
+                  if(i>=colorBox_i0 && i<colorBox_i1 && j>=colorBox_j0 && j < colorBox_j1)
                   {
-                     if(imval < userBox_min) userBox_min = imval;
-                     if(imval > userBox_max) userBox_max = imval;
+                     if(imval < colorBox_min) colorBox_min = imval;
+                     if(imval > colorBox_max) colorBox_max = imval;
                   }
                }
       
@@ -718,60 +718,60 @@ void imviewer::setUserBoxActive(bool usba)
       int idx;
       float imval;
 
-      if(userBox_i0 > userBox_i1)
+      if(colorBox_i0 > colorBox_i1)
       {
-         idx = userBox_i0;
-         userBox_i0 = userBox_i1;
-         userBox_i1 = idx;
+         idx = colorBox_i0;
+         colorBox_i0 = colorBox_i1;
+         colorBox_i1 = idx;
       }
 
-      if(userBox_i0 < 0) userBox_i0 = 0;
-      if(userBox_i0 >= (int64_t) m_nx) userBox_i0 = (int64_t) m_nx-(userBox_i1-userBox_i0);
+      if(colorBox_i0 < 0) colorBox_i0 = 0;
+      if(colorBox_i0 >= (int64_t) m_nx) colorBox_i0 = (int64_t) m_nx-(colorBox_i1-colorBox_i0);
 
-      if(userBox_i1 <= 0) userBox_i1 = 0 + (userBox_i1-userBox_i0);
-      if(userBox_i1 > (int64_t) m_nx) userBox_i1 = (int64_t)m_nx-1;
+      if(colorBox_i1 <= 0) colorBox_i1 = 0 + (colorBox_i1-colorBox_i0);
+      if(colorBox_i1 > (int64_t) m_nx) colorBox_i1 = (int64_t)m_nx-1;
 
-      if(userBox_j0 > userBox_j1)
+      if(colorBox_j0 > colorBox_j1)
       {
-         idx = userBox_j0;
-         userBox_j0 = userBox_j1;
-         userBox_j1 = idx;
+         idx = colorBox_j0;
+         colorBox_j0 = colorBox_j1;
+         colorBox_j1 = idx;
       }
 
-      if(userBox_j0 < 0) userBox_j0 = 0;
-      if(userBox_j0 >= (int64_t) m_nx) userBox_j0 = (int64_t)m_ny-(userBox_j1-userBox_j0);
+      if(colorBox_j0 < 0) colorBox_j0 = 0;
+      if(colorBox_j0 >= (int64_t) m_nx) colorBox_j0 = (int64_t)m_ny-(colorBox_j1-colorBox_j0);
 
-      if(userBox_j1 <= 0) userBox_j1 = 0 + (userBox_j1-userBox_j0);
-      if(userBox_j1 > (int64_t) m_ny) userBox_j1 = (int64_t)m_ny-1;
+      if(colorBox_j1 <= 0) colorBox_j1 = 0 + (colorBox_j1-colorBox_j0);
+      if(colorBox_j1 > (int64_t) m_ny) colorBox_j1 = (int64_t)m_ny-1;
 
       pixelF _pixel = pixel();
    
-      idx = userBox_j0*m_nx + userBox_i0;
+      idx = colorBox_j0*m_nx + colorBox_i0;
       
       imval = _pixel(this, idx); //m_imData[idx];
 
-      userBox_min = imval;
-      userBox_max = imval;
-      for(int i = userBox_i0; i < userBox_i1; i++)
+      colorBox_min = imval;
+      colorBox_max = imval;
+      for(int i = colorBox_i0; i < colorBox_i1; i++)
       {
-         for(int j = userBox_j0; j < userBox_j1; j++)
+         for(int j = colorBox_j0; j < colorBox_j1; j++)
          {
             idx = j*m_nx + i;
             imval = _pixel(this, idx);// m_imData[idx];
 
-            if(imval < userBox_min) userBox_min = imval;
-            if(imval > userBox_max) userBox_max = imval;
+            if(imval < colorBox_min) colorBox_min = imval;
+            if(imval > colorBox_max) colorBox_max = imval;
          }
       }
 
-      mindat(userBox_min);
-      maxdat(userBox_max);
-      userBoxActive = usba;
+      mindat(colorBox_min);
+      maxdat(colorBox_max);
+      colorBoxActive = usba;
       set_colorbar_mode(minmaxbox);
       changeImdata(false);
       return;
    }
-   userBoxActive = usba;
+   colorBoxActive = usba;
 
 }
 

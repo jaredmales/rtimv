@@ -2,6 +2,8 @@
 #ifndef rtimvMainWindow_hpp
 #define rtimvMainWindow_hpp
 
+#include <unordered_set>
+
 #include <QWidget>
 #include <QScrollBar>
 #include <QMouseEvent>
@@ -181,13 +183,14 @@ class rtimvMainWindow : public imviewer, public application
       
    public:
       
-      StretchBox* userBox;
+      StretchBox* colorBox;
       
       StretchBox* statsBox;
 
-      StretchBox* guideBox;
+      //StretchBox* guideBox;
       
-      StretchCircle * userCircle;
+      std::unordered_set<StretchBox *> m_userBoxes;
+      std::unordered_set<StretchCircle *> m_userCircles;
       
       imviewerStats * imStats;
 
@@ -204,6 +207,12 @@ class rtimvMainWindow : public imviewer, public application
    
       
    public:
+      
+      /// Add a user circle 
+      void addUserBox();
+      
+      /// Add a user circle 
+      void addUserCircle();
       
       /// Set the x-coordinate of the target 
       /** The coordinate is set as a fraction of the image, 0 <= targetXc <= 1.0
@@ -238,21 +247,24 @@ class rtimvMainWindow : public imviewer, public application
       void doHideStatsBox();
       void imStatsClosed(int);
 
-      void statsBoxMoved(const QRectF & newr);
-      void statsBoxRejectMouse();
+      void statsBoxMoved(StretchBox *);
+      //void statsBoxRejectMouse(StretchBox *);
 
-      void userBoxMoved(const QRectF &newr);
-      void userBoxRejectMouse();
+      void colorBoxMoved(StretchBox *);
+      //void colorBoxRejectMouse(StretchBox *);
       
-      void guideBoxMoved(const QRectF &newr);
-      void guideBoxRejectMouse();
+      //void guideBoxMoved(StretchBox *);
+      //void guideBoxRejectMouse(StretchBox *);
  
-      void userCircleResized(const float &rad);
-      void userCircleMoved(const QRectF &newr);
-      void userCircleMouseIn();
-      void userCircleMouseOut();
-      void userCircleRejectMouse();
+      void userBoxRejectMouse(StretchBox *);
+      void userBoxRemove(StretchBox * sc);
       
+      void userCircleResized(StretchCircle * sc);
+      void userCircleMoved(StretchCircle * sc);
+      void userCircleMouseIn(StretchCircle * sc);
+      void userCircleMouseOut(StretchCircle * sc);
+      void userCircleRejectMouse(StretchCircle * sc);
+      void userCircleRemove(StretchCircle * sc);
       
    public:
       virtual void post_setUserBoxActive(bool usba);
@@ -275,7 +287,7 @@ class rtimvMainWindow : public imviewer, public application
       
       int toggleFPSGage();
       
-      int toggleUserBox();
+      int toggleColorBox();
       
       int toggleStatsBox();
       
