@@ -27,7 +27,23 @@ private:
      */ 
    void initStretchBox(); 
       
+   /** \name Geometry 
+     * @{
+     */ 
+protected:
+   bool m_maintainCenter {false}; ///< Sets whether the center coordinate is maintained (true) when stretching, or if it moves (false)
    
+public:
+   
+   /// Get whether or not the center is maintained when stretching.
+   /** \returns the current value of m_maintainCenter
+     */
+   bool maintainCenter();
+   
+   /// Set whether to maintain the center when stretching.
+   void setMaintainCenter(bool mc /**< [in] Set m_maintainCenter to true to maintain the center, false to move it.*/);
+   
+   ///@}
 protected:
    
    /** \name Event Handlers

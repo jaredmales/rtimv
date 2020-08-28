@@ -63,23 +63,12 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    connect(statsBox, SIGNAL(moved(StretchBox *)), this, SLOT(statsBoxMoved(StretchBox *)));
    connect(statsBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
    qgs->addItem(statsBox);
-
-//    guideBox = new StretchBox(0,0,32,32);
-//    guideBox->setPen(QPen("Cyan"));
-//    guideBox->setVisible(false);
-//    guideBox->setStretchable(true);
-//    guideBox->setRemovable(false)
-//    connect(guideBox, SIGNAL(moved(StretchBox *)), this, SLOT(guideBoxMoved(StretchBox * )));
-//    connect(guideBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(guideBoxRejectMouse(StretchBox *)));
-//    
-//    qgs->addItem(guideBox);
-
    
    
    m_targetVisible = false;
    
-   m_cenLineVert = 0;//qgs->addLine(QLineF(.5*getNx(),0, .5*getNx(), getNy()), QColor("lime"));
-   m_cenLineHorz = 0;//qgs->addLine(QLineF(0, .5*getNy(), getNx(), .5*getNy()), QColor("lime"));
+   m_cenLineVert = 0;
+   m_cenLineHorz = 0;
    
    imStats = 0;
    m_timer.start(m_timeout);
@@ -247,26 +236,27 @@ void rtimvMainWindow::postSetImsize()
    
    
 
-   //Resize the user color box
-   colorBox_i0 = m_ny*.25;
-   colorBox_i1 = m_ny*.75;
+//    //Resize the user color box
+//    colorBox_i0 = m_ny*.25;
+//    colorBox_i1 = m_ny*.75;
+// 
+//    colorBox_j0 = m_nx*.25;
+//    colorBox_j1 = m_nx*.75;
+// 
+//    
+//    colorBox->setRect(colorBox->mapRectFromScene(colorBox_i0, colorBox_j0, colorBox_i1-colorBox_i0, colorBox_j1-colorBox_j0));
+//    colorBox->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
 
-   colorBox_j0 = m_nx*.25;
-   colorBox_j1 = m_nx*.75;
-
-   //std::cout << colorBox_i0 << " " << colorBox_i1 - colorBox_i0 << " " << colorBox_j0 << " " << colorBox_j1 - colorBox_j0<< "\n";
-   colorBox->setRect(colorBox->mapRectFromScene(colorBox_i0, colorBox_j0, colorBox_i1-colorBox_i0, colorBox_j1-colorBox_j0));
-   colorBox->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
-
-   //resize the stats box
-   statsBox->setRect(statsBox->mapRectFromScene(m_ny*.25, m_nx*.3, .4*m_ny, .4*m_nx));
-   statsBox->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
-   //statsBoxMoved(statsBox->rect());
    
-   //resize the guide box
-   //guideBox->setRect(statsBox->mapRectFromScene(m_ny*.3, m_nx*.3, .4*m_ny, .4*m_nx));
-   //guideBox->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
-   //guideBoxMoved(guideBox->rect());
+   //resize the boxes
+   std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
+   while(ubit != m_userBoxes.end())
+   {
+      StretchBox *sb = *ubit;
+      sb->setRect(sb->mapRectFromScene(m_ny*.35, m_nx*.35, .4*m_ny, .4*m_nx));
+      sb->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
+      ++ubit;
+   }
    
    //resize the circles 
    std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
@@ -747,6 +737,7 @@ void rtimvMainWindow::addUserBox()
    sb->setPenColor("lime");
    sb->setPenWidth(0.1);
    
+   sb->setMaintainCenter(true);
    sb->setStretchable(true);
    sb->setVisible(true);
    
