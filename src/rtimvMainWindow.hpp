@@ -208,14 +208,18 @@ class rtimvMainWindow : public imviewer, public application
       
    public:
       
-      /// Add a user circle 
+      /// Add a user box 
       void addUserBox();
       
       /// Add a user circle 
       void addUserCircle();
       
-      /// Add a user circle 
+      /// Add a user line 
       void addUserLine();
+      
+      QGraphicsEllipseItem * m_lineHead;
+      QGraphicsLineItem * m_objCenV;
+      QGraphicsLineItem * m_objCenH;
       
       /// Set the x-coordinate of the target 
       /** The coordinate is set as a fraction of the image, 0 <= targetXc <= 1.0
@@ -287,35 +291,37 @@ class rtimvMainWindow : public imviewer, public application
       
    public:
       
-      int setAutoScale( bool as );
+      void setAutoScale( bool as );
       
-      int toggleAutoScale();
+      void toggleAutoScale();
       
-      int center();
+      void center();
       
-      int showFPSGage( bool sfg );
+      void showFPSGage( bool sfg );
       
-      int toggleFPSGage();
+      void toggleFPSGage();
       
-      int toggleColorBox();
+      void toggleColorBox();
       
-      int toggleStatsBox();
+      void toggleStatsBox();
       
-      int setDarkSub( bool ds );
+      void toggleNorthArrow();
       
-      int toggleDarkSub();
+      void setDarkSub( bool ds );
       
-      int setApplyMask( bool am );
+      void toggleDarkSub();
       
-      int toggleApplyMask();
+      void setApplyMask( bool am );
       
-      int setApplySatMask( bool as );
+      void toggleApplyMask();
       
-      int toggleApplySatMask();
+      void setApplySatMask( bool as );
       
-      int toggleLogLinear();
+      void toggleApplySatMask();
       
-      int toggleTarget();
+      void toggleLogLinear();
+      
+      void toggleTarget();
       
       int fontLuminance(QTextEdit* qte);
       

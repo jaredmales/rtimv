@@ -86,6 +86,18 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    nup->setPen(qp);
    nup_tip->setPen(qp);
    
+   m_lineHead = new QGraphicsEllipseItem;
+   m_lineHead->setVisible(false);
+   qgs->addItem(m_lineHead);
+   
+   m_objCenV = new QGraphicsLineItem;
+   m_objCenV->setVisible(false);
+   qgs->addItem(m_objCenV);
+   
+   m_objCenH = new QGraphicsLineItem;
+   m_objCenH->setVisible(false);
+   qgs->addItem(m_objCenH);
+   
    /* ========================================= */
    /* now load plugins                          */
    /* ========================================= */
@@ -791,7 +803,7 @@ void rtimvMainWindow::addUserLine()
    StretchLine * sl = *it.first;
    
    sl->setPenColor("lime");
-   sl->setPenWidth(0.1);
+   sl->setPenWidth(0);
    
    sl->setStretchable(true);
    sl->setVisible(true);
@@ -948,7 +960,17 @@ void rtimvMainWindow::userBoxMoved(StretchBox * sb)
    float x = np.x()+.5*newr.width();
    float y = np.y()+.5*newr.height();
    
-   ui.graphicsView->coords->setGeometry(x*ScreenZoom-35., y*ScreenZoom-20., 200,40);
+   ui.graphicsView->coords->setGeometry(x*ScreenZoom-50., y*ScreenZoom-50., 200,40);
+   
+   float cx = sb->rect().x() + sb->pos().x() + 0.5*sb->rect().width();
+   float cy = sb->rect().y() + sb->pos().y() + 0.5*sb->rect().height();
+   m_objCenH->setPen(sb->pen());
+   m_objCenV->setPen(sb->pen());
+   float w = sb->penWidth();
+   if(w < 1) w = 1;
+   m_objCenH->setLine(cx-2*w, cy, cx+2*w, cy);
+   m_objCenV->setLine(cx, cy-2*w, cx, cy+2*w);
+
 }
 
 void rtimvMainWindow::userBoxMouseIn(StretchBox * sb)
@@ -956,12 +978,17 @@ void rtimvMainWindow::userBoxMouseIn(StretchBox * sb)
    userBoxResized(sb);
    userBoxMoved(sb);
    ui.graphicsView->coords->setVisible(true);
+   m_objCenH->setVisible(true);
+   m_objCenV->setVisible(true);
+
 }
 
 void rtimvMainWindow::userBoxMouseOut(StretchBox * sb)
 {
    static_cast<void>(sb);
    ui.graphicsView->coords->setVisible(false);
+   m_objCenH->setVisible(false);
+   m_objCenV->setVisible(false);
 }
 
 void rtimvMainWindow::userBoxRejectMouse(StretchBox * sb)
@@ -1012,8 +1039,16 @@ void rtimvMainWindow::userCircleMoved(StretchCircle * sc)
    float x = np.x()+.5*newr.width();
    float y = np.y()+.5*newr.height();
    
-   ui.graphicsView->coords->setGeometry(x*ScreenZoom-35., y*ScreenZoom-20., 70,40);
+   ui.graphicsView->coords->setGeometry(x*ScreenZoom-50., y*ScreenZoom-50., 70,40);
   
+   float cx = sc->rect().x() + sc->pos().x() + 0.5*sc->rect().width();
+   float cy = sc->rect().y() + sc->pos().y() + 0.5*sc->rect().height();
+   m_objCenH->setPen(sc->pen());
+   m_objCenV->setPen(sc->pen());
+   float w = sc->penWidth();
+   if(w < 1) w = 1;
+   m_objCenH->setLine(cx-2*w, cy, cx+2*w, cy);
+   m_objCenV->setLine(cx, cy-2*w, cx, cy+2*w);
 }
 
 void rtimvMainWindow::userCircleMouseIn(StretchCircle * sc)
@@ -1021,12 +1056,16 @@ void rtimvMainWindow::userCircleMouseIn(StretchCircle * sc)
    userCircleResized(sc);
    userCircleMoved(sc);
    ui.graphicsView->coords->setVisible(true);
+   m_objCenH->setVisible(true);
+   m_objCenV->setVisible(true);
 }
 
 void rtimvMainWindow::userCircleMouseOut(StretchCircle * sc)
 {
    static_cast<void>(sc);
    ui.graphicsView->coords->setVisible(false);
+   m_objCenH->setVisible(false);
+   m_objCenV->setVisible(false);
 }
 
 void rtimvMainWindow::userCircleRejectMouse(StretchCircle * sc)
@@ -1079,11 +1118,24 @@ void rtimvMainWindow::userLineMoved(StretchLine * sl)
    float y = np.y();
    
    ui.graphicsView->coords->setGeometry(x*ScreenZoom, y*ScreenZoom-20., 200,40);
-  
+ 
+   float w = sl->penWidth();
+   if(w < 1) w = 1;
+   float lhx = sl->line().x1() - w*1.5;
+   float lhy = sl->line().y1() - w*1.5;
+   m_lineHead->setRect(lhx, lhy, 3*w, 3*w);
 }
 
 void rtimvMainWindow::userLineMouseIn(StretchLine * sl)
 {
+   m_lineHead->setPen(sl->pen());
+   float w = sl->penWidth();
+   if(w < 1) w = 1;
+   float lhx = sl->line().x1() - w*1.5;
+   float lhy = sl->line().y1() - w*1.5;
+   m_lineHead->setRect(lhx, lhy, 3*w, 3*w);
+   m_lineHead->setVisible(true);
+
    userLineResized(sl);
    userLineMoved(sl);
    ui.graphicsView->coords->setVisible(true);
@@ -1092,6 +1144,7 @@ void rtimvMainWindow::userLineMouseIn(StretchLine * sl)
 void rtimvMainWindow::userLineMouseOut(StretchLine * sl)
 {
    static_cast<void>(sl);
+   m_lineHead->setVisible(false);
    ui.graphicsView->coords->setVisible(false);
 }
 
@@ -1135,118 +1188,113 @@ void rtimvMainWindow::post_setUserBoxActive(bool usba)
 
 void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
 {
-   char key = ke->text()[0].toLatin1();
-   
-   switch(key)
+   //First deal with the control sequences
+   if(ke->modifiers() == Qt::ControlModifier) 
    {
-      case 'a':
-         toggleAutoScale();
-         break;
-      case 'b':
-         addUserBox();
-         break;
-      case 'c':
-         center();
-         break;
-      case 'f':
-         toggleFPSGage();
-         break;
-      case 'l':
-         addUserLine();
-         break;
-      case 'o':
-         addUserCircle();
-         break;
-      case 'p':
-         launchControlPanel();
-         break;
-      case 'r':
-         reStretch();
-         break;
-      case 's':
-         toggleStatsBox();
-         break;
-      case 't':
-         toggleTarget();
-         break;
-      case 'x':
-         freezeRealTime();
-         break;
-      case 'z':
-         toggleColorBox();
-         break;
-      case 'D':
-         toggleDarkSub();
-         break;
-      case 'L':
-         toggleLogLinear();
-         break;
-      case 'M':
-         toggleApplyMask();
-         break;
-      case 'S':
-         toggleApplySatMask();
-         break;
-      case '1':
-         zoomLevel(1.0);
-         break;
-      case '2':
-         zoomLevel(2.0);
-         break;
-      case '3':
-         zoomLevel(3.0);
-         break;
-      case '4':
-         zoomLevel(4.0);
-         break;
-      case '5':
-         zoomLevel(5.0);
-         break;
-      case '6':
-         zoomLevel(6.0);
-         break;
-      case '7':
-         zoomLevel(7.0);
-         break;
-      case '8':
-         zoomLevel(8.0);
-         break;
-      case '9':
-         zoomLevel(9.0);
-         break;
-      case '[':
-         squareDown();
-         break;
-      case ']':
-         squareUp();
-         break;
-      default:
-         for(size_t n=0;n<m_overlays.size(); ++n)
-         {
-            m_overlays[n]->keyPressEvent(ke);
-         }
+      switch(ke->key())
+      {
+         case Qt::Key_C:
+            center();
+            break;
+      }
    }
-   
-   if(ke->text() == "n")
+   else //Finally deal with unmodified keys
    {
-      if(!nup) return;
-      if(nup->isVisible())
-      {
-         nup->setVisible(false);
-         nup_tip->setVisible(false);
-      }
-      else
-      {
-         nup->setVisible(true);
-         nup_tip->setVisible(true);
-      }
-      return;
-   }
+      char key = ke->text()[0].toLatin1();
 
-   QWidget::keyPressEvent(ke);
+      switch(ke->key())
+      {
+         case Qt::Key_A:
+            if(key == 'a') return toggleAutoScale();
+            break;
+         case Qt::Key_B:
+            if(key == 'b') return addUserBox();
+            break;
+         case Qt::Key_C:
+            if(key == 'c') return addUserCircle();
+            break;
+         case Qt::Key_D:
+            if(key == 'D') return toggleDarkSub();
+            break;
+         case Qt::Key_F:
+            if(key == 'f') return toggleFPSGage();
+            break;
+         case Qt::Key_L:
+            if(key == 'l') return addUserLine();
+            if(key == 'L') return toggleLogLinear();
+            break;
+         case Qt::Key_M:
+            if(key == 'M') return toggleApplyMask();
+            break;
+         case Qt::Key_N:
+            if(key == 'n') return toggleNorthArrow();
+            break;
+         case Qt::Key_O:
+            if(key == 'o') return addUserCircle();
+            break;
+         case Qt::Key_P:
+            if(key == 'p') return launchControlPanel();
+            break;
+         case Qt::Key_R:
+            if(key == 'r') return reStretch();
+            break;
+         case Qt::Key_S:
+            if(key == 's') return toggleStatsBox();
+            if(key == 'S') return toggleApplySatMask();
+            break;
+         case Qt::Key_T:
+            if(key == 't') return toggleTarget();
+            break;
+         case Qt::Key_X:
+            if(key == 'x') return freezeRealTime();
+            break;
+         case Qt::Key_Z:
+            if(key == 'z') return toggleColorBox();
+            break;            
+         case Qt::Key_1:
+            return zoomLevel(1.0);
+            break;
+         case Qt::Key_2:
+            return zoomLevel(2.0);
+            break;
+         case Qt::Key_3:
+            return zoomLevel(3.0);
+            break;
+         case Qt::Key_4:
+            return zoomLevel(4.0);
+            break;
+         case Qt::Key_5:
+            return zoomLevel(5.0);
+            break;
+         case Qt::Key_6:
+            return zoomLevel(6.0);
+            break;
+         case Qt::Key_7:
+            return zoomLevel(7.0);
+            break;
+         case Qt::Key_8:
+            return zoomLevel(8.0);
+            break;
+         case Qt::Key_9:
+            return zoomLevel(9.0);
+            break;
+         case Qt::Key_BracketLeft:
+            return squareDown();
+            break;
+         case Qt::Key_BracketRight:
+            return squareUp();
+         default:
+            break;
+      }
+   }
+  
+   for(size_t n=0;n<m_overlays.size(); ++n)
+   {
+      m_overlays[n]->keyPressEvent(ke);
+   }
 }
 
-int rtimvMainWindow::setAutoScale( bool as )
+void rtimvMainWindow::setAutoScale( bool as )
 {
    m_autoScale = as;
    if(m_autoScale) 
@@ -1257,33 +1305,29 @@ int rtimvMainWindow::setAutoScale( bool as )
    {
       ui.graphicsView->zoomText("autoscale off");
    }
-
-   return 0;
 }
 
-int rtimvMainWindow::toggleAutoScale()
+void rtimvMainWindow::toggleAutoScale()
 {
    if(m_autoScale) 
    {
-      return setAutoScale(false);
+      setAutoScale(false);
    }
    else 
    {
-      return setAutoScale(true);
+      setAutoScale(true);
    }      
 }
 
-int rtimvMainWindow::center()
+void rtimvMainWindow::center()
 {
    set_viewcen(.5, .5);
    post_zoomLevel();
       
    ui.graphicsView->zoomText("centered");
-   
-   return 0;
 }
 
-int rtimvMainWindow::toggleColorBox()
+void rtimvMainWindow::toggleColorBox()
 {
    if(!colorBoxActive)
    {
@@ -1311,10 +1355,9 @@ int rtimvMainWindow::toggleColorBox()
       }
       ui.graphicsView->zoomText("global scale");
    }
-   return 0;   
 }
 
-int rtimvMainWindow::toggleStatsBox()
+void rtimvMainWindow::toggleStatsBox()
 {
    if(statsBox->isVisible())
    {
@@ -1336,11 +1379,29 @@ int rtimvMainWindow::toggleStatsBox()
          imcp->ui.statsBoxButton->setText("Hide Stats Box");
       }
    }
-   
-   return 0;
+
 }
 
-int rtimvMainWindow::showFPSGage( bool sfg )
+void rtimvMainWindow::toggleNorthArrow()
+{
+   if(!nup) return;
+   
+   if(nup->isVisible())
+   {
+      nup->setVisible(false);
+      nup_tip->setVisible(false);
+      ui.graphicsView->zoomText("North Off");
+   }
+   else
+   {
+      nup->setVisible(true);
+      nup_tip->setVisible(true);
+      ui.graphicsView->zoomText("North On");
+   }
+   
+}
+
+void rtimvMainWindow::showFPSGage( bool sfg )
 {
    m_showFPSGage = sfg;
    if(m_showFPSGage)
@@ -1352,11 +1413,9 @@ int rtimvMainWindow::showFPSGage( bool sfg )
       ui.graphicsView->fpsGageText("");
       ui.graphicsView->zoomText("fps gage off");
    }
-   
-   return 0;
 }
 
-int rtimvMainWindow::toggleFPSGage()
+void rtimvMainWindow::toggleFPSGage()
 {
    if(m_showFPSGage)
    {
@@ -1368,7 +1427,7 @@ int rtimvMainWindow::toggleFPSGage()
    }
 }
 
-int rtimvMainWindow::setDarkSub( bool ds )
+void rtimvMainWindow::setDarkSub( bool ds )
 {
    m_subtractDark = ds;
    if(m_subtractDark)
@@ -1380,10 +1439,9 @@ int rtimvMainWindow::setDarkSub( bool ds )
       ui.graphicsView->zoomText("dark sub. off");
    }
    changeImdata(false);
-   return 0;
 }
 
-int rtimvMainWindow::toggleDarkSub()
+void rtimvMainWindow::toggleDarkSub()
 {
    if(m_subtractDark)
    {
@@ -1395,7 +1453,7 @@ int rtimvMainWindow::toggleDarkSub()
    }
 }
 
-int rtimvMainWindow::setApplyMask( bool am )
+void rtimvMainWindow::setApplyMask( bool am )
 {
    m_applyMask = am;
    if(m_applyMask)
@@ -1407,10 +1465,9 @@ int rtimvMainWindow::setApplyMask( bool am )
       ui.graphicsView->zoomText("mask off");
    }
    changeImdata(false);
-   return 0;
 }
 
-int rtimvMainWindow::toggleApplyMask()
+void rtimvMainWindow::toggleApplyMask()
 {
    if(m_applyMask)
    {
@@ -1422,7 +1479,7 @@ int rtimvMainWindow::toggleApplyMask()
    }
 }
 
-int rtimvMainWindow::setApplySatMask( bool as )
+void rtimvMainWindow::setApplySatMask( bool as )
 {
    m_applySatMask = as;
    if(m_applySatMask)
@@ -1436,10 +1493,9 @@ int rtimvMainWindow::setApplySatMask( bool as )
    
    changeImdata(false);
    
-   return 0;
 }
 
-int rtimvMainWindow::toggleApplySatMask()
+void rtimvMainWindow::toggleApplySatMask()
 {
    if(m_applySatMask)
    {
@@ -1451,7 +1507,7 @@ int rtimvMainWindow::toggleApplySatMask()
    }
 }
 
-int rtimvMainWindow::toggleLogLinear()
+void rtimvMainWindow::toggleLogLinear()
 {
    int s = get_cbStretch();
    
@@ -1465,11 +1521,9 @@ int rtimvMainWindow::toggleLogLinear()
       set_cbStretch(stretchLog);
       ui.graphicsView->zoomText("log stretch");
    }
-      
-   return 0;
 }
 
-int rtimvMainWindow::toggleTarget()
+void rtimvMainWindow::toggleTarget()
 {
    if(m_targetVisible)
    {
@@ -1485,8 +1539,6 @@ int rtimvMainWindow::toggleTarget()
       m_targetVisible=true;
       ui.graphicsView->zoomText("target on");
    }
-      
-   return 0;
 }
 
 

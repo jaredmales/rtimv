@@ -43,6 +43,7 @@ protected:
    float m_mv_ang0 {0};
 
 public:
+
    /// Get the current length of the line 
    /**
      * \returns the length of the line

@@ -16,7 +16,6 @@ StretchLine::StretchLine(qreal xs, qreal ys, qreal xe, qreal ye, QGraphicsItem *
 
 void StretchLine::initStretchLine()
 {   
-   m_edgeTol *= 2;
    connect(&m_cursorTimer, SIGNAL(timeout()), this, SLOT(cursorTimerOut()));
 }
 
@@ -92,18 +91,22 @@ bool StretchLine::onHoverComputeSizing(QGraphicsSceneHoverEvent * e)
       return false;
    }
    
-   if( x*x + y*y < m_edgeTol*m_edgeTol)
-   {
-      m_sizing = szOff;
-      return true;
-   }
+   
+   float r1 = sqrt(x*x + y*y);
    
    float x2 = e->pos().x() - line().x2();
    float y2 = e->pos().y() - line().y2();
    
-   if( x2*x2 + y2*y2 < m_edgeTol*m_edgeTol )
+   float r2 = sqrt(x2*x2 + y2*y2);
+   float l = line().length();
+   if( r2 < m_edgeTol || r2 < 0.1*l) //First make sure we can always change length
    {
       m_sizing = szAll;
+   }
+   else if( r1 < m_edgeTol || r1 < 0.2*l) //Don't allow rotate if too close to the 0
+   {
+      m_sizing = szOff;
+      return true;
    }
    else
    {
