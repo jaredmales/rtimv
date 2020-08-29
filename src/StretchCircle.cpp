@@ -131,13 +131,20 @@ void StretchCircle::setGrabbedGeometry(QGraphicsSceneMouseEvent * e)
 
 void StretchCircle::setMovingGeometry(QGraphicsSceneMouseEvent * e)
 {
+   m_ul_x = rect().x();
+   m_ul_y = rect().y();
+   m_width = rect().width();
+   m_height = rect().height();
+   m_mv_x0 = e->scenePos().x();
+   m_mv_y0 = e->scenePos().y();
+      
    m_cen_x = rect().x() + 0.5*rect().width();
    m_cen_y = rect().y() + 0.5*rect().height();
    
    m_drad0 = (sqrt(pow(e->pos().x() - m_cen_x, 2) + pow(e->pos().y() - m_cen_y,2)));   
 }
 
-QRectF StretchCircle::sizingCalcNewRect(QGraphicsSceneMouseEvent * e)
+void StretchCircle::sizingCalcNewPos(QGraphicsSceneMouseEvent * e)
 {
    float drad, newx, newy, neww, newh;
     
@@ -149,15 +156,15 @@ QRectF StretchCircle::sizingCalcNewRect(QGraphicsSceneMouseEvent * e)
    neww = m_width + 0.5*drad;
    newh = neww;
    
-   return QRectF(newx, newy, neww, newh);
+   setRect(newx, newy, neww, newh);
 }
 
-QPointF StretchCircle::movingCalcNewPos( QGraphicsSceneMouseEvent * e )
+void StretchCircle::movingCalcNewPos( QGraphicsSceneMouseEvent * e )
 {
    float newx = m_ul_x + (e->scenePos().x() - m_mv_x0);
    float newy = m_ul_y + (e->scenePos().y() - m_mv_y0);
  
-   return QPointF(newx, newy);
+   setPos(newx, newy);
 }
 
 void StretchCircle::emitMoved()

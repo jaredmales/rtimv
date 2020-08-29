@@ -151,13 +151,17 @@ void StretchBox::setGrabbedGeometry(QGraphicsSceneMouseEvent * e)
 
 void StretchBox::setMovingGeometry(QGraphicsSceneMouseEvent * e)
 {
-   static_cast<void>(e);
+   m_ul_x = rect().x();
+   m_ul_y = rect().y();
+   m_width = rect().width();
+   m_height = rect().height();
+   m_mv_x0 = e->scenePos().x();
+   m_mv_y0 = e->scenePos().y();
+   
    return;
 }
 
-#include <iostream>
-
-QRectF StretchBox::sizingCalcNewRect(QGraphicsSceneMouseEvent * e)
+void StretchBox::sizingCalcNewPos(QGraphicsSceneMouseEvent * e)
 {
    double newx, newy, neww, newh;
    
@@ -277,15 +281,15 @@ QRectF StretchBox::sizingCalcNewRect(QGraphicsSceneMouseEvent * e)
       newh = m_height + (e->scenePos().y() - m_mv_y0);
    }
       
-   return QRectF(newx, newy, neww, newh);
+   setRect(newx, newy, neww, newh);
 }
 
-QPointF StretchBox::movingCalcNewPos( QGraphicsSceneMouseEvent * e )
+void StretchBox::movingCalcNewPos( QGraphicsSceneMouseEvent * e )
 {
    float newx = m_ul_x + (e->scenePos().x() - m_mv_x0);
    float newy = m_ul_y + (e->scenePos().y() - m_mv_y0);
  
-   return QPointF(newx, newy);
+   setPos(newx, newy);
 }
 
 void StretchBox::emitMoved()

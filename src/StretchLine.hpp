@@ -1,6 +1,6 @@
 
-#ifndef __StretchCircle_h__
-#define __StretchCircle_h__
+#ifndef __StretchLine_h__
+#define __StretchLine_h__
 
 
 #include <QGraphicsEllipseItem>
@@ -8,50 +8,52 @@
 
 #include "StretchGraphicsItem.hpp"
 
-class StretchCircle : public QObject, public QGraphicsEllipseItem, public StretchGraphicsItem<StretchCircle>
+class StretchLine : public QObject, public QGraphicsLineItem, public StretchGraphicsItem<StretchLine>
 {
    Q_OBJECT
 
-   friend class StretchGraphicsItem<StretchCircle>;
+   friend class StretchGraphicsItem<StretchLine>;
    
 public:
 
-   typedef QRectF coordSpecT;
-   
-   StretchCircle(QGraphicsItem * parent = 0);
-   StretchCircle(const QRectF & rect, QGraphicsItem * parent = 0 );
-   StretchCircle(qreal x, qreal y, qreal width, qreal height, QGraphicsItem * parent = 0 );
+   StretchLine(QGraphicsItem * parent = 0);
+   StretchLine(qreal xs, qreal ys, qreal xe, qreal ye, QGraphicsItem * parent = 0 );
    
 private:
    /// Initialize the stretch circle
    /** This connects m_cursorTimer (from StretchGraphicsItem) to the required cursorTimerOut slot.
      *
      */ 
-   void initStretchCircle(); 
+   void initStretchLine(); 
       
 protected:
       
    /** \name Geometry
      * @{
      */
-   float m_ul_x {0}; ///< The x-coordinate of the upper left corner of the bounding box
-   float m_ul_y {0}; ///< The y-coordinate of the upper left corner of the bounding box
-   float m_width {0};  ///< The width of the bounding box
-   float m_height {0}; ///< The height of the bounding box
-   float m_mv_x0 {0}; ///< The x-coordinate of the mouse at the start of a re-size
-   float m_mv_y0 {0}; ///< The y-coordinate of the mouse at the start of a re-size
+   float m_start_x {0};
+   float m_start_y {0};
+     
+   float m_end_x {0}; 
+   float m_end_y {0};
 
-   float m_cen_x {0};  ///< The x-coordinate of the center of the bounding box
-   float m_cen_y {0};  ///< The x-coordinate of the center of the bounding box
-   float m_drad0 {0}; ///< The radius of the mouse position at the start of a re-size
+   float m_mv_x0 {0};
+   float m_mv_y0 {0};
    
+   float m_mv_ang0 {0};
+
 public:
-   
-   /// Get the current radius of the circle 
+   /// Get the current length of the line 
    /**
-     * \returns the radius
+     * \returns the length of the line
      */ 
-   float radius();
+   float length();
+   
+   /// Get the current angle of the line 
+   /**
+     * \returns the angle of the line
+     */
+   float angle();
    
    ///@}
    
@@ -117,17 +119,17 @@ protected slots:
    void emitRemove();
    
 signals:
-   void moved(StretchCircle * s);
-   void resized(StretchCircle * s);
-   void rejectMouse(StretchCircle * s);
-   void mouseIn(StretchCircle * s);
-   void mouseOut(StretchCircle * s);
-   void remove(StretchCircle * s);   
+   void moved(StretchLine * s);
+   void resized(StretchLine * s);
+   void rejectMouse(StretchLine * s);
+   void mouseIn(StretchLine * s);
+   void mouseOut(StretchLine * s);
+   void remove(StretchLine * s);   
    
    ///@}
    
 
 };
 
-#endif //__StretchCircle_h__
+#endif //__StretchLine_h__
 

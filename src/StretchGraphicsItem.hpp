@@ -75,8 +75,8 @@
    bool onMousePressCalcGrabbed(QGraphicsSceneMouseEvent * e);
    void setGrabbedGeometry(QGraphicsSceneMouseEvent * e);
    void setMovingGeometry(QGraphicsSceneMouseEvent * e);
-   QRectF sizingCalcNewRect(QGraphicsSceneMouseEvent * e);
-   QPointF movingCalcNewPos(QGraphicsSceneMouseEvent * e);
+   void sizingCalcNewPos(QGraphicsSceneMouseEvent * e);
+   void movingCalcNewPos(QGraphicsSceneMouseEvent * e);
    \endcode
   *
   * Finally you need to provide a key press handler.  The keyPressEvent will
@@ -108,12 +108,6 @@ protected:
      * @{
      */
    
-   float m_ul_x; ///< The x-coordinate of the upper left corner of the bounding box
-   float m_ul_y; ///< The y-coordinate of the upper left corner of the bounding box
-   float m_width;  ///< The width of the bounding box
-   float m_height; ///< The height of the bounding box
-   float m_mv_x0; ///< The x-coordinate of the mouse at the start of a re-size
-   float m_mv_y0; ///< The y-coordinate of the mouse at the start of a re-size
    
    ///@}
    
@@ -136,7 +130,7 @@ protected:
    bool m_isSizing {false};
    
    ///Describes how the item is being resized.
-   enum sizingMode{szOff, szLeft, szTopl, szTop, szTopr, szRight, szBotr, szBot, szBotl};
+   enum sizingMode{szOff, szLeft, szTopl, szTop, szTopr, szRight, szBotr, szBot, szBotl, szAll};
    
    ///Tracks how the item is currently being resized.
    int m_sizing {szOff};
@@ -344,6 +338,7 @@ void StretchGraphicsItem<QGraphicsItemT>::setCursorStatus(int cs)
       if(m_sizing == szRight) derived()->setCursor(QCursor(Qt::SizeHorCursor));
       if(m_sizing == szTop)   derived()->setCursor(QCursor(Qt::SizeVerCursor));
       if(m_sizing == szBot)   derived()->setCursor(QCursor(Qt::SizeVerCursor));
+      if(m_sizing == szAll)   derived()->setCursor(QCursor(Qt::SizeAllCursor));
       m_cursorStatus = cursorSizing;
       
       return;
@@ -443,12 +438,6 @@ void StretchGraphicsItem<QGraphicsItemT>::handleMousePressEvent(QGraphicsSceneMo
    else if(m_sizing)
    {
       m_grabbing = false;
-      m_ul_x = derived()->rect().x();
-      m_ul_y = derived()->rect().y();
-      m_width = derived()->rect().width();
-      m_height = derived()->rect().height();
-      m_mv_x0 = e->scenePos().x();
-      m_mv_y0 = e->scenePos().y();
       derived()->setMovingGeometry(e);
    }
    else
@@ -495,18 +484,15 @@ void StretchGraphicsItem<QGraphicsItemT>::handleMouseMoveEvent(QGraphicsSceneMou
    {
       m_isSizing = true;
       
-      QRectF r = derived()->sizingCalcNewRect(event);
-      
-      derived()->setRect(r);
-
+      derived()->sizingCalcNewPos(event);
+   
       derived()->emitResized();
       
    }
    else if(m_isMoving)
    {
       m_isSizing = false;
-      QPointF p = derived()->movingCalcNewPos(event);
-      derived()->setPos(p);
+      derived()->movingCalcNewPos(event);
       derived()->emitMoved();
    }
 }

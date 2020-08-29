@@ -83,7 +83,7 @@ rtimvGraphicsView::rtimvGraphicsView(QWidget *parent): QGraphicsView(parent)
    
    coords = new QTextEdit(this);
    textEditSetup(coords);
-   coords->setGeometry(150, 150, 100, 50);
+   coords->setGeometry(150, 150, 300, 50);
    
    QFont qf;
    qf = coords->currentFont();

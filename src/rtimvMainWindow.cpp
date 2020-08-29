@@ -86,7 +86,6 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    nup->setPen(qp);
    nup_tip->setPen(qp);
    
-   
    /* ========================================= */
    /* now load plugins                          */
    /* ========================================= */
@@ -741,6 +740,10 @@ void rtimvMainWindow::addUserBox()
    sb->setStretchable(true);
    sb->setVisible(true);
    
+   connect(sb, SIGNAL(resized(StretchBox *)), this, SLOT(userBoxResized(StretchBox *)));
+   connect(sb, SIGNAL(moved(StretchBox *)), this, SLOT(userBoxMoved(StretchBox *)));
+   connect(sb, SIGNAL(mouseIn(StretchBox *)), this, SLOT(userBoxMouseIn(StretchBox *)));
+   connect(sb, SIGNAL(mouseOut(StretchBox *)), this, SLOT(userBoxMouseOut(StretchBox *)));
    connect(sb, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
    connect(sb, SIGNAL(remove(StretchBox*)), this, SLOT(userBoxRemove(StretchBox*)));
 
@@ -774,6 +777,34 @@ void rtimvMainWindow::addUserCircle()
 
    
    qgs->addItem(sc);
+      
+}
+
+void rtimvMainWindow::addUserLine()
+{
+   float w;
+   if(m_nx < m_ny) w = m_nx/4;
+   else w = m_ny/4;
+   
+   std::pair<std::unordered_set<StretchLine *>::iterator,bool> it = m_userLines.insert(new StretchLine(0.5*(m_nx)-w/2,0.5*(m_ny)-w/2, 0.5*(m_nx)+w/2,0.5*(m_ny)+w/2));
+   
+   StretchLine * sl = *it.first;
+   
+   sl->setPenColor("lime");
+   sl->setPenWidth(0.1);
+   
+   sl->setStretchable(true);
+   sl->setVisible(true);
+   
+   connect(sl, SIGNAL(resized(StretchLine *)), this, SLOT(userLineResized(StretchLine *)));
+   connect(sl, SIGNAL(moved(StretchLine *)), this, SLOT(userLineMoved(StretchLine *)));
+   connect(sl, SIGNAL(mouseIn(StretchLine *)), this, SLOT(userLineMouseIn(StretchLine *)));
+   connect(sl, SIGNAL(mouseOut(StretchLine *)), this, SLOT(userLineMouseOut(StretchLine *)));
+   connect(sl, SIGNAL(rejectMouse(StretchLine *)), this, SLOT(userLineRejectMouse(StretchLine *)));
+   connect(sl, SIGNAL(remove(StretchLine*)), this, SLOT(userLineRemove(StretchLine*)));
+
+   
+   qgs->addItem(sl);
       
 }
 
@@ -900,6 +931,39 @@ void rtimvMainWindow::colorBoxMoved(StretchBox * sb)
    
 }
 
+void rtimvMainWindow::userBoxResized(StretchBox * sb)
+{
+   
+   char tmp[256];
+   snprintf(tmp, 256, "%0.1f x %0.1f", sb->rect().width(), sb->rect().height());
+   
+   ui.graphicsView->coords->setText(tmp);
+}
+
+void rtimvMainWindow::userBoxMoved(StretchBox * sb)
+{
+   QRectF newr = sb->rect();
+   QPointF np = qpmi->mapFromItem(sb, QPointF(newr.x(),newr.y()));
+   
+   float x = np.x()+.5*newr.width();
+   float y = np.y()+.5*newr.height();
+   
+   ui.graphicsView->coords->setGeometry(x*ScreenZoom-35., y*ScreenZoom-20., 200,40);
+}
+
+void rtimvMainWindow::userBoxMouseIn(StretchBox * sb)
+{
+   userBoxResized(sb);
+   userBoxMoved(sb);
+   ui.graphicsView->coords->setVisible(true);
+}
+
+void rtimvMainWindow::userBoxMouseOut(StretchBox * sb)
+{
+   static_cast<void>(sb);
+   ui.graphicsView->coords->setVisible(false);
+}
+
 void rtimvMainWindow::userBoxRejectMouse(StretchBox * sb)
 {
    std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
@@ -915,65 +979,22 @@ void rtimvMainWindow::userBoxRejectMouse(StretchBox * sb)
       sb->stackBefore(*ucit);
       ++ucit;
    }
+   
+   std::unordered_set<StretchLine *>::iterator ulit = m_userLines.begin();
+   while(ulit != m_userLines.end())
+   {
+      sb->stackBefore(*ulit);
+      ++ulit;
+   }
 }
 
 void rtimvMainWindow::userBoxRemove(StretchBox * sb)
 {
+   userBoxMouseOut(sb); //This cleans up any gui items associated with the box
    m_userBoxes.erase(sb); //Remove it from our list
    qgs->removeItem(sb); //Remove it from the scene
    sb->deleteLater(); //clean it up after we're no longer in an asynch function
 }
-
-// void rtimvMainWindow::colorBoxRejectMouse(StretchBox * sb)
-// {
-//    static_cast<void>(sb);
-//    
-//    colorBox->stackBefore(statsBox);
-//    colorBox->stackBefore(guideBox);
-//    
-//    std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
-//    while(ucit != m_userCircles.end())
-//    {
-//       colorBox->stackBefore(*ucit);
-//       ++ucit;
-//    }
-//    
-// }
-
-
-// void rtimvMainWindow::guideBoxMoved(StretchBox * sb)
-// {
-//    
-//    QRectF newr = sb->rect();
-//    
-//    QPointF np = qpmi->mapFromItem(guideBox, QPointF(newr.x(),newr.y()));
-//    QPointF np2 = qpmi->mapFromItem(guideBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
-// 
-//    
-//    guideBox_i0 = np.x() + .5;
-//    guideBox_i1 = np2.x();
-//    
-//    guideBox_j0 = m_ny-np2.y() + .5;
-//    guideBox_j1 = m_ny-np.y();
-//   
-// 
-// }
-// 
-// void rtimvMainWindow::guideBoxRejectMouse(StretchBox * sb)
-// {
-//    static_cast<void>(sb);
-//    
-//    guideBox->stackBefore(statsBox);
-//    guideBox->stackBefore(colorBox);
-//    //guideBox->stackBefore(*(userCircle.begin()));
-//    
-//    std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
-//    while(ucit != m_userCircles.end())
-//    {
-//       guideBox->stackBefore(*ucit);
-//       ++ucit;
-//    }
-// }
 
 void rtimvMainWindow::userCircleResized(StretchCircle * sc)
 {
@@ -1000,8 +1021,8 @@ void rtimvMainWindow::userCircleMouseIn(StretchCircle * sc)
    userCircleResized(sc);
    userCircleMoved(sc);
    ui.graphicsView->coords->setVisible(true);
-   
 }
+
 void rtimvMainWindow::userCircleMouseOut(StretchCircle * sc)
 {
    static_cast<void>(sc);
@@ -1023,6 +1044,13 @@ void rtimvMainWindow::userCircleRejectMouse(StretchCircle * sc)
       if(sc != *ucit) sc->stackBefore(*ucit);
       ++ucit;
    }   
+   
+   std::unordered_set<StretchLine *>::iterator ulit = m_userLines.begin();
+   while(ulit != m_userLines.end())
+   {
+      sc->stackBefore(*ulit);
+      ++ulit;
+   }
 }
 
 void rtimvMainWindow::userCircleRemove(StretchCircle * sc)
@@ -1031,6 +1059,72 @@ void rtimvMainWindow::userCircleRemove(StretchCircle * sc)
    m_userCircles.erase(sc); //Remove it from our list
    qgs->removeItem(sc); //Remove it from the scene
    sc->deleteLater(); //clean it up after we're no longer in an asynch function
+}
+
+void rtimvMainWindow::userLineResized(StretchLine * sl)
+{
+   userLineMoved(sl); //Move the text along with us.
+   
+   char tmp[256];
+   snprintf(tmp, 256, "%0.1f @ %0.1f", sl->length(), sl->angle());
+   
+   ui.graphicsView->coords->setText(tmp);
+}
+
+void rtimvMainWindow::userLineMoved(StretchLine * sl)
+{
+   QPointF np = qpmi->mapFromItem(sl, sl->line().p2());
+   
+   float x = np.x();
+   float y = np.y();
+   
+   ui.graphicsView->coords->setGeometry(x*ScreenZoom, y*ScreenZoom-20., 200,40);
+  
+}
+
+void rtimvMainWindow::userLineMouseIn(StretchLine * sl)
+{
+   userLineResized(sl);
+   userLineMoved(sl);
+   ui.graphicsView->coords->setVisible(true);
+}
+
+void rtimvMainWindow::userLineMouseOut(StretchLine * sl)
+{
+   static_cast<void>(sl);
+   ui.graphicsView->coords->setVisible(false);
+}
+
+void rtimvMainWindow::userLineRejectMouse(StretchLine * sl)
+{  
+   std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
+   while(ubit != m_userBoxes.end())
+   {
+      sl->stackBefore(*ubit);
+      ++ubit;
+   }
+   
+   std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
+   while(ucit != m_userCircles.end())
+   {
+      sl->stackBefore(*ucit);
+      ++ucit;
+   }
+   
+   std::unordered_set<StretchLine *>::iterator ulit = m_userLines.begin();
+   while(ulit != m_userLines.end())
+   {
+      if(sl != *ulit) sl->stackBefore(*ulit);
+      ++ulit;
+   }
+}
+
+void rtimvMainWindow::userLineRemove(StretchLine * sl)
+{
+   userLineMouseOut(sl); //This cleans up any gui items associated with the line
+   m_userLines.erase(sl); //Remove it from our list
+   qgs->removeItem(sl); //Remove it from the scene
+   sl->deleteLater(); //clean it up after we're no longer in an asynch function
 }
 
 void rtimvMainWindow::post_setUserBoxActive(bool usba)
@@ -1056,6 +1150,9 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
          break;
       case 'f':
          toggleFPSGage();
+         break;
+      case 'l':
+         addUserLine();
          break;
       case 'o':
          addUserCircle();

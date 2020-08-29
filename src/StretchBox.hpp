@@ -16,6 +16,8 @@ class StretchBox : public QObject, public QGraphicsRectItem, public StretchGraph
    
 public:
 
+   typedef QRectF coordSpecT;
+   
    StretchBox(QGraphicsItem * parent = 0);
    StretchBox(const QRectF & rect, QGraphicsItem * parent = 0 );
    StretchBox(qreal x, qreal y, qreal width, qreal height, QGraphicsItem * parent = 0 );
@@ -32,6 +34,14 @@ private:
      */ 
 protected:
    bool m_maintainCenter {false}; ///< Sets whether the center coordinate is maintained (true) when stretching, or if it moves (false)
+   
+   float m_ul_x {0}; ///< The x-coordinate of the upper left corner of the bounding box
+   float m_ul_y {0}; ///< The y-coordinate of the upper left corner of the bounding box
+   float m_width {0};  ///< The width of the bounding box
+   float m_height {0}; ///< The height of the bounding box
+   float m_mv_x0 {0}; ///< The x-coordinate of the mouse at the start of a re-size
+   float m_mv_y0 {0}; ///< The y-coordinate of the mouse at the start of a re-size
+
    
 public:
    
@@ -78,9 +88,9 @@ protected:
 
    void setMovingGeometry(QGraphicsSceneMouseEvent * e);
 
-   QRectF sizingCalcNewRect(QGraphicsSceneMouseEvent * e);
+   void sizingCalcNewPos(QGraphicsSceneMouseEvent * e);
 
-   QPointF movingCalcNewPos(QGraphicsSceneMouseEvent * e);
+   void movingCalcNewPos(QGraphicsSceneMouseEvent * e);
 
    void passKeyPressEvent(QKeyEvent * ke);
 

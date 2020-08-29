@@ -22,12 +22,15 @@ MAKEFILE = makefile.librtimv
 
 # Input
 HEADERS += src/rtimvGraphicsView.hpp \
+           src/StretchGraphicsItem.hpp \
            src/StretchBox.hpp \
-           src/StretchCircle.hpp 
+           src/StretchCircle.hpp \
+           src/StretchLine.hpp
 
 SOURCES += src/rtimvGraphicsView.cpp \
            src/StretchBox.cpp \
-           src/StretchCircle.cpp 
+           src/StretchCircle.cpp \
+           src/StretchLine.cpp
                    
 
 #########################
@@ -38,7 +41,7 @@ unix:target.path = /usr/local/lib
 INSTALLS += target
 
 unix:includefiles.path = /usr/local/include/rtimv
-includefiles.files = src/rtimvInterfaces.hpp src/rtimvGraphicsView.hpp src/StretchBox.hpp src/StretchCircle.hpp
+includefiles.files = src/rtimvInterfaces.hpp src/rtimvGraphicsView.hpp src/StretchGraphicsItem.hpp src/StretchBox.hpp src/StretchCircle.hpp
 INSTALLS += includefiles
 
 

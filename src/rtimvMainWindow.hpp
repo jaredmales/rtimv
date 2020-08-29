@@ -26,6 +26,7 @@ using namespace mx::app;
 
 #include "StretchBox.hpp"
 #include "StretchCircle.hpp"
+#include "StretchLine.hpp"
 
 #include "imviewerstats.hpp"
 
@@ -187,10 +188,9 @@ class rtimvMainWindow : public imviewer, public application
       
       StretchBox* statsBox;
 
-      //StretchBox* guideBox;
-      
       std::unordered_set<StretchBox *> m_userBoxes;
       std::unordered_set<StretchCircle *> m_userCircles;
+      std::unordered_set<StretchLine *> m_userLines;
       
       imviewerStats * imStats;
 
@@ -213,6 +213,9 @@ class rtimvMainWindow : public imviewer, public application
       
       /// Add a user circle 
       void addUserCircle();
+      
+      /// Add a user circle 
+      void addUserLine();
       
       /// Set the x-coordinate of the target 
       /** The coordinate is set as a fraction of the image, 0 <= targetXc <= 1.0
@@ -248,14 +251,13 @@ class rtimvMainWindow : public imviewer, public application
       void imStatsClosed(int);
 
       void statsBoxMoved(StretchBox *);
-      //void statsBoxRejectMouse(StretchBox *);
 
       void colorBoxMoved(StretchBox *);
-      //void colorBoxRejectMouse(StretchBox *);
-      
-      //void guideBoxMoved(StretchBox *);
-      //void guideBoxRejectMouse(StretchBox *);
  
+      void userBoxResized(StretchBox * sb);
+      void userBoxMoved(StretchBox * sb);
+      void userBoxMouseIn(StretchBox * sb);
+      void userBoxMouseOut(StretchBox * sb);
       void userBoxRejectMouse(StretchBox *);
       void userBoxRemove(StretchBox * sc);
       
@@ -265,7 +267,15 @@ class rtimvMainWindow : public imviewer, public application
       void userCircleMouseOut(StretchCircle * sc);
       void userCircleRejectMouse(StretchCircle * sc);
       void userCircleRemove(StretchCircle * sc);
+
       
+      void userLineResized(StretchLine * sl);
+      void userLineMoved(StretchLine * sl);
+      void userLineMouseIn(StretchLine * sl);
+      void userLineMouseOut(StretchLine * sl);
+      void userLineRejectMouse(StretchLine * sl);
+      void userLineRemove(StretchLine * sl);
+         
    public:
       virtual void post_setUserBoxActive(bool usba);
          
