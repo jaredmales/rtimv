@@ -323,6 +323,10 @@ class rtimvMainWindow : public imviewer, public application
       
       void toggleTarget();
       
+      std::string generateHelp();
+      
+      void toggleHelp();
+      
       int fontLuminance(QTextEdit* qte);
       
       int fontLuminance();

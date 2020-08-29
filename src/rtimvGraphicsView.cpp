@@ -31,6 +31,8 @@ rtimvGraphicsView::rtimvGraphicsView(QWidget *parent): QGraphicsView(parent)
    m_xCen = .5;
    m_yCen = .5;
    
+   
+   
    m_warningText = new QTextEdit(this);
    textEditSetup(m_warningText);
    warningFontSize(RTIMV_DEF_WARNINGFONTSIZE);
@@ -92,7 +94,12 @@ rtimvGraphicsView::rtimvGraphicsView(QWidget *parent): QGraphicsView(parent)
    coords->setVisible(false);
    coords->setTextColor("lime");
    
-   
+   m_helpText = new QTextEdit(this);
+   textEditSetup(m_helpText);
+   helpTextFontSize(RTIMV_DEF_HELPFONTSIZE);
+   helpTextFontColor(RTIMV_DEF_HELPFONTCOLOR);
+   helpTextFontFamily(RTIMV_DEF_HELPFONTFAMILY);   
+   m_helpText->setVisible(false);
    
    return;
 }
@@ -406,6 +413,66 @@ void rtimvGraphicsView::statusTextText( size_t n,        ///< [in] the field num
 
 }
 
+//-------------
+
+void rtimvGraphicsView::helpTextFontFamily(const char * ff)
+{
+   m_helpTextFontFamily = ff;
+   
+   QFont qf = m_helpText->currentFont();
+   qf.setFamily(m_helpTextFontFamily);
+   
+   m_helpText->setCurrentFont(qf);
+}
+
+void rtimvGraphicsView::helpTextFontSize( float fs )
+{
+   m_helpTextFontSize = fs;
+   
+   QFont qf = m_helpText->currentFont();
+   qf.setPointSizeF(m_helpTextFontSize);
+   
+   m_helpText->setCurrentFont(qf);
+}
+
+void rtimvGraphicsView::helpTextFontColor(const char * fc)
+{
+   m_helpTextFontColor = fc;
+   m_helpText->setTextColor(QColor(m_helpTextFontColor));
+}
+
+QString rtimvGraphicsView::helpTextFontFamily()
+{
+   return m_helpTextFontFamily;
+}
+
+float rtimvGraphicsView::helpTextFontSize()
+{
+   return m_helpTextFontSize;
+}
+
+QString rtimvGraphicsView::helpTextFontColor()
+{
+   return m_helpTextFontColor;
+}
+      
+void rtimvGraphicsView::helpTextText( const char * nt,
+                                   const char * fc
+                                 )
+{
+   m_helpText->setPlainText(nt);
+   m_helpText->setAlignment(Qt::AlignLeft);  
+   
+   if(fc)
+   {
+      m_helpText->setTextColor(QColor(fc));
+   }
+   else
+   {
+      m_helpText->setTextColor(QColor(m_helpTextFontColor));
+   }
+   
+}
 
 //-------------
 const QTextEdit * rtimvGraphicsView::fpsGage()
@@ -657,6 +724,8 @@ float rtimvGraphicsView::screenZoom()
       
 void rtimvGraphicsView::resizeEvent(QResizeEvent *)
 {
+   m_helpText->setGeometry(0,0,width(), height());
+   
    m_saveBox->setGeometry(1, 1, SAVEWIDTH, SAVEHEIGHT);
    
    m_loopText->setGeometry(SAVEWIDTH, 1, width()-SAVEWIDTH, LOOPHEIGHT);

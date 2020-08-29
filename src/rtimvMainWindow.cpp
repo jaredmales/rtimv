@@ -1219,6 +1219,9 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
          case Qt::Key_F:
             if(key == 'f') return toggleFPSGage();
             break;
+         case Qt::Key_H:
+            if(key == 'h') return toggleHelp();
+            break;
          case Qt::Key_L:
             if(key == 'l') return addUserLine();
             if(key == 'L') return toggleLogLinear();
@@ -1228,9 +1231,6 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
             break;
          case Qt::Key_N:
             if(key == 'n') return toggleNorthArrow();
-            break;
-         case Qt::Key_O:
-            if(key == 'o') return addUserCircle();
             break;
          case Qt::Key_P:
             if(key == 'p') return launchControlPanel();
@@ -1541,8 +1541,50 @@ void rtimvMainWindow::toggleTarget()
    }
 }
 
+std::string rtimvMainWindow::generateHelp()
+{
+   std::string help;
+   help  = "                       rtimv online help                    \n";
+   help += "                     press 'h' to exit help        \n";
+   help += "\n";
+   help += "Shortcuts:\n";
+   //      "01234567890123456789012345678901234567890123456789012345678901234567890123456789
+   help += "a: toggle autoscale           \tb: add box                     \n";
+   help += "c: add circle                 \tf: toggle FPS gauge            \n";
+   help += "h: toggle help                \tl: add line                    \n";
+   help += "n: toggle north arrow         \tp: launch control panel        \n";
+   help += "r: re-stretch color table     \ts: toggle statisticx box       \n";
+   help += "t: toggle target cross        \tx: freeze real-time            \n";
+   help += "z: toggle color box\n";
+   
+   help += "\n";
+   help += "D: toggle dark subtraction    \tL: toggle log scale            \n";
+   help += "M: toggle mask                \tS: toggle saturation mask      \n";
+   
+   help += "\n";
+   help += "1-9: change zoom level\n";
+   help += "\n";
+   help += "[: square down                \t]: square up\n";
+   help += "\n";
+   help += "ctrl-c: center image          \tdelete: remove selected object \n";
+   
+   return help;
+}
 
-// https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color/56678483#56678483
+void rtimvMainWindow::toggleHelp()
+{
+   if(ui.graphicsView->m_helpText->isVisible())
+   {
+      ui.graphicsView->m_helpText->setVisible(false);
+   }
+   else
+   {
+      std::string help = generateHelp();
+      ui.graphicsView->helpTextText(help.c_str());
+      ui.graphicsView->m_helpText->setVisible(true);
+   }
+}
+
 template<typename realT>
 realT sRGBtoLinRGB( int rgb )
 {

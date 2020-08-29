@@ -16,6 +16,9 @@
 #include <QMouseEvent>
 #include <QTextEdit>
 
+#define RTIMV_DEF_HELPFONTFAMILY "LKLUG"
+#define RTIMV_DEF_HELPFONTCOLOR "skyblue"
+#define RTIMV_DEF_HELPFONTSIZE 12
 
 //Defaults
 #define RTIMV_DEF_WARNINGFONTFAMILY "LKLUG"
@@ -247,6 +250,48 @@ class rtimvGraphicsView : public QGraphicsView
                            const char * fc=0  ///< [in] [optional] color for the statusText text
                          );
       
+      
+   protected:
+      ///The help text
+      QTextEdit * m_helpText;
+      QString m_helpTextFontFamily;
+      float m_helpTextFontSize;
+      QString m_helpTextFontColor;
+
+   public:
+      ///Set the SaveText font size
+      void helpTextFontFamily( const char * ff /**< [in] The new font family */ );
+      
+      ///Set the SaveText font size
+      void helpTextFontSize( float fs /**< [in] The new font size */ );
+
+      ///Set the helpText font color
+      void helpTextFontColor( const char * fc /**< [in] The new font color */ );
+      
+      ///Get the current helpText font family
+      /**
+        * \returns the helpText font family
+        */ 
+      QString helpTextFontFamily();
+      
+      ///Get the current helpText font size
+      /**
+        * \returns the helpText font size
+        */
+      float helpTextFontSize();
+      
+      ///Get the current helpText font color
+      /**
+        * \returns the helpText font color
+        */
+      QString helpTextFontColor();
+      
+      ///Set the helpText text
+      /** If a font color is supplied the helpText text is set to that color.  Otherwise (fc == 0), then _helpTextFontColor is used.
+        */
+      void helpTextText( const char * nt, ///< [in] the new helpText text
+                        const char * fc=0  ///< [in] [optional] color for the helpText text
+                      );
       
       ///@}
       
