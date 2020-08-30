@@ -133,6 +133,8 @@ void imviewer::timerout()
       }
    }
    
+   if(!connected) return;
+   
    if(doupdate == RTIMVIMAGE_FPSUPDATE) 
    {
       updateFPS();

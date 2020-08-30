@@ -203,8 +203,8 @@ void rtimvMainWindow::loadConfig()
    if(config.nonOptions.size() > 3) keys[3] = config.nonOptions[3];
    
    m_title= keys[0];
+
    startup(keys);
-   
    
    
    
@@ -217,8 +217,6 @@ void rtimvMainWindow::loadConfig()
 
    config(m_targetXc, "targetXc");
    config(m_targetYc, "targetYc");
-   
-
 }
 
 void rtimvMainWindow::onConnect()
