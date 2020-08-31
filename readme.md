@@ -24,7 +24,7 @@ You will be asked for sudo privileges to install the plulgin library.  `sudo mak
 
 ## User's Guide
 
-A user's guide is located in doc/Userguide.md.
+A user's guide is located in [doc/UserGuide.md](doc/UserGuide.md).
 
 
 ## Contributors

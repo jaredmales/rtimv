@@ -26,7 +26,7 @@ To access the help screen, type `h` after opening rtimv. The [keyboard shortcuts
 
 ![rtimv with the help screen overlay active](help.png)
 
-To add a circle, type `c`. You can drag to resize or reposition, and hit the `delete` key to remove. The number shown is the radius in pixels. (You can add another circle by hitting `c` again.)
+It is possible to add overlays of various shapes to measure distances and sizes. To add a circle, type `c`. You can drag to resize or reposition, and hit the `delete` key to remove. The number shown is the radius in pixels. (You can add another circle by hitting `c` again.)
 
 ![rtimv with a circle overlay](usercircle.png)
 
@@ -34,9 +34,11 @@ The `b` key adds a box, which works similarly. Dimensions shown are full-width b
 
 ![rtimv with a box overlay](userbox.png)
 
-You can also use `l` to add a line. The numbers shown are `length @ direction` where direction is degrees from the screen +X direction. (This will eventually be degrees from the North vector.)
+You can also use `l` to add a line. The numbers shown are `length @ direction` where direction is degrees from the screen +X direction. (This will eventually be degrees from the North vector.) Clicking and and moving the mouse while in the middle rotates it.  If you click and drag the opposite end from the small circle you can change the length and the angle.
 
 ![rtimv with a line overlay](userline.png)
+
+In general, if you see the "resize arrows" cursor when your mouse hovers over the shape, clicking and dragging will change the size. If you see the "hand" cursor, it will move the shape. Numbers, shape center indicators, and line end indicators are only shown when your mouse is over that shape.
 
 ### Keyboard Shortcuts
 
