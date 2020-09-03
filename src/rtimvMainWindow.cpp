@@ -281,7 +281,19 @@ void rtimvMainWindow::postSetImsize()
       sc->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
       ++ucit;
    }
-      
+     
+   //resize the lines
+   std::unordered_set<StretchLine *>::iterator ulit = m_userLines.begin();
+   while(ulit != m_userLines.end())
+   {
+      StretchLine *sl = *ulit;
+      sl->setLine(0.5*(m_nx)-0.2*m_nx,0.5*(m_ny)-0.2*m_ny, 0.2*(m_nx),0.2*(m_ny));
+      sl->setEdgeTol(RTIMV_EDGETOL_DEFAULT/ScreenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/ScreenZoom);
+      sl->setPenWidth(2*RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
+      ++ulit;
+   }
+   
+   
    setTarget();
 }
 

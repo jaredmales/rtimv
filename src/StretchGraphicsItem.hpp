@@ -1,8 +1,6 @@
 #ifndef StretchGraphicsItem_hpp
 #define StretchGraphicsItem_hpp
 
-#include <iostream>
-
 #include <QTimer>
 #include <QPen>
 #include <QGraphicsSceneMouseEvent>
@@ -367,7 +365,6 @@ int StretchGraphicsItem<QGraphicsItemT>::edgeTol()
 template<class QGraphicsItemT>
 void StretchGraphicsItem<QGraphicsItemT>::setEdgeTol(int et)
 { 
-   std::cerr << "setEdgeTol: " << et << "\n";
    m_edgeTol = et;
 }
 
@@ -535,8 +532,6 @@ float StretchGraphicsItem<QGraphicsItemT>::penWidth()
 template<class QGraphicsItemT>
 void StretchGraphicsItem<QGraphicsItemT>::setPenWidth( float newwidth)
 {
-   std::cerr << "setPenWidth: " << newwidth << "\n";
-   
    QPen p = derived()->pen();
    p.setWidthF(newwidth);
    derived()->setPen(p);
