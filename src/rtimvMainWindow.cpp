@@ -1,5 +1,8 @@
 #include "rtimvMainWindow.hpp"
 
+#define RTIMV_EDGETOL_DEFAULT (7.5)
+#define RTIMV_TOOLLINEWIDTH_DEFAULT (0.75)
+
 rtimvMainWindow::rtimvMainWindow( int argc,
                                   char ** argv,
                                   QWidget * Parent, 
@@ -263,7 +266,8 @@ void rtimvMainWindow::postSetImsize()
    {
       StretchBox *sb = *ubit;
       sb->setRect(sb->mapRectFromScene(m_ny*.35, m_nx*.35, .4*m_ny, .4*m_nx));
-      sb->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
+      sb->setEdgeTol(RTIMV_EDGETOL_DEFAULT/ScreenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/ScreenZoom);
+      sb->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
       ++ubit;
    }
    
@@ -273,7 +277,8 @@ void rtimvMainWindow::postSetImsize()
    {
       StretchCircle *sc = *ucit;
       sc->setRect(sc->mapRectFromScene(m_ny*.35, m_nx*.35, .4*m_ny, .4*m_nx));
-      sc->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
+      sc->setEdgeTol(RTIMV_EDGETOL_DEFAULT/ScreenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/ScreenZoom);
+      sc->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
       ++ucit;
    }
       
@@ -744,8 +749,9 @@ void rtimvMainWindow::addUserBox()
    StretchBox * sb = *it.first;
    
    sb->setPenColor("lime");
-   sb->setPenWidth(0.1);
-   
+   sb->setEdgeTol(RTIMV_EDGETOL_DEFAULT/ScreenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/ScreenZoom);
+   sb->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
+  
    sb->setMaintainCenter(true);
    sb->setStretchable(true);
    sb->setVisible(true);
@@ -773,7 +779,8 @@ void rtimvMainWindow::addUserCircle()
    StretchCircle * sc = *it.first;
    
    sc->setPenColor("lime");
-   sc->setPenWidth(0.1);
+   sc->setEdgeTol(RTIMV_EDGETOL_DEFAULT/ScreenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/ScreenZoom);
+   sc->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
    
    sc->setStretchable(true);
    sc->setVisible(true);
@@ -801,7 +808,8 @@ void rtimvMainWindow::addUserLine()
    StretchLine * sl = *it.first;
    
    sl->setPenColor("lime");
-   sl->setPenWidth(0);
+   sl->setEdgeTol(RTIMV_EDGETOL_DEFAULT/ScreenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/ScreenZoom);
+   sl->setPenWidth(2*RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
    
    sl->setStretchable(true);
    sl->setVisible(true);
