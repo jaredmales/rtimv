@@ -1559,7 +1559,7 @@ std::string rtimvMainWindow::generateHelp()
    help += "c: add circle                 \tf: toggle FPS gauge            \n";
    help += "h: toggle help                \tl: add line                    \n";
    help += "n: toggle north arrow         \tp: launch control panel        \n";
-   help += "r: re-stretch color table     \ts: toggle statisticx box       \n";
+   help += "r: re-stretch color table     \ts: toggle statistics box       \n";
    help += "t: toggle target cross        \tx: freeze real-time            \n";
    help += "z: toggle color box\n";
    
@@ -1570,7 +1570,7 @@ std::string rtimvMainWindow::generateHelp()
    help += "\n";
    help += "1-9: change zoom level\n";
    help += "\n";
-   help += "[: square down                \t]: square up\n";
+   help += "[: shrink window + image                \t]: grow window + image\n";
    help += "\n";
    help += "ctrl-c: center image          \tdelete: remove selected object \n";
    

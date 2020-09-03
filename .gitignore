@@ -13,3 +13,4 @@ res/qrc_imviewer.cpp
 *.stash
 doc/html
 
+.DS_Store
