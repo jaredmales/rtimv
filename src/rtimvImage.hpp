@@ -42,7 +42,6 @@ protected:
    
    int m_timeout {100}; ///< The image display timeout, should be set from the managing process.  Only used for F.P.S. calculations.
    
-public:
    IMAGE m_image; ///< A real-time image structure which contains the image data and meta-data.
 
    uint32_t m_nx {0}; ///< Size of the image in pixels in the x direction (horizontal on screen)
@@ -55,14 +54,12 @@ public:
  
    QTimer m_timer; ///< When this times out imviewer checks for a new image.
    
-   
-   
    bool m_shmimAttached {false}; ///< Flag denoting whether or not the shared memory is attached.
 
-   uint64_t lastCnt0 {std::numeric_limits<uint64_t>::max()}; //make huge so we don't skip the 0 image
+   uint64_t m_lastCnt0 {std::numeric_limits<uint64_t>::max()}; //make huge so we don't skip the 0 image
    
-   int fps_counter {0};
-   int age_counter {0};
+   int m_fps_counter {0};
+   int m_age_counter {0};
    
 public:
    
@@ -92,6 +89,27 @@ public:
    
    /// Set the managing processes display timeout, which is only used for F.P.S. calculations
    void timeout(int to /**< [in] the new timeout in milliseconds */);
+   
+   /// Get the image dimension in the x direction.
+   /** Units are pixels.
+     *
+     * \returns the current value of m_nx;
+     */ 
+   uint32_t nx();
+   
+   /// Get the image dimension in the y direction.
+   /** Units are pixels.
+     *
+     * \returns the current value of m_ny;
+     */
+   uint32_t ny();
+   
+   /// Get the image acquisition time 
+   /** Gets the acquisition time converted to double, giving time since the epoch.
+     * 
+     * \returns the time the current image was acquired.
+     */
+   double imageTime();
    
 public slots:
    void shmimTimerout();

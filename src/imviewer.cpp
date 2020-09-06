@@ -172,7 +172,7 @@ imviewer::pixelF imviewer::pixel()
    {
       if(m_images[1] == nullptr) return _pixel;
       
-      if(m_images[1]->m_nx != m_images[0]->m_nx || m_images[1]->m_ny != m_images[0]->m_ny) return _pixel;
+      if(m_images[1]->nx() != m_images[0]->nx() || m_images[1]->ny() != m_images[0]->ny()) return _pixel;
       
       if(m_images[0]->valid() && m_images[1]->valid()) _pixel = &pixel_subDark;
    }
@@ -181,7 +181,7 @@ imviewer::pixelF imviewer::pixel()
    {
       if(m_images[2] == nullptr) return _pixel;
       
-      if(m_images[2]->m_nx != m_images[0]->m_nx || m_images[2]->m_ny != m_images[0]->m_ny) return _pixel;
+      if(m_images[2]->nx() != m_images[0]->nx() || m_images[2]->ny() != m_images[0]->ny()) return _pixel;
       
       if(m_images[0]->valid() && m_images[2]->valid()) _pixel = &pixel_applyMask;
    }
@@ -192,18 +192,18 @@ imviewer::pixelF imviewer::pixel()
       if( m_images[1] == nullptr && m_images[2] == nullptr) return _pixel;
       else if( m_images[2] == nullptr )
       {
-         if(m_images[1]->m_nx != m_images[0]->m_nx || m_images[1]->m_ny != m_images[0]->m_ny) return _pixel;
+         if(m_images[1]->nx() != m_images[0]->nx() || m_images[1]->ny() != m_images[0]->ny()) return _pixel;
          if(m_images[1]->valid()) _pixel = &pixel_subDark;
       } 
       else if(m_images[1] == nullptr)
       {
-         if(m_images[2]->m_nx != m_images[0]->m_nx || m_images[2]->m_ny != m_images[0]->m_ny) return _pixel;
+         if(m_images[2]->nx() != m_images[0]->nx() || m_images[2]->ny() != m_images[0]->ny()) return _pixel;
          if(m_images[2]->valid()) _pixel = &pixel_applyMask;
       }
       else
       {
-         if(m_images[1]->m_nx != m_images[0]->m_nx || m_images[1]->m_ny != m_images[0]->m_ny) return _pixel;
-         if(m_images[2]->m_nx != m_images[0]->m_nx || m_images[2]->m_ny != m_images[0]->m_ny) return _pixel;
+         if(m_images[1]->nx() != m_images[0]->nx() || m_images[1]->ny() != m_images[0]->ny()) return _pixel;
+         if(m_images[2]->nx() != m_images[0]->nx() || m_images[2]->ny() != m_images[0]->ny()) return _pixel;
          if(m_images[1]->valid() &&  m_images[2]->valid()) _pixel = &pixel_subDarkApplyMask;
       }
    }
@@ -531,9 +531,9 @@ void imviewer::changeImdata(bool newdata)
          _index = calcPixIndex_linear;
    }
    
-   if(m_images[0]->m_nx != m_nx || m_images[0]->m_ny != m_ny || m_autoScale) 
+   if(m_images[0]->nx() != m_nx || m_images[0]->ny() != m_ny || m_autoScale) 
    {
-      setImsize(m_images[0]->m_nx, m_images[0]->m_ny);
+      setImsize(m_images[0]->nx(), m_images[0]->ny());
       
       //Need to set these at the beginning
       imdat_min = _pixel(this,0);
@@ -658,7 +658,7 @@ void imviewer::changeImdata(bool newdata)
     
    if(m_applyMask && m_images[2] != nullptr)
    {
-      if(m_images[2]->m_nx == m_images[0]->m_nx || m_images[2]->m_ny == m_images[0]->m_ny)
+      if(m_images[2]->nx() == m_images[0]->nx() || m_images[2]->ny() == m_images[0]->ny())
       {
          for(uint32_t i = 0; i < m_ny; ++i)
          {
@@ -673,7 +673,7 @@ void imviewer::changeImdata(bool newdata)
 
    if(m_applySatMask && m_images[3] != nullptr)
    {
-      if(m_images[3]->m_nx == m_images[0]->m_nx || m_images[3]->m_ny == m_images[0]->m_ny)
+      if(m_images[3]->nx() == m_images[0]->nx() || m_images[3]->ny() == m_images[0]->ny())
       {
          for(uint32_t i = 0; i < m_ny; ++i)
          {

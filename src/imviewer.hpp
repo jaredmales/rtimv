@@ -23,8 +23,6 @@
 
 #include "rtimvImage.hpp"
 
-#include "pixaccess.h"
-
 #include <cstdio>
 
 #include <unistd.h>

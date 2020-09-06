@@ -563,8 +563,8 @@ void rtimvGraphicsView::textCoordX( const char * nt )
 
 void rtimvGraphicsView::textCoordX( float nv )
 {
-   char strtmp[32];
-   snprintf(strtmp, sizeof(strtmp), "X: %.1f", nv);
+   char strtmp[24];
+   snprintf(strtmp, sizeof(strtmp), "X: %0.1f", nv);
    textCoordX(strtmp);   
 }
 
@@ -576,8 +576,8 @@ void rtimvGraphicsView::textCoordY( const char * nt )
 
 void rtimvGraphicsView::textCoordY( float nv )
 {
-   char strtmp[32];
-   snprintf(strtmp, sizeof(strtmp), "Y: %.1f", nv);
+   char strtmp[24];
+   snprintf(strtmp, sizeof(strtmp), "Y: %0.1f", nv);
    textCoordY(strtmp);   
 }
 
@@ -590,7 +590,18 @@ void rtimvGraphicsView::textPixelVal( const char * nt )
 void rtimvGraphicsView::textPixelVal( float nv )
 {
    char strtmp[24];
-   snprintf(strtmp, 24, "Val: %.1f", nv);
+   if(nv > 0.1)
+   {
+      snprintf(strtmp, 24, "Z: %0.1f", nv);
+   }
+   else if(nv > 0.01)
+   {
+      snprintf(strtmp, 24, "Z: %0.2f", nv);
+   }
+   else
+   {
+      snprintf(strtmp, 24, "Z: %0.1e", nv);
+   }
    textPixelVal(strtmp);   
 }
 

@@ -15,7 +15,6 @@ rtimvImage::rtimvImage()
    ImageStreamIO_set_printError(new_printError);
    
    connect(&m_timer, SIGNAL(timeout()), this, SLOT(shmimTimerout()));
-   
 }
 
 int rtimvImage::shmimName( const std::string & sn )
@@ -55,6 +54,21 @@ void rtimvImage::timeout(int to)
    m_timeout = to;
 }
 
+uint32_t rtimvImage::nx()
+{ 
+   return m_nx; 
+}
+   
+uint32_t rtimvImage::ny()
+{ 
+   return m_ny;
+}
+   
+double rtimvImage::imageTime()
+{
+   return m_image.md->atime.tv_sec + ((double) m_image.md->atime.tv_nsec)/1e9;
+}
+   
 void rtimvImage::shmimTimerout()
 {
    m_timer.stop();
@@ -244,16 +258,16 @@ int rtimvImage::update()
    
    if(!m_shmimAttached)
    {
-      if(age_counter > 1000/m_timeout)
+      if(m_age_counter > 1000/m_timeout)
       {
-         age_counter = 0;
-         fps_counter = 0;
+         m_age_counter = 0;
+         m_fps_counter = 0;
          m_fpsEst = 0;
          return RTIMVIMAGE_AGEUPDATE;
       }
       else 
       {
-         ++age_counter;
+         ++m_age_counter;
          return RTIMVIMAGE_NOUPDATE;
       }
    }
@@ -270,7 +284,7 @@ int rtimvImage::update()
       m_data = nullptr;
       ImageStreamIO_closeIm(&m_image);
       m_shmimAttached = 0;
-      lastCnt0 = -1;
+      m_lastCnt0 = -1;
       m_timer.start(m_shmimTimeout);
       
       return RTIMVIMAGE_NOUPDATE;
@@ -292,45 +306,45 @@ int rtimvImage::update()
       m_data = nullptr;
       ImageStreamIO_closeIm(&m_image);
       m_shmimAttached = 0;
-      lastCnt0 = -1;
+      m_lastCnt0 = -1;
       m_timer.start(m_shmimTimeout);
       return RTIMVIMAGE_NOUPDATE;
    }
    
    cnt0 = m_image.md->cnt0;
    
-   if(cnt0 != lastCnt0) //Only redraw if it's actually a new image.
+   if(cnt0 != m_lastCnt0) //Only redraw if it's actually a new image.
    {
       m_data = ((char *) (m_image.array.raw)) + curr_image*snx*sny*m_typeSize;
       
-      lastCnt0 = cnt0;
-      age_counter = 0;
+      m_lastCnt0 = cnt0;
+      m_age_counter = 0;
       
-      if(fps_counter > 1000/m_timeout)
+      if(m_fps_counter > 1000/m_timeout)
       {
          update_fps();
-         fps_counter = 0;
+         m_fps_counter = 0;
          return RTIMVIMAGE_FPSUPDATE;
       }
       else
       {
-         ++fps_counter;
+         ++m_fps_counter;
          return RTIMVIMAGE_IMUPDATE;
       }
       
    }
    else
    {
-      if(age_counter > 250/m_timeout)
+      if(m_age_counter > 250/m_timeout)
       {
-         age_counter = 0;
-         fps_counter = 1000/m_timeout+1;
+         m_age_counter = 0;
+         m_fps_counter = 1000/m_timeout+1;
          return RTIMVIMAGE_AGEUPDATE;
       }
       else
       {
-         ++age_counter;
-         ++fps_counter;
+         ++m_age_counter;
+         ++m_fps_counter;
          return RTIMVIMAGE_NOUPDATE;
       }
    }
@@ -355,7 +369,7 @@ void rtimvImage::detach()
    m_data = nullptr; 
    ImageStreamIO_closeIm(&m_image);
    m_shmimAttached = 0;
-   lastCnt0 = -1;
+   m_lastCnt0 = -1;
    m_timer.start(m_shmimTimeout);
 }
 
