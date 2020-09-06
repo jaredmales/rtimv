@@ -1584,7 +1584,7 @@ std::string rtimvMainWindow::generateHelp()
    help += "\n";
    help += "1-9: change zoom level\n";
    help += "\n";
-   help += "[: shrink window + image                \t]: grow window + image\n";
+   help += "[: shrink to fit              \t]: grow to fit\n";
    help += "\n";
    help += "ctrl-c: center image          \tdelete: remove selected object \n";
    
