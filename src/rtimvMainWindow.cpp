@@ -59,12 +59,15 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    qgs->addItem(colorBox);
 
    statsBox = new StretchBox(0,0,32,32);
-   statsBox->setPen(QPen("Red"));
+   statsBox->setPenColor("Red");
+   colorBox->setPenWidth(0.1);
    statsBox->setVisible(false);
    statsBox->setStretchable(true);
-   statsBox->setRemovable(false);
+   statsBox->setRemovable(true);
+   m_userBoxes.insert(statsBox);
    connect(statsBox, SIGNAL(moved(StretchBox *)), this, SLOT(statsBoxMoved(StretchBox *)));
    connect(statsBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
+   connect(statsBox, SIGNAL(remove(StretchBox *)), this, SLOT(userBoxRemove(StretchBox *)));
    qgs->addItem(statsBox);
    
    
@@ -408,7 +411,7 @@ void rtimvMainWindow::postChangeImdata()
    
    if(imStats) 
    {
-      //imStats->set_imdata(m_imData, frame_time,0);
+      imStats->set_imdata();
    }
 
    
@@ -875,45 +878,41 @@ float rtimvMainWindow::targetYc()
 
 void rtimvMainWindow::doLaunchStatsBox()
 {
-   //return;
-   
-   
    statsBox->setVisible(true);
    
-   /*if(!imStats)
+   if(!imStats)
    {
-//       imStats = new imviewerStats(pixget, type_size, this, 0);
-//       imStats->setAttribute(Qt::WA_DeleteOnClose); //Qt will delete imstats when it closes.
-      //imStats->set_imdata(m_imData, frame_time, 0);
+      imStats = new imviewerStats(this, this, 0);
+      imStats->setAttribute(Qt::WA_DeleteOnClose); //Qt will delete imstats when it closes.
       connect(imStats, SIGNAL(finished(int )), this, SLOT(imStatsClosed(int )));
    }
-*/
+
    statsBoxMoved(statsBox);
 
-   //imStats->show();
+   imStats->show();
     
-   //imStats->activateWindow();
+   imStats->activateWindow();
    
 }
 
 void rtimvMainWindow::doHideStatsBox()
 {
-   return;
-   /*
    statsBox->setVisible(false);
 
    if (imStats)
    {
+      delete imStats;
       //imStats->hide();
-      imStats->close(); 
+      //imStats->close(); 
       imStats = 0; //imStats is set to delete on close
    }
-   */
+
 }
 
 void rtimvMainWindow::imStatsClosed(int result)
 {
-   /*
+   static_cast<void>(result);
+   
    statsBox->setVisible(false);
    imStats = 0; //imStats is set to delete on close
    if(imcp)
@@ -921,25 +920,22 @@ void rtimvMainWindow::imStatsClosed(int result)
       imcp->statsBoxButtonState = false;
       imcp->ui.statsBoxButton->setText("Show Stats Box");
    }
-   //imcp->on_statsBoxButton_clicked();
-   //doHideStatsBox();
-   */
-   (void)(result);
+//    imcp->on_statsBoxButton_clicked();
    
 }
 
 void rtimvMainWindow::statsBoxMoved(StretchBox * sb)
 {
    static_cast<void>(sb);
-   /*
+   
    QPointF np = qpmi->mapFromItem(statsBox, QPointF(statsBox->rect().x(),statsBox->rect().y()));
    QPointF np2 = qpmi->mapFromItem(statsBox, QPointF(statsBox->rect().x()+statsBox->rect().width(),statsBox->rect().y()+statsBox->rect().height()));
 
    if(imStats) 
    {
-      //imStats->set_imdata(m_imData, frame_time, m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y(), 0);
+      imStats->set_imdata(m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y());
    }
-   */
+   
 
 }
 
@@ -1035,6 +1031,12 @@ void rtimvMainWindow::userBoxRejectMouse(StretchBox * sb)
 
 void rtimvMainWindow::userBoxRemove(StretchBox * sb)
 {
+   if(sb == statsBox)
+   {
+      doHideStatsBox();
+      return;
+   }
+   
    userBoxMouseOut(sb); //This cleans up any gui items associated with the box
    m_userBoxes.erase(sb); //Remove it from our list
    qgs->removeItem(sb); //Remove it from the scene

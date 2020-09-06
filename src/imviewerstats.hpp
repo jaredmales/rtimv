@@ -30,47 +30,44 @@ class imviewerStats : public QDialog
    Q_OBJECT
    
    public:
-      imviewerStats(float (*pg)(void *, size_t), size_t typeSize, QWidget * Parent = 0, Qt::WindowFlags f = 0);
+      imviewerStats( imviewer * imv, 
+                     QWidget * Parent = 0, 
+                     Qt::WindowFlags f = 0
+                   );
       ~imviewerStats();
       
    protected:
-      int statsPause;
+      
+      imviewer * m_imv {nullptr};
+      
+      int statsPause {20};
 
       QTimer updateTimer; ///< When this times out the GUI is updated.
-      int updateTimerTimeout;
+      int updateTimerTimeout {50};
       
-      char * imdata;
-      char * darkdata;
-      char * dummydark;
+      size_t image_nx {0};
+      size_t image_ny {0};
+      size_t region_x0 {0};
+      size_t region_x1 {0};
+      size_t region_y0 {0};
+      size_t region_y1 {0};
 
-      int IMDATA_TYPE;
-      size_t IMDATA_TYPE_SIZE;
-      float (*pixget)(void *, size_t);
-            
-      float frame_time;
-      size_t image_nx;
-      size_t image_ny;
-      size_t region_x0;
-      size_t region_x1;
-      size_t region_y0;
-      size_t region_y1;
+      float imdata_min {0};
+      float imdata_max {0};
+      float imdata_mean {0};
+      float imdata_median {0};
 
-      float imdata_min;
-      float imdata_max;
-      float imdata_mean;
-      float imdata_median;
-
-      int regionChanged;
-      int regionSizeChanged;
-      int regionChangedFit;
-      int statsChanged;
-      int dieNow;
+      int regionChanged {0};
+      int regionSizeChanged {0};
+      int regionChangedFit {0};
+      int statsChanged {0};
+      int dieNow {0};
 
       StatsThread sth;
       
    public:
-      void set_imdata(void * id, float ft, void * dd = 0);
-      void set_imdata(void * id, float ft, size_t _nx, size_t _ny, size_t x0, size_t x1, size_t y0, size_t y1, void * dd = 0);
+      void set_imdata();
+      void set_imdata(size_t _nx, size_t _ny, size_t x0, size_t x1, size_t y0, size_t y1);
 
       void stats_thread();
       void calc_stats();

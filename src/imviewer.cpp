@@ -219,8 +219,8 @@ float imviewer::pixel_noCal( imviewer * imv,
 }
 
 float imviewer::pixel_subDark( imviewer * imv,
-                             size_t idx
-                           )
+                               size_t idx
+                             )
 {
    return imv->m_images[0]->pixel(idx) - imv->m_images[1]->pixel(idx);
 }

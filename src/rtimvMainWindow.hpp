@@ -57,6 +57,11 @@ class rtimvMainWindow : public imviewer, public application
                        Qt::WindowFlags f = 0
                      );
       
+      ~rtimvMainWindow()
+      {
+         if(imStats) delete imStats;
+      }
+      
       virtual void setupConfig();
       
       virtual void loadConfig();
