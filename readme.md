@@ -14,6 +14,7 @@ This is now a stripped down version, with only minimal analysis tools.  A plugin
 
 Dependencies:
  - qt-5.
+   - on Ubuntu 20 `sudo apt-get install qt5-default`
  - milk-org/ImageStreamIO from https://github.com/milk-org/ImageStreamIO
 
 On CentOS-7 you may need to install mesa-libGL-devel.x86_64
