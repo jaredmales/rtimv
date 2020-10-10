@@ -12,10 +12,16 @@ This is now a stripped down version, with only minimal analysis tools.  A plugin
 
 ## Installation
 
+NOTE: if you are on the newest version of milk, a.k.a. the dev branch, you should switch to the `new_milk` branch with `git checkout new_milk && git pull`
+
+
 Dependencies:
- - qt-5.
+ - qt-5
    - on Ubuntu 20 `sudo apt-get install qt5-default`
- - milk-org/ImageStreamIO from https://github.com/milk-org/ImageStreamIO
+ - mxlib [https://github.com/jaredmales/mxlib](https://github.com/jaredmales/mxlib)
+   - you do NOT need any of the dependencies of mxlib, or to configure its environment, just for rtimv.  All that is needed is to clone mxlib, and `sudo make PREFIX=/usr/local/include install`
+ - milk-org/milk-package from https://github.com/milk-org/milk-package
+   - If you are looking for an image viewer for cacao, you probably already have this!
 
 On CentOS-7 you may need to install mesa-libGL-devel.x86_64
  
