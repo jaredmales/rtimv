@@ -12,6 +12,9 @@ This is now a stripped down version, with only minimal analysis tools.  A plugin
 
 ## Installation
 
+NOTE: if you are on the newest version of milk, a.k.a. the dev branch, you should switch to the `new_milk` branch with `git checkout new_milk && git pull`
+
+
 Dependencies:
  - qt-5.
    - on Ubuntu 20 `sudo apt-get install qt5-default`
