@@ -32,7 +32,7 @@
 
 #include <signal.h>
 
-#include <ImageStreamIO.h>
+//#include <ImageStreamIO.h>
 
 #include "colorMaps.hpp"
 #include "ImageStruct.hpp"

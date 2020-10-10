@@ -16,7 +16,7 @@
 #include <QTimer>
 
 #include <fitsio.h>
-#include <ImageStreamIO.h>
+#include <ImageStreamIO/ImageStreamIO.h>
 
 #include "pixaccess.h"
 
