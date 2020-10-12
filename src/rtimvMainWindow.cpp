@@ -10,6 +10,13 @@ rtimvMainWindow::rtimvMainWindow( int argc,
                                 ) : imviewer(Parent, f)
 {
    setup(argc,argv);
+   
+   if(doHelp)
+   {
+      help();
+      exit(0);
+   }
+   
    ui.setupUi(this);
    
    nup =0;

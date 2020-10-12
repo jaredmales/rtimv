@@ -533,7 +533,7 @@ class rtimvGraphicsView : public QGraphicsView
       void mouseDoubleClickEvent(QMouseEvent *e);
       
       void wheelEvent(QWheelEvent *e);
-
+      
    ///@}
       
 };
