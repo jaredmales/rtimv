@@ -157,6 +157,8 @@ rtimvMainWindow::rtimvMainWindow( int argc,
          }
       }
    }
+   
+   setWindowTitle(m_title.c_str());
 }
 void rtimvMainWindow::setupConfig()
 {
