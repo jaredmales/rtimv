@@ -34,8 +34,7 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    ui.graphicsView->setScene(qgs);
    
    qpmi = 0;
-   colorBox = 0;
-   statsBox = 0;
+   m_colorBox = 0;
    
    
    rightClickDragging = false;
@@ -54,28 +53,28 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    colorBox_i1 = 32;
    colorBox_j0 = 0;
    colorBox_j1 = 32;
-   colorBox = new StretchBox(0,0,32,32);
-   colorBox->setPenColor("Yellow");
-   colorBox->setPenWidth(0.1);
-   colorBox->setVisible(false);
-   colorBox->setStretchable(true);
-   colorBox->setRemovable(false);
-   m_userBoxes.insert(colorBox);
-   connect(colorBox, SIGNAL(moved(StretchBox *)), this, SLOT(colorBoxMoved(StretchBox * )));
-   connect(colorBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
-   qgs->addItem(colorBox);
+   m_colorBox = new StretchBox(0,0,32,32);
+   m_colorBox->setPenColor("Yellow");
+   m_colorBox->setPenWidth(0.1);
+   m_colorBox->setVisible(false);
+   m_colorBox->setStretchable(true);
+   m_colorBox->setRemovable(false);
+   m_userBoxes.insert(m_colorBox);
+   connect(m_colorBox, SIGNAL(moved(StretchBox *)), this, SLOT(colorBoxMoved(StretchBox * )));
+   connect(m_colorBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
+   qgs->addItem(m_colorBox);
 
-   statsBox = new StretchBox(0,0,32,32);
-   statsBox->setPenColor("Red");
-   colorBox->setPenWidth(0.1);
-   statsBox->setVisible(false);
-   statsBox->setStretchable(true);
-   statsBox->setRemovable(true);
-   m_userBoxes.insert(statsBox);
-   connect(statsBox, SIGNAL(moved(StretchBox *)), this, SLOT(statsBoxMoved(StretchBox *)));
-   connect(statsBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
-   connect(statsBox, SIGNAL(remove(StretchBox *)), this, SLOT(userBoxRemove(StretchBox *)));
-   qgs->addItem(statsBox);
+   m_statsBox = new StretchBox(0,0,32,32);
+   m_statsBox->setPenColor("Red");
+   m_statsBox->setPenWidth(0.1);
+   m_statsBox->setVisible(false);
+   m_statsBox->setStretchable(true);
+   m_statsBox->setRemovable(true);
+   m_userBoxes.insert(m_statsBox);
+   connect(m_statsBox, SIGNAL(moved(StretchBox *)), this, SLOT(statsBoxMoved(StretchBox *)));
+   connect(m_statsBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
+   connect(m_statsBox, SIGNAL(remove(StretchBox *)), this, SLOT(userBoxRemove(StretchBox *)));
+   qgs->addItem(m_statsBox);
    
    
    m_targetVisible = false;
@@ -268,8 +267,8 @@ void rtimvMainWindow::postSetImsize()
 //    colorBox_j1 = m_nx*.75;
 // 
 //    
-//    colorBox->setRect(colorBox->mapRectFromScene(colorBox_i0, colorBox_j0, colorBox_i1-colorBox_i0, colorBox_j1-colorBox_j0));
-//    colorBox->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
+//    m_colorBox->setRect(m_colorBox->mapRectFromScene(colorBox_i0, colorBox_j0, colorBox_i1-colorBox_i0, colorBox_j1-colorBox_j0));
+//    m_colorBox->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
 
    
    //resize the boxes
@@ -397,8 +396,8 @@ void rtimvMainWindow::postChangeImdata()
    }
    else qpmi->setPixmap(m_qpm);
         
-   if(colorBox) qpmi->stackBefore(colorBox);
-   if(statsBox) qpmi->stackBefore(statsBox);
+   if(m_colorBox) qpmi->stackBefore(m_colorBox);
+   if(m_statsBox) qpmi->stackBefore(m_statsBox);
    //if(guideBox) qpmi->stackBefore(guideBox);
    
    if(imcp)
@@ -887,7 +886,7 @@ float rtimvMainWindow::targetYc()
 
 void rtimvMainWindow::doLaunchStatsBox()
 {
-   statsBox->setVisible(true);
+   m_statsBox->setVisible(true);
    
    if(!imStats)
    {
@@ -896,7 +895,7 @@ void rtimvMainWindow::doLaunchStatsBox()
       connect(imStats, SIGNAL(finished(int )), this, SLOT(imStatsClosed(int )));
    }
 
-   statsBoxMoved(statsBox);
+   statsBoxMoved(m_statsBox);
 
    imStats->show();
     
@@ -906,7 +905,7 @@ void rtimvMainWindow::doLaunchStatsBox()
 
 void rtimvMainWindow::doHideStatsBox()
 {
-   statsBox->setVisible(false);
+   m_statsBox->setVisible(false);
 
    if (imStats)
    {
@@ -922,14 +921,14 @@ void rtimvMainWindow::imStatsClosed(int result)
 {
    static_cast<void>(result);
    
-   statsBox->setVisible(false);
+   m_statsBox->setVisible(false);
    imStats = 0; //imStats is set to delete on close
    if(imcp)
    {
       imcp->statsBoxButtonState = false;
       imcp->ui.statsBoxButton->setText("Show Stats Box");
    }
-//    imcp->on_statsBoxButton_clicked();
+//    imcp->on_m_statsBoxButton_clicked();
    
 }
 
@@ -937,8 +936,8 @@ void rtimvMainWindow::statsBoxMoved(StretchBox * sb)
 {
    static_cast<void>(sb);
    
-   QPointF np = qpmi->mapFromItem(statsBox, QPointF(statsBox->rect().x(),statsBox->rect().y()));
-   QPointF np2 = qpmi->mapFromItem(statsBox, QPointF(statsBox->rect().x()+statsBox->rect().width(),statsBox->rect().y()+statsBox->rect().height()));
+   QPointF np = qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x(),m_statsBox->rect().y()));
+   QPointF np2 = qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x()+m_statsBox->rect().width(),m_statsBox->rect().y()+m_statsBox->rect().height()));
 
    if(imStats) 
    {
@@ -953,8 +952,8 @@ void rtimvMainWindow::colorBoxMoved(StretchBox * sb)
 {
    QRectF newr = sb->rect();
    
-   QPointF np = qpmi->mapFromItem(colorBox, QPointF(newr.x(),newr.y()));
-   QPointF np2 = qpmi->mapFromItem(colorBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
+   QPointF np = qpmi->mapFromItem(m_colorBox, QPointF(newr.x(),newr.y()));
+   QPointF np2 = qpmi->mapFromItem(m_colorBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
 
    colorBox_i1 = (int) (np2.x() + .5);
    colorBox_i0 = (int) np.x();
@@ -1040,7 +1039,7 @@ void rtimvMainWindow::userBoxRejectMouse(StretchBox * sb)
 
 void rtimvMainWindow::userBoxRemove(StretchBox * sb)
 {
-   if(sb == statsBox)
+   if(sb == m_statsBox)
    {
       doHideStatsBox();
       return;
@@ -1211,7 +1210,7 @@ void rtimvMainWindow::userLineRemove(StretchLine * sl)
 
 void rtimvMainWindow::post_setUserBoxActive(bool usba)
 {
-   colorBox->setVisible(usba);
+   m_colorBox->setVisible(usba);
 }
 
 
@@ -1366,7 +1365,7 @@ void rtimvMainWindow::toggleColorBox()
       }
       else
       {
-         colorBox->setVisible(true);
+         m_colorBox->setVisible(true);
          setUserBoxActive(true);
       }
       ui.graphicsView->zoomText("color box scale");
@@ -1379,7 +1378,7 @@ void rtimvMainWindow::toggleColorBox()
       }
       else
       {
-         colorBox->setVisible(false);
+         m_colorBox->setVisible(false);
          setUserBoxActive(false);
       }
       ui.graphicsView->zoomText("global scale");
@@ -1388,7 +1387,7 @@ void rtimvMainWindow::toggleColorBox()
 
 void rtimvMainWindow::toggleStatsBox()
 {
-   if(statsBox->isVisible())
+   if(m_statsBox->isVisible())
    {
       doHideStatsBox();
       ui.graphicsView->zoomText("stats off");
@@ -1742,7 +1741,17 @@ void rtimvMainWindow::loadPlugin(QObject *plugin)
    auto roi = qobject_cast<rtimvOverlayInterface *>(plugin);
    if (roi)
    {
-      roi->attachOverlay(ui.graphicsView, &m_dictionary, config);
+      rtimvOverlayAccess roa;
+      roa.m_colorBox = m_colorBox;
+      roa.m_statsBox = m_statsBox;
+      roa.m_userBoxes = &m_userBoxes;
+      roa.m_userCircles = &m_userCircles;
+      roa.m_userLines = &m_userLines;
+      roa.m_graphicsView = ui.graphicsView;
+      roa.m_dictionary = &m_dictionary;
+      
+      roi->attachOverlay(roa, config);
+      
       m_overlays.push_back(roi);
    }
 }

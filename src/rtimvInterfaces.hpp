@@ -2,12 +2,16 @@
 #ifndef rtimvInterfaces_hpp
 #define rtimvInterfaces_hpp
 
+#include <unordered_set>
 
 #include <QtPlugin>
 #include <QGraphicsScene>
 #include <QKeyEvent>
 
 #include "rtimvGraphicsView.hpp"
+#include "StretchBox.hpp"
+#include "StretchCircle.hpp"
+#include "StretchLine.hpp"
 
 #include <unordered_map>
 
@@ -99,13 +103,28 @@ class rtimvDictionaryInterface
 
 Q_DECLARE_INTERFACE(rtimvDictionaryInterface, rtimvDictionaryInterface_iid)
 
+/// Contains the internal components of rtimvMainWindow exposed to overlay plugins.
+/** Plugins should copy the passed object of this type to an internal variable.
+  */ 
+struct rtimvOverlayAccess
+{
+   StretchBox * m_colorBox {nullptr};
+   StretchBox * m_statsBox {nullptr};
+   std::unordered_set<StretchBox *> * m_userBoxes {nullptr};
+   std::unordered_set<StretchCircle *> * m_userCircles {nullptr};
+   std::unordered_set<StretchLine *> * m_userLines {nullptr};
+   rtimvGraphicsView * m_graphicsView {nullptr};  
+   dictionaryT * m_dictionary {nullptr};
+};
+
 class rtimvOverlayInterface
 {
    public:
+      
+      
       virtual ~rtimvOverlayInterface() = default;
 
-      virtual int attachOverlay( rtimvGraphicsView *, 
-                                 dictionaryT *,
+      virtual int attachOverlay( rtimvOverlayAccess &,
                                  mx::app::appConfigurator &
                                ) = 0; 
       

@@ -189,9 +189,9 @@ class rtimvMainWindow : public imviewer, public application
       
    public:
       
-      StretchBox* colorBox;
+      StretchBox* m_colorBox;
       
-      StretchBox* statsBox;
+      StretchBox* m_statsBox {nullptr};
 
       std::unordered_set<StretchBox *> m_userBoxes;
       std::unordered_set<StretchCircle *> m_userCircles;
