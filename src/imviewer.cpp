@@ -36,6 +36,23 @@ void imviewer::startup( const std::vector<std::string> & shkeys )
       }
    }
    
+   //Turn on features if images exist:
+   if(m_images[1] != nullptr)
+   {
+      m_subtractDark = true;
+   }
+   
+   if(m_images[2] != nullptr)
+   {
+      m_applyMask = true;
+   }
+   
+   if(m_images[3] != nullptr)
+   {
+      m_applySatMask = true;
+   }
+   
+   
    connect(&m_timer, SIGNAL(timeout()), this, SLOT(timerout()));
    
    //Install signal handling
