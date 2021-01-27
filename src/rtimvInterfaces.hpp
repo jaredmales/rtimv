@@ -117,7 +117,7 @@ struct rtimvOverlayAccess
    dictionaryT * m_dictionary {nullptr};
 };
 
-class rtimvOverlayInterface
+class rtimvOverlayInterface : public QObject
 {
    public:
       
@@ -140,6 +140,14 @@ class rtimvOverlayInterface
 
       virtual void disableOverlay() = 0;
       
+   //Derived class must declare:
+   /*
+   signals:
+         
+      void newStretchBox(StretchBox *);
+      void newStretchCircle(StretchCircle *);
+      void newStretchLine(StretchLine *);
+   */
 };
 
 #define rtimvOverlayInterface_iid "rtimv.overlayInterface/1.0"

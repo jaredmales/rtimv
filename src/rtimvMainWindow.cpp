@@ -883,6 +883,53 @@ float rtimvMainWindow::targetYc()
    return m_targetYc;
 }
       
+void rtimvMainWindow::addStretchBox(StretchBox * sb)
+{
+   if(sb == nullptr) return;
+   
+   m_userBoxes.insert(sb);
+   
+   connect(sb, SIGNAL(resized(StretchBox *)), this, SLOT(userBoxResized(StretchBox *)));
+   connect(sb, SIGNAL(moved(StretchBox *)), this, SLOT(userBoxMoved(StretchBox *)));
+   connect(sb, SIGNAL(mouseIn(StretchBox *)), this, SLOT(userBoxMouseIn(StretchBox *)));
+   connect(sb, SIGNAL(mouseOut(StretchBox *)), this, SLOT(userBoxMouseOut(StretchBox *)));
+   connect(sb, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
+   connect(sb, SIGNAL(remove(StretchBox*)), this, SLOT(userBoxRemove(StretchBox*)));
+   
+   qgs->addItem(sb);
+}
+
+void rtimvMainWindow::addStretchCircle(StretchCircle * sc)
+{
+   if(sc == nullptr) return;
+   
+   m_userCircles.insert(sc);
+   
+   connect(sc, SIGNAL(resized(StretchCircle *)), this, SLOT(userCircleResized(StretchCircle *)));
+   connect(sc, SIGNAL(moved(StretchCircle *)), this, SLOT(userCircleMoved(StretchCircle *)));
+   connect(sc, SIGNAL(mouseIn(StretchCircle *)), this, SLOT(userCircleMouseIn(StretchCircle *)));
+   connect(sc, SIGNAL(mouseOut(StretchCircle *)), this, SLOT(userCircleMouseOut(StretchCircle *)));
+   connect(sc, SIGNAL(rejectMouse(StretchCircle *)), this, SLOT(userCircleRejectMouse(StretchCircle *)));
+   connect(sc, SIGNAL(remove(StretchCircle*)), this, SLOT(userCircleRemove(StretchCircle*)));
+   
+   qgs->addItem(sc);
+}
+
+void rtimvMainWindow::addStretchLine(StretchLine * sl)
+{
+   if(sl == nullptr) return;
+   
+   m_userLines.insert(sl);
+   
+   connect(sl, SIGNAL(resized(StretchLine *)), this, SLOT(userLineResized(StretchLine *)));
+   connect(sl, SIGNAL(moved(StretchLine *)), this, SLOT(userLineMoved(StretchLine *)));
+   connect(sl, SIGNAL(mouseIn(StretchLine *)), this, SLOT(userLineMouseIn(StretchLine *)));
+   connect(sl, SIGNAL(mouseOut(StretchLine *)), this, SLOT(userLineMouseOut(StretchLine *)));
+   connect(sl, SIGNAL(rejectMouse(StretchLine *)), this, SLOT(userLineRejectMouse(StretchLine *)));
+   connect(sl, SIGNAL(remove(StretchLine*)), this, SLOT(userLineRemove(StretchLine*)));
+   
+   qgs->addItem(sl);
+}
 
 void rtimvMainWindow::doLaunchStatsBox()
 {
@@ -1753,5 +1800,9 @@ void rtimvMainWindow::loadPlugin(QObject *plugin)
       roi->attachOverlay(roa, config);
       
       m_overlays.push_back(roi);
+      
+      connect(roi, SIGNAL(newStretchBox(StretchBox *)), this, SLOT(addStretchBox(StretchBox *)));
+      connect(roi, SIGNAL(newStretchCircle(StretchCircle *)), this, SLOT(addStretchCircle(StretchCircle *)));
+      connect(roi, SIGNAL(newStretchLine(StretchLine *)), this, SLOT(addStretchLine(StretchLine *)));
    }
 }

@@ -45,6 +45,7 @@ FORMS += forms/rtimvMainWindow.ui \
 LIBS += -lImageStreamIO
 LIBS += -lcfitsio
 LIBS += -lrtimv
+LIBS += -lmxlib -L$$(MKLROOT)/lib/intel64 -Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_gnu_thread -lmkl_core -lgomp -lpthread -lm -ldl -lfftw3 -lfftw3f -lfftw3l -lfftw3q -lboost_system -lboost_filesystem -L/usr/local/cuda/lib64/ -lcudart -lcublas -lcufft -lcurand -lgsl -lxpa -llevmar -L /home/jrmales/lib -lsofa_c
         
 RESOURCES += res/imviewer.qrc
 

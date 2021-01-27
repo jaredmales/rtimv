@@ -255,6 +255,10 @@ class rtimvMainWindow : public imviewer, public application
       float targetYc();
       
    protected slots:
+      void addStretchBox(StretchBox * sb);
+      void addStretchCircle(StretchCircle * sb);
+      void addStretchLine(StretchLine * sb);
+      
       void doLaunchStatsBox();
       void doHideStatsBox();
       void imStatsClosed(int);
