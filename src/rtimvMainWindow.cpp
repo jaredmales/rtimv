@@ -30,10 +30,9 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    //This will come up at some minimal size.
    ui.graphicsView->setGeometry(0,0, width(), height());
    
-   qgs = new QGraphicsScene();
-   ui.graphicsView->setScene(qgs);
+   m_qgs = new QGraphicsScene();
+   ui.graphicsView->setScene(m_qgs);
    
-   qpmi = 0;
    m_colorBox = 0;
    
    
@@ -62,7 +61,7 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    m_userBoxes.insert(m_colorBox);
    connect(m_colorBox, SIGNAL(moved(StretchBox *)), this, SLOT(colorBoxMoved(StretchBox * )));
    connect(m_colorBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
-   qgs->addItem(m_colorBox);
+   m_qgs->addItem(m_colorBox);
 
    m_statsBox = new StretchBox(0,0,32,32);
    m_statsBox->setPenColor("Red");
@@ -74,7 +73,7 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    connect(m_statsBox, SIGNAL(moved(StretchBox *)), this, SLOT(statsBoxMoved(StretchBox *)));
    connect(m_statsBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
    connect(m_statsBox, SIGNAL(remove(StretchBox *)), this, SLOT(userBoxRemove(StretchBox *)));
-   qgs->addItem(m_statsBox);
+   m_qgs->addItem(m_statsBox);
    
    
    m_targetVisible = false;
@@ -85,8 +84,8 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    imStats = 0;
    m_timer.start(m_timeout);
 
-   nup = qgs->addLine(QLineF(512,400, 512, 624), QColor("skyblue"));
-   nup_tip = qgs->addLine(QLineF(512,400, 536, 424), QColor("skyblue"));
+   nup = m_qgs->addLine(QLineF(512,400, 512, 624), QColor("skyblue"));
+   nup_tip = m_qgs->addLine(QLineF(512,400, 536, 424), QColor("skyblue"));
    nup->setTransformOriginPoint ( QPointF(512,512) );
    nup_tip->setTransformOriginPoint ( QPointF(512,512) );
    nup->setVisible(false);
@@ -100,15 +99,15 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    
    m_lineHead = new QGraphicsEllipseItem;
    m_lineHead->setVisible(false);
-   qgs->addItem(m_lineHead);
+   m_qgs->addItem(m_lineHead);
    
    m_objCenV = new QGraphicsLineItem;
    m_objCenV->setVisible(false);
-   qgs->addItem(m_objCenV);
+   m_qgs->addItem(m_objCenV);
    
    m_objCenH = new QGraphicsLineItem;
    m_objCenH->setVisible(false);
-   qgs->addItem(m_objCenH);
+   m_qgs->addItem(m_objCenH);
    
    /* ========================================= */
    /* now load plugins                          */
@@ -159,6 +158,12 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    
    setWindowTitle(m_title.c_str());
 }
+
+rtimvMainWindow::~rtimvMainWindow()
+{
+   if(imStats) delete imStats;
+}
+
 void rtimvMainWindow::setupConfig()
 {
    config.add("image.shmim_name", "", "image.shmim_name", argType::Required, "image", "shmim_name", false, "string", "The shared memory image file name for the image, or a FITS file path.");
@@ -312,8 +317,8 @@ void rtimvMainWindow::setTarget()
 {
    if(!m_cenLineVert)
    {
-      m_cenLineVert = qgs->addLine(QLineF(m_targetXc*nx(),0, m_targetXc*nx(), ny()), QColor("lime"));
-      m_cenLineHorz = qgs->addLine(QLineF(0, (1.0-m_targetYc)*ny(), nx(), (1.0-m_targetYc)*ny()), QColor("lime"));
+      m_cenLineVert = m_qgs->addLine(QLineF(m_targetXc*nx(),0, m_targetXc*nx(), ny()), QColor("lime"));
+      m_cenLineHorz = m_qgs->addLine(QLineF(0, (1.0-m_targetYc)*ny(), nx(), (1.0-m_targetYc)*ny()), QColor("lime"));
       if(m_targetVisible)
       {
          m_cenLineVert->setVisible(true);
@@ -387,18 +392,18 @@ void rtimvMainWindow::postChangeImdata()
       ui.graphicsView->warningText("");
    }
    
-   if(!qpmi) //This happens on first time through
+   if(!m_qpmi) //This happens on first time through
    {
-      qpmi = qgs->addPixmap(m_qpm);
+      m_qpmi = m_qgs->addPixmap(m_qpm);
       //So we need to initialize the viewport center, etc.
       set_viewcen(0.5,0.5);
       post_zoomLevel();
    }
-   else qpmi->setPixmap(m_qpm);
+   else m_qpmi->setPixmap(m_qpm);
         
-   if(m_colorBox) qpmi->stackBefore(m_colorBox);
-   if(m_statsBox) qpmi->stackBefore(m_statsBox);
-   //if(guideBox) qpmi->stackBefore(guideBox);
+   if(m_colorBox) m_qpmi->stackBefore(m_colorBox);
+   if(m_statsBox) m_qpmi->stackBefore(m_statsBox);
+   //if(guideBox) m_qpmi->stackBefore(guideBox);
    
    if(imcp)
    {
@@ -520,7 +525,7 @@ void rtimvMainWindow::change_center(bool movezoombox)
 
 void rtimvMainWindow::set_viewcen(float x, float y, bool movezoombox)
 {
-   QPointF sp( x* qpmi->boundingRect().width(), y*qpmi->boundingRect().height() );
+   QPointF sp( x* m_qpmi->boundingRect().width(), y*m_qpmi->boundingRect().height() );
    QPointF vp = ui.graphicsView->mapFromScene(sp);
    
    ui.graphicsView->mapCenterToScene(vp.x(), vp.y());
@@ -604,7 +609,7 @@ void rtimvMainWindow::updateMouseCoords()
 {
    int64_t idx_x, idx_y; //image size are uint32_t, so this allows signed comparison without overflow issues
    
-   if(!qpmi) return;
+   if(!m_qpmi) return;
    
    if(ui.graphicsView->mouseViewX() < 0 || ui.graphicsView->mouseViewY() < 0)
    {
@@ -616,7 +621,7 @@ void rtimvMainWindow::updateMouseCoords()
    float mx = pt.x();
    float my = pt.y();
    
-   if( mx < 0 || mx > qpmi->boundingRect().width() || my < 0 || my > qpmi->boundingRect().height() ) 
+   if( mx < 0 || mx > m_qpmi->boundingRect().width() || my < 0 || my > m_qpmi->boundingRect().height() ) 
    {
       nullMouseCoords();
    }
@@ -624,14 +629,14 @@ void rtimvMainWindow::updateMouseCoords()
    if(!m_nullMouseCoords)
    {
       ui.graphicsView->textCoordX(mx-0.5);
-      ui.graphicsView->textCoordY(qpmi->boundingRect().height() - my-0.5);
+      ui.graphicsView->textCoordY(m_qpmi->boundingRect().height() - my-0.5);
       
       
       idx_x = ((int64_t)(mx-0));
       if(idx_x < 0) idx_x = 0;
       if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
       
-      idx_y = (int)(qpmi->boundingRect().height() - (my-0));
+      idx_y = (int)(m_qpmi->boundingRect().height() - (my-0));
       if(idx_y < 0) idx_y = 0;
       if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;
 
@@ -640,6 +645,7 @@ void rtimvMainWindow::updateMouseCoords()
       if(_pixel != nullptr)
       ui.graphicsView->textPixelVal(_pixel(this,  (int)(idx_y*m_nx) + (int)(idx_x)) );
 
+      //m_qpmi->setToolTip("test\nnewt\nxxxyy");
       if(imcp)
       {
          if(_pixel != nullptr)
@@ -787,7 +793,7 @@ void rtimvMainWindow::addUserBox()
    connect(sb, SIGNAL(remove(StretchBox*)), this, SLOT(userBoxRemove(StretchBox*)));
 
    
-   qgs->addItem(sb);
+   m_qgs->addItem(sb);
       
 }
 
@@ -816,7 +822,7 @@ void rtimvMainWindow::addUserCircle()
    connect(sc, SIGNAL(remove(StretchCircle*)), this, SLOT(userCircleRemove(StretchCircle*)));
 
    
-   qgs->addItem(sc);
+   m_qgs->addItem(sc);
       
 }
 
@@ -845,7 +851,7 @@ void rtimvMainWindow::addUserLine()
    connect(sl, SIGNAL(remove(StretchLine*)), this, SLOT(userLineRemove(StretchLine*)));
 
    
-   qgs->addItem(sl);
+   m_qgs->addItem(sl);
       
 }
 
@@ -889,14 +895,10 @@ void rtimvMainWindow::addStretchBox(StretchBox * sb)
    
    m_userBoxes.insert(sb);
    
-   connect(sb, SIGNAL(resized(StretchBox *)), this, SLOT(userBoxResized(StretchBox *)));
-   connect(sb, SIGNAL(moved(StretchBox *)), this, SLOT(userBoxMoved(StretchBox *)));
-   connect(sb, SIGNAL(mouseIn(StretchBox *)), this, SLOT(userBoxMouseIn(StretchBox *)));
-   connect(sb, SIGNAL(mouseOut(StretchBox *)), this, SLOT(userBoxMouseOut(StretchBox *)));
    connect(sb, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
    connect(sb, SIGNAL(remove(StretchBox*)), this, SLOT(userBoxRemove(StretchBox*)));
-   
-   qgs->addItem(sb);
+      
+   m_qgs->addItem(sb);
 }
 
 void rtimvMainWindow::addStretchCircle(StretchCircle * sc)
@@ -905,14 +907,10 @@ void rtimvMainWindow::addStretchCircle(StretchCircle * sc)
    
    m_userCircles.insert(sc);
    
-   connect(sc, SIGNAL(resized(StretchCircle *)), this, SLOT(userCircleResized(StretchCircle *)));
-   connect(sc, SIGNAL(moved(StretchCircle *)), this, SLOT(userCircleMoved(StretchCircle *)));
-   connect(sc, SIGNAL(mouseIn(StretchCircle *)), this, SLOT(userCircleMouseIn(StretchCircle *)));
-   connect(sc, SIGNAL(mouseOut(StretchCircle *)), this, SLOT(userCircleMouseOut(StretchCircle *)));
    connect(sc, SIGNAL(rejectMouse(StretchCircle *)), this, SLOT(userCircleRejectMouse(StretchCircle *)));
    connect(sc, SIGNAL(remove(StretchCircle*)), this, SLOT(userCircleRemove(StretchCircle*)));
-   
-   qgs->addItem(sc);
+      
+   m_qgs->addItem(sc);
 }
 
 void rtimvMainWindow::addStretchLine(StretchLine * sl)
@@ -921,14 +919,10 @@ void rtimvMainWindow::addStretchLine(StretchLine * sl)
    
    m_userLines.insert(sl);
    
-   connect(sl, SIGNAL(resized(StretchLine *)), this, SLOT(userLineResized(StretchLine *)));
-   connect(sl, SIGNAL(moved(StretchLine *)), this, SLOT(userLineMoved(StretchLine *)));
-   connect(sl, SIGNAL(mouseIn(StretchLine *)), this, SLOT(userLineMouseIn(StretchLine *)));
-   connect(sl, SIGNAL(mouseOut(StretchLine *)), this, SLOT(userLineMouseOut(StretchLine *)));
    connect(sl, SIGNAL(rejectMouse(StretchLine *)), this, SLOT(userLineRejectMouse(StretchLine *)));
    connect(sl, SIGNAL(remove(StretchLine*)), this, SLOT(userLineRemove(StretchLine*)));
    
-   qgs->addItem(sl);
+   m_qgs->addItem(sl);
 }
 
 void rtimvMainWindow::doLaunchStatsBox()
@@ -983,8 +977,8 @@ void rtimvMainWindow::statsBoxMoved(StretchBox * sb)
 {
    static_cast<void>(sb);
    
-   QPointF np = qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x(),m_statsBox->rect().y()));
-   QPointF np2 = qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x()+m_statsBox->rect().width(),m_statsBox->rect().y()+m_statsBox->rect().height()));
+   QPointF np = m_qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x(),m_statsBox->rect().y()));
+   QPointF np2 = m_qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x()+m_statsBox->rect().width(),m_statsBox->rect().y()+m_statsBox->rect().height()));
 
    if(imStats) 
    {
@@ -999,8 +993,8 @@ void rtimvMainWindow::colorBoxMoved(StretchBox * sb)
 {
    QRectF newr = sb->rect();
    
-   QPointF np = qpmi->mapFromItem(m_colorBox, QPointF(newr.x(),newr.y()));
-   QPointF np2 = qpmi->mapFromItem(m_colorBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
+   QPointF np = m_qpmi->mapFromItem(m_colorBox, QPointF(newr.x(),newr.y()));
+   QPointF np2 = m_qpmi->mapFromItem(m_colorBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
 
    colorBox_i1 = (int) (np2.x() + .5);
    colorBox_i0 = (int) np.x();
@@ -1024,7 +1018,7 @@ void rtimvMainWindow::userBoxResized(StretchBox * sb)
 void rtimvMainWindow::userBoxMoved(StretchBox * sb)
 {
    QRectF newr = sb->rect();
-   QPointF np = qpmi->mapFromItem(sb, QPointF(newr.x(),newr.y()));
+   QPointF np = m_qpmi->mapFromItem(sb, QPointF(newr.x(),newr.y()));
    
    float x = np.x()+.5*newr.width();
    float y = np.y()+.5*newr.height();
@@ -1094,7 +1088,7 @@ void rtimvMainWindow::userBoxRemove(StretchBox * sb)
    
    userBoxMouseOut(sb); //This cleans up any gui items associated with the box
    m_userBoxes.erase(sb); //Remove it from our list
-   qgs->removeItem(sb); //Remove it from the scene
+   m_qgs->removeItem(sb); //Remove it from the scene
    sb->deleteLater(); //clean it up after we're no longer in an asynch function
 }
 
@@ -1109,7 +1103,7 @@ void rtimvMainWindow::userCircleResized(StretchCircle * sc)
 void rtimvMainWindow::userCircleMoved(StretchCircle * sc)
 {
    QRectF newr = sc->rect();
-   QPointF np = qpmi->mapFromItem(sc, QPointF(newr.x(),newr.y()));
+   QPointF np = m_qpmi->mapFromItem(sc, QPointF(newr.x(),newr.y()));
    
    float x = np.x()+.5*newr.width();
    float y = np.y()+.5*newr.height();
@@ -1171,7 +1165,7 @@ void rtimvMainWindow::userCircleRemove(StretchCircle * sc)
 {
    userCircleMouseOut(sc); //This cleans up any gui items associated with the circle
    m_userCircles.erase(sc); //Remove it from our list
-   qgs->removeItem(sc); //Remove it from the scene
+   m_qgs->removeItem(sc); //Remove it from the scene
    sc->deleteLater(); //clean it up after we're no longer in an asynch function
 }
 
@@ -1187,7 +1181,7 @@ void rtimvMainWindow::userLineResized(StretchLine * sl)
 
 void rtimvMainWindow::userLineMoved(StretchLine * sl)
 {
-   QPointF np = qpmi->mapFromItem(sl, sl->line().p2());
+   QPointF np = m_qpmi->mapFromItem(sl, sl->line().p2());
    
    float x = np.x();
    float y = np.y();
@@ -1251,7 +1245,7 @@ void rtimvMainWindow::userLineRemove(StretchLine * sl)
 {
    userLineMouseOut(sl); //This cleans up any gui items associated with the line
    m_userLines.erase(sl); //Remove it from our list
-   qgs->removeItem(sl); //Remove it from the scene
+   m_qgs->removeItem(sl); //Remove it from the scene
    sl->deleteLater(); //clean it up after we're no longer in an asynch function
 }
 
@@ -1789,6 +1783,7 @@ void rtimvMainWindow::loadPlugin(QObject *plugin)
    if (roi)
    {
       rtimvOverlayAccess roa;
+      roa.m_mainWindowObject = this;
       roa.m_colorBox = m_colorBox;
       roa.m_statsBox = m_statsBox;
       roa.m_userBoxes = &m_userBoxes;
@@ -1801,8 +1796,5 @@ void rtimvMainWindow::loadPlugin(QObject *plugin)
       
       m_overlays.push_back(roi);
       
-      connect(roi, SIGNAL(newStretchBox(StretchBox *)), this, SLOT(addStretchBox(StretchBox *)));
-      connect(roi, SIGNAL(newStretchCircle(StretchCircle *)), this, SLOT(addStretchCircle(StretchCircle *)));
-      connect(roi, SIGNAL(newStretchLine(StretchLine *)), this, SLOT(addStretchLine(StretchLine *)));
    }
 }

@@ -108,12 +108,21 @@ Q_DECLARE_INTERFACE(rtimvDictionaryInterface, rtimvDictionaryInterface_iid)
   */ 
 struct rtimvOverlayAccess
 {
+   /// QObject handle for the main window to allow connecting signals and slots from within plugin
+   QObject * m_mainWindowObject {nullptr};
+   
    StretchBox * m_colorBox {nullptr};
+   
    StretchBox * m_statsBox {nullptr};
+   
    std::unordered_set<StretchBox *> * m_userBoxes {nullptr};
+   
    std::unordered_set<StretchCircle *> * m_userCircles {nullptr};
+   
    std::unordered_set<StretchLine *> * m_userLines {nullptr};
+   
    rtimvGraphicsView * m_graphicsView {nullptr};  
+   
    dictionaryT * m_dictionary {nullptr};
 };
 
@@ -139,15 +148,7 @@ class rtimvOverlayInterface : public QObject
       virtual void enableOverlay() = 0;
 
       virtual void disableOverlay() = 0;
-      
-   //Derived class must declare:
-   /*
-   signals:
-         
-      void newStretchBox(StretchBox *);
-      void newStretchCircle(StretchCircle *);
-      void newStretchLine(StretchLine *);
-   */
+   
 };
 
 #define rtimvOverlayInterface_iid "rtimv.overlayInterface/1.0"
