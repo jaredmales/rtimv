@@ -150,8 +150,17 @@ rtimvMainWindow::rtimvMainWindow( int argc,
          if (plugin) 
          {
             std::cerr << "loading dynamic\n";
-            loadPlugin(plugin);
-            m_pluginFileNames += fileName;
+            int arv = loadPlugin(plugin);
+            if( arv != 0 )
+            {
+               std::cerr << "unloading  . . . ";
+               if(loader.unload()) std::cerr << "it worked!\n";
+               else std::cerr << "it didn't work\n";
+            }
+            else
+            {
+               m_pluginFileNames += fileName;
+            }
          }
       }
    }
@@ -1771,7 +1780,7 @@ int rtimvMainWindow::fontLuminance()
 }
 
 
-void rtimvMainWindow::loadPlugin(QObject *plugin)
+int rtimvMainWindow::loadPlugin(QObject *plugin)
 {
    auto rdi = qobject_cast<rtimvDictionaryInterface *>(plugin);
    if (rdi)
@@ -1792,9 +1801,22 @@ void rtimvMainWindow::loadPlugin(QObject *plugin)
       roa.m_graphicsView = ui.graphicsView;
       roa.m_dictionary = &m_dictionary;
       
-      roi->attachOverlay(roa, config);
+      int arv = roi->attachOverlay(roa, config);
       
-      m_overlays.push_back(roi);
-      
+      if(arv < 0)
+      {
+         std::cerr << "Error from attachOverlay\n";
+         return arv;
+      }
+      else if(arv > 0)
+      {
+         return arv;
+      }
+      else
+      {
+         m_overlays.push_back(roi);
+      }
    }
+   
+   return 0;
 }

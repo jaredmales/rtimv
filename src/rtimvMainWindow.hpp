@@ -392,7 +392,7 @@ protected slots:
    protected:
       QStringList m_pluginFileNames;
       
-      void loadPlugin(QObject *plugin);
+      int loadPlugin(QObject *plugin);
       
       std::vector<rtimvOverlayInterface *> m_overlays;
       

@@ -126,6 +126,25 @@ struct rtimvOverlayAccess
    dictionaryT * m_dictionary {nullptr};
 };
 
+struct rtimvMouseCoord
+{
+   float pixelX {0};
+   float pixelY {0};
+   
+   float imageValue {0};
+   
+   float displayValue {0};
+   
+   bool darkValid {false};
+   float darkValue {0};
+   
+   bool satMaskValid {false};
+   float satMaskValue {0};
+   
+   bool maskValid {false};
+   float maskValue {0};
+};
+   
 class rtimvOverlayInterface : public QObject
 {
    public:
