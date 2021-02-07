@@ -1731,21 +1731,17 @@ int rtimvMainWindow::fontLuminance(QTextEdit* qte)
    
    QColor sb("skyblue");
    
-   int flight = sb.lightness();
-   //std::cerr << "skyblue: ";// << pLightness(linRGBtoLuminance( sRGBtoLinRGB<double>(qRed(fc)), sRGBtoLinRGB<double>(qGreen(fc)), sRGBtoLinRGB<double>(qBlue(fc)))) << "\n";
-   //std::cerr << QColor("skyblue").lightness() << "\n";
+   //int flight = sb.lightness();
+   //std::cout << avgLum << " " << flight << "\n";
    
-   if( flight - avgLum < 50)
+   if(avgLum > 100 && avgLum <= 140)
    {
-      //std::cerr << flight-avgLum << " ";
-      int nl = abs(flight-avgLum);
-      if(nl > 255) nl -= 255;
-      if(nl < 0 ) nl = 0;
-      
-      //std::cerr << nl << "\n";
-      
-      QColor nc = QColor::fromHsl(sb.hslHue(), sb.hslSaturation(), nl);
-      
+      QColor nc = QColor::fromHsl(sb.hslHue(), sb.hslSaturation(), 255);
+      qte->setTextColor(nc);
+   }
+   else if(avgLum > 140)
+   {
+      QColor nc = QColor::fromHsl(sb.hslHue(), sb.hslSaturation(), 0);
       qte->setTextColor(nc);
    }
    else 
