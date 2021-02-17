@@ -9,6 +9,8 @@ rtimvMainWindow::rtimvMainWindow( int argc,
                                   Qt::WindowFlags f
                                 ) : imviewer(Parent, f)
 {
+   m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; //Tells mx::application to look for this env var.
+   
    setup(argc,argv);
    
    if(doHelp)

@@ -12,7 +12,7 @@
 #include <QPluginLoader>
 #include <QDir>
 
-#define MX_APP_DEFAULT_configPathCLBase_env "RTIMV_CONFIG_PATH"
+
 #include <mx/app/application.hpp>
 
 using namespace mx::app;
