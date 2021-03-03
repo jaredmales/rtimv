@@ -377,6 +377,12 @@ void StretchGraphicsItem<QGraphicsItemT>::slotCursorTimerOut()
 template<class QGraphicsItemT>
 void StretchGraphicsItem<QGraphicsItemT>::handleHoverMoveEvent(QGraphicsSceneHoverEvent * e)
 {   
+   if(!m_stretchable)
+   {
+      derived()->emitRejectMouse();
+      return;
+   }
+   
    bool inTol = derived()->onHoverComputeSizing(e);
    
    if(!inTol)
@@ -406,6 +412,12 @@ void StretchGraphicsItem<QGraphicsItemT>::handleHoverLeaveEvent(QGraphicsSceneHo
 {  
    static_cast<void>(e);
 
+   if(!m_stretchable)
+   {
+      derived()->emitRejectMouse();
+      return;
+   }
+   
    setCursorStatus(cursorOff);
    derived()->clearFocus();
    derived()->setSelected(false);
@@ -415,6 +427,12 @@ void StretchGraphicsItem<QGraphicsItemT>::handleHoverLeaveEvent(QGraphicsSceneHo
 template<class QGraphicsItemT>
 void StretchGraphicsItem<QGraphicsItemT>::handleMousePressEvent(QGraphicsSceneMouseEvent * e)
 {
+   if(!m_stretchable)
+   {
+      derived()->emitRejectMouse();
+      return;
+   }
+   
    derived()->setSelected(true);
    if(m_grabbing || !m_stretchable)
    {
@@ -449,6 +467,12 @@ void StretchGraphicsItem<QGraphicsItemT>::handleMousePressEvent(QGraphicsSceneMo
 template<class QGraphicsItemT>
 void StretchGraphicsItem<QGraphicsItemT>::handleMouseReleaseEvent(QGraphicsSceneMouseEvent * event )
 {
+   if(!m_stretchable)
+   {
+      derived()->emitRejectMouse();
+      return;
+   }
+   
    static_cast<void>(event);
    if(m_sizing)
    {
@@ -480,6 +504,12 @@ void StretchGraphicsItem<QGraphicsItemT>::handleMouseReleaseEvent(QGraphicsScene
 template<class QGraphicsItemT>
 void StretchGraphicsItem<QGraphicsItemT>::handleMouseMoveEvent(QGraphicsSceneMouseEvent * event)
 {
+   if(!m_stretchable)
+   {
+      derived()->emitRejectMouse();
+      return;
+   }
+   
    if(m_sizing && !m_isMoving)
    {
       m_isSizing = true;
@@ -500,6 +530,7 @@ void StretchGraphicsItem<QGraphicsItemT>::handleMouseMoveEvent(QGraphicsSceneMou
 template<class QGraphicsItemT>
 void StretchGraphicsItem<QGraphicsItemT>::handleKeyPressEvent(QKeyEvent * ke)
 {
+   
    if(ke->key() == Qt::Key_Delete && m_removable)
    {
       derived()->emitRemove();

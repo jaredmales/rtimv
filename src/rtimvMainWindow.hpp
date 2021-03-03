@@ -12,7 +12,7 @@
 #include <QPluginLoader>
 #include <QDir>
 
-#define MX_APP_DEFAULT_configPathCLBase_env "RTIMV_CONFIG_PATH"
+
 #include <mx/app/application.hpp>
 
 using namespace mx::app;
@@ -50,81 +50,81 @@ class rtimvMainWindow : public imviewer, public application
 {
    Q_OBJECT
    
-   public:
-      rtimvMainWindow( int argc,
-                       char ** argv,
-                       QWidget * Parent = 0, 
-                       Qt::WindowFlags f = 0
-                     );
+public:
+   rtimvMainWindow( int argc,
+                    char ** argv,
+                    QWidget * Parent = 0, 
+                    Qt::WindowFlags f = 0
+                  );
       
-      ~rtimvMainWindow()
-      {
-         if(imStats) delete imStats;
-      }
-      
-      virtual void setupConfig();
-      
-      virtual void loadConfig();
-      
-   protected:
-      std::string m_title {"rtimv"};
-   public:
+   ~rtimvMainWindow();
    
-      ///Called on initial connection to the image stream, sets matching aspect ratio.
-      virtual void onConnect();
       
-      virtual void postSetImsize();
+   virtual void setupConfig();
+      
+   virtual void loadConfig();
+      
+protected:
+   std::string m_title {"rtimv"};
 
-      /// Setup the target lines
-      void setTarget();
-      
-      virtual void post_zoomLevel();
-      virtual void postChangeImdata();
-      
-      virtual void updateFPS();
-      
-      virtual void updateAge();
+public:
+   
+   ///Called on initial connection to the image stream, sets matching aspect ratio.
+   virtual void onConnect();
+   
+   virtual void postSetImsize();
 
-      virtual void keyPressEvent(QKeyEvent *);
-      
-      /*** The control Panel ***/
-   protected:
-      imviewerControlPanel *imcp;
-      
-      float pointerOverZoom;
-      
-   public:
-      void launchControlPanel();
-      
-      float get_act_xcen();
-      float get_act_ycen();
-      
-      void setPointerOverZoom(float poz);
-      
-      
-   protected slots:
-      //void on_buttonPanelLaunch_clicked();
+   /// Setup the target lines
+   void setTarget();
    
-   /*** Graphics stuff ***/
-   protected:
-      QGraphicsScene * qgs;
-      QGraphicsPixmapItem * qpmi;
-      
-      QGraphicsLineItem * nup;
-      QGraphicsLineItem * nup_tip;
-      
-      float ScreenZoom;
-   public:
-      QGraphicsScene * get_qgs(){return qgs;}
+   virtual void post_zoomLevel();
    
+   virtual void postChangeImdata();
+   
+   virtual void updateFPS();
+   
+   virtual void updateAge();
+
+   virtual void keyPressEvent(QKeyEvent *);
+   
+   /*** The control Panel ***/
+protected:
+   imviewerControlPanel *imcp;
+   
+   float pointerOverZoom;
+   
+public:
+   void launchControlPanel();
+   
+   float get_act_xcen();
+   float get_act_ycen();
+   
+   void setPointerOverZoom(float poz);
+   
+   
+protected slots:
+   //void on_buttonPanelLaunch_clicked();
+
+/*** Graphics stuff ***/
+protected:
+   QGraphicsScene * m_qgs {nullptr};
+   QGraphicsPixmapItem * m_qpmi {nullptr};
+   
+   QGraphicsLineItem * nup;
+   QGraphicsLineItem * nup_tip;
+   
+   float ScreenZoom;
+public:
+   QGraphicsScene * get_qgs(){return m_qgs;}
+
    /*** Real Time Controls ***/
-   //protected slots:
+   
    void freezeRealTime();
+
    void reStretch();
-   //void on_darkSubCheckBox_stateChanged(int st);
-      
-   /*** The Main View ***/
-   public:
+   
+/*** The Main View ***/
+public:
       void change_center(bool movezoombox = true);
       void set_viewcen(float x, float y, bool movezoombox = true);
       float get_xcen(){return ui.graphicsView->xCen();}
@@ -189,9 +189,9 @@ class rtimvMainWindow : public imviewer, public application
       
    public:
       
-      StretchBox* colorBox;
+      StretchBox* m_colorBox;
       
-      StretchBox* statsBox;
+      StretchBox* m_statsBox {nullptr};
 
       std::unordered_set<StretchBox *> m_userBoxes;
       std::unordered_set<StretchCircle *> m_userCircles;
@@ -254,36 +254,73 @@ class rtimvMainWindow : public imviewer, public application
         */
       float targetYc();
       
-   protected slots:
-      void doLaunchStatsBox();
-      void doHideStatsBox();
-      void imStatsClosed(int);
+protected slots:
+   
+   /// Add a StretchBox to user boxes
+   /** This addes the StretchBox to the user boxes, and connects
+     * its rejectMouse signal to the userBoxRejectMouse slot so that 
+     * the mouse though management works.  The remove signal is connected to the 
+     * userBoxRemove slog.  None of the other signals are connected.
+     * 
+     * This can be connected to a signal from a plugin to register a new
+     * StretchBox for mouse management.
+     * 
+     */
+   void addStretchBox(StretchBox * sb /**< [in] The new StretchBox to add*/);
+   
+   /// Add a StretchCircle to the user circle
+   /** This addes the StretchCircle to the user boxes, and connects
+     * its rejectMouse signal to the userCircleRejectMouse slot so that 
+     * the mouse though management works.  The remove signal is connected to the 
+     * userCircleRemove slog.  None of the other signals are connected.
+     * 
+     * This can be connected to a signal from a plugin to register a new
+     * StretchCircle for mouse management.
+     * 
+     */
+   void addStretchCircle(StretchCircle * sc /**< [in] The new StretchCircle to add*/);
+   
+   /// Add a StretchLine to the user lines
+   /** This addes the StretchLine to the user boxes, and connects
+     * its rejectMouse signal to the userLineRejectMouse slot so that 
+     * the mouse though management works.  The remove signal is connected to the 
+     * userLineRemove slog.  None of the other signals are connected.
+     * 
+     * This can be connected to a signal from a plugin to register a new
+     * StretchLine for mouse management.
+     * 
+     */
+   void addStretchLine(StretchLine * sl) /**< [in] The new StretchLine to add*/;
+   
+   void doLaunchStatsBox();
+   void doHideStatsBox();
+   void imStatsClosed(int);
 
-      void statsBoxMoved(StretchBox *);
+   void statsBoxMoved(StretchBox *);
 
-      void colorBoxMoved(StretchBox *);
- 
-      void userBoxResized(StretchBox * sb);
-      void userBoxMoved(StretchBox * sb);
-      void userBoxMouseIn(StretchBox * sb);
-      void userBoxMouseOut(StretchBox * sb);
-      void userBoxRejectMouse(StretchBox *);
-      void userBoxRemove(StretchBox * sc);
-      
-      void userCircleResized(StretchCircle * sc);
-      void userCircleMoved(StretchCircle * sc);
-      void userCircleMouseIn(StretchCircle * sc);
-      void userCircleMouseOut(StretchCircle * sc);
-      void userCircleRejectMouse(StretchCircle * sc);
-      void userCircleRemove(StretchCircle * sc);
+   void colorBoxMoved(StretchBox *);
 
-      
-      void userLineResized(StretchLine * sl);
-      void userLineMoved(StretchLine * sl);
-      void userLineMouseIn(StretchLine * sl);
-      void userLineMouseOut(StretchLine * sl);
-      void userLineRejectMouse(StretchLine * sl);
-      void userLineRemove(StretchLine * sl);
+   void userBoxResized(StretchBox * sb);
+   void userBoxMoved(StretchBox * sb);
+   void userBoxMouseIn(StretchBox * sb);
+   void userBoxMouseOut(StretchBox * sb);
+   void userBoxRejectMouse(StretchBox *);
+   void userBoxRemove(StretchBox * sc);
+   
+   void userCircleResized(StretchCircle * sc);
+   void userCircleMoved(StretchCircle * sc);
+   void userCircleMouseIn(StretchCircle * sc);
+   void userCircleMouseOut(StretchCircle * sc);
+   void userCircleRejectMouse(StretchCircle * sc);
+   void userCircleRemove(StretchCircle * sc);
+
+   
+   void userLineResized(StretchLine * sl);
+   void userLineMoved(StretchLine * sl);
+   void userLineMouseIn(StretchLine * sl);
+   void userLineMouseOut(StretchLine * sl);
+   void userLineRejectMouse(StretchLine * sl);
+   void userLineRemove(StretchLine * sl);
          
    public:
       virtual void post_setUserBoxActive(bool usba);
@@ -355,7 +392,7 @@ class rtimvMainWindow : public imviewer, public application
    protected:
       QStringList m_pluginFileNames;
       
-      void loadPlugin(QObject *plugin);
+      int loadPlugin(QObject *plugin);
       
       std::vector<rtimvOverlayInterface *> m_overlays;
       

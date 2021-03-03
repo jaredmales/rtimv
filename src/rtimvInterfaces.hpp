@@ -2,12 +2,16 @@
 #ifndef rtimvInterfaces_hpp
 #define rtimvInterfaces_hpp
 
+#include <unordered_set>
 
 #include <QtPlugin>
 #include <QGraphicsScene>
 #include <QKeyEvent>
 
 #include "rtimvGraphicsView.hpp"
+#include "StretchBox.hpp"
+#include "StretchCircle.hpp"
+#include "StretchLine.hpp"
 
 #include <unordered_map>
 
@@ -99,13 +103,56 @@ class rtimvDictionaryInterface
 
 Q_DECLARE_INTERFACE(rtimvDictionaryInterface, rtimvDictionaryInterface_iid)
 
-class rtimvOverlayInterface
+/// Contains the internal components of rtimvMainWindow exposed to overlay plugins.
+/** Plugins should copy the passed object of this type to an internal variable.
+  */ 
+struct rtimvOverlayAccess
+{
+   /// QObject handle for the main window to allow connecting signals and slots from within plugin
+   QObject * m_mainWindowObject {nullptr};
+   
+   StretchBox * m_colorBox {nullptr};
+   
+   StretchBox * m_statsBox {nullptr};
+   
+   std::unordered_set<StretchBox *> * m_userBoxes {nullptr};
+   
+   std::unordered_set<StretchCircle *> * m_userCircles {nullptr};
+   
+   std::unordered_set<StretchLine *> * m_userLines {nullptr};
+   
+   rtimvGraphicsView * m_graphicsView {nullptr};  
+   
+   dictionaryT * m_dictionary {nullptr};
+};
+
+struct rtimvMouseCoord
+{
+   float pixelX {0};
+   float pixelY {0};
+   
+   float imageValue {0};
+   
+   float displayValue {0};
+   
+   bool darkValid {false};
+   float darkValue {0};
+   
+   bool satMaskValid {false};
+   float satMaskValue {0};
+   
+   bool maskValid {false};
+   float maskValue {0};
+};
+   
+class rtimvOverlayInterface : public QObject
 {
    public:
+      
+      
       virtual ~rtimvOverlayInterface() = default;
 
-      virtual int attachOverlay( rtimvGraphicsView *, 
-                                 dictionaryT *,
+      virtual int attachOverlay( rtimvOverlayAccess &,
                                  mx::app::appConfigurator &
                                ) = 0; 
       
@@ -120,7 +167,7 @@ class rtimvOverlayInterface
       virtual void enableOverlay() = 0;
 
       virtual void disableOverlay() = 0;
-      
+   
 };
 
 #define rtimvOverlayInterface_iid "rtimv.overlayInterface/1.0"

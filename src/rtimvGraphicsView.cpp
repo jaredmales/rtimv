@@ -779,6 +779,7 @@ void rtimvGraphicsView::mousePressEvent(QMouseEvent *e)
    {
       emit leftPressed(e->pos());//mp);
       QGraphicsView::mousePressEvent(e);
+      return;
    }
    
    if(e->button() == Qt::RightButton)

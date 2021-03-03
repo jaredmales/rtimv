@@ -19,7 +19,7 @@ Dependencies:
  - qt-5
    - on Ubuntu 20 `sudo apt-get install qt5-default`
  - mxlib [https://github.com/jaredmales/mxlib](https://github.com/jaredmales/mxlib)
-   - you do NOT need any of the dependencies of mxlib, or to configure its environment, just for rtimv.  All that is needed is to clone mxlib, and `sudo make PREFIX=/usr/local/include install`
+   - for best results checkout the `magaox` branch of mxlib
  - milk-org/milk-package from https://github.com/milk-org/milk-package
    - If you are looking for an image viewer for cacao, you probably already have this!
 

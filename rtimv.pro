@@ -49,6 +49,7 @@ FORMS += forms/rtimvMainWindow.ui \
 LIBS += -lImageStreamIO
 LIBS += -lcfitsio
 LIBS += -lrtimv
+LIBS += -lmxlib 
         
 RESOURCES += res/imviewer.qrc
 

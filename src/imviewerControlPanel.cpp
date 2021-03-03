@@ -686,7 +686,7 @@ void imviewerControlPanel::on_scaleModeCombo_activated(int index)
    
    if(index == imviewer::minmaxbox)
    {
-      imv->colorBox->setVisible(true);
+      imv->m_colorBox->setVisible(true);
       imv->setUserBoxActive(true);
       update_mindatEntry();
       update_maxdatEntry();
@@ -699,7 +699,7 @@ void imviewerControlPanel::on_scaleModeCombo_activated(int index)
    }
    else
    {
-      imv->colorBox->setVisible(false);
+      imv->m_colorBox->setVisible(false);
       imv->setUserBoxActive(false);
    }
 }
