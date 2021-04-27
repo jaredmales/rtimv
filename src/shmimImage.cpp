@@ -12,15 +12,13 @@ errno_t new_printError( const char *file, const char *func, int line, errno_t co
 
 shmimImage::shmimImage()
 {
-   std::cerr << "constructing shmimImage" << std::endl;
-   
    ImageStreamIO_set_printError(new_printError);
    
    connect(&m_timer, SIGNAL(timeout()), this, SLOT(shmimTimerout()));
    
 }
 
-int shmimImage::shmimName( const std::string & sn )
+int shmimImage::imageKey( const std::string & sn )
 {
    m_shmimName = sn;
    
@@ -34,7 +32,7 @@ int shmimImage::shmimName( const std::string & sn )
    return 0;
 }
 
-std::string shmimImage::shmimName()
+std::string shmimImage::imageKey()
 {
    return m_shmimName;
 }

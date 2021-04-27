@@ -11,11 +11,11 @@
 
 #include "rtimvImage.hpp"
 
-struct shmimImage : public QObject
+struct shmimImage : public rtimvImage
 {
+   
    Q_OBJECT
- 
-public:
+
    
 protected:
    std::string m_shmimName; ///< The path to the shared memory buffer containing the image data.
@@ -52,17 +52,17 @@ public:
    ///Default c'tor
    shmimImage();
 
-   ///Set the shared memory image name 
+   ///Set the image key to a shared memory image name 
    /** If this contains the string ".fits" then it is treated as a FITS file and loaded as a static image.  Otherwise
      * it is treated as an ImageStreamIO image stream, and added to the path such as `/milk/shm/<m_shmimName>.im.shm`.
      * 
      * \returns 0 on success
      * \returns -1 on error
      */ 
-   int shmimName(const std::string & sn /**< [in] the new share memory image name*/);
+   int imageKey(const std::string & sn /**< [in] the new shared memory image name*/);
    
    /// Get the current share memory name
-   std::string shmimName();
+   std::string imageKey();
    
    /// Get the current value of the the m_isStatic flag.
    bool isStatic();
@@ -129,6 +129,11 @@ public:
    
    float m_fpsEst {0}; ///< The current f.p.s. estimate.
 
+   float fpsEst()
+   {
+      return m_fpsEst;
+   }
+   
    void update_fps(); ///< Update the f.p.s. estimate from the current timestamp and frame numbers.
 
    float (*pixget)(void *, size_t) {nullptr}; ///< Pointer to a function to extract the image data as a float.

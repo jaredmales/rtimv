@@ -30,13 +30,8 @@ void imviewer::startup( const std::vector<std::string> & shkeys )
          if(shkeys[i] != "")
          {
             shmimImage * si = new shmimImage;
-            std::cerr << "constructed shmimImage" << std::endl;
             m_images[i] = (rtimvImage *) si; //rtimvImage;
-            std::cerr << "assigning" << std::endl;
-            m_images[i]->shmimName(shkeys[i]); // Set the key
-            std::cerr << "assigned" << std::endl;
-            //m_images[i]->shmimTimerout(); // And start checking for the image
-            std::cerr << "out" << std::endl;
+            m_images[i]->imageKey(shkeys[i]); // Set the key
          }
       }
    }
@@ -139,10 +134,12 @@ void imviewer::timerout()
    
    if(m_images[0] != nullptr) doupdate = m_images[0]->update();
    
+   ///\todo we should update the display if one of the support images changes, i.e. a new dark, without the main image updating.
    for(size_t i=1;i<m_images.size(); ++i) 
    {
       if(m_images[i] != nullptr) m_images[i]->update();
    }
+
    
    if(doupdate >= RTIMVIMAGE_IMUPDATE) 
    {
