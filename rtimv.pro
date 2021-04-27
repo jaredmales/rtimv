@@ -28,6 +28,7 @@ HEADERS += src/rtimvGraphicsView.hpp \
            src/imviewerControlPanel.h \
            src/imviewerstats.hpp \
            src/rtimvImage.hpp \
+           src/shmimImage.hpp \
            src/pixaccess.h \
            src/colorMaps.hpp
 
@@ -36,7 +37,7 @@ SOURCES += src/imviewer.cpp \
            src/imviewer_main.cpp \
            src/imviewerControlPanel.cpp \
            src/imviewerstats.cpp \
-           src/rtimvImage.cpp
+           src/shmimImage.cpp
            
 FORMS += forms/rtimvMainWindow.ui \
          forms/imviewerControlPanel.ui \

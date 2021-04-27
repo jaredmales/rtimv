@@ -755,9 +755,9 @@ void rtimvMainWindow::updateAge()
          
          double age = timetmp - fpsTime;
             
-         if(m_images[0]->m_fpsEst > 1.0 && age < 2.0) 
+         if(m_images[0]->fpsEst() > 1.0 && age < 2.0) 
          {
-            ui.graphicsView->fpsGageText(m_images[0]->m_fpsEst);
+            ui.graphicsView->fpsGageText(m_images[0]->fpsEst());
          }
          else
          {

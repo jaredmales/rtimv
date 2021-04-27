@@ -29,9 +29,14 @@ void imviewer::startup( const std::vector<std::string> & shkeys )
       {
          if(shkeys[i] != "")
          {
-            m_images[i] = new rtimvImage;
+            shmimImage * si = new shmimImage;
+            std::cerr << "constructed shmimImage" << std::endl;
+            m_images[i] = (rtimvImage *) si; //rtimvImage;
+            std::cerr << "assigning" << std::endl;
             m_images[i]->shmimName(shkeys[i]); // Set the key
-            m_images[i]->shmimTimerout(); // And start checking for the image
+            std::cerr << "assigned" << std::endl;
+            //m_images[i]->shmimTimerout(); // And start checking for the image
+            std::cerr << "out" << std::endl;
          }
       }
    }

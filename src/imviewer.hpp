@@ -22,6 +22,7 @@
 #include <QSocketNotifier>
 
 #include "rtimvImage.hpp"
+#include "shmimImage.hpp"
 
 #include <cstdio>
 
