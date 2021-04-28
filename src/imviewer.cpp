@@ -29,8 +29,20 @@ void imviewer::startup( const std::vector<std::string> & shkeys )
       {
          if(shkeys[i] != "")
          {
-            shmimImage * si = new shmimImage;
-            m_images[i] = (rtimvImage *) si; //rtimvImage;
+            if(shkeys[i].rfind(".fits") == shkeys[i].size()-5 || 
+                  shkeys[i].rfind(".FITS") == shkeys[i].size()-5 || 
+                     shkeys[i].rfind(".fit") == shkeys[i].size()-4 || 
+                        shkeys[i].rfind(".FIT") == shkeys[i].size()-4 ) //accept several different common fits extensions
+            {
+               fitsImage * fi = new fitsImage;
+               m_images[i] = (rtimvImage *) fi;
+            }
+            else
+            {
+               shmimImage * si = new shmimImage;
+               m_images[i] = (rtimvImage *) si;
+            }
+            
             m_images[i]->imageKey(shkeys[i]); // Set the key
          }
       }

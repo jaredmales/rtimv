@@ -1,5 +1,6 @@
 #include "shmimImage.hpp"
 
+#include <iostream>
 
 errno_t isio_err_to_ignore = 0;
 errno_t new_printError( const char *file, const char *func, int line, errno_t code, char *errmessage )
@@ -22,11 +23,6 @@ int shmimImage::imageKey( const std::string & sn )
 {
    m_shmimName = sn;
    
-   if( m_shmimName.find(".fits") != std::string::npos )
-   {
-      m_isStatic = true;
-   }
-   
    shmimTimerout();
    
    return 0;
@@ -37,11 +33,11 @@ std::string shmimImage::imageKey()
    return m_shmimName;
 }
 
-bool shmimImage::isStatic()
+std::string shmimImage::imageName()
 {
-   return m_isStatic;
+   return m_shmimName;
 }
-   
+
 void shmimImage::shmimTimeout(int to)
 {
    m_shmimTimeout = to;
@@ -85,12 +81,6 @@ void shmimImage::shmimTimerout()
 
 void shmimImage::imConnect()
 {
-   if(m_isStatic)
-   {
-      imConnectStatic();
-      return;
-   }
-   
    isio_err_to_ignore = IMAGESTREAMIO_FILEOPEN;
    if( ImageStreamIO_openIm(&m_image, m_shmimName.c_str()) != 0)
    {
@@ -157,108 +147,10 @@ void shmimImage::imConnect()
    
 }
 
-void shmimImage::imConnectStatic()
-{
-   if(!m_isStatic)
-   {
-      std::cerr << "Attempting to connect to static file, but m_isStatic is false\n";
-      return;
-   }
-   
-   //If here and m_data is not null, then it is already allocated with new.
-   if(m_data) delete[] m_data;
-   
-   m_data = nullptr;
-   m_shmimAttached = 0;
-   m_staticUpdated = false;
-   
-   ///The cfitsio data structure
-   fitsfile * fptr {nullptr};
-   
-   int fstatus = 0;
 
-   fits_open_file(&fptr, m_shmimName.c_str(), READONLY, &fstatus);
-
-   if (fstatus)
-   {
-      std::cerr << "Could not open " << m_shmimName << "\n";
-      return;
-   }
-   
-   ///The dimensions of the image (1D, 2D, 3D etc)
-   int naxis;
-
-   fits_get_img_dim(fptr, &naxis, &fstatus);
-   if (fstatus)
-   {
-      std::cerr << "Error getting number of axes in file " << m_shmimName << "\n";
-      return ;
-   }
-
-   long * naxes = new long[naxis];
-
-   fits_get_img_size(fptr, naxis, naxes, &fstatus);
-   if (fstatus)
-   {
-      std::cerr << "Error getting dimensions in file " << m_shmimName << "\n";
-      return;
-   }
-   
-   m_nx = naxes[0];
-   m_ny = naxes[1];
-      
-   m_data = new char[naxes[0]*naxes[1]*sizeof(float)];
-   
-   long fpix[2];
-   long lpix[2];
-   long inc[2];
-   
-   fpix[0] = 1;
-   fpix[1] = 1;
-   
-   lpix[0] = naxes[0];
-   lpix[1] = naxes[1];
-   
-   inc[0] = 1;
-   inc[1] = 1;
-   
-   int anynul;
-   
-   fits_read_subset(fptr, TFLOAT, fpix, lpix, inc, 0,
-                                     (void *) m_data, &anynul, &fstatus);
-   
-   m_typeSize = ImageStreamIO_typesize(IMAGESTRUCT_FLOAT);
-   this->pixget = getPixPointer<IMAGESTRUCT_FLOAT>();
-   m_shmimAttached = 1;
-   
-   
-   fits_close_file(fptr, &fstatus);
-
-   if (fstatus)
-   {
-      std::cerr << "Error closing file " << m_shmimName << "\n";
-      return;
-   }
-   
-   emit connected();
-}
 
 int shmimImage::update()
-{   
-   if( m_isStatic ) 
-   {
-      if(!m_shmimAttached) return RTIMVIMAGE_NOUPDATE;
-      
-      if(!m_staticUpdated)  
-      {
-         m_staticUpdated = true;
-         
-         return RTIMVIMAGE_IMUPDATE;
-      }
-      
-      return RTIMVIMAGE_NOUPDATE;
-   }
-   
+{      
    if(!m_shmimAttached)
    {
       if(m_age_counter > 1000/m_timeout)
@@ -358,17 +250,7 @@ int shmimImage::update()
 void shmimImage::detach()
 {  
    if(m_shmimAttached == 0) return;
-   
-   if(m_isStatic)
-   {
-      delete[] m_data;
-      m_data = 0;
-      m_shmimAttached = 0;
-      
-      return;
-   }
-      
-      
+         
    m_data = nullptr; 
    ImageStreamIO_closeIm(&m_image);
    m_shmimAttached = 0;

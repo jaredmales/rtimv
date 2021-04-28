@@ -233,11 +233,19 @@ void rtimvMainWindow::loadConfig()
    if(config.nonOptions.size() > 2) keys[2] = config.nonOptions[2];
    if(config.nonOptions.size() > 3) keys[3] = config.nonOptions[3];
    
-   m_title= keys[0];
+   //m_title= keys[0];
 
    startup(keys);
    
-   
+   if(m_images[0] == nullptr)
+   {
+      std::cerr << "no image specified.  not starting.\n";
+      exit(0);
+   }
+   else
+   {
+      m_title = m_images[0]->imageName();
+   }
    
    //Now load remaining options, respecting coded defaults.
    config(m_autoScale, "autoscale");

@@ -9,14 +9,8 @@
 #ifndef rtimv_rtimvImage_hpp
 #define rtimv_rtimvImage_hpp
 
-#include <iostream>
-
 #include <QObject>
-
 #include <QTimer>
-
-#include <fitsio.h>
-#include <ImageStreamIO.h>
 
 #include "pixaccess.h"
 
@@ -48,6 +42,14 @@ public:
      * \returns the image key.
      */ 
    virtual std::string imageKey() = 0;
+   
+   /// Get the image name, usually derived from the key.
+   /**
+     * The name may be a subset of the key, e.g. without the path for a file.
+     *
+     * \returns the image name
+     */ 
+   virtual std::string imageName() = 0;
    
    /// Set the managing processes display timeout, which is only used for F.P.S. calculations
    virtual void timeout(int to /**< [in] the new timeout in milliseconds */) = 0;

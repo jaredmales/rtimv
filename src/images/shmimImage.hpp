@@ -9,7 +9,9 @@
 #ifndef rtimv_shmimImage_hpp
 #define rtimv_shmimImage_hpp
 
-#include "rtimvImage.hpp"
+#include <ImageStreamIO.h>
+
+#include "../rtimvImage.hpp"
 
 struct shmimImage : public rtimvImage
 {
@@ -20,10 +22,6 @@ struct shmimImage : public rtimvImage
 protected:
    std::string m_shmimName; ///< The path to the shared memory buffer containing the image data.
 
-   bool m_isStatic {false}; ///< Flag set if the image is static, e.g. if it's loaded from a FITS file
-
-   bool m_staticUpdated {false}; ///< Flag used so that a static images is updated once and only once.
-   
    int m_shmimTimeout {1000}; ///<The timeout for checking for shared memory file existence.
    
    int m_timeout {100}; ///< The image display timeout, should be set from the managing process.  Only used for F.P.S. calculations.
@@ -61,8 +59,11 @@ public:
      */ 
    int imageKey(const std::string & sn /**< [in] the new shared memory image name*/);
    
-   /// Get the current share memory name
+   /// Get the current shared memory key.
    std::string imageKey();
+   
+   /// Get the current shared memory name, same as key.
+   std::string imageName();
    
    /// Get the current value of the the m_isStatic flag.
    bool isStatic();
@@ -117,7 +118,7 @@ public:
    /// Returns `true` if this instance is attached to its stream and has valid data.  `false` otherwise.
    bool valid();
    
-public:
+protected:
 
     /*** Real time frames per second ***/
 
@@ -129,16 +130,18 @@ public:
    
    float m_fpsEst {0}; ///< The current f.p.s. estimate.
 
+public:
+   
    float fpsEst()
    {
       return m_fpsEst;
    }
-   
+
    void update_fps(); ///< Update the f.p.s. estimate from the current timestamp and frame numbers.
 
    float (*pixget)(void *, size_t) {nullptr}; ///< Pointer to a function to extract the image data as a float.
 
-public:
+
    float pixel(size_t n);
 };
 
