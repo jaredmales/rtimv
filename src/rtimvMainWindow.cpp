@@ -7,7 +7,7 @@ rtimvMainWindow::rtimvMainWindow( int argc,
                                   char ** argv,
                                   QWidget * Parent, 
                                   Qt::WindowFlags f
-                                ) : imviewer(Parent, f)
+                                ) : rtimvBase(Parent, f)
 {
    m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; //Tells mx::application to look for this env var.
    
@@ -1422,7 +1422,7 @@ void rtimvMainWindow::toggleColorBox()
    {
       if(imcp)
       {
-         imcp->on_scaleModeCombo_activated(imviewer::minmaxbox);
+         imcp->on_scaleModeCombo_activated(rtimvBase::minmaxbox);
       }
       else
       {
@@ -1435,7 +1435,7 @@ void rtimvMainWindow::toggleColorBox()
    {
       if(imcp)
       {
-         imcp->on_scaleModeCombo_activated(imviewer::minmaxglobal);
+         imcp->on_scaleModeCombo_activated(rtimvBase::minmaxglobal);
       }
       else
       {

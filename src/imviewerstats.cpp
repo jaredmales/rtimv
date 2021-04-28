@@ -16,7 +16,7 @@ void StatsThread::run()
 
 float (*global_pixget)(void *, size_t);
 
-imviewerStats::imviewerStats( imviewer * imv,
+imviewerStats::imviewerStats( rtimvBase * imv,
                               QWidget * Parent, 
                               Qt::WindowFlags f) : QDialog(Parent, f)
 {
@@ -84,7 +84,7 @@ void imviewerStats::calc_stats()
    
    if(!regionChanged) return;
 
-   float (*_pixel)(imviewer*, size_t) = m_imv->pixel();
+   float (*_pixel)(rtimvBase*, size_t) = m_imv->pixel();
 
    float tmp_min, tmp_max;
    float tmp_mean = 0;

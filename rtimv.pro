@@ -22,7 +22,7 @@ MAKEFILE = makefile.rtimv
 
 # Input
 HEADERS += src/rtimvGraphicsView.hpp \
-           src/imviewer.hpp \
+           src/rtimvBase.hpp \
            src/rtimvMainWindow.hpp \
            src/rtimvInterfaces.hpp \
            src/imviewerControlPanel.h \
@@ -33,7 +33,7 @@ HEADERS += src/rtimvGraphicsView.hpp \
            src/pixaccess.h \
            src/colorMaps.hpp
 
-SOURCES += src/imviewer.cpp \
+SOURCES += src/rtimvBase.cpp \
            src/rtimvMainWindow.cpp \
            src/imviewer_main.cpp \
            src/imviewerControlPanel.cpp \

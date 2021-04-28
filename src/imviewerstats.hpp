@@ -12,7 +12,7 @@
 
 #include "ui_imviewerStats.h"
 
-#include "imviewer.hpp"
+#include "rtimvBase.hpp"
 
 class imviewerStats;
 
@@ -30,7 +30,7 @@ class imviewerStats : public QDialog
    Q_OBJECT
    
    public:
-      imviewerStats( imviewer * imv, 
+      imviewerStats( rtimvBase * imv, 
                      QWidget * Parent = 0, 
                      Qt::WindowFlags f = 0
                    );
@@ -38,7 +38,7 @@ class imviewerStats : public QDialog
       
    protected:
       
-      imviewer * m_imv {nullptr};
+      rtimvBase * m_imv {nullptr};
       
       int statsPause {20};
 

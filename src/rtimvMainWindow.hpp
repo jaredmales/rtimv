@@ -19,7 +19,7 @@ using namespace mx::app;
 
 
 #include "ui_rtimvMainWindow.h"
-#include "imviewer.hpp"
+#include "rtimvBase.hpp"
 #include "imviewerControlPanel.h"
 
 #include "rtimvInterfaces.hpp"
@@ -46,7 +46,7 @@ using namespace mx::app;
 
 class imviewerControlPanel;
 
-class rtimvMainWindow : public imviewer, public application
+class rtimvMainWindow : public rtimvBase, public application
 {
    Q_OBJECT
    

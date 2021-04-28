@@ -1,13 +1,13 @@
-/** \file imviewer.hpp
-  * \brief Declarations for the imviewer base class
+/** \file rtimvBase.hpp
+  * \brief Declarations for the rtimvBase base class
   *
   * \author Jared R. Males (jaredmales@gmail.com)
   *
   */
 
 
-#ifndef rtimv_imviewer_hpp
-#define rtimv_imviewer_hpp
+#ifndef rtimv_rtimvBase_hpp
+#define rtimv_rtimvBase_hpp
 
 #include <cmath>
 #include <iostream>
@@ -39,7 +39,7 @@
 #include "colorMaps.hpp"
 #include "ImageStruct.hpp"
 
-class imviewer : public QWidget
+class rtimvBase : public QWidget
 {
    Q_OBJECT
 
@@ -48,14 +48,14 @@ public:
    /// Basic c'tor.  Does not startup the images.
    /** startup should be called with the list of keys.
      */
-   imviewer( QWidget * Parent = 0, 
+   rtimvBase( QWidget * Parent = 0, 
              Qt::WindowFlags f = 0
            );
    
    /// Image c'tor, starts up the images.
    /** startup should not be called.
      */
-   imviewer( const std::vector<std::string> & shkeys,  ///< [in] The shmim keys used ot access the images.
+   rtimvBase( const std::vector<std::string> & shkeys,  ///< [in] The shmim keys used ot access the images.
              QWidget * Parent = 0, 
              Qt::WindowFlags f = 0
            );
@@ -102,7 +102,7 @@ protected:
      * @{
      */       
 protected:
-   QTimer m_timer; ///< When this times out imviewer checks for a new image.
+   QTimer m_timer; ///< When this times out rtimvBase checks for a new image.
    
    int m_timeout {100}; ///<The timeout for checking for a new images, ms.
 
@@ -138,7 +138,7 @@ public:
      */ 
 public:
    /// The fuction pointer type for accessing pixels with calibrations applied.
-   typedef float (*pixelF)(imviewer*, size_t);
+   typedef float (*pixelF)(rtimvBase*, size_t);
 
    
 //protected:   
@@ -161,7 +161,7 @@ public:
    /** 
      * \returns the value of pixel idx
      */ 
-   static float pixel_noCal( imviewer * imv, ///< [in] the imviewer instance to access
+   static float pixel_noCal( rtimvBase * imv, ///< [in] the rtimvBase instance to access
                              size_t idx      ///< [in] the linear pixel number to access
                            );
    
@@ -169,7 +169,7 @@ public:
    /** 
      * \returns the value of pixel idx after dark subtraction
      */
-   static float pixel_subDark( imviewer * imv, ///< [in] the imviewer instance to access 
+   static float pixel_subDark( rtimvBase * imv, ///< [in] the rtimvBase instance to access 
                                size_t idx      ///< [in] the linear pixel number to access
                              );
    
@@ -177,7 +177,7 @@ public:
    /** 
      * \returns the value of pixel idx after applying the mask
      */
-   static float pixel_applyMask( imviewer * imv, ///< [in] the imviewer instance to access
+   static float pixel_applyMask( rtimvBase * imv, ///< [in] the rtimvBase instance to access
                                  size_t idx      ///< [in] the linear pixel number to access
                                );
    
@@ -185,7 +185,7 @@ public:
    /** 
      * \returns the value of pixel idx after subtracting the dark and applying the mask
      */
-   static float pixel_subDarkApplyMask( imviewer * imv, ///< [in] the imviewer instance to access 
+   static float pixel_subDarkApplyMask( rtimvBase * imv, ///< [in] the rtimvBase instance to access 
                                         size_t idx      ///< [in] the linear pixel number to access
                                       );
    
@@ -396,7 +396,7 @@ public:
 
    /*** Real Time Controls ***/   
 protected:
-      bool RealTimeEnabled {true}; ///<Controls whether imviewer is using real-time data.
+      bool RealTimeEnabled {true}; ///<Controls whether rtimvBase is using real-time data.
       bool RealTimeStopped {false}; ///<Set when user temporarily freezes real-time data viewing.
 
 public:
@@ -426,4 +426,4 @@ private:
    
 };
 
-#endif //rtimv_imviewer_hpp
+#endif //rtimv_rtimvBase_hpp

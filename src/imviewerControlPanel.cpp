@@ -56,31 +56,31 @@ void imviewerControlPanel::setupMode()
 void imviewerControlPanel::setupCombos()
 {
    //First we insert a bunch of blanks so inserting by enum works correctly.
-   for(int i=0;i<imviewer::colorbar_modes_max;i++) ui.scaleModeCombo->insertItem(i,"");
-   ui.scaleModeCombo->insertItem(imviewer::minmaxglobal, "Min/Max Global");
-   ui.scaleModeCombo->insertItem(imviewer::minmaxview, "Min/Max View");
-   ui.scaleModeCombo->insertItem(imviewer::minmaxbox, "Min/Max Box");
-   ui.scaleModeCombo->insertItem(imviewer::user, "User");
-   ui.scaleModeCombo->setCurrentIndex(imviewer::user);
-   ui.scaleModeCombo->setMaxCount(imviewer::colorbar_modes_max);
+   for(int i=0;i<rtimvBase::colorbar_modes_max;i++) ui.scaleModeCombo->insertItem(i,"");
+   ui.scaleModeCombo->insertItem(rtimvBase::minmaxglobal, "Min/Max Global");
+   ui.scaleModeCombo->insertItem(rtimvBase::minmaxview, "Min/Max View");
+   ui.scaleModeCombo->insertItem(rtimvBase::minmaxbox, "Min/Max Box");
+   ui.scaleModeCombo->insertItem(rtimvBase::user, "User");
+   ui.scaleModeCombo->setCurrentIndex(rtimvBase::user);
+   ui.scaleModeCombo->setMaxCount(rtimvBase::colorbar_modes_max);
 
-   for(int i=0;i<imviewer::cbStretches_max;i++) ui.scaleTypeCombo->insertItem(i,"");
-   ui.scaleTypeCombo->insertItem(imviewer::stretchLinear, "Linear");
-   ui.scaleTypeCombo->insertItem(imviewer::stretchLog, "Log");
-   ui.scaleTypeCombo->insertItem(imviewer::stretchPow, "Power");
-   ui.scaleTypeCombo->insertItem(imviewer::stretchSqrt, "Square Root");
-   ui.scaleTypeCombo->insertItem(imviewer::stretchSquare, "Squared");
-   ui.scaleTypeCombo->setMaxCount(imviewer::cbStretches_max);
+   for(int i=0;i<rtimvBase::cbStretches_max;i++) ui.scaleTypeCombo->insertItem(i,"");
+   ui.scaleTypeCombo->insertItem(rtimvBase::stretchLinear, "Linear");
+   ui.scaleTypeCombo->insertItem(rtimvBase::stretchLog, "Log");
+   ui.scaleTypeCombo->insertItem(rtimvBase::stretchPow, "Power");
+   ui.scaleTypeCombo->insertItem(rtimvBase::stretchSqrt, "Square Root");
+   ui.scaleTypeCombo->insertItem(rtimvBase::stretchSquare, "Squared");
+   ui.scaleTypeCombo->setMaxCount(rtimvBase::cbStretches_max);
    
-   for(int i=0;i<imviewer::colorbarMax;i++) ui.colorbarCombo->insertItem(i,"");
-   ui.colorbarCombo->insertItem(imviewer::colorbarGrey, "Grey");
-   ui.colorbarCombo->insertItem(imviewer::colorbarJet, "Jet");
-   ui.colorbarCombo->insertItem(imviewer::colorbarHot, "Hot");
-   ui.colorbarCombo->insertItem(imviewer::colorbarBone, "Bone");
-   ui.colorbarCombo->insertItem(imviewer::colorbarRed, "Red");
-   ui.colorbarCombo->insertItem(imviewer::colorbarGreen, "Green");
-   ui.colorbarCombo->insertItem(imviewer::colorbarBlue, "Blue");
-   ui.colorbarCombo->setMaxCount(imviewer::colorbarMax);
+   for(int i=0;i<rtimvBase::colorbarMax;i++) ui.colorbarCombo->insertItem(i,"");
+   ui.colorbarCombo->insertItem(rtimvBase::colorbarGrey, "Grey");
+   ui.colorbarCombo->insertItem(rtimvBase::colorbarJet, "Jet");
+   ui.colorbarCombo->insertItem(rtimvBase::colorbarHot, "Hot");
+   ui.colorbarCombo->insertItem(rtimvBase::colorbarBone, "Bone");
+   ui.colorbarCombo->insertItem(rtimvBase::colorbarRed, "Red");
+   ui.colorbarCombo->insertItem(rtimvBase::colorbarGreen, "Green");
+   ui.colorbarCombo->insertItem(rtimvBase::colorbarBlue, "Blue");
+   ui.colorbarCombo->setMaxCount(rtimvBase::colorbarMax);
    
    ui.pointerViewModecomboBox->insertItem(PointerViewEnabled, "Enabled");
    ui.pointerViewModecomboBox->insertItem(PointerViewOnPress, "On mouse press");
@@ -660,10 +660,10 @@ void imviewerControlPanel::update_contrastRelEntry()
 void imviewerControlPanel::on_scaleModeCombo_activated(int index)
 {
 
-   if(index == imviewer::minmaxglobal)
+   if(index == rtimvBase::minmaxglobal)
    {
       imv->setUserBoxActive(false);
-      imv->set_colorbar_mode(imviewer::minmaxglobal);
+      imv->set_colorbar_mode(rtimvBase::minmaxglobal);
       imv->maxdat(imv->get_imdat_max());
       imv->mindat(imv->get_imdat_min());
       imv->changeImdata();
@@ -678,13 +678,13 @@ void imviewerControlPanel::on_scaleModeCombo_activated(int index)
       
    }
 
-   if(index == imviewer::user)
+   if(index == rtimvBase::user)
    {
       imv->setUserBoxActive(false);
-      imv->set_colorbar_mode(imviewer::user);
+      imv->set_colorbar_mode(rtimvBase::user);
    }
    
-   if(index == imviewer::minmaxbox)
+   if(index == rtimvBase::minmaxbox)
    {
       imv->m_colorBox->setVisible(true);
       imv->setUserBoxActive(true);
@@ -712,7 +712,7 @@ void imviewerControlPanel::on_mindatSlider_valueChanged(int value)
       imv->mindat(imv->get_imdat_min() + (imv->get_imdat_max()-imv->get_imdat_min())*sc);
       imv->changeImdata();
       imv->setUserBoxActive(false);
-      imv->set_colorbar_mode(imviewer::user);
+      imv->set_colorbar_mode(rtimvBase::user);
       ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
 
       update_mindatEntry();
@@ -732,7 +732,7 @@ void imviewerControlPanel::on_mindatEntry_editingFinished()
    update_contrastSlider();
    imv->changeImdata();
    imv->setUserBoxActive(false);
-   imv->set_colorbar_mode(imviewer::user);
+   imv->set_colorbar_mode(rtimvBase::user);
    ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
 }
 
@@ -744,7 +744,7 @@ void imviewerControlPanel::on_maxdatSlider_valueChanged(int value)
       imv->maxdat(imv->get_imdat_min() + (imv->get_imdat_max()-imv->get_imdat_min())*sc);
       imv->changeImdata();
       imv->setUserBoxActive(false);
-      imv->set_colorbar_mode(imviewer::user);
+      imv->set_colorbar_mode(rtimvBase::user);
       ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
 
       update_maxdatEntry();
@@ -763,7 +763,7 @@ void imviewerControlPanel::on_maxdatEntry_editingFinished()
    update_biasSlider();
    imv->changeImdata();
    imv->setUserBoxActive(false);
-   imv->set_colorbar_mode(imviewer::user);
+   imv->set_colorbar_mode(rtimvBase::user);
    ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
 }
 
@@ -775,7 +775,7 @@ void imviewerControlPanel::on_biasSlider_valueChanged(int value)
       imv->bias_rel(bias);
       imv->changeImdata();
       imv->setUserBoxActive(false);
-      imv->set_colorbar_mode(imviewer::user);
+      imv->set_colorbar_mode(rtimvBase::user);
       ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
 
       update_mindatEntry();
@@ -789,7 +789,7 @@ void imviewerControlPanel::on_biasEntry_editingFinished()
 {
    imv->bias(ui.biasEntry->text().toDouble());
    imv->setUserBoxActive(false);
-   imv->set_colorbar_mode(imviewer::user);
+   imv->set_colorbar_mode(rtimvBase::user);
    ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
    imv->changeImdata();
    
@@ -809,7 +809,7 @@ void imviewerControlPanel::on_contrastSlider_valueChanged(int value)
       imv->contrast(cont);
       imv->changeImdata();
       imv->setUserBoxActive(false);
-      imv->set_colorbar_mode(imviewer::user);
+      imv->set_colorbar_mode(rtimvBase::user);
       ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
 
       update_mindatEntry();
@@ -824,7 +824,7 @@ void imviewerControlPanel::on_contrastEntry_editingFinished()
 {
    imv->contrast(ui.contrastEntry->text().toDouble());
    imv->setUserBoxActive(false);
-   imv->set_colorbar_mode(imviewer::user);
+   imv->set_colorbar_mode(rtimvBase::user);
    ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
    imv->changeImdata();
    
