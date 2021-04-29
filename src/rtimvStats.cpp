@@ -1,5 +1,5 @@
 
-#include "imviewerstats.hpp"
+#include "rtimvStats.hpp"
 
 double get_curr_time()
 {
@@ -16,9 +16,9 @@ void StatsThread::run()
 
 float (*global_pixget)(void *, size_t);
 
-imviewerStats::imviewerStats( rtimvBase * imv,
-                              QWidget * Parent, 
-                              Qt::WindowFlags f) : QDialog(Parent, f)
+rtimvStats::rtimvStats( rtimvBase * imv,
+                        QWidget * Parent, 
+                        Qt::WindowFlags f) : QDialog(Parent, f)
 {
    ui.setupUi(this);
    
@@ -35,19 +35,19 @@ imviewerStats::imviewerStats( rtimvBase * imv,
    updateTimer.start(updateTimerTimeout);
 }
 
-imviewerStats::~imviewerStats()
+rtimvStats::~rtimvStats()
 {
    dieNow = 1;
    sth.wait();
    
 }
    
-void imviewerStats::set_imdata()
+void rtimvStats::set_imdata()
 {
    regionChanged = 1;
 }
 
-void imviewerStats::set_imdata(size_t nx, size_t ny, size_t x0, size_t x1, size_t y0, size_t y1)
+void rtimvStats::set_imdata(size_t nx, size_t ny, size_t x0, size_t x1, size_t y0, size_t y1)
 {
    image_nx = nx;
    image_ny = ny;
@@ -60,7 +60,7 @@ void imviewerStats::set_imdata(size_t nx, size_t ny, size_t x0, size_t x1, size_
    regionSizeChanged = 1;
 }
 
-void imviewerStats::stats_thread()
+void rtimvStats::stats_thread()
 {
    while(!dieNow)
    {
@@ -69,7 +69,7 @@ void imviewerStats::stats_thread()
    }
 }
 
-void imviewerStats::calc_stats()
+void rtimvStats::calc_stats()
 {
    if(!m_imv) return;
    
@@ -119,7 +119,7 @@ void imviewerStats::calc_stats()
 
 
    
-void imviewerStats::updateGUI()
+void rtimvStats::updateGUI()
 {
    char txt[50];
 

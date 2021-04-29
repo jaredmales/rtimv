@@ -25,8 +25,8 @@ HEADERS += src/rtimvGraphicsView.hpp \
            src/rtimvBase.hpp \
            src/rtimvMainWindow.hpp \
            src/rtimvInterfaces.hpp \
-           src/imviewerControlPanel.h \
-           src/imviewerstats.hpp \
+           src/rtimvControlPanel.hpp \
+           src/rtimvStats.hpp \
            src/rtimvImage.hpp \
            src/images/shmimImage.hpp \
            src/images/fitsImage.hpp \
@@ -35,9 +35,9 @@ HEADERS += src/rtimvGraphicsView.hpp \
 
 SOURCES += src/rtimvBase.cpp \
            src/rtimvMainWindow.cpp \
-           src/imviewer_main.cpp \
-           src/imviewerControlPanel.cpp \
-           src/imviewerstats.cpp \
+           src/rtimvMain.cpp \
+           src/rtimvControlPanel.cpp \
+           src/rtimvStats.cpp \
            src/images/shmimImage.cpp \
            src/images/fitsImage.cpp
            

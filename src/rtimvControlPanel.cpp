@@ -1,6 +1,6 @@
-#include "imviewerControlPanel.h"
+#include "rtimvControlPanel.hpp"
 
-imviewerControlPanel::imviewerControlPanel(rtimvMainWindow *v, Qt::WindowFlags f): QWidget(0, f)
+rtimvControlPanel::rtimvControlPanel(rtimvMainWindow *v, Qt::WindowFlags f): QWidget(0, f)
 {
    ui.setupUi(this);
    imv = v;
@@ -42,18 +42,18 @@ imviewerControlPanel::imviewerControlPanel(rtimvMainWindow *v, Qt::WindowFlags f
    
    init_panel();
    
-   connect(viewBox, SIGNAL(moved(const QRectF & )), this, SLOT(viewBoxMoved(const QRectF &)));
+   //connect(viewBox, SIGNAL(moved(const QRectF & )), this, SLOT(viewBoxMoved(const QRectF &)));
 
    statsBoxButtonState = false;
 }
 
-void imviewerControlPanel::setupMode()
+void rtimvControlPanel::setupMode()
 {
    ViewViewMode = ViewViewNoImage;// ViewViewEnabled;
    PointerViewMode = PointerViewOnPress;//PointerViewEnabled;
 }
 
-void imviewerControlPanel::setupCombos()
+void rtimvControlPanel::setupCombos()
 {
    //First we insert a bunch of blanks so inserting by enum works correctly.
    for(int i=0;i<rtimvBase::colorbar_modes_max;i++) ui.scaleModeCombo->insertItem(i,"");
@@ -88,7 +88,7 @@ void imviewerControlPanel::setupCombos()
    ui.pointerViewModecomboBox->setCurrentIndex(PointerViewOnPress);
 }
 
-void imviewerControlPanel::init_panel()
+void rtimvControlPanel::init_panel()
 {
    IgnoreZoomSliderChange = true;
    update_ZoomSlider();
@@ -138,7 +138,7 @@ void imviewerControlPanel::init_panel()
    ui.colorbarCombo->setCurrentIndex(imv->get_current_colorbar());
 }
 
-void imviewerControlPanel::update_panel()
+void rtimvControlPanel::update_panel()
 {
    IgnoreZoomSliderChange = true;
    update_ZoomSlider();
@@ -183,19 +183,19 @@ void imviewerControlPanel::update_panel()
    ui.colorbarCombo->setCurrentIndex(imv->get_current_colorbar());
 }
 
-void imviewerControlPanel::update_ZoomSlider()
+void rtimvControlPanel::update_ZoomSlider()
 {
    ui.ZoomSlider->setSliderPosition((int)((imv->zoomLevel()-imv->zoomLevelMin())/(imv->zoomLevelMax()-imv->zoomLevelMin()) * (ui.ZoomSlider->maximum()-ui.ZoomSlider->minimum())+.5));
 }
 
-void imviewerControlPanel::update_ZoomEntry()
+void rtimvControlPanel::update_ZoomEntry()
 {
    char newz[10];
    sprintf(newz, "%4.2f", imv->zoomLevel());
    ui.ZoomEntry->setText(newz);
 }
 
-void imviewerControlPanel::on_ZoomSlider_valueChanged(int value)
+void rtimvControlPanel::on_ZoomSlider_valueChanged(int value)
 {
    double zl;
    if(!IgnoreZoomSliderChange)
@@ -206,7 +206,7 @@ void imviewerControlPanel::on_ZoomSlider_valueChanged(int value)
    update_ZoomEntry();
 }
 
-void imviewerControlPanel::on_Zoom1_clicked()
+void rtimvControlPanel::on_Zoom1_clicked()
 {
    imv->zoomLevel(1.0);
    IgnoreZoomSliderChange = true;
@@ -214,7 +214,7 @@ void imviewerControlPanel::on_Zoom1_clicked()
    IgnoreZoomSliderChange = false;
 }
 
-void imviewerControlPanel::on_Zoom2_clicked()
+void rtimvControlPanel::on_Zoom2_clicked()
 {
 	imv->zoomLevel(2.0);
 	IgnoreZoomSliderChange = true;
@@ -222,7 +222,7 @@ void imviewerControlPanel::on_Zoom2_clicked()
 	IgnoreZoomSliderChange = false;
 }
 
-void imviewerControlPanel::on_Zoom4_clicked()
+void rtimvControlPanel::on_Zoom4_clicked()
 {
 	imv->zoomLevel(4.0);
 	IgnoreZoomSliderChange = true;
@@ -230,7 +230,7 @@ void imviewerControlPanel::on_Zoom4_clicked()
 	IgnoreZoomSliderChange = false;
 }
 
-void imviewerControlPanel::on_Zoom8_clicked()
+void rtimvControlPanel::on_Zoom8_clicked()
 {
 	imv->zoomLevel(8.0);
 	IgnoreZoomSliderChange = true;
@@ -238,7 +238,7 @@ void imviewerControlPanel::on_Zoom8_clicked()
 	IgnoreZoomSliderChange = false;
 }
 
-void imviewerControlPanel::on_Zoom16_clicked()
+void rtimvControlPanel::on_Zoom16_clicked()
 {
 	imv->zoomLevel(16.0);
 	IgnoreZoomSliderChange = true;
@@ -246,7 +246,7 @@ void imviewerControlPanel::on_Zoom16_clicked()
 	IgnoreZoomSliderChange = false;
 }
 
-void imviewerControlPanel::on_ZoomEntry_editingFinished()
+void rtimvControlPanel::on_ZoomEntry_editingFinished()
 {
 	imv->zoomLevel(ui.ZoomEntry->text().toDouble());
 	IgnoreZoomSliderChange = true;
@@ -254,23 +254,23 @@ void imviewerControlPanel::on_ZoomEntry_editingFinished()
 	IgnoreZoomSliderChange = false;
 }
 
-void imviewerControlPanel::on_overZoom1_clicked()
+void rtimvControlPanel::on_overZoom1_clicked()
 {
    imv->setPointerOverZoom(1.0);
 }
 
 
-void imviewerControlPanel::on_overZoom2_clicked()
+void rtimvControlPanel::on_overZoom2_clicked()
 {
    imv->setPointerOverZoom(2.0);
 }
       
-void imviewerControlPanel::on_overZoom4_clicked()
+void rtimvControlPanel::on_overZoom4_clicked()
 {
    imv->setPointerOverZoom(4.0);
 }
       
-void imviewerControlPanel::set_ViewViewMode(int vvm)
+void rtimvControlPanel::set_ViewViewMode(int vvm)
 {
    if(vvm < 0 || vvm >= ViewViewModeMax)
    {
@@ -293,7 +293,7 @@ void imviewerControlPanel::set_ViewViewMode(int vvm)
    }
 }
 
-void:: imviewerControlPanel::update_xycenEntry()
+void:: rtimvControlPanel::update_xycenEntry()
 {
    char tmps[10];
    
@@ -309,7 +309,7 @@ void:: imviewerControlPanel::update_xycenEntry()
    }
 }
 
-void imviewerControlPanel::update_whEntry()
+void rtimvControlPanel::update_whEntry()
 {
    char tmps[10];
    if(!ui.widthEntry->hasFocus())
@@ -325,28 +325,28 @@ void imviewerControlPanel::update_whEntry()
    }
 }
 
-void imviewerControlPanel::on_ViewViewModecheckBox_stateChanged(int st)
+void rtimvControlPanel::on_ViewViewModecheckBox_stateChanged(int st)
 {
 	enableViewViewMode(st);
 }
 
-void imviewerControlPanel::enableViewViewMode(int state)
+void rtimvControlPanel::enableViewViewMode(int state)
 {
 	if(state) set_ViewViewMode(ViewViewEnabled);
 	else set_ViewViewMode(ViewViewNoImage);
 }
 
-void imviewerControlPanel::on_xcenEntry_editingFinished()
+void rtimvControlPanel::on_xcenEntry_editingFinished()
 {
 	imv->set_viewcen(ui.xcenEntry->text().toDouble()/imv->nx(), imv->get_ycen());;
 }
 
-void imviewerControlPanel::on_ycenEntry_editingFinished()
+void rtimvControlPanel::on_ycenEntry_editingFinished()
 {
 	imv->set_viewcen(imv->get_xcen(), ui.ycenEntry->text().toDouble()/imv->ny());
 }
 
-void imviewerControlPanel::on_widthEntry_editingFinished()
+void rtimvControlPanel::on_widthEntry_editingFinished()
 {
 	double newzoom;
 	newzoom = ((double)imv->nx())/ui.widthEntry->text().toDouble();
@@ -354,7 +354,7 @@ void imviewerControlPanel::on_widthEntry_editingFinished()
 	update_panel();
 }
 	
-void imviewerControlPanel::on_heightEntry_editingFinished()
+void rtimvControlPanel::on_heightEntry_editingFinished()
 {
 	double newzoom;
 	newzoom = ((double)imv->ny())/ui.heightEntry->text().toDouble();
@@ -362,52 +362,52 @@ void imviewerControlPanel::on_heightEntry_editingFinished()
 	update_panel();
 }
 
-void imviewerControlPanel::on_view_center_clicked()
+void rtimvControlPanel::on_view_center_clicked()
 {
 	imv->set_viewcen(.5, .5);
 }
 
-void imviewerControlPanel::on_view_ul_clicked()
+void rtimvControlPanel::on_view_ul_clicked()
 {
 	imv->set_viewcen(imv->get_xcen() - 1./imv->zoomLevel(), imv->get_ycen()-1./imv->zoomLevel());
 }
 
-void imviewerControlPanel::on_view_up_clicked()
+void rtimvControlPanel::on_view_up_clicked()
 {
 	imv->set_viewcen(imv->get_xcen(), imv->get_ycen()-1./imv->zoomLevel());
 }
 
-void imviewerControlPanel::on_view_ur_clicked()
+void rtimvControlPanel::on_view_ur_clicked()
 {
 	imv->set_viewcen(imv->get_xcen() + 1./imv->zoomLevel(), imv->get_ycen() - 1./imv->zoomLevel());
 }
 
-void imviewerControlPanel::on_view_right_clicked()
+void rtimvControlPanel::on_view_right_clicked()
 {
 	imv->set_viewcen(imv->get_xcen() + 1./imv->zoomLevel(), imv->get_ycen());
 }
 
-void imviewerControlPanel::on_view_dr_clicked()
+void rtimvControlPanel::on_view_dr_clicked()
 {
 	imv->set_viewcen(imv->get_xcen() + 1./imv->zoomLevel(), imv->get_ycen()+1./imv->zoomLevel());
 }
 
-void imviewerControlPanel::on_view_down_clicked()
+void rtimvControlPanel::on_view_down_clicked()
 {
 	imv->set_viewcen(imv->get_xcen(), imv->get_ycen()+1./imv->zoomLevel());
 }
 
-void imviewerControlPanel::on_view_dl_clicked()
+void rtimvControlPanel::on_view_dl_clicked()
 {
 	imv->set_viewcen(imv->get_xcen() - 1./imv->zoomLevel(), imv->get_ycen()+1./imv->zoomLevel());
 }
 
-void imviewerControlPanel::on_view_left_clicked()
+void rtimvControlPanel::on_view_left_clicked()
 {
 	imv->set_viewcen(imv->get_xcen() - 1./imv->zoomLevel(), imv->get_ycen());
 }
 
-void imviewerControlPanel::updateMouseCoords(double x, double y, double v)
+void rtimvControlPanel::updateMouseCoords(double x, double y, double v)
 {
 	if(!PointerViewFixed)
 	{
@@ -431,7 +431,7 @@ void imviewerControlPanel::updateMouseCoords(double x, double y, double v)
 	}
 }	
 
-void imviewerControlPanel::nullMouseCoords()
+void rtimvControlPanel::nullMouseCoords()
 {
    if(!PointerViewFixed)
    {
@@ -444,7 +444,7 @@ void imviewerControlPanel::nullMouseCoords()
 }
 
 		
-void imviewerControlPanel::viewLeftPressed(QPointF mp)
+void rtimvControlPanel::viewLeftPressed(QPointF mp)
 {
    if(PointerViewMode == PointerViewOnPress)
    {
@@ -458,7 +458,7 @@ void imviewerControlPanel::viewLeftPressed(QPointF mp)
    }
 }
 
-void imviewerControlPanel::viewLeftClicked(QPointF mp)
+void rtimvControlPanel::viewLeftClicked(QPointF mp)
 {
    if(PointerViewMode == PointerViewOnPress)
    {
@@ -471,7 +471,7 @@ void imviewerControlPanel::viewLeftClicked(QPointF mp)
    }
 }
 
-void imviewerControlPanel::set_PointerViewMode(int pvm)
+void rtimvControlPanel::set_PointerViewMode(int pvm)
 {
    if(pvm < 0 || pvm >= PointerViewModeMax || pvm == PointerViewEnabled)
    {
@@ -493,12 +493,12 @@ void imviewerControlPanel::set_PointerViewMode(int pvm)
    }
 }
 
-void imviewerControlPanel::on_pointerViewModecomboBox_activated(int pvm)
+void rtimvControlPanel::on_pointerViewModecomboBox_activated(int pvm)
 {
    set_PointerViewMode(pvm);
 }
 
-void imviewerControlPanel::on_pointerSetLocButton_clicked()
+void rtimvControlPanel::on_pointerSetLocButton_clicked()
 {
    if(!PointerViewFixed)
    {
@@ -513,7 +513,7 @@ void imviewerControlPanel::on_pointerSetLocButton_clicked()
    }
 }
 
-void imviewerControlPanel::set_pointerViewCen(QPointF mp)
+void rtimvControlPanel::set_pointerViewCen(QPointF mp)
 {
    pointerViewCen = mp;
    ui.pointerSetLocButton->setText("Clear Location");
@@ -521,7 +521,7 @@ void imviewerControlPanel::set_pointerViewCen(QPointF mp)
    PointerViewFixed = true;
 }
 
-void imviewerControlPanel::on_scaleTypeCombo_activated(int ct)
+void rtimvControlPanel::on_scaleTypeCombo_activated(int ct)
 {
    imv->set_cbStretch(ct);
    
@@ -529,12 +529,12 @@ void imviewerControlPanel::on_scaleTypeCombo_activated(int ct)
    imv->changeImdata();
 }
 
-void imviewerControlPanel::on_colorbarCombo_activated(int cb)
+void rtimvControlPanel::on_colorbarCombo_activated(int cb)
 {
    imv->load_colorbar(cb);
 }
 
-void imviewerControlPanel::update_mindatSlider()
+void rtimvControlPanel::update_mindatSlider()
 {
    int pos;
    
@@ -545,7 +545,7 @@ void imviewerControlPanel::update_mindatSlider()
    IgnoremindatSliderChange = false;
 }
 
-void imviewerControlPanel::update_mindatEntry()
+void rtimvControlPanel::update_mindatEntry()
 {
    char tmps[15];
    if(!ui.mindatEntry->hasFocus())
@@ -555,7 +555,7 @@ void imviewerControlPanel::update_mindatEntry()
    }
 }
 
-void imviewerControlPanel::update_mindatRelEntry()
+void rtimvControlPanel::update_mindatRelEntry()
 {
    char tmps[15];
    if(!ui.mindatRelEntry->hasFocus())
@@ -565,7 +565,7 @@ void imviewerControlPanel::update_mindatRelEntry()
    }
 }
 
-void imviewerControlPanel::update_maxdatSlider()
+void rtimvControlPanel::update_maxdatSlider()
 {
    int pos;
    pos = (int)(ui.maxdatSlider->minimum() + (imv->maxdat()-imv->get_imdat_min())/(imv->get_imdat_max()-imv->get_imdat_min())*(ui.maxdatSlider->maximum()-ui.maxdatSlider->minimum())+.5);
@@ -577,7 +577,7 @@ void imviewerControlPanel::update_maxdatSlider()
 
 ////
 
-void imviewerControlPanel::update_maxdatEntry()
+void rtimvControlPanel::update_maxdatEntry()
 {
    char tmps[15];
    if(!ui.maxdatEntry->hasFocus())
@@ -587,7 +587,7 @@ void imviewerControlPanel::update_maxdatEntry()
    }
 }
 
-void imviewerControlPanel::update_maxdatRelEntry()
+void rtimvControlPanel::update_maxdatRelEntry()
 {
    char tmps[15];
    if(!ui.maxdatRelEntry->hasFocus())
@@ -597,7 +597,7 @@ void imviewerControlPanel::update_maxdatRelEntry()
    }
 }
 
-void imviewerControlPanel::update_biasSlider()
+void rtimvControlPanel::update_biasSlider()
 {
    int pos;
    pos = (int)(ui.biasSlider->minimum() + (.5*(imv->maxdat()+imv->mindat())-imv->get_imdat_min())/(imv->get_imdat_max()-imv->get_imdat_min())*(ui.biasSlider->maximum()-ui.biasSlider->minimum())+.5);
@@ -607,7 +607,7 @@ void imviewerControlPanel::update_biasSlider()
    IgnorebiasSliderChange = false;
 }
 
-void imviewerControlPanel::update_biasEntry()
+void rtimvControlPanel::update_biasEntry()
 {
    char tmps[15];
    if(!ui.biasEntry->hasFocus())
@@ -617,7 +617,7 @@ void imviewerControlPanel::update_biasEntry()
    }
 }
 
-void imviewerControlPanel::update_biasRelEntry()
+void rtimvControlPanel::update_biasRelEntry()
 {
    char tmps[15];
    if(!ui.biasRelEntry->hasFocus())
@@ -627,7 +627,7 @@ void imviewerControlPanel::update_biasRelEntry()
    }
 }
 
-void imviewerControlPanel::update_contrastSlider()
+void rtimvControlPanel::update_contrastSlider()
 {
    int pos;
    pos = (int)(ui.contrastSlider->minimum() + (imv->maxdat()-imv->mindat())/(imv->get_imdat_max()-imv->get_imdat_min())*(ui.biasSlider->maximum()-ui.biasSlider->minimum())+.5);
@@ -637,7 +637,7 @@ void imviewerControlPanel::update_contrastSlider()
    IgnorecontrastSliderChange = false;
 }
 
-void imviewerControlPanel::update_contrastEntry()
+void rtimvControlPanel::update_contrastEntry()
 {
    char tmps[15];
    if(!ui.contrastEntry->hasFocus())
@@ -647,7 +647,7 @@ void imviewerControlPanel::update_contrastEntry()
    }
 }
 
-void imviewerControlPanel::update_contrastRelEntry()
+void rtimvControlPanel::update_contrastRelEntry()
 {
    char tmps[15];
    if(!ui.contrastRelEntry->hasFocus())
@@ -657,7 +657,7 @@ void imviewerControlPanel::update_contrastRelEntry()
    }
 }
 
-void imviewerControlPanel::on_scaleModeCombo_activated(int index)
+void rtimvControlPanel::on_scaleModeCombo_activated(int index)
 {
 
    if(index == rtimvBase::minmaxglobal)
@@ -704,7 +704,7 @@ void imviewerControlPanel::on_scaleModeCombo_activated(int index)
    }
 }
 
-void imviewerControlPanel::on_mindatSlider_valueChanged(int value)
+void rtimvControlPanel::on_mindatSlider_valueChanged(int value)
 {
    if(!IgnoremindatSliderChange)
    {
@@ -721,7 +721,7 @@ void imviewerControlPanel::on_mindatSlider_valueChanged(int value)
    }
 }
 
-void imviewerControlPanel::on_mindatEntry_editingFinished()
+void rtimvControlPanel::on_mindatEntry_editingFinished()
 {
    imv->mindat(ui.mindatEntry->text().toDouble());
    update_mindatEntry();
@@ -736,7 +736,7 @@ void imviewerControlPanel::on_mindatEntry_editingFinished()
    ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
 }
 
-void imviewerControlPanel::on_maxdatSlider_valueChanged(int value)
+void rtimvControlPanel::on_maxdatSlider_valueChanged(int value)
 {
    if(!IgnoremaxdatSliderChange)
    {
@@ -754,7 +754,7 @@ void imviewerControlPanel::on_maxdatSlider_valueChanged(int value)
    
 }
 
-void imviewerControlPanel::on_maxdatEntry_editingFinished()
+void rtimvControlPanel::on_maxdatEntry_editingFinished()
 {
    imv->maxdat(ui.maxdatEntry->text().toDouble());
    update_maxdatEntry();
@@ -767,7 +767,7 @@ void imviewerControlPanel::on_maxdatEntry_editingFinished()
    ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
 }
 
-void imviewerControlPanel::on_biasSlider_valueChanged(int value)
+void rtimvControlPanel::on_biasSlider_valueChanged(int value)
 {
    if(!IgnorebiasSliderChange)
    {
@@ -785,7 +785,7 @@ void imviewerControlPanel::on_biasSlider_valueChanged(int value)
    }
 }
 
-void imviewerControlPanel::on_biasEntry_editingFinished()
+void rtimvControlPanel::on_biasEntry_editingFinished()
 {
    imv->bias(ui.biasEntry->text().toDouble());
    imv->setUserBoxActive(false);
@@ -800,7 +800,7 @@ void imviewerControlPanel::on_biasEntry_editingFinished()
    
 }
 
-void imviewerControlPanel::on_contrastSlider_valueChanged(int value)
+void rtimvControlPanel::on_contrastSlider_valueChanged(int value)
 {
    if(!IgnorecontrastSliderChange)
    {
@@ -820,7 +820,7 @@ void imviewerControlPanel::on_contrastSlider_valueChanged(int value)
 }
 
 
-void imviewerControlPanel::on_contrastEntry_editingFinished()
+void rtimvControlPanel::on_contrastEntry_editingFinished()
 {
    imv->contrast(ui.contrastEntry->text().toDouble());
    imv->setUserBoxActive(false);
@@ -835,12 +835,12 @@ void imviewerControlPanel::on_contrastEntry_editingFinished()
    
 }
 
-void imviewerControlPanel::on_imtimerspinBox_valueChanged(int to)
+void rtimvControlPanel::on_imtimerspinBox_valueChanged(int to)
 {
    imv->timeout(to);
 }
 
-void imviewerControlPanel::on_statsBoxButton_clicked()
+void rtimvControlPanel::on_statsBoxButton_clicked()
 {
    if(statsBoxButtonState)
    {
@@ -858,7 +858,7 @@ void imviewerControlPanel::on_statsBoxButton_clicked()
    
 }
 
-void imviewerControlPanel::viewBoxMoved ( const QRectF & vbr)
+void rtimvControlPanel::viewBoxMoved ( const QRectF & vbr)
 {
    
    //QPointF newcenV = ui.viewView->mapFromScene(newcen);

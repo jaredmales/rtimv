@@ -455,7 +455,7 @@ void rtimvMainWindow::launchControlPanel()
 {
    if(!imcp)
    {
-      imcp = new imviewerControlPanel(this, Qt::Tool);
+      imcp = new rtimvControlPanel(this, Qt::Tool);
       connect(imcp, SIGNAL(launchStatsBox()), this, SLOT(doLaunchStatsBox()));
       connect(imcp, SIGNAL(hideStatsBox()), this, SLOT(doHideStatsBox()));
    }
@@ -465,13 +465,6 @@ void rtimvMainWindow::launchControlPanel()
    imcp->activateWindow();
 }
 
-
-
-// void rtimvMainWindow::on_buttonPanelLaunch_clicked()
-// {
-//    launchControlPanel();
-// }
-// 
 void rtimvMainWindow::freezeRealTime()
 {
    if(RealTimeStopped)
@@ -951,7 +944,7 @@ void rtimvMainWindow::doLaunchStatsBox()
    
    if(!imStats)
    {
-      imStats = new imviewerStats(this, this, 0);
+      imStats = new rtimvStats(this, this, 0);
       imStats->setAttribute(Qt::WA_DeleteOnClose); //Qt will delete imstats when it closes.
       connect(imStats, SIGNAL(finished(int )), this, SLOT(imStatsClosed(int )));
    }

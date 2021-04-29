@@ -20,7 +20,7 @@ using namespace mx::app;
 
 #include "ui_rtimvMainWindow.h"
 #include "rtimvBase.hpp"
-#include "imviewerControlPanel.h"
+#include "rtimvControlPanel.hpp"
 
 #include "rtimvInterfaces.hpp"
 
@@ -28,7 +28,7 @@ using namespace mx::app;
 #include "StretchCircle.hpp"
 #include "StretchLine.hpp"
 
-#include "imviewerstats.hpp"
+#include "rtimvStats.hpp"
 
 
 #include <cstdio>
@@ -44,7 +44,7 @@ using namespace mx::app;
 #define ViewViewNoImage 1
 #define ViewViewModeMax 2
 
-class imviewerControlPanel;
+class rtimvControlPanel;
 
 class rtimvMainWindow : public rtimvBase, public application
 {
@@ -89,7 +89,7 @@ public:
    
    /*** The control Panel ***/
 protected:
-   imviewerControlPanel *imcp;
+   rtimvControlPanel *imcp;
    
    float pointerOverZoom;
    
@@ -197,7 +197,7 @@ public:
       std::unordered_set<StretchCircle *> m_userCircles;
       std::unordered_set<StretchLine *> m_userLines;
       
-      imviewerStats * imStats;
+      rtimvStats * imStats;
 
       void launchImStats();
       
