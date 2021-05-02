@@ -9,12 +9,12 @@
 
 class rtimvMainWindow;
 
-class imviewerControlPanel : public QWidget
+class rtimvControlPanel : public QWidget
 {
    Q_OBJECT
    
    public:
-      imviewerControlPanel(rtimvMainWindow *imv, Qt::WindowFlags f = 0);
+      rtimvControlPanel(rtimvMainWindow *imv, Qt::WindowFlags f = 0);
    
    protected:
       rtimvMainWindow * imv;

@@ -8,8 +8,8 @@ int main(int argc, char *argv[])
 {
    QApplication app(argc, argv);
 
-   rtimvMainWindow imv(argc, argv);
-   imv.show();
+   rtimvMainWindow rtimv(argc, argv);
+   rtimv.show();
 
    return app.exec();
 }

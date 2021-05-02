@@ -7,8 +7,10 @@ rtimvMainWindow::rtimvMainWindow( int argc,
                                   char ** argv,
                                   QWidget * Parent, 
                                   Qt::WindowFlags f
-                                ) : imviewer(Parent, f)
+                                ) : rtimvBase(Parent, f)
 {
+   m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; //Tells mx::application to look for this env var.
+   
    setup(argc,argv);
    
    if(doHelp)
@@ -30,12 +32,10 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    //This will come up at some minimal size.
    ui.graphicsView->setGeometry(0,0, width(), height());
    
-   qgs = new QGraphicsScene();
-   ui.graphicsView->setScene(qgs);
+   m_qgs = new QGraphicsScene();
+   ui.graphicsView->setScene(m_qgs);
    
-   qpmi = 0;
-   colorBox = 0;
-   statsBox = 0;
+   m_colorBox = 0;
    
    
    rightClickDragging = false;
@@ -54,28 +54,28 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    colorBox_i1 = 32;
    colorBox_j0 = 0;
    colorBox_j1 = 32;
-   colorBox = new StretchBox(0,0,32,32);
-   colorBox->setPenColor("Yellow");
-   colorBox->setPenWidth(0.1);
-   colorBox->setVisible(false);
-   colorBox->setStretchable(true);
-   colorBox->setRemovable(false);
-   m_userBoxes.insert(colorBox);
-   connect(colorBox, SIGNAL(moved(StretchBox *)), this, SLOT(colorBoxMoved(StretchBox * )));
-   connect(colorBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
-   qgs->addItem(colorBox);
+   m_colorBox = new StretchBox(0,0,32,32);
+   m_colorBox->setPenColor("Yellow");
+   m_colorBox->setPenWidth(0.1);
+   m_colorBox->setVisible(false);
+   m_colorBox->setStretchable(true);
+   m_colorBox->setRemovable(false);
+   m_userBoxes.insert(m_colorBox);
+   connect(m_colorBox, SIGNAL(moved(StretchBox *)), this, SLOT(colorBoxMoved(StretchBox * )));
+   connect(m_colorBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
+   m_qgs->addItem(m_colorBox);
 
-   statsBox = new StretchBox(0,0,32,32);
-   statsBox->setPenColor("Red");
-   colorBox->setPenWidth(0.1);
-   statsBox->setVisible(false);
-   statsBox->setStretchable(true);
-   statsBox->setRemovable(true);
-   m_userBoxes.insert(statsBox);
-   connect(statsBox, SIGNAL(moved(StretchBox *)), this, SLOT(statsBoxMoved(StretchBox *)));
-   connect(statsBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
-   connect(statsBox, SIGNAL(remove(StretchBox *)), this, SLOT(userBoxRemove(StretchBox *)));
-   qgs->addItem(statsBox);
+   m_statsBox = new StretchBox(0,0,32,32);
+   m_statsBox->setPenColor("Red");
+   m_statsBox->setPenWidth(0.1);
+   m_statsBox->setVisible(false);
+   m_statsBox->setStretchable(true);
+   m_statsBox->setRemovable(true);
+   m_userBoxes.insert(m_statsBox);
+   connect(m_statsBox, SIGNAL(moved(StretchBox *)), this, SLOT(statsBoxMoved(StretchBox *)));
+   connect(m_statsBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
+   connect(m_statsBox, SIGNAL(remove(StretchBox *)), this, SLOT(userBoxRemove(StretchBox *)));
+   m_qgs->addItem(m_statsBox);
    
    
    m_targetVisible = false;
@@ -86,8 +86,8 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    imStats = 0;
    m_timer.start(m_timeout);
 
-   nup = qgs->addLine(QLineF(512,400, 512, 624), QColor("skyblue"));
-   nup_tip = qgs->addLine(QLineF(512,400, 536, 424), QColor("skyblue"));
+   nup = m_qgs->addLine(QLineF(512,400, 512, 624), QColor("skyblue"));
+   nup_tip = m_qgs->addLine(QLineF(512,400, 536, 424), QColor("skyblue"));
    nup->setTransformOriginPoint ( QPointF(512,512) );
    nup_tip->setTransformOriginPoint ( QPointF(512,512) );
    nup->setVisible(false);
@@ -101,15 +101,15 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    
    m_lineHead = new QGraphicsEllipseItem;
    m_lineHead->setVisible(false);
-   qgs->addItem(m_lineHead);
+   m_qgs->addItem(m_lineHead);
    
    m_objCenV = new QGraphicsLineItem;
    m_objCenV->setVisible(false);
-   qgs->addItem(m_objCenV);
+   m_qgs->addItem(m_objCenV);
    
    m_objCenH = new QGraphicsLineItem;
    m_objCenH->setVisible(false);
-   qgs->addItem(m_objCenH);
+   m_qgs->addItem(m_objCenH);
    
    /* ========================================= */
    /* now load plugins                          */
@@ -152,62 +152,94 @@ rtimvMainWindow::rtimvMainWindow( int argc,
          if (plugin) 
          {
             std::cerr << "loading dynamic\n";
-            loadPlugin(plugin);
-            m_pluginFileNames += fileName;
+            int arv = loadPlugin(plugin);
+            if( arv != 0 )
+            {
+               std::cerr << "unloading  . . . ";
+               if(loader.unload()) std::cerr << "it worked!\n";
+               else std::cerr << "it didn't work\n";
+            }
+            else
+            {
+               m_pluginFileNames += fileName;
+            }
          }
       }
    }
+   
+   setWindowTitle(m_title.c_str());
 }
+
+rtimvMainWindow::~rtimvMainWindow()
+{
+   if(imStats) delete imStats;
+}
+
 void rtimvMainWindow::setupConfig()
 {
-   config.add("image.shmim_name", "", "image.shmim_name", argType::Required, "image", "shmim_name", false, "string", "The shared memory image file name for the image, or a FITS file path.");
-   config.add("image.shmim_timeout", "", "image.shmim_timeout", argType::Required, "image", "shmim_timeout", false, "int", "The timeout for checking for the shared memory image for the image.  Default is 1000 msec.");
-   config.add("image.timeout", "", "image.timeout", argType::Required, "image", "timeout", false, "int", "The timeout for checking for a new image.  Default is 100 msec (10 f.p.s.).");
-      
-   config.add("dark.shmim_name", "", "dark.shmim_name", argType::Required, "dark", "shmim_name", false, "string", "The shared memory image file name for the dark, or a FITS image path.");
-   config.add("dark.shmim_timeout", "", "dark.shmim_timeout", argType::Required, "dark", "shmim_timeout", false, "int", "The timeout for checking for the shared memory image for the dark.  Default is 1000 msec.");
-   config.add("dark.timeout", "", "dark.timeout", argType::Required, "dark", "timeout", false, "int", "The timeout for checking for a new dark.  Default is 100 msec (10 f.p.s.).");
-      
-   config.add("mask.shmim_name", "", "mask.shmim_name", argType::Required, "mask", "shmim_name", false, "string", "The shared memory image file name for the mask, or a FITS image path.");
-   config.add("mask.shmim_timeout", "", "mask.shmim_timeout", argType::Required, "mask", "shmim_timeout", false, "int", "The timeout for checking for the shared memory image for the mask.  Default is 1000 msec.");
-   config.add("mask.timeout", "", "mask.timeout", argType::Required, "mask", "timeout", false, "int", "The timeout for checking for a new mask.  Default is 100 msec (10 f.p.s.).");
+   config.add("image.key", "", "image.key", argType::Required, "image", "key", false, "string", "The main image key. Specifies the protocol, location, and name of the main image.");
+   config.add("image.shmim_name", "", "image.shmim_name", argType::Required, "image", "shmim_name", false, "string", "Same as image.key. Deprecated -- do not use for new configs.");
+   
+   config.add("dark.key", "", "dark.key", argType::Required, "dark", "key", false, "string", "The dark image key. Specifies the protocol, location, and name of the dark image.");   
+   config.add("dark.shmim_name", "", "dark.shmim_name", argType::Required, "dark", "shmim_name", false, "string", "Same as dark.key. Deprecated -- do not use for new configs.");
+   
+   config.add("mask.key", "", "mask.key", argType::Required, "mask", "key", false, "string", "The mask image key. Specifies the protocol, location, and name of the mask image.");   
+   config.add("mask.shmim_name", "", "mask.shmim_name", argType::Required, "mask", "shmim_name", false, "string", "Same as mask.key. Deprecated -- do not use for new configs.");
+   
+   config.add("satMask.key", "", "satMask.key", argType::Required, "satMask", "key", false, "string", "The saturation mask image key. Specifies the protocol, location, and name of the saturation mask image.");
+   config.add("satMask.shmim_name", "", "satMask.shmim_name", argType::Required, "satMask", "shmim_name", false, "string", "Same as satMask.key. Deprecated -- do not use for new configs.");
 
-   config.add("satMask.shmim_name", "", "satMask.shmim_name", argType::Required, "satMask", "shmim_name", false, "string", "The shared memory image file name for the saturation , or a FITS image path.");
-   config.add("satMask.shmim_timeout", "", "satMask.shmim_timeout", argType::Required, "satMask", "shmim_timeout", false, "int", "The timeout for checking for the shared memory image for the saturation mask.  Default is 1000 msec.");
-   config.add("satMask.timeout", "", "satMask.timeout", argType::Required, "satMask", "timeout", false, "int", "The timeout for checking for a new saturation mask.  Default is 100 msec (10 f.p.s.).");
-
-      
-      
    config.add("autoscale", "", "autoscale", argType::True, "", "autoscale", false, "bool", "Set to turn autoscaling on at startup");
    config.add("nofpsgage", "", "nofpsgage", argType::True, "", "nofpsgage", false, "bool", "Set to turn the fps gage off at startup");
+   config.add("darksub", "", "darksub", argType::True, "", "darksub", false, "bool", "Set to false to turn off on at startup.  If a dark is supplied, darksub is otherwise on.");
    config.add("targetXc", "", "targetXc", argType::Required, "", "targetXc", false, "float", "The fractional x-coordinate of the target, 0<= x <=1");
    config.add("targetYc", "", "targetYc", argType::Required, "", "targetXc", false, "float", "The fractional y-coordinate of the target, 0<= y <=1");
+   
+   config.add("mzmq.always", "Z", "mzmq.always", argType::True, "mzmq", "always", false, "bool", "Set to make milkzmq the protocol for bare image names.  Note that local shmims can not be used if this is set.");
+   config.add("mzmq.server", "s", "mzmq.server", argType::Required, "mzmq", "server", false, "string", "The default server for milkzmq.  The default default is localhost.  This will be overridden by an image specific server specified in a key.");
+   config.add("mzmq.port", "p", "mzmq.port", argType::Required, "mzmq", "port", false, "int", "The default port for milkzmq.  The default default is 5556.  This will be overridden by an image specific port specified in a key.");
+   
 }
 
 void rtimvMainWindow::loadConfig()
 {
-   std::string imShmimKey;
-   std::string darkShmimKey;
+   std::string imKey;
+   std::string darkKey;
    
-   std::string flatShmimKey;
+   std::string flatKey;
    
-   std::string maskShmimKey;
+   std::string maskKey;
   
-   std::string satMaskShmimKey;
+   std::string satMaskKey;
    
    std::vector<std::string> keys;
    
-   config(imShmimKey, "image.shmim_name");
-   config(darkShmimKey, "dark.shmim_name");
-   config(maskShmimKey, "mask.shmim_name");
-   config(satMaskShmimKey, "satMask.shmim_name");
+   //Set up milkzmq
+   config(m_mzmqAlways, "mzmq.always");
+   config(m_mzmqServer, "mzmq.server");
+   config(m_mzmqPort, "mzmq.port");
+
+   
+   //Check for use of deprecated shmim_name keyword by itself, but use key if available
+   if(!config.isSet("image.key")) config(imKey, "image.shmim_name");
+   else config(imKey, "image.key");
+   
+   if(!config.isSet("dark.key")) config(darkKey, "dark.shmim_name");
+   else config(darkKey, "dark.key");
       
+   if(!config.isSet("mask.key")) config(maskKey, "mask.shmim_name");
+   else config(maskKey, "mask.key");
+   
+   if(!config.isSet("satMask.key")) config(satMaskKey, "satMask.shmim_name");
+   else config(satMaskKey, "satMask.key");
+   
+   //Populate the key vector, a "" means no image specified
    keys.resize(4);
       
-   if(imShmimKey != "") keys[0] = imShmimKey;
-   if(darkShmimKey != "") keys[1] = darkShmimKey;
-   if(maskShmimKey != "") keys[2] = maskShmimKey;
-   if(satMaskShmimKey != "") keys[3] = satMaskShmimKey;
+   if(imKey != "") keys[0] = imKey;
+   if(darkKey != "") keys[1] = darkKey;
+   if(maskKey != "") keys[2] = maskKey;
+   if(satMaskKey != "") keys[3] = satMaskKey;
    
    //The command line always overrides the config
    if(config.nonOptions.size() > 0) keys[0] = config.nonOptions[0];
@@ -215,11 +247,25 @@ void rtimvMainWindow::loadConfig()
    if(config.nonOptions.size() > 2) keys[2] = config.nonOptions[2];
    if(config.nonOptions.size() > 3) keys[3] = config.nonOptions[3];
    
-   m_title= keys[0];
-
    startup(keys);
    
-   
+   if(m_images[0] == nullptr)
+   {
+      if(doHelp)
+      {
+         help();
+      }
+      else
+      {
+         std::cerr << "rtimv: No valid image specified so cowardly refusing to start.  Use -h for help.\n";
+      }
+      
+      exit(0);
+   }
+   else
+   {
+      m_title = m_images[0]->imageName();
+   }
    
    //Now load remaining options, respecting coded defaults.
    config(m_autoScale, "autoscale");
@@ -230,6 +276,8 @@ void rtimvMainWindow::loadConfig()
 
    config(m_targetXc, "targetXc");
    config(m_targetYc, "targetYc");
+   
+   
 }
 
 void rtimvMainWindow::onConnect()
@@ -255,20 +303,6 @@ void rtimvMainWindow::postSetImsize()
       transform.scale(viewZoom, viewZoom);
       imcp->ui.viewView->setTransform(transform);
    }
-   
-   
-
-//    //Resize the user color box
-//    colorBox_i0 = m_ny*.25;
-//    colorBox_i1 = m_ny*.75;
-// 
-//    colorBox_j0 = m_nx*.25;
-//    colorBox_j1 = m_nx*.75;
-// 
-//    
-//    colorBox->setRect(colorBox->mapRectFromScene(colorBox_i0, colorBox_j0, colorBox_i1-colorBox_i0, colorBox_j1-colorBox_j0));
-//    colorBox->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
-
    
    //resize the boxes
    std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
@@ -311,8 +345,8 @@ void rtimvMainWindow::setTarget()
 {
    if(!m_cenLineVert)
    {
-      m_cenLineVert = qgs->addLine(QLineF(m_targetXc*nx(),0, m_targetXc*nx(), ny()), QColor("lime"));
-      m_cenLineHorz = qgs->addLine(QLineF(0, (1.0-m_targetYc)*ny(), nx(), (1.0-m_targetYc)*ny()), QColor("lime"));
+      m_cenLineVert = m_qgs->addLine(QLineF(m_targetXc*nx(),0, m_targetXc*nx(), ny()), QColor("lime"));
+      m_cenLineHorz = m_qgs->addLine(QLineF(0, (1.0-m_targetYc)*ny(), nx(), (1.0-m_targetYc)*ny()), QColor("lime"));
       if(m_targetVisible)
       {
          m_cenLineVert->setVisible(true);
@@ -386,18 +420,18 @@ void rtimvMainWindow::postChangeImdata()
       ui.graphicsView->warningText("");
    }
    
-   if(!qpmi) //This happens on first time through
+   if(!m_qpmi) //This happens on first time through
    {
-      qpmi = qgs->addPixmap(m_qpm);
+      m_qpmi = m_qgs->addPixmap(m_qpm);
       //So we need to initialize the viewport center, etc.
       set_viewcen(0.5,0.5);
       post_zoomLevel();
    }
-   else qpmi->setPixmap(m_qpm);
+   else m_qpmi->setPixmap(m_qpm);
         
-   if(colorBox) qpmi->stackBefore(colorBox);
-   if(statsBox) qpmi->stackBefore(statsBox);
-   //if(guideBox) qpmi->stackBefore(guideBox);
+   if(m_colorBox) m_qpmi->stackBefore(m_colorBox);
+   if(m_statsBox) m_qpmi->stackBefore(m_statsBox);
+   //if(guideBox) m_qpmi->stackBefore(guideBox);
    
    if(imcp)
    {
@@ -429,7 +463,7 @@ void rtimvMainWindow::launchControlPanel()
 {
    if(!imcp)
    {
-      imcp = new imviewerControlPanel(this, Qt::Tool);
+      imcp = new rtimvControlPanel(this, Qt::Tool);
       connect(imcp, SIGNAL(launchStatsBox()), this, SLOT(doLaunchStatsBox()));
       connect(imcp, SIGNAL(hideStatsBox()), this, SLOT(doHideStatsBox()));
    }
@@ -439,13 +473,6 @@ void rtimvMainWindow::launchControlPanel()
    imcp->activateWindow();
 }
 
-
-
-// void rtimvMainWindow::on_buttonPanelLaunch_clicked()
-// {
-//    launchControlPanel();
-// }
-// 
 void rtimvMainWindow::freezeRealTime()
 {
    if(RealTimeStopped)
@@ -519,7 +546,7 @@ void rtimvMainWindow::change_center(bool movezoombox)
 
 void rtimvMainWindow::set_viewcen(float x, float y, bool movezoombox)
 {
-   QPointF sp( x* qpmi->boundingRect().width(), y*qpmi->boundingRect().height() );
+   QPointF sp( x* m_qpmi->boundingRect().width(), y*m_qpmi->boundingRect().height() );
    QPointF vp = ui.graphicsView->mapFromScene(sp);
    
    ui.graphicsView->mapCenterToScene(vp.x(), vp.y());
@@ -603,7 +630,7 @@ void rtimvMainWindow::updateMouseCoords()
 {
    int64_t idx_x, idx_y; //image size are uint32_t, so this allows signed comparison without overflow issues
    
-   if(!qpmi) return;
+   if(!m_qpmi) return;
    
    if(ui.graphicsView->mouseViewX() < 0 || ui.graphicsView->mouseViewY() < 0)
    {
@@ -615,7 +642,7 @@ void rtimvMainWindow::updateMouseCoords()
    float mx = pt.x();
    float my = pt.y();
    
-   if( mx < 0 || mx > qpmi->boundingRect().width() || my < 0 || my > qpmi->boundingRect().height() ) 
+   if( mx < 0 || mx > m_qpmi->boundingRect().width() || my < 0 || my > m_qpmi->boundingRect().height() ) 
    {
       nullMouseCoords();
    }
@@ -623,14 +650,14 @@ void rtimvMainWindow::updateMouseCoords()
    if(!m_nullMouseCoords)
    {
       ui.graphicsView->textCoordX(mx-0.5);
-      ui.graphicsView->textCoordY(qpmi->boundingRect().height() - my-0.5);
+      ui.graphicsView->textCoordY(m_qpmi->boundingRect().height() - my-0.5);
       
       
       idx_x = ((int64_t)(mx-0));
       if(idx_x < 0) idx_x = 0;
       if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
       
-      idx_y = (int)(qpmi->boundingRect().height() - (my-0));
+      idx_y = (int)(m_qpmi->boundingRect().height() - (my-0));
       if(idx_y < 0) idx_y = 0;
       if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;
 
@@ -639,6 +666,7 @@ void rtimvMainWindow::updateMouseCoords()
       if(_pixel != nullptr)
       ui.graphicsView->textPixelVal(_pixel(this,  (int)(idx_y*m_nx) + (int)(idx_x)) );
 
+      //m_qpmi->setToolTip("test\nnewt\nxxxyy");
       if(imcp)
       {
          if(_pixel != nullptr)
@@ -736,9 +764,9 @@ void rtimvMainWindow::updateAge()
          
          double age = timetmp - fpsTime;
             
-         if(m_images[0]->m_fpsEst > 1.0 && age < 2.0) 
+         if(m_images[0]->fpsEst() > 1.0 && age < 2.0) 
          {
-            ui.graphicsView->fpsGageText(m_images[0]->m_fpsEst);
+            ui.graphicsView->fpsGageText(m_images[0]->fpsEst());
          }
          else
          {
@@ -786,7 +814,7 @@ void rtimvMainWindow::addUserBox()
    connect(sb, SIGNAL(remove(StretchBox*)), this, SLOT(userBoxRemove(StretchBox*)));
 
    
-   qgs->addItem(sb);
+   m_qgs->addItem(sb);
       
 }
 
@@ -815,7 +843,7 @@ void rtimvMainWindow::addUserCircle()
    connect(sc, SIGNAL(remove(StretchCircle*)), this, SLOT(userCircleRemove(StretchCircle*)));
 
    
-   qgs->addItem(sc);
+   m_qgs->addItem(sc);
       
 }
 
@@ -844,7 +872,7 @@ void rtimvMainWindow::addUserLine()
    connect(sl, SIGNAL(remove(StretchLine*)), this, SLOT(userLineRemove(StretchLine*)));
 
    
-   qgs->addItem(sl);
+   m_qgs->addItem(sl);
       
 }
 
@@ -882,19 +910,54 @@ float rtimvMainWindow::targetYc()
    return m_targetYc;
 }
       
+void rtimvMainWindow::addStretchBox(StretchBox * sb)
+{
+   if(sb == nullptr) return;
+   
+   m_userBoxes.insert(sb);
+   
+   connect(sb, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
+   connect(sb, SIGNAL(remove(StretchBox*)), this, SLOT(userBoxRemove(StretchBox*)));
+      
+   m_qgs->addItem(sb);
+}
+
+void rtimvMainWindow::addStretchCircle(StretchCircle * sc)
+{
+   if(sc == nullptr) return;
+   
+   m_userCircles.insert(sc);
+   
+   connect(sc, SIGNAL(rejectMouse(StretchCircle *)), this, SLOT(userCircleRejectMouse(StretchCircle *)));
+   connect(sc, SIGNAL(remove(StretchCircle*)), this, SLOT(userCircleRemove(StretchCircle*)));
+      
+   m_qgs->addItem(sc);
+}
+
+void rtimvMainWindow::addStretchLine(StretchLine * sl)
+{
+   if(sl == nullptr) return;
+   
+   m_userLines.insert(sl);
+   
+   connect(sl, SIGNAL(rejectMouse(StretchLine *)), this, SLOT(userLineRejectMouse(StretchLine *)));
+   connect(sl, SIGNAL(remove(StretchLine*)), this, SLOT(userLineRemove(StretchLine*)));
+   
+   m_qgs->addItem(sl);
+}
 
 void rtimvMainWindow::doLaunchStatsBox()
 {
-   statsBox->setVisible(true);
+   m_statsBox->setVisible(true);
    
    if(!imStats)
    {
-      imStats = new imviewerStats(this, this, 0);
+      imStats = new rtimvStats(this, this, 0);
       imStats->setAttribute(Qt::WA_DeleteOnClose); //Qt will delete imstats when it closes.
       connect(imStats, SIGNAL(finished(int )), this, SLOT(imStatsClosed(int )));
    }
 
-   statsBoxMoved(statsBox);
+   statsBoxMoved(m_statsBox);
 
    imStats->show();
     
@@ -904,7 +967,7 @@ void rtimvMainWindow::doLaunchStatsBox()
 
 void rtimvMainWindow::doHideStatsBox()
 {
-   statsBox->setVisible(false);
+   m_statsBox->setVisible(false);
 
    if (imStats)
    {
@@ -920,14 +983,14 @@ void rtimvMainWindow::imStatsClosed(int result)
 {
    static_cast<void>(result);
    
-   statsBox->setVisible(false);
+   m_statsBox->setVisible(false);
    imStats = 0; //imStats is set to delete on close
    if(imcp)
    {
       imcp->statsBoxButtonState = false;
       imcp->ui.statsBoxButton->setText("Show Stats Box");
    }
-//    imcp->on_statsBoxButton_clicked();
+//    imcp->on_m_statsBoxButton_clicked();
    
 }
 
@@ -935,8 +998,8 @@ void rtimvMainWindow::statsBoxMoved(StretchBox * sb)
 {
    static_cast<void>(sb);
    
-   QPointF np = qpmi->mapFromItem(statsBox, QPointF(statsBox->rect().x(),statsBox->rect().y()));
-   QPointF np2 = qpmi->mapFromItem(statsBox, QPointF(statsBox->rect().x()+statsBox->rect().width(),statsBox->rect().y()+statsBox->rect().height()));
+   QPointF np = m_qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x(),m_statsBox->rect().y()));
+   QPointF np2 = m_qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x()+m_statsBox->rect().width(),m_statsBox->rect().y()+m_statsBox->rect().height()));
 
    if(imStats) 
    {
@@ -951,8 +1014,8 @@ void rtimvMainWindow::colorBoxMoved(StretchBox * sb)
 {
    QRectF newr = sb->rect();
    
-   QPointF np = qpmi->mapFromItem(colorBox, QPointF(newr.x(),newr.y()));
-   QPointF np2 = qpmi->mapFromItem(colorBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
+   QPointF np = m_qpmi->mapFromItem(m_colorBox, QPointF(newr.x(),newr.y()));
+   QPointF np2 = m_qpmi->mapFromItem(m_colorBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
 
    colorBox_i1 = (int) (np2.x() + .5);
    colorBox_i0 = (int) np.x();
@@ -976,7 +1039,7 @@ void rtimvMainWindow::userBoxResized(StretchBox * sb)
 void rtimvMainWindow::userBoxMoved(StretchBox * sb)
 {
    QRectF newr = sb->rect();
-   QPointF np = qpmi->mapFromItem(sb, QPointF(newr.x(),newr.y()));
+   QPointF np = m_qpmi->mapFromItem(sb, QPointF(newr.x(),newr.y()));
    
    float x = np.x()+.5*newr.width();
    float y = np.y()+.5*newr.height();
@@ -1038,7 +1101,7 @@ void rtimvMainWindow::userBoxRejectMouse(StretchBox * sb)
 
 void rtimvMainWindow::userBoxRemove(StretchBox * sb)
 {
-   if(sb == statsBox)
+   if(sb == m_statsBox)
    {
       doHideStatsBox();
       return;
@@ -1046,7 +1109,7 @@ void rtimvMainWindow::userBoxRemove(StretchBox * sb)
    
    userBoxMouseOut(sb); //This cleans up any gui items associated with the box
    m_userBoxes.erase(sb); //Remove it from our list
-   qgs->removeItem(sb); //Remove it from the scene
+   m_qgs->removeItem(sb); //Remove it from the scene
    sb->deleteLater(); //clean it up after we're no longer in an asynch function
 }
 
@@ -1061,7 +1124,7 @@ void rtimvMainWindow::userCircleResized(StretchCircle * sc)
 void rtimvMainWindow::userCircleMoved(StretchCircle * sc)
 {
    QRectF newr = sc->rect();
-   QPointF np = qpmi->mapFromItem(sc, QPointF(newr.x(),newr.y()));
+   QPointF np = m_qpmi->mapFromItem(sc, QPointF(newr.x(),newr.y()));
    
    float x = np.x()+.5*newr.width();
    float y = np.y()+.5*newr.height();
@@ -1123,7 +1186,7 @@ void rtimvMainWindow::userCircleRemove(StretchCircle * sc)
 {
    userCircleMouseOut(sc); //This cleans up any gui items associated with the circle
    m_userCircles.erase(sc); //Remove it from our list
-   qgs->removeItem(sc); //Remove it from the scene
+   m_qgs->removeItem(sc); //Remove it from the scene
    sc->deleteLater(); //clean it up after we're no longer in an asynch function
 }
 
@@ -1139,7 +1202,7 @@ void rtimvMainWindow::userLineResized(StretchLine * sl)
 
 void rtimvMainWindow::userLineMoved(StretchLine * sl)
 {
-   QPointF np = qpmi->mapFromItem(sl, sl->line().p2());
+   QPointF np = m_qpmi->mapFromItem(sl, sl->line().p2());
    
    float x = np.x();
    float y = np.y();
@@ -1203,13 +1266,13 @@ void rtimvMainWindow::userLineRemove(StretchLine * sl)
 {
    userLineMouseOut(sl); //This cleans up any gui items associated with the line
    m_userLines.erase(sl); //Remove it from our list
-   qgs->removeItem(sl); //Remove it from the scene
+   m_qgs->removeItem(sl); //Remove it from the scene
    sl->deleteLater(); //clean it up after we're no longer in an asynch function
 }
 
 void rtimvMainWindow::post_setUserBoxActive(bool usba)
 {
-   colorBox->setVisible(usba);
+   m_colorBox->setVisible(usba);
 }
 
 
@@ -1360,11 +1423,11 @@ void rtimvMainWindow::toggleColorBox()
    {
       if(imcp)
       {
-         imcp->on_scaleModeCombo_activated(imviewer::minmaxbox);
+         imcp->on_scaleModeCombo_activated(rtimvBase::minmaxbox);
       }
       else
       {
-         colorBox->setVisible(true);
+         m_colorBox->setVisible(true);
          setUserBoxActive(true);
       }
       ui.graphicsView->zoomText("color box scale");
@@ -1373,11 +1436,11 @@ void rtimvMainWindow::toggleColorBox()
    {
       if(imcp)
       {
-         imcp->on_scaleModeCombo_activated(imviewer::minmaxglobal);
+         imcp->on_scaleModeCombo_activated(rtimvBase::minmaxglobal);
       }
       else
       {
-         colorBox->setVisible(false);
+         m_colorBox->setVisible(false);
          setUserBoxActive(false);
       }
       ui.graphicsView->zoomText("global scale");
@@ -1386,7 +1449,7 @@ void rtimvMainWindow::toggleColorBox()
 
 void rtimvMainWindow::toggleStatsBox()
 {
-   if(statsBox->isVisible())
+   if(m_statsBox->isVisible())
    {
       doHideStatsBox();
       ui.graphicsView->zoomText("stats off");
@@ -1680,21 +1743,17 @@ int rtimvMainWindow::fontLuminance(QTextEdit* qte)
    
    QColor sb("skyblue");
    
-   int flight = sb.lightness();
-   //std::cerr << "skyblue: ";// << pLightness(linRGBtoLuminance( sRGBtoLinRGB<double>(qRed(fc)), sRGBtoLinRGB<double>(qGreen(fc)), sRGBtoLinRGB<double>(qBlue(fc)))) << "\n";
-   //std::cerr << QColor("skyblue").lightness() << "\n";
+   //int flight = sb.lightness();
+   //std::cout << avgLum << " " << flight << "\n";
    
-   if( flight - avgLum < 50)
+   if(avgLum > 100 && avgLum <= 140)
    {
-      //std::cerr << flight-avgLum << " ";
-      int nl = abs(flight-avgLum);
-      if(nl > 255) nl -= 255;
-      if(nl < 0 ) nl = 0;
-      
-      //std::cerr << nl << "\n";
-      
-      QColor nc = QColor::fromHsl(sb.hslHue(), sb.hslSaturation(), nl);
-      
+      QColor nc = QColor::fromHsl(sb.hslHue(), sb.hslSaturation(), 255);
+      qte->setTextColor(nc);
+   }
+   else if(avgLum > 140)
+   {
+      QColor nc = QColor::fromHsl(sb.hslHue(), sb.hslSaturation(), 0);
       qte->setTextColor(nc);
    }
    else 
@@ -1729,7 +1788,7 @@ int rtimvMainWindow::fontLuminance()
 }
 
 
-void rtimvMainWindow::loadPlugin(QObject *plugin)
+int rtimvMainWindow::loadPlugin(QObject *plugin)
 {
    auto rdi = qobject_cast<rtimvDictionaryInterface *>(plugin);
    if (rdi)
@@ -1740,7 +1799,32 @@ void rtimvMainWindow::loadPlugin(QObject *plugin)
    auto roi = qobject_cast<rtimvOverlayInterface *>(plugin);
    if (roi)
    {
-      roi->attachOverlay(ui.graphicsView, &m_dictionary, config);
-      m_overlays.push_back(roi);
+      rtimvOverlayAccess roa;
+      roa.m_mainWindowObject = this;
+      roa.m_colorBox = m_colorBox;
+      roa.m_statsBox = m_statsBox;
+      roa.m_userBoxes = &m_userBoxes;
+      roa.m_userCircles = &m_userCircles;
+      roa.m_userLines = &m_userLines;
+      roa.m_graphicsView = ui.graphicsView;
+      roa.m_dictionary = &m_dictionary;
+      
+      int arv = roi->attachOverlay(roa, config);
+      
+      if(arv < 0)
+      {
+         std::cerr << "Error from attachOverlay\n";
+         return arv;
+      }
+      else if(arv > 0)
+      {
+         return arv;
+      }
+      else
+      {
+         m_overlays.push_back(roi);
+      }
    }
+   
+   return 0;
 }

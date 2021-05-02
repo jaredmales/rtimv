@@ -1,8 +1,4 @@
 
--- convert to all .hpp
--- link to MILK
--- switch to rtimv
 -- when zoom level changes but mouse doesn't move, update x/y coords.
--- make this an mxApp for config-ability
 -- make colormap a class, with text colors (e.g. warning and gage colors), and loadable from user supplied file.
--- when ImageStreamIO closes image, handled age updating, etc.
+-- when ImageStreamIO closes image, handle age updating, etc.
