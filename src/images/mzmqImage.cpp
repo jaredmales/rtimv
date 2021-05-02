@@ -40,6 +40,8 @@ mzmqImage::mzmqImage()
 
 mzmqImage::~mzmqImage()
 {
+   m_timeToDie = true;
+   
    if(m_ZMQ_context) delete m_ZMQ_context;
 }
 
@@ -110,7 +112,7 @@ int mzmqImage::imageKey( const std::string & sn )
 
 std::string mzmqImage::imageKey()
 {
-   return m_imageKey;
+   return m_imageName + "@" + m_server + ":" + std::to_string(m_port);
 }
 
 std::string mzmqImage::imageName()
@@ -136,7 +138,7 @@ uint32_t mzmqImage::ny()
    
 double mzmqImage::imageTime()
 {
-   return m_fpsTime;
+   return m_imageTime;
 }
 
 inline
@@ -181,6 +183,7 @@ void mzmqImage::imageThreadExec()
    
       
    xrif_typecode_t new_atype, atype=0;
+   size_t new_typesize, typesize; 
    xrif_dimension_t new_nx, nx =0;
    xrif_dimension_t new_ny, ny =0;
    
@@ -281,7 +284,7 @@ void mzmqImage::imageThreadExec()
                continue;
             }
             
-            if(connected) std::cerr << "Disconnected from " + m_imageName << "\n";
+            if(connected) std::cerr << "Disconnected from " + imageKey() << "\n";
             connected = false;
             reconnect = true;
             break;
@@ -290,7 +293,7 @@ void mzmqImage::imageThreadExec()
          
          if(first)
          {
-            std::cerr << "Connected to " + m_imageName << "\n";
+            std::cerr << "Connected to " + imageKey() << "\n";
             connected = true;
             first = false;
          }
@@ -305,20 +308,22 @@ void mzmqImage::imageThreadExec()
          char * raw_image= (char *) msg.data();
          
          new_atype = *( (uint8_t *) (raw_image + typeOffset) );
+         new_typesize = xrif_typesize(new_atype);
          new_nx = *( (uint32_t *) (raw_image + size0Offset));
          new_ny = *( (uint32_t *) (raw_image + size1Offset));
          
-         if( nx != new_nx || ny != new_ny || atype != new_atype)
+         if( nx != new_nx || ny != new_ny || atype != new_atype || !m_imageAttached)
          {
             if(m_data)
             {
+               m_imageAttached = false;
                delete m_data;
                m_data = nullptr;
             }
             
             m_nx = new_nx;
             m_ny = new_ny;
-            m_data = new char[new_nx*new_ny*xrif_typesize(new_atype)];
+            m_data = new char[new_nx*new_ny*new_typesize];
             
             switch(new_atype)
             {
@@ -363,9 +368,12 @@ void mzmqImage::imageThreadExec()
             xrif_set_compress_method(xrif, *((int16_t *) (raw_image+ xrifCompressOffset)));
             
             xe = xrif_allocate(xrif);
+            
+            m_imageAttached = true;
          }
          
          atype = new_atype;
+         typesize = new_typesize;
          nx = new_nx;
          ny = new_ny;
          
@@ -374,14 +382,15 @@ void mzmqImage::imageThreadExec()
          uint64_t tv_sec = *( (uint64_t *) (raw_image + tv_secOffset));
          uint64_t tv_nsec = *( (uint64_t *) (raw_image + tv_nsecOffset));
           
-         m_fpsTime = tv_sec + ((double) tv_nsec)/1e9;
+         m_imageTime = tv_sec + ((double) tv_nsec)/1e9;
           
          xrif->compressed_size =  *((uint32_t *) (raw_image + xrifSizeOffset));
          
          memcpy(xrif->raw_buffer, raw_image + imageOffset, xrif->compressed_size);
          xe = xrif_decode(xrif);
          
-         memcpy(m_data, xrif->raw_buffer, nx*ny*xrif_typesize(new_atype)); //<- this should be a type_size variable set once
+         if(!m_imageAttached || m_timeToDie) continue; //Check that detach wasn't called.
+         memcpy(m_data, xrif->raw_buffer, nx*ny*typesize); 
             
          #ifdef MZMQ_FPS_MONITORING
          if(Nrecvd >= 10)
@@ -400,6 +409,8 @@ void mzmqImage::imageThreadExec()
 
          //Here is where we can add client-specefic rate control!
          
+         if(!m_imageAttached || m_timeToDie) continue; //Check that detach wasn't called.
+         
          request.rebuild(m_imageName.data(), m_imageName.size());
          
          #if (CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 3, 1))
@@ -412,6 +423,7 @@ void mzmqImage::imageThreadExec()
       
       subscriber.close(); //close so that unsent messages are dropped.
       
+      m_imageAttached = false;
       if(m_data)
       {
          delete m_data;
@@ -430,10 +442,11 @@ void mzmqImage::imageThreadExec()
       t0 = 0;
       #endif
       
-      std::cerr << "Disconnected from " + m_imageName;
+      std::cerr << "Disconnected from " + imageKey();
          
    }// outer loop (checking stale connections)
    
+   m_imageAttached = false;
    if(m_data)
    {
       delete m_data;
@@ -501,6 +514,7 @@ int mzmqImage::update()
 
 void mzmqImage::detach()
 {  
+   m_imageAttached = false;
    if(m_data) delete m_data;
    m_data = nullptr; 
    
@@ -510,9 +524,14 @@ void mzmqImage::detach()
 
 bool mzmqImage::valid()
 {
-   if(m_data) return true;
+   if(m_data && m_imageAttached) return true;
    
    return false;
+}
+
+float mzmqImage::pixel(size_t n)
+{
+   return pixget(m_data, n);
 }
 
 void mzmqImage::update_fps()
@@ -521,27 +540,24 @@ void mzmqImage::update_fps()
 
    if(m_fpsTime0 == 0)
    {
-      m_fpsTime0 = m_fpsTime;
+      m_fpsTime0 = m_imageTime;
       m_fpsFrame0 = m_cnt0;
    }
    
-   if(m_fpsTime != m_fpsTime0)
+   if(m_imageTime != m_fpsTime0)
    {
-      dftime = m_fpsTime - m_fpsTime0;
+      dftime = m_imageTime - m_fpsTime0;
 
       if(dftime < 1e-9) return;
 
       m_fpsEst = (float)((m_cnt0 - m_fpsFrame0))/dftime;   
       
-      m_fpsTime0 = m_fpsTime;
+      m_fpsTime0 = m_imageTime;
       m_fpsFrame0 = m_cnt0;
    }
 }
 
-
-float mzmqImage::pixel(size_t n)
+float mzmqImage::fpsEst()
 {
-   return pixget(m_data, n);
+   return m_fpsEst;
 }
-
-

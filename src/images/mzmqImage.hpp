@@ -17,6 +17,7 @@
 
 #include "../rtimvImage.hpp"
 
+/// rtimvImage stream to a milkzmq protocol image stream
 struct mzmqImage : public rtimvImage
 {
    
@@ -24,11 +25,11 @@ struct mzmqImage : public rtimvImage
 
    
 protected:
-   std::string m_imageKey; ///< The path to the shared memory buffer containing the image data.  Has the form `image@host:port`
+   std::string m_imageKey; ///< The network specifications of the stream containing the image data.  Has the form `image@host:port`.
 
-   std::string m_imageName;
-   std::string m_server {"localhost"};
-   int m_port {5556};
+   std::string m_imageName;            ///< The name of the image.
+   std::string m_server {"localhost"}; ///< The image server name or address.
+   int m_port {5556};                  ///< The port on the server.
    
    
    int m_timeout {100}; ///< The image display timeout, should be set from the managing process.  Only used for F.P.S. calculations.
@@ -41,25 +42,31 @@ protected:
  
    char * m_data {nullptr}; ///< Pointer to the image data
  
-   bool m_imageAttached {false}; ///< Flag denoting whether or not the shared memory is attached.
+   bool m_imageAttached {false}; ///< Flag denoting whether or not we are attached to the stream.
 
-   uint64_t m_cnt0 {0};
+   uint64_t m_cnt0 {0}; ///< Current frame number
+   
+   /// Previous frame number, stored to detect new image
    uint64_t m_lastCnt0 {std::numeric_limits<uint64_t>::max()}; //make huge so we don't skip the 0 image
    
+   /// Counts how many times the FPS has been updated
    int m_fps_counter {0};
+
+   /// Counts how many times the Age has been updated
    int m_age_counter {0};
    
    zmq::context_t * m_ZMQ_context {nullptr}; ///< The ZeroMQ context, allocated on construction.
    
-   bool m_timeToDie {false};
+   bool m_timeToDie {false}; ///< Flag to signal the imageThreadExec main loop to exit and clean up.
    
-   std::thread m_thread;
+   std::thread m_thread; ///< The thread for the milkzmq client connection
    
 public:
    
    ///Default c'tor
    mzmqImage();
 
+   ///Destructor, cleans up the zmq context and allocate memory.
    ~mzmqImage();
    
    ///Set the image key to a shared memory image name 
@@ -85,13 +92,26 @@ public:
    int shmimTimeout();
    
 private:
-   ///Thread starter, called by imageThreadStart on thread construction.  Calls imageThreadExec.
+   
+   /// Thread starter, called by imageThreadStart on thread construction.  Calls imageThreadExec.
    static void internal_imageThreadStart( mzmqImage * mi /**< [in] a pointer to an mzmqImage class */);
 
 public:
+   
+   /// Initializes the image client thread and starts it.
+   /**
+     * \returns 0 on success
+     * \returns -1 on error
+     */ 
    int imageThreadStart();
 
 protected:
+   
+   /// The image thread function, conducts the milkzmq client business logic.
+   /**
+     * Runs until m_timeToDie is true.
+     *  
+     */
    void imageThreadExec();
 
 public:
@@ -124,36 +144,49 @@ public:
    ///Function called by timer expiration.  Points to latest image and updates the FPS.
    int update();
 
+   /// Detach / disconnect from the image source and clean up.  
+   /** Primarily used in the event of a SIGSEGV or SIGBUS.
+     * This instance will be ready to connect again, and begin monitoring the source for new data.
+     */ 
    void detach();
    
    /// Returns `true` if this instance is attached to its stream and has valid data.  `false` otherwise.
    bool valid();
    
 protected:
+   float (*pixget)(void *, size_t) {nullptr}; ///< Pointer to a function to extract the image data as a float.
+
+public:
+   
+   /// Get the value at pixel n as a float.
+   /** The linear index n is determined by n = y * nx() + x where (x,y) is the pixel coordinate.
+     *
+     * \returns the value of the pixel 
+     */   
+   float pixel(size_t n);
+   
+protected:
 
     /*** Real time frames per second ***/
 
-   double m_fpsTime {0}; ///< The current image time.
+   double m_imageTime {0}; ///< The current image time.
    
    double m_fpsTime0 {0}; ///< The reference time for calculate f.p.s.
    
    uint64_t m_fpsFrame0 {0}; ///< The reference frame number for calculaiting f.p.s.
    
    float m_fpsEst {0}; ///< The current f.p.s. estimate.
+   
+   void update_fps(); ///< Update the f.p.s. estimate from the current timestamp and frame numbers.
 
 public:
    
-   float fpsEst()
-   {
-      return m_fpsEst;
-   }
-
-   void update_fps(); ///< Update the f.p.s. estimate from the current timestamp and frame numbers.
-
-   float (*pixget)(void *, size_t) {nullptr}; ///< Pointer to a function to extract the image data as a float.
-
-
-   float pixel(size_t n);
+   /// Get the latest estimate of FPS for this image.
+   /**
+     * \returns the latest FPS estimate.
+     */ 
+   float fpsEst();
+   
 };
 
 

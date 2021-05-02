@@ -65,7 +65,7 @@ uint32_t shmimImage::ny()
    
 double shmimImage::imageTime()
 {
-   return m_image.md->atime.tv_sec + ((double) m_image.md->atime.tv_nsec)/1e9;
+   return m_imageTime;
 }
    
 void shmimImage::shmimTimerout()
@@ -178,6 +178,7 @@ int shmimImage::update()
       ImageStreamIO_closeIm(&m_image);
       m_shmimAttached = 0;
       m_lastCnt0 = -1;
+      
       m_timer.start(m_shmimTimeout);
       
       return RTIMVIMAGE_NOUPDATE;
@@ -209,6 +210,7 @@ int shmimImage::update()
    if(cnt0 != m_lastCnt0) //Only redraw if it's actually a new image.
    {
       m_data = ((char *) (m_image.array.raw)) + curr_image*snx*sny*m_typeSize;
+      m_imageTime = m_image.md->atime.tv_sec + ((double) m_image.md->atime.tv_nsec)/1e9;
       
       m_lastCnt0 = cnt0;
       m_age_counter = 0;
@@ -253,6 +255,8 @@ void shmimImage::detach()
    ImageStreamIO_closeIm(&m_image);
    m_shmimAttached = 0;
    m_lastCnt0 = -1;
+   
+   //Start checking for a new image stream:
    m_timer.start(m_shmimTimeout);
 }
 
@@ -263,36 +267,38 @@ bool shmimImage::valid()
    return false;
 }
 
+float shmimImage::pixel(size_t n)
+{
+   return pixget(m_data, n);
+}
+
 void shmimImage::update_fps()
 {
    double dftime;
-
-   m_fpsTime = m_image.md->atime.tv_sec + ((double) m_image.md->atime.tv_nsec)/1e9;
    
    if(m_fpsTime0 == 0)
    {
-      m_fpsTime0 = m_fpsTime;
+      m_fpsTime0 = m_imageTime;
       m_fpsFrame0 = m_image.md->cnt0;
    }
    
-   if(m_fpsTime != m_fpsTime0)
+   if(m_imageTime != m_fpsTime0)
    {
-      dftime = m_fpsTime - m_fpsTime0;
+      dftime = m_imageTime - m_fpsTime0;
 
       if(dftime < 1e-9) return;
 
       m_fpsEst = (float)((m_image.md->cnt0 - m_fpsFrame0))/dftime;   
       
-      m_fpsTime0 = m_fpsTime;
+      m_fpsTime0 = m_imageTime;
       m_fpsFrame0 = m_image.md->cnt0;
    }
 
 }
 
-
-float shmimImage::pixel(size_t n)
+float shmimImage::fpsEst()
 {
-   return pixget(m_data, n);
+   return m_fpsEst;
 }
 
 

@@ -85,7 +85,7 @@ public:
    virtual int update() = 0;
 
    /// Detach / disconnect from the image source and clean up.  
-   /**
+   /** Primarily used in the event of a SIGSEGV or SIGBUS.
      * This instance must be ready to connect again, and begin monitoring the source for new data.
      */ 
    virtual void detach() = 0;

@@ -13,6 +13,7 @@
 
 #include "../rtimvImage.hpp"
 
+/// rtimvImage interface to a milk shared memory stream on the local computer.
 struct shmimImage : public rtimvImage
 {
    
@@ -40,9 +41,13 @@ protected:
    
    bool m_shmimAttached {false}; ///< Flag denoting whether or not the shared memory is attached.
 
+   /// Previous frame number, stored to detect new image
    uint64_t m_lastCnt0 {std::numeric_limits<uint64_t>::max()}; //make huge so we don't skip the 0 image
    
+   /// Counts how many times the FPS has been updated
    int m_fps_counter {0};
+   
+   /// Counts how many times the Age has been updated
    int m_age_counter {0};
    
 public:
@@ -96,25 +101,51 @@ public:
    double imageTime();
    
 public slots:
+   
+   /// Called on m_timer timeout signal. Calls imConnect.
+   /** The timer is stopped and imConnect is called.
+     * If imConnect is not successful, then the timer is restarted.
+     */ 
    void shmimTimerout();
       
 public:
    
-   virtual void imConnect();
+   /// Connect to the stream.
+   /** If successful, m_shmimAttached will be set to true and the image
+     * data will begin updating on next call to update(). 
+     */
+   void imConnect();
 
-   ///Function called by timer expiration.  Points to latest image and updates the FPS.
+   /// Function called by timer expiration.  Points to latest image and updates the FPS.
    int update();
 
+   /// Detach / disconnect from the image source and clean up.  
+   /** Primarily used in the event of a SIGSEGV or SIGBUS.
+     * This instance will be ready to connect again, and begin monitoring the source for new data.
+     */ 
    void detach();
    
    /// Returns `true` if this instance is attached to its stream and has valid data.  `false` otherwise.
    bool valid();
    
 protected:
+   
+   float (*pixget)(void *, size_t) {nullptr}; ///< Pointer to a function to extract the image data as a float.
+
+public:
+
+   /// Get the value at pixel n as a float.
+   /** The linear index n is determined by n = y * nx() + x where (x,y) is the pixel coordinate.
+     *
+     * \returns the value of the pixel 
+     */   
+   float pixel(size_t n);
+   
+protected:
 
     /*** Real time frames per second ***/
 
-   double m_fpsTime {0}; ///< The current image time.
+   double m_imageTime {0}; ///< The current image time.
    
    double m_fpsTime0 {0}; ///< The reference time for calculate f.p.s.
    
@@ -122,19 +153,16 @@ protected:
    
    float m_fpsEst {0}; ///< The current f.p.s. estimate.
 
-public:
-   
-   float fpsEst()
-   {
-      return m_fpsEst;
-   }
-
    void update_fps(); ///< Update the f.p.s. estimate from the current timestamp and frame numbers.
 
-   float (*pixget)(void *, size_t) {nullptr}; ///< Pointer to a function to extract the image data as a float.
+public:
+   
+   /// Get the latest estimate of FPS for this image.
+   /**
+     * \returns the latest FPS estimate.
+     */ 
+   float fpsEst();
 
-
-   float pixel(size_t n);
 };
 
 
