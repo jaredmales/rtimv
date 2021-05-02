@@ -143,8 +143,6 @@ void shmimImage::imConnect()
    
    m_shmimAttached = 1;
 
-   emit connected();
-   
 }
 
 

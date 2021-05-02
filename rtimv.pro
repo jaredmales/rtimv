@@ -30,6 +30,7 @@ HEADERS += src/rtimvGraphicsView.hpp \
            src/rtimvImage.hpp \
            src/images/shmimImage.hpp \
            src/images/fitsImage.hpp \
+           src/images/mzmqImage.hpp \
            src/pixaccess.h \
            src/colorMaps.hpp
 
@@ -39,7 +40,8 @@ SOURCES += src/rtimvBase.cpp \
            src/rtimvControlPanel.cpp \
            src/rtimvStats.cpp \
            src/images/shmimImage.cpp \
-           src/images/fitsImage.cpp
+           src/images/fitsImage.cpp \
+           src/images/mzmqImage.cpp
            
 FORMS += forms/rtimvMainWindow.ui \
          forms/imviewerControlPanel.ui \
@@ -49,7 +51,9 @@ LIBS += -lImageStreamIO
 LIBS += -lcfitsio
 LIBS += -lrtimv
 LIBS += -lmxlib 
-        
+LIBS += -lzmq
+LIBS += -lxrif
+
 RESOURCES += res/imviewer.qrc
 
 #########################

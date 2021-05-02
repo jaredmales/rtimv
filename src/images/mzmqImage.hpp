@@ -1,33 +1,38 @@
-/** \file shmimImage.hpp
-  * \brief Declarations for the shmimImage shared memory management class
+/** \file mzmqImage.hpp
+  * \brief Declarations for the mzmqImage management class
   *
   * \author Jared R. Males (jaredmales@gmail.com)
   *
   */
 
 
-#ifndef rtimv_shmimImage_hpp
-#define rtimv_shmimImage_hpp
+#ifndef rtimv_mzmqImage_hpp
+#define rtimv_mzmqImage_hpp
 
-#include <ImageStreamIO.h>
+#include <thread>
+
+#define ZMQ_BUILD_DRAFT_API
+#define ZMQ_CPP11
+#include <zmq.hpp>
 
 #include "../rtimvImage.hpp"
 
-struct shmimImage : public rtimvImage
+struct mzmqImage : public rtimvImage
 {
    
    Q_OBJECT
 
    
 protected:
-   std::string m_shmimName; ///< The path to the shared memory buffer containing the image data.
+   std::string m_imageKey; ///< The path to the shared memory buffer containing the image data.  Has the form `image@host:port`
 
-   int m_shmimTimeout {1000}; ///<The timeout for checking for shared memory file existence.
+   std::string m_imageName;
+   std::string m_server {"localhost"};
+   int m_port {5556};
+   
    
    int m_timeout {100}; ///< The image display timeout, should be set from the managing process.  Only used for F.P.S. calculations.
    
-   IMAGE m_image; ///< A real-time image structure which contains the image data and meta-data.
-
    uint32_t m_nx {0}; ///< Size of the image in pixels in the x direction (horizontal on screen)
    
    uint32_t m_ny {0}; ///< Size of the image in pixels in the y direction (vertical on screen)
@@ -36,20 +41,27 @@ protected:
  
    char * m_data {nullptr}; ///< Pointer to the image data
  
-   QTimer m_timer; ///< When this times out imviewer checks for a new image.
-   
-   bool m_shmimAttached {false}; ///< Flag denoting whether or not the shared memory is attached.
+   bool m_imageAttached {false}; ///< Flag denoting whether or not the shared memory is attached.
 
+   uint64_t m_cnt0 {0};
    uint64_t m_lastCnt0 {std::numeric_limits<uint64_t>::max()}; //make huge so we don't skip the 0 image
    
    int m_fps_counter {0};
    int m_age_counter {0};
    
+   zmq::context_t * m_ZMQ_context {nullptr}; ///< The ZeroMQ context, allocated on construction.
+   
+   bool m_timeToDie {false};
+   
+   std::thread m_thread;
+   
 public:
    
    ///Default c'tor
-   shmimImage();
+   mzmqImage();
 
+   ~mzmqImage();
+   
    ///Set the image key to a shared memory image name 
    /** If this contains the string ".fits" then it is treated as a FITS file and loaded as a static image.  Otherwise
      * it is treated as an ImageStreamIO image stream, and added to the path such as `/milk/shm/<m_shmimName>.im.shm`.
@@ -65,12 +77,24 @@ public:
    /// Get the current shared memory name, same as key.
    std::string imageName();
    
+   
    /// Set the shared-memory timeout
    void shmimTimeout(int st /**< [in] the new timeout in milliseconds */);
    
    /// Get the shared-memory timeout
    int shmimTimeout();
    
+private:
+   ///Thread starter, called by imageThreadStart on thread construction.  Calls imageThreadExec.
+   static void internal_imageThreadStart( mzmqImage * mi /**< [in] a pointer to an mzmqImage class */);
+
+public:
+   int imageThreadStart();
+
+protected:
+   void imageThreadExec();
+
+public:
    /// Set the managing processes display timeout, which is only used for F.P.S. calculations
    void timeout(int to /**< [in] the new timeout in milliseconds */);
    
@@ -95,13 +119,8 @@ public:
      */
    double imageTime();
    
-public slots:
-   void shmimTimerout();
-      
 public:
    
-   virtual void imConnect();
-
    ///Function called by timer expiration.  Points to latest image and updates the FPS.
    int update();
 
@@ -138,4 +157,4 @@ public:
 };
 
 
-#endif //rtimv_shmimImage_hpp
+#endif //rtimv_mzmqImage_hpp

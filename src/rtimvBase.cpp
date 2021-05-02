@@ -1,6 +1,10 @@
 
 #include "rtimvBase.hpp"
 
+#include "images/shmimImage.hpp"
+#include "images/fitsImage.hpp"
+#include "images/mzmqImage.hpp"
+
 rtimvBase * globalIMV;
 
 int rtimvBase::sigsegvFd[2];
@@ -29,13 +33,28 @@ void rtimvBase::startup( const std::vector<std::string> & shkeys )
       {
          if(shkeys[i] != "")
          {
-            if(shkeys[i].rfind(".fits") == shkeys[i].size()-5 || 
-                  shkeys[i].rfind(".FITS") == shkeys[i].size()-5 || 
-                     shkeys[i].rfind(".fit") == shkeys[i].size()-4 || 
-                        shkeys[i].rfind(".FIT") == shkeys[i].size()-4 ) //accept several different common fits extensions
+            //safely accept several different common fits extensions
+            bool isFits = false;
+            if( shkeys[i].size() > 4 )
+            {
+               if( shkeys[i].rfind(".fit") == shkeys[i].size()-4 || 
+                      shkeys[i].rfind(".FIT") == shkeys[i].size()-4 ) isFits = true;
+            }
+            if(shkeys[i].size() > 5 && !isFits)
+            {
+               if(shkeys[i].rfind(".fits") == shkeys[i].size()-5 || 
+                   shkeys[i].rfind(".FITS") == shkeys[i].size()-5) isFits = true;
+            }
+             
+            if(isFits)
             {
                fitsImage * fi = new fitsImage;
                m_images[i] = (rtimvImage *) fi;
+            }
+            else if(shkeys[i].find('@') != std::string::npos || shkeys[i].find(':') != std::string::npos)
+            {
+               mzmqImage * mi = new mzmqImage;
+               m_images[i] = (rtimvImage *) mi;
             }
             else
             {
