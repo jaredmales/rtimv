@@ -59,7 +59,7 @@ public:
       
    ~rtimvMainWindow();
    
-      
+public:
    virtual void setupConfig();
       
    virtual void loadConfig();
@@ -67,6 +67,7 @@ public:
 protected:
    std::string m_title {"rtimv"};
 
+   
 public:
    
    ///Called on initial connection to the image stream, sets matching aspect ratio.

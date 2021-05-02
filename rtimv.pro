@@ -28,11 +28,12 @@ HEADERS += src/rtimvGraphicsView.hpp \
            src/rtimvControlPanel.hpp \
            src/rtimvStats.hpp \
            src/rtimvImage.hpp \
+           src/colorMaps.hpp \
            src/images/shmimImage.hpp \
            src/images/fitsImage.hpp \
            src/images/mzmqImage.hpp \
-           src/pixaccess.h \
-           src/colorMaps.hpp
+           src/images/pixaccess.hpp \
+           src/images/ImageStruct.hpp 
 
 SOURCES += src/rtimvBase.cpp \
            src/rtimvMainWindow.cpp \

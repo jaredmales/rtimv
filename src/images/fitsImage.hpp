@@ -13,6 +13,7 @@
 
 #include "../rtimvImage.hpp"
 
+#include "pixaccess.hpp"
 
 struct fitsImage : public rtimvImage
 {

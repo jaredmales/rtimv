@@ -177,55 +177,69 @@ rtimvMainWindow::~rtimvMainWindow()
 
 void rtimvMainWindow::setupConfig()
 {
-   config.add("image.shmim_name", "", "image.shmim_name", argType::Required, "image", "shmim_name", false, "string", "The shared memory image file name for the image, or a FITS file path.");
-   config.add("image.shmim_timeout", "", "image.shmim_timeout", argType::Required, "image", "shmim_timeout", false, "int", "The timeout for checking for the shared memory image for the image.  Default is 1000 msec.");
-   config.add("image.timeout", "", "image.timeout", argType::Required, "image", "timeout", false, "int", "The timeout for checking for a new image.  Default is 100 msec (10 f.p.s.).");
-      
-   config.add("dark.shmim_name", "", "dark.shmim_name", argType::Required, "dark", "shmim_name", false, "string", "The shared memory image file name for the dark, or a FITS image path.");
-   config.add("dark.shmim_timeout", "", "dark.shmim_timeout", argType::Required, "dark", "shmim_timeout", false, "int", "The timeout for checking for the shared memory image for the dark.  Default is 1000 msec.");
-   config.add("dark.timeout", "", "dark.timeout", argType::Required, "dark", "timeout", false, "int", "The timeout for checking for a new dark.  Default is 100 msec (10 f.p.s.).");
-      
-   config.add("mask.shmim_name", "", "mask.shmim_name", argType::Required, "mask", "shmim_name", false, "string", "The shared memory image file name for the mask, or a FITS image path.");
-   config.add("mask.shmim_timeout", "", "mask.shmim_timeout", argType::Required, "mask", "shmim_timeout", false, "int", "The timeout for checking for the shared memory image for the mask.  Default is 1000 msec.");
-   config.add("mask.timeout", "", "mask.timeout", argType::Required, "mask", "timeout", false, "int", "The timeout for checking for a new mask.  Default is 100 msec (10 f.p.s.).");
+   config.add("image.key", "", "image.key", argType::Required, "image", "key", false, "string", "The main image key. Specifies the protocol, location, and name of the main image.");
+   config.add("image.shmim_name", "", "image.shmim_name", argType::Required, "image", "shmim_name", false, "string", "Same as image.key. Deprecated -- do not use for new configs.");
+   
+   config.add("dark.key", "", "dark.key", argType::Required, "dark", "key", false, "string", "The dark image key. Specifies the protocol, location, and name of the dark image.");   
+   config.add("dark.shmim_name", "", "dark.shmim_name", argType::Required, "dark", "shmim_name", false, "string", "Same as dark.key. Deprecated -- do not use for new configs.");
+   
+   config.add("mask.key", "", "mask.key", argType::Required, "mask", "key", false, "string", "The mask image key. Specifies the protocol, location, and name of the mask image.");   
+   config.add("mask.shmim_name", "", "mask.shmim_name", argType::Required, "mask", "shmim_name", false, "string", "Same as mask.key. Deprecated -- do not use for new configs.");
+   
+   config.add("satMask.key", "", "satMask.key", argType::Required, "satMask", "key", false, "string", "The saturation mask image key. Specifies the protocol, location, and name of the saturation mask image.");
+   config.add("satMask.shmim_name", "", "satMask.shmim_name", argType::Required, "satMask", "shmim_name", false, "string", "Same as satMask.key. Deprecated -- do not use for new configs.");
 
-   config.add("satMask.shmim_name", "", "satMask.shmim_name", argType::Required, "satMask", "shmim_name", false, "string", "The shared memory image file name for the saturation , or a FITS image path.");
-   config.add("satMask.shmim_timeout", "", "satMask.shmim_timeout", argType::Required, "satMask", "shmim_timeout", false, "int", "The timeout for checking for the shared memory image for the saturation mask.  Default is 1000 msec.");
-   config.add("satMask.timeout", "", "satMask.timeout", argType::Required, "satMask", "timeout", false, "int", "The timeout for checking for a new saturation mask.  Default is 100 msec (10 f.p.s.).");
-
-      
-      
    config.add("autoscale", "", "autoscale", argType::True, "", "autoscale", false, "bool", "Set to turn autoscaling on at startup");
    config.add("nofpsgage", "", "nofpsgage", argType::True, "", "nofpsgage", false, "bool", "Set to turn the fps gage off at startup");
    config.add("darksub", "", "darksub", argType::True, "", "darksub", false, "bool", "Set to false to turn off on at startup.  If a dark is supplied, darksub is otherwise on.");
    config.add("targetXc", "", "targetXc", argType::Required, "", "targetXc", false, "float", "The fractional x-coordinate of the target, 0<= x <=1");
    config.add("targetYc", "", "targetYc", argType::Required, "", "targetXc", false, "float", "The fractional y-coordinate of the target, 0<= y <=1");
+   
+   config.add("mzmq.always", "Z", "mzmq.always", argType::True, "mzmq", "always", false, "bool", "Set to make milkzmq the protocol for bare image names.  Note that local shmims can not be used if this is set.");
+   config.add("mzmq.server", "s", "mzmq.server", argType::Required, "mzmq", "server", false, "string", "The default server for milkzmq.  The default default is localhost.  This will be overridden by an image specific server specified in a key.");
+   config.add("mzmq.port", "p", "mzmq.port", argType::Required, "mzmq", "port", false, "int", "The default port for milkzmq.  The default default is 5556.  This will be overridden by an image specific port specified in a key.");
+   
 }
 
 void rtimvMainWindow::loadConfig()
 {
-   std::string imShmimKey;
-   std::string darkShmimKey;
+   std::string imKey;
+   std::string darkKey;
    
-   std::string flatShmimKey;
+   std::string flatKey;
    
-   std::string maskShmimKey;
+   std::string maskKey;
   
-   std::string satMaskShmimKey;
+   std::string satMaskKey;
    
    std::vector<std::string> keys;
    
-   config(imShmimKey, "image.shmim_name");
-   config(darkShmimKey, "dark.shmim_name");
-   config(maskShmimKey, "mask.shmim_name");
-   config(satMaskShmimKey, "satMask.shmim_name");
+   //Set up milkzmq
+   config(m_mzmqAlways, "mzmq.always");
+   config(m_mzmqServer, "mzmq.server");
+   config(m_mzmqPort, "mzmq.port");
+
+   
+   //Check for use of deprecated shmim_name keyword by itself, but use key if available
+   if(!config.isSet("image.key")) config(imKey, "image.shmim_name");
+   else config(imKey, "image.key");
+   
+   if(!config.isSet("dark.key")) config(darkKey, "dark.shmim_name");
+   else config(darkKey, "dark.key");
       
+   if(!config.isSet("mask.key")) config(maskKey, "mask.shmim_name");
+   else config(maskKey, "mask.key");
+   
+   if(!config.isSet("satMask.key")) config(satMaskKey, "satMask.shmim_name");
+   else config(satMaskKey, "satMask.key");
+   
+   //Populate the key vector, a "" means no image specified
    keys.resize(4);
       
-   if(imShmimKey != "") keys[0] = imShmimKey;
-   if(darkShmimKey != "") keys[1] = darkShmimKey;
-   if(maskShmimKey != "") keys[2] = maskShmimKey;
-   if(satMaskShmimKey != "") keys[3] = satMaskShmimKey;
+   if(imKey != "") keys[0] = imKey;
+   if(darkKey != "") keys[1] = darkKey;
+   if(maskKey != "") keys[2] = maskKey;
+   if(satMaskKey != "") keys[3] = satMaskKey;
    
    //The command line always overrides the config
    if(config.nonOptions.size() > 0) keys[0] = config.nonOptions[0];
@@ -233,13 +247,19 @@ void rtimvMainWindow::loadConfig()
    if(config.nonOptions.size() > 2) keys[2] = config.nonOptions[2];
    if(config.nonOptions.size() > 3) keys[3] = config.nonOptions[3];
    
-   //m_title= keys[0];
-
    startup(keys);
    
    if(m_images[0] == nullptr)
    {
-      std::cerr << "no image specified.  not starting.\n";
+      if(doHelp)
+      {
+         help();
+      }
+      else
+      {
+         std::cerr << "rtimv: No valid image specified so cowardly refusing to start.  Use -h for help.\n";
+      }
+      
       exit(0);
    }
    else
@@ -256,6 +276,8 @@ void rtimvMainWindow::loadConfig()
 
    config(m_targetXc, "targetXc");
    config(m_targetYc, "targetYc");
+   
+   
 }
 
 void rtimvMainWindow::onConnect()
@@ -281,20 +303,6 @@ void rtimvMainWindow::postSetImsize()
       transform.scale(viewZoom, viewZoom);
       imcp->ui.viewView->setTransform(transform);
    }
-   
-   
-
-//    //Resize the user color box
-//    colorBox_i0 = m_ny*.25;
-//    colorBox_i1 = m_ny*.75;
-// 
-//    colorBox_j0 = m_nx*.25;
-//    colorBox_j1 = m_nx*.75;
-// 
-//    
-//    m_colorBox->setRect(m_colorBox->mapRectFromScene(colorBox_i0, colorBox_j0, colorBox_i1-colorBox_i0, colorBox_j1-colorBox_j0));
-//    m_colorBox->setEdgeTol(5./ScreenZoom < 5 ? 5 : 5./ScreenZoom);
-
    
    //resize the boxes
    std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();

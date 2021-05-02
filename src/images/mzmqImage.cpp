@@ -66,26 +66,17 @@ int mzmqImage::imageKey( const std::string & sn )
       if(pcol != std::string::npos)
       {
          if(pcol > ats+1) m_server = sn.substr(ats+1, pcol-ats-1);
-         else m_server = "localhost";
          
          if(sn.size() > pcol+1) m_port = std::stoi(sn.substr(pcol+1, sn.size()-pcol-1));
-         else m_port = 5556;
       }
       else
       {
          if(sn.size() > ats+1) m_server = sn.substr(ats+1, sn.size()-ats-1);
-         else m_server = "localhost";
       }
    }
    else
    {
       size_t pcol = sn.find(':');
-      
-      if(pcol == std::string::npos)
-      {
-         std::cerr << "This is not an mzmq image key: " << sn << "\n";
-         return -1;
-      }
       
       if(pcol == 0)
       {
@@ -93,11 +84,15 @@ int mzmqImage::imageKey( const std::string & sn )
          return -1;
       }
       
-      m_imageName = sn.substr(0,pcol);
-      m_server = "localhost";
-      
-      if(sn.size() > pcol+1) m_port = std::stoi(sn.substr(pcol+1, sn.size()-pcol-1));
-      else m_port = 5556;
+      if(pcol == std::string::npos)
+      {
+         m_imageName = sn;
+      }
+      else
+      {
+         m_imageName = sn.substr(0,pcol);
+         if(sn.size() > pcol+1) m_port = std::stoi(sn.substr(pcol+1, sn.size()-pcol-1));
+      }
    }
    
    //start thread here.
@@ -120,7 +115,16 @@ std::string mzmqImage::imageName()
    return m_imageName;
 }
 
+void mzmqImage::imageServer(const std::string & server)
+{
+   m_server = server;
+}
 
+void mzmqImage::imagePort(int port)
+{
+   m_port = port;
+}
+   
 void mzmqImage::timeout(int to)
 {
    m_timeout = to;
@@ -141,13 +145,11 @@ double mzmqImage::imageTime()
    return m_imageTime;
 }
 
-inline
 void mzmqImage::internal_imageThreadStart( mzmqImage * mi )
 {
    mi->imageThreadExec();
 }
 
-inline
 int mzmqImage::imageThreadStart()
 {
    try
@@ -174,7 +176,6 @@ int mzmqImage::imageThreadStart()
    return 0;
 }
 
-inline
 void mzmqImage::imageThreadExec()
 {   
    std::string srvstr = "tcp://" + m_server + ":" + std::to_string(m_port);

@@ -35,7 +35,6 @@
 #include <ImageStreamIO.h>
 
 #include "colorMaps.hpp"
-#include "ImageStruct.hpp"
 
 class rtimvBase : public QWidget
 {
@@ -58,6 +57,14 @@ public:
              Qt::WindowFlags f = 0
            );
 
+protected:
+   
+   bool m_mzmqAlways {false};
+   std::string m_mzmqServer;
+   int m_mzmqPort {0};
+   
+public:
+   
    /// Start the images checking for updates.
    /** 
      */

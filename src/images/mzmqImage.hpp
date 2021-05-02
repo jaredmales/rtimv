@@ -16,22 +16,21 @@
 #include <zmq.hpp>
 
 #include "../rtimvImage.hpp"
+#include "pixaccess.hpp"
 
 /// rtimvImage stream to a milkzmq protocol image stream
 struct mzmqImage : public rtimvImage
 {
-   
+
    Q_OBJECT
 
-   
 protected:
    std::string m_imageKey; ///< The network specifications of the stream containing the image data.  Has the form `image@host:port`.
 
    std::string m_imageName;            ///< The name of the image.
    std::string m_server {"localhost"}; ///< The image server name or address.
    int m_port {5556};                  ///< The port on the server.
-   
-   
+
    int m_timeout {100}; ///< The image display timeout, should be set from the managing process.  Only used for F.P.S. calculations.
    
    uint32_t m_nx {0}; ///< Size of the image in pixels in the x direction (horizontal on screen)
@@ -84,13 +83,12 @@ public:
    /// Get the current shared memory name, same as key.
    std::string imageName();
    
+   /// Set the default server address or name.
+   void imageServer(const std::string & server /**< [in] the new default server */);
    
-   /// Set the shared-memory timeout
-   void shmimTimeout(int st /**< [in] the new timeout in milliseconds */);
-   
-   /// Get the shared-memory timeout
-   int shmimTimeout();
-   
+   /// Set the default server port.
+   void imagePort(int port /**< [in] the new default port */);
+
 private:
    
    /// Thread starter, called by imageThreadStart on thread construction.  Calls imageThreadExec.

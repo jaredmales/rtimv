@@ -5,7 +5,11 @@
 #ifndef ImageStruct_hpp
 #define ImageStruct_hpp
 
+//milk includes
+#ifndef RTIMV_NO_MILK
+#include <ImageStreamIO.h>
 #include <ImageStruct.h>
+#endif
 
 #ifndef ULONGLONG_IMG
 #define ULONGLONG_IMG (80)
@@ -34,8 +38,6 @@ struct imageStructDataType<IMAGESTRUCT_UINT8>
    typedef uint8_t type;
    constexpr static size_t size = sizeof(type);
    constexpr static type max = std::numeric_limits<type>::max();
-
-   static void setPointer( IMAGE & im, char * mapv) { im.array.UI8 = (type *) mapv;}
 };
 
 template<>
@@ -44,8 +46,6 @@ struct imageStructDataType<IMAGESTRUCT_INT8>
    typedef int8_t type;
    constexpr static size_t size = sizeof(type);
    constexpr static type max = std::numeric_limits<type>::max();
-
-   static void setPointer( IMAGE & im, char * mapv) { im.array.SI8 = (type *) mapv;}
 };
 
 template<>
@@ -54,8 +54,6 @@ struct imageStructDataType<IMAGESTRUCT_UINT16>
    typedef uint16_t type;
    constexpr static size_t size = sizeof(type);
    constexpr static type max = std::numeric_limits<type>::max();
-
-   static void setPointer( IMAGE & im, char * mapv) { im.array.UI16 = (type *) mapv;}
 };
 
 template<>
@@ -64,8 +62,6 @@ struct imageStructDataType<IMAGESTRUCT_INT16>
    typedef int16_t type;
    constexpr static size_t size = sizeof(type);
    constexpr static type max = std::numeric_limits<type>::max();
-
-   static void setPointer( IMAGE & im, char * mapv) { im.array.SI16 = (type *) mapv;}
 };
 
 template<>
@@ -74,8 +70,6 @@ struct imageStructDataType<IMAGESTRUCT_UINT32>
    typedef uint32_t type;
    constexpr static size_t size = sizeof(type);
    constexpr static type max = std::numeric_limits<type>::max();
-
-   static void setPointer( IMAGE & im, char * mapv) { im.array.UI32 = (type *) mapv;}
 };
 
 template<>
@@ -84,8 +78,6 @@ struct imageStructDataType<IMAGESTRUCT_INT32>
    typedef int32_t type;
    constexpr static size_t size = sizeof(type);
    constexpr static type max = std::numeric_limits<type>::max();
-
-   static void setPointer( IMAGE & im, char * mapv) { im.array.SI32 = (type *) mapv;}
 };
 
 template<>
@@ -94,8 +86,6 @@ struct imageStructDataType<IMAGESTRUCT_UINT64>
    typedef uint64_t type;
    constexpr static size_t size = sizeof(type);
    constexpr static type max = std::numeric_limits<type>::max();
-
-   static void setPointer( IMAGE & im, char * mapv) { im.array.UI64 = (type *) mapv;}
 };
 
 template<>
@@ -104,8 +94,6 @@ struct imageStructDataType<IMAGESTRUCT_INT64>
    typedef int64_t type;
    constexpr static size_t size = sizeof(type);
    constexpr static type max = std::numeric_limits<type>::max();
-
-   static void setPointer( IMAGE & im, char * mapv) { im.array.SI64 = (type *) mapv;}
 };
 
 template<>
@@ -114,8 +102,6 @@ struct imageStructDataType<IMAGESTRUCT_FLOAT>
    typedef float type;
    constexpr static size_t size = sizeof(type);
    constexpr static type max = std::numeric_limits<type>::max();
-
-   static void setPointer( IMAGE & im, char * mapv) { im.array.F = (type *) mapv;}
 };
 
 template<>
@@ -124,8 +110,6 @@ struct imageStructDataType<IMAGESTRUCT_DOUBLE>
    typedef double type;
    constexpr static size_t size = sizeof(type);
    constexpr static type max = std::numeric_limits<type>::max();
-
-   static void setPointer( IMAGE & im, char * mapv) { im.array.D = (type *) mapv;}
 };
 
 template<>
@@ -134,8 +118,6 @@ struct imageStructDataType<IMAGESTRUCT_COMPLEX_FLOAT>
    typedef complex_float type;
    constexpr static size_t size = sizeof(type);
    constexpr static type max = std::numeric_limits<type>::max();
-
-   static void setPointer( IMAGE & im, char * mapv) { im.array.CF = (type *) mapv;}
 };
 
 template<>
@@ -143,17 +125,6 @@ struct imageStructDataType<IMAGESTRUCT_COMPLEX_DOUBLE>
 {
    typedef complex_double type;
    constexpr static size_t size = sizeof(type);
-
-   static void setPointer( IMAGE & im, char * mapv) { im.array.CD = (type *) mapv;}
 };
-
-/*template<>
-struct imageStructDataType<IMAGESTRUCT_EVENT_UI8_UI8_UI16_UI8>
-{
-   typedef EVENT_UI8_UI8_UI16_UI8 type;
-   constexpr static size_t size = sizeof(type);
-
-   static void setPointer( IMAGE & im, char * mapv) { im.array.event1121 = (type *) mapv;}
-};*/
 
 #endif //ImageStruct_hpp

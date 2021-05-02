@@ -12,8 +12,6 @@
 #include <QObject>
 #include <QTimer>
 
-#include "pixaccess.h"
-
 #define RTIMVIMAGE_NOUPDATE (0)
 #define RTIMVIMAGE_AGEUPDATE (1)
 #define RTIMVIMAGE_IMUPDATE (2)

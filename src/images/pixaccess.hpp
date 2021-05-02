@@ -2,8 +2,8 @@
 
 
 
-#ifndef pixaccess_h
-#define pixaccess_h
+#ifndef pixaccess_hpp
+#define pixaccess_hpp
 
 #include "ImageStruct.hpp"
 

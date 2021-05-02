@@ -51,9 +51,15 @@ void rtimvBase::startup( const std::vector<std::string> & shkeys )
                fitsImage * fi = new fitsImage;
                m_images[i] = (rtimvImage *) fi;
             }
-            else if(shkeys[i].find('@') != std::string::npos || shkeys[i].find(':') != std::string::npos)
+            else if(shkeys[i].find('@') != std::string::npos || shkeys[i].find(':') != std::string::npos || m_mzmqAlways == true)
             {
                mzmqImage * mi = new mzmqImage;
+               
+               //change defaults
+               std::cerr << m_mzmqServer << "\n";
+               if(m_mzmqServer != "") mi->imageServer(m_mzmqServer);
+               if(m_mzmqPort != 0) mi->imagePort(m_mzmqPort);
+               
                m_images[i] = (rtimvImage *) mi;
             }
             else
