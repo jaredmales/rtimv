@@ -280,7 +280,7 @@ void mzmqImage::imageThreadExec()
          {
             if(zmq_errno() == EAGAIN) //If we timed out, just re-send the request
             {
-               request.rebuild(imageName.data(), imageName.size());
+               request.rebuild(m_imageName.data(), m_imageName.size());
                subscriber.send(request);
                continue;
             }
