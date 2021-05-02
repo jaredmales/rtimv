@@ -1,5 +1,5 @@
 
-# rtimv
+# rtimv User's Guide
 
 An image viewer optimized for real-time image stream display. Works with MILK/CACAO shared memory image streams locally or via the `milkzmq` protocol.  Will also display local FITS files.
 
