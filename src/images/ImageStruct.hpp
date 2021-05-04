@@ -6,9 +6,19 @@
 #define ImageStruct_hpp
 
 //milk includes
-#ifndef RTIMV_NO_MILK
+#ifdef RTIMV_MILK
 #include <ImageStreamIO.h>
 #include <ImageStruct.h>
+#else
+typedef struct {
+    float re;
+    float im;
+} complex_float;
+
+typedef struct {
+    double re;
+    double im;
+} complex_double;
 #endif
 
 #ifndef ULONGLONG_IMG
