@@ -32,7 +32,6 @@
 
 #include <signal.h>
 
-#include <ImageStreamIO.h>
 
 #include "colorMaps.hpp"
 

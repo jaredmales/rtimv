@@ -1,7 +1,9 @@
 
 #include "rtimvBase.hpp"
 
+#ifdef RTIMV_MILK
 #include "images/shmimImage.hpp"
+#endif
 #include "images/fitsImage.hpp"
 #include "images/mzmqImage.hpp"
 
