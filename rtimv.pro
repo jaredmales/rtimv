@@ -59,6 +59,12 @@ unix:!macx {
 CONFIG += link_pkgconfig
 PKGCONFIG += cfitsio libzmq
 
+_conda_prefix = $$(CONDA_PREFIX)
+!isEmpty(_conda_prefix) {
+    INCLUDEPATH += $$(CONDA_PREFIX)/include
+    LIBS += -L$$(CONDA_PREFIX)/lib
+}
+
 LIBS += -lmxlib
 LIBS += -lxrif
 LIBS += -lrtimv
@@ -72,10 +78,6 @@ RESOURCES += res/imviewer.qrc
 unix:target.path = /usr/local/bin
 INSTALLS += target
 
-# unix:includefiles.path = /usr/local/include/rtimv
-# includefiles.files = src/rtimvInterfaces.hpp src/rtimvGraphicsView.hpp
-# INSTALLS += includefiles
-
-
-
-
+!isEmpty(_conda_prefix) {
+    unix:target.path = $$(CONDA_PREFIX)/bin
+}
