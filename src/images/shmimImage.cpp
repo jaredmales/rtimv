@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#ifdef RTIMV_MILK
 errno_t isio_err_to_ignore = 0;
 errno_t new_printError( const char *file, const char *func, int line, errno_t code, char *errmessage )
 {
@@ -302,3 +303,4 @@ float shmimImage::fpsEst()
 }
 
 
+#endif // RTIMV_MILK

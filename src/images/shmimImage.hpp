@@ -8,7 +8,7 @@
 
 #ifndef rtimv_shmimImage_hpp
 #define rtimv_shmimImage_hpp
-
+#ifdef RTIMV_MILK
 #include "../rtimvImage.hpp"
 #include "pixaccess.hpp"
 
@@ -164,5 +164,5 @@ public:
 
 };
 
-
+#endif // RTIMV_MILK
 #endif //rtimv_shmimImage_hpp
