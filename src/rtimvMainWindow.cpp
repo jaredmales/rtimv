@@ -146,7 +146,6 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    
       for (const QString &fileName : entryList) 
       {
-         std::cerr << "fileName: " << fileName.toStdString() << "\n";
          QPluginLoader loader(pluginsDir.absoluteFilePath(fileName));
          QObject *plugin = loader.instance();
          if (plugin) 
@@ -161,6 +160,7 @@ rtimvMainWindow::rtimvMainWindow( int argc,
             }
             else
             {
+               std::cerr << "rtimv: loaded plugin " << fileName.toStdString() << "\n";
                m_pluginFileNames += fileName;
             }
          }
