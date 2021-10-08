@@ -151,13 +151,13 @@ rtimvMainWindow::rtimvMainWindow( int argc,
          QObject *plugin = loader.instance();
          if (plugin) 
          {
-            std::cerr << "loading dynamic\n";
             int arv = loadPlugin(plugin);
             if( arv != 0 )
             {
-               std::cerr << "unloading  . . . ";
-               if(loader.unload()) std::cerr << "it worked!\n";
-               else std::cerr << "it didn't work\n";
+               if(!loader.unload())
+               {
+                  std::cerr << "rtimv: unloading an unused plugin failed\n";
+               }
             }
             else
             {
