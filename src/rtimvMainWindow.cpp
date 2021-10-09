@@ -749,7 +749,7 @@ void rtimvMainWindow::updateAge()
 {
    //Check the font luminance to make sure it is visible
    fontLuminance();
-   
+
    if(m_showFPSGage && m_images[0] != nullptr  )
    {      
       if(m_images[0]->valid())    //have to check this after checking nullptr
@@ -786,6 +786,14 @@ void rtimvMainWindow::updateAge()
    }
 
 
+}
+
+void rtimvMainWindow::updateNC()
+{
+   for(size_t n=0;n<m_overlays.size(); ++n)
+   {
+      m_overlays[n]->updateOverlay();
+   }
 }
 
 void rtimvMainWindow::addUserBox()

@@ -189,8 +189,12 @@ void rtimvBase::timerout()
       }
    }
    
-   if(!connected) return;
-   
+   if(!connected) 
+   {
+      updateNC();
+      return;
+   }
+
    if(doupdate == RTIMVIMAGE_FPSUPDATE) 
    {
       updateFPS();
@@ -859,6 +863,11 @@ void rtimvBase::updateFPS()
 }
 
 void rtimvBase::updateAge()
+{
+   return;
+}
+
+void rtimvBase::updateNC()
 {
    return;
 }
