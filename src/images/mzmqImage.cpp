@@ -206,7 +206,7 @@ void mzmqImage::imageThreadExec()
       zmq::socket_t subscriber (*m_ZMQ_context, ZMQ_CLIENT);
    
       #if (CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 3, 1))
-      subscriber.set(zmq::sockopt::linger, 1000);
+      subscriber.set(zmq::sockopt::rcvtimeo, 1000);
       subscriber.set(zmq::sockopt::linger, 0);
       #else
       subscriber.setsockopt(ZMQ_RCVTIMEO, 1000);
@@ -270,7 +270,7 @@ void mzmqImage::imageThreadExec()
                continue;
             }
                         
-            if(connected) std::cerr << "Disconnected from " + m_imageName << "\n";
+            if(connected) std::cerr << "Disconnected from " + imageKey() << "\n";
             connected = false;
             reconnect = true;
             break;
@@ -443,7 +443,7 @@ void mzmqImage::imageThreadExec()
       t0 = 0;
       #endif
       
-      std::cerr << "Disconnected from " + imageKey();
+      std::cerr << "Disconnected from " + imageKey() << "\n";
          
    }// outer loop (checking stale connections)
    
