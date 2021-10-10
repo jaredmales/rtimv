@@ -7,6 +7,7 @@
 
 #include "rtimvGraphicsView.hpp"
 
+#include <cmath>
 
 //Geometries of the various text boxes.
 #define SAVEWIDTH 30
@@ -597,19 +598,53 @@ void rtimvGraphicsView::textPixelVal( const char * nt )
 
 void rtimvGraphicsView::textPixelVal( float nv )
 {
+   //1.00e+5
+   //10000.0
+   //1000.0
+   //100.0
+   //10.0
+   //1.0
+   //0.10
+   //0.010
+   //0.0010
+   //0.00010
+   //1.0e-3
    char strtmp[24];
-   if(nv > 0.1)
+
+   float anv = fabs(nv);
+   if(anv == 0)
    {
-      snprintf(strtmp, 24, "Z: %0.1f", nv);
+      snprintf(strtmp, sizeof(strtmp), "Z: 0");
    }
-   else if(nv > 0.01)
+   else if(anv >= 100000)
    {
-      snprintf(strtmp, 24, "Z: %0.2f", nv);
+      snprintf(strtmp, sizeof(strtmp), "Z: %0.2e", nv);
+   }
+   else if(anv >= 1.0)
+   {
+      snprintf(strtmp, sizeof(strtmp), "Z: %0.1f", nv);
+   } 
+   else if(anv >= 0.1)
+   {
+      snprintf(strtmp, sizeof(strtmp), "Z: %0.2f", nv);
+   }
+   else if(anv >= 0.01)
+   {
+      snprintf(strtmp, sizeof(strtmp), "Z: %0.3f", nv);
+   }
+   else if(anv >= 0.001)
+   {
+      snprintf(strtmp, sizeof(strtmp), "Z: %0.4f", nv);
+   }
+   else if(anv >= 0.0001)
+   {
+      snprintf(strtmp, sizeof(strtmp), "Z: %0.5f", nv);
    }
    else
    {
-      snprintf(strtmp, 24, "Z: %0.1e", nv);
+      snprintf(strtmp, sizeof(strtmp), "Z: %0.1e", nv);
    }
+
    textPixelVal(strtmp);   
 }
 
