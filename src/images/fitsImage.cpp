@@ -3,9 +3,13 @@
 #include <iostream>
 #include <mx/ioutils/fileUtils.hpp>
 
+#include <sys/inotify.h>
+
 fitsImage::fitsImage()
 {
    connect(&m_timer, SIGNAL(timeout()), this, SLOT(imageTimerout()));
+
+   m_notifyfd = inotify_init1(IN_NONBLOCK);
 }
 
 int fitsImage::imageKey( const std::string & sn )
@@ -18,6 +22,7 @@ int fitsImage::imageKey( const std::string & sn )
       return -1;
    }
    
+
    imageTimerout();
    
    return 0;
@@ -74,13 +79,8 @@ void fitsImage::imageTimerout()
    }
 }
 
-void fitsImage::imConnect()
+int fitsImage::readImage()
 {
-   
-   
-   m_imageFound = 0;
-   m_imageUpdated = false;
-   
    ///The cfitsio data structure
    fitsfile * fptr {nullptr};
    
@@ -90,28 +90,42 @@ void fitsImage::imConnect()
 
    if (fstatus)
    {
-      std::cerr << "Could not open " << m_imagePath << "\n";
-      return;
+      if(!m_reported) std::cerr << "rtimv: " << m_imagePath << " not found.\n";
+      m_reported = true;
+      return -1;
    }
-   
+   m_reported = false;
+
    ///The dimensions of the image (1D, 2D, 3D etc)
    int naxis;
 
    fits_get_img_dim(fptr, &naxis, &fstatus);
    if (fstatus)
    {
-      std::cerr << "Error getting number of axes in file " << m_imagePath << "\n";
-      return;
+      if(!m_reported) std::cerr << "rtimv: error getting number of axes in file " << m_imagePath << "\n";
+      m_reported = true;
+
+      fstatus = 0;
+      fits_close_file(fptr, &fstatus);
+
+      return -1;
    }
+   m_reported = false;
 
    long * naxes = new long[naxis];
 
    fits_get_img_size(fptr, naxis, naxes, &fstatus);
    if (fstatus)
    {
-      std::cerr << "Error getting dimensions in file " << m_imagePath << "\n";
-      return;
+      if(!m_reported) std::cerr << "rtimv: error getting dimensions in file " << m_imagePath << "\n";
+      m_reported = true;
+
+      fstatus = 0;
+      fits_close_file(fptr, &fstatus);
+
+      return -1;
    }
+   m_reported = false;
 
    //resize the array if needed, which could be a reformat
    if(m_data == nullptr || m_nx*m_ny != naxes[0]*naxes[1])
@@ -143,39 +157,98 @@ void fitsImage::imConnect()
    fits_read_subset(fptr, TFLOAT, fpix, lpix, inc, 0,
                                      (void *) m_data, &anynul, &fstatus);
    
+   if (fstatus)
+   {
+      if(!m_reported) std::cerr << "rtimv: error reading data from " << m_imagePath << "\n";
+      m_reported = true;
+
+      fstatus = 0;
+      fits_close_file(fptr, &fstatus);
+      
+      return -1;
+   }
+   m_reported = false;
+
    this->pixget = getPixPointer<IMAGESTRUCT_FLOAT>();
-   m_imageFound = 1;
-   
    
    fits_close_file(fptr, &fstatus);
 
    if (fstatus)
    {
-      std::cerr << "Error closing file " << m_imagePath << "\n";
+      if(!m_reported) std::cerr << "rtimv: error closing file " << m_imagePath << "\n";
+      m_reported = true;
+
+      fstatus = 0;
+      fits_close_file(fptr, &fstatus);
+
+      return -1;
+   }
+   m_reported = false;
+
+   return 0;
+}
+
+void fitsImage::imConnect()
+{
+   m_imageFound = 0;
+   m_imageUpdated = false;
+   
+   if(readImage() < 0)
+   {
       return;
    }
+
+   m_imageFound = 1;
    
+   m_notifywd = inotify_add_watch(m_notifyfd, m_imagePath.c_str(), IN_CLOSE_WRITE);
+
    emit connected();
 }
 
 int fitsImage::update()
 {   
    if(!m_imageFound) return RTIMVIMAGE_NOUPDATE;
-      
+
+   //First time through after connect
    if(!m_imageUpdated)  
    {
       m_imageUpdated = true;
          
       return RTIMVIMAGE_IMUPDATE;
    }
-      
-   return RTIMVIMAGE_NOUPDATE;   
+
+   //Read inotify to see if it changed.
+   
+   ssize_t len;
+   
+   len = read(m_notifyfd, m_notify_buf, sizeof(m_notify_buf));
+   if (len == -1 && errno != EAGAIN) 
+   {
+      perror("rtimv: fitsImage: error reading inotify");
+      detach();
+      return RTIMVIMAGE_NOUPDATE;
+   }
+
+   if (len <= 0)
+   {
+      return RTIMVIMAGE_NOUPDATE;
+   }
+   else
+   {
+      if(readImage() < 0)
+      {
+         detach();
+         return RTIMVIMAGE_NOUPDATE;
+      };
+
+      m_notifywd = inotify_add_watch(m_notifyfd, m_imagePath.c_str(), IN_CLOSE_WRITE);
+
+      return RTIMVIMAGE_IMUPDATE;
+   }
 }
 
 void fitsImage::detach()
 {  
-   if(m_imageFound == 0) return;
-   
    if(m_data)
    {
       delete[] m_data;
@@ -184,6 +257,9 @@ void fitsImage::detach()
       
    m_imageFound = 0;
       
+   //Start checking for the file
+   m_timer.start(m_imageTimeout);
+
    return;
 }
 
@@ -198,7 +274,6 @@ void fitsImage::update_fps()
 {
 
 }
-
 
 float fitsImage::pixel(size_t n)
 {

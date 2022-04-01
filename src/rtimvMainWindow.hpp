@@ -86,6 +86,9 @@ public:
    
    virtual void updateAge();
 
+   ///Update the display while not connected.
+   virtual void updateNC();
+
    virtual void keyPressEvent(QKeyEvent *);
    
    /*** The control Panel ***/

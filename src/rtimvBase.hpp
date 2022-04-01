@@ -409,6 +409,7 @@ public:
 
       virtual void updateFPS();///<Called whenever the displayed image updates its FPS.
       virtual void updateAge();///<Called whenever the displayed image updates its Age.
+      virtual void updateNC(); ///<Update the display while not connected.
 
 public:
    static void st_handleSigSegv( int signum,

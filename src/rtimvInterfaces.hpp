@@ -26,6 +26,8 @@ struct rtimvDictBlob
    
    bool m_owner {false};
    
+   timespec m_lastMod {0,0};
+
    rtimvDictBlob()
    {
    }
@@ -74,6 +76,8 @@ struct rtimvDictBlob
          m_sz = sz;
          memcpy(m_blob, blob, sz);
       }
+
+      clock_gettime(CLOCK_REALTIME, &m_lastMod);
    }
    
    ~rtimvDictBlob()
