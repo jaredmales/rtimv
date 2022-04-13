@@ -146,21 +146,21 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    
       for (const QString &fileName : entryList) 
       {
-         std::cerr << "fileName: " << fileName.toStdString() << "\n";
          QPluginLoader loader(pluginsDir.absoluteFilePath(fileName));
          QObject *plugin = loader.instance();
          if (plugin) 
          {
-            std::cerr << "loading dynamic\n";
             int arv = loadPlugin(plugin);
             if( arv != 0 )
             {
-               std::cerr << "unloading  . . . ";
-               if(loader.unload()) std::cerr << "it worked!\n";
-               else std::cerr << "it didn't work\n";
+               if(!loader.unload())
+               {
+                  std::cerr << "rtimv: unloading an unused plugin failed\n";
+               }
             }
             else
             {
+               std::cerr << "rtimv: loaded plugin " << fileName.toStdString() << "\n";
                m_pluginFileNames += fileName;
             }
          }
@@ -749,7 +749,7 @@ void rtimvMainWindow::updateAge()
 {
    //Check the font luminance to make sure it is visible
    fontLuminance();
-   
+
    if(m_showFPSGage && m_images[0] != nullptr  )
    {      
       if(m_images[0]->valid())    //have to check this after checking nullptr
@@ -786,6 +786,14 @@ void rtimvMainWindow::updateAge()
    }
 
 
+}
+
+void rtimvMainWindow::updateNC()
+{
+   for(size_t n=0;n<m_overlays.size(); ++n)
+   {
+      m_overlays[n]->updateOverlay();
+   }
 }
 
 void rtimvMainWindow::addUserBox()

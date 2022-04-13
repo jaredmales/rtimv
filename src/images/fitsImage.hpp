@@ -15,15 +15,26 @@
 
 #include "pixaccess.hpp"
 
+/// FITS file interface
+/** This image class reads a FITS file from the path provided in the image key.  The file is monitored for updates
+  * and automatically reloaded.
+  */ 
 struct fitsImage : public rtimvImage
 {
    
    Q_OBJECT
 
-   
 protected:
    std::string m_imagePath; ///< The path to the fits image containing the image data.
    
+   bool m_reported {false}; ///< Switch to provide reporting errors only once.
+
+   int m_notifyfd {0}; ///< The file descriptor for inotify
+
+   int m_notifywd {0}; ///< The watch descriptor for inotify
+
+   char m_notify_buf[4096]; ///< Buffer for reading inotify
+
    int m_imageTimeout {1000}; ///<The timeout for checking for shared memory file existence.
    
    int m_timeout {100}; ///< The image display timeout, should be set from the managing process.  Only used for F.P.S. calculations.
@@ -103,18 +114,31 @@ signals:
    
 public:
    
+   /// Open the FITS file and read the image.
+   /**
+     * \returns 0 on success
+     * \returns -1 on error
+     */ 
+   int readImage();
+
+   /// Attempt to open the FITS file and enter the connected state
+   /**
+     */  
    void imConnect();
    
-   ///Function called by timer expiration.  Points to latest image and updates the FPS.
+   /// Function called by timer expiration.  Points to latest image and updates the FPS.
    int update();
 
+   /// Cleanup image memory and enter the disconnected state.
    void detach();
    
    /// Returns `true` if this instance is attached to its stream and has valid data.  `false` otherwise.
    bool valid();
 
 protected:   
-    /*** Real time frames per second ***/
+
+   /*** Real time frames per second ***/
+
    double m_lastImageTime {0};
    
    double m_fpsTime {0}; ///< The current image time.

@@ -7,6 +7,7 @@
 
 #include "rtimvGraphicsView.hpp"
 
+#include <cmath>
 
 //Geometries of the various text boxes.
 #define SAVEWIDTH 30
@@ -89,7 +90,9 @@ rtimvGraphicsView::rtimvGraphicsView(QWidget *parent): QGraphicsView(parent)
    
    QFont qf;
    qf = coords->currentFont();
-   qf.setPointSize(14);
+   //qf.setPointSize(14);
+   qf.setPixelSize(14);
+
    coords->setCurrentFont(qf);
    coords->setVisible(false);
    coords->setTextColor("lime");
@@ -132,8 +135,9 @@ void rtimvGraphicsView::warningFontSize( float fs )
    m_warningFontSize = fs;
    
    QFont qf = m_warningText->currentFont();
-   qf.setPointSizeF(m_warningFontSize);
-   
+   //qf.setPointSizeF(m_warningFontSize);
+   qf.setPixelSize(m_warningFontSize);
+
    m_warningText->setCurrentFont(qf);
 }
 
@@ -191,8 +195,9 @@ void rtimvGraphicsView::loopFontSize( float fs )
    m_loopFontSize = fs;
    
    QFont qf = m_loopText->currentFont();
-   qf.setPointSizeF(m_loopFontSize);
-   
+   //qf.setPointSizeF(m_loopFontSize);
+   qf.setPixelSize(m_loopFontSize);
+
    m_loopText->setCurrentFont(qf);
 }
 
@@ -253,8 +258,9 @@ void rtimvGraphicsView::saveBoxFontSize( float fs )
    m_saveBoxFontSize = fs;
    
    QFont qf = m_saveBox->currentFont();
-   qf.setPointSizeF(m_saveBoxFontSize);
-   
+   //qf.setPointSizeF(m_saveBoxFontSize);
+   qf.setPixelSize(m_saveBoxFontSize);
+
    m_saveBox->setCurrentFont(qf);
 }
 
@@ -355,8 +361,9 @@ void rtimvGraphicsView::statusTextFontSize( float fs /* [in] The new font size *
    for(size_t n=0; n<m_statusText.size(); ++n)
    {
       QFont qf = m_statusText[n]->currentFont();
-      qf.setPointSizeF(m_statusTextFontSize);
-   
+      //qf.setPointSizeF(m_statusTextFontSize);
+      qf.setPixelSize(m_statusTextFontSize);
+
       m_statusText[n]->setCurrentFont(qf);
    }
 }
@@ -430,8 +437,9 @@ void rtimvGraphicsView::helpTextFontSize( float fs )
    m_helpTextFontSize = fs;
    
    QFont qf = m_helpText->currentFont();
-   qf.setPointSizeF(m_helpTextFontSize);
-   
+   //qf.setPointSizeF(m_helpTextFontSize);
+   qf.setPixelSize(m_helpTextFontSize);
+
    m_helpText->setCurrentFont(qf);
 }
 
@@ -499,8 +507,9 @@ void rtimvGraphicsView::gageFontSize( float fs )
    m_gageFontSize = fs;
    
    QFont qf = m_fpsGage->currentFont();
-   qf.setPointSizeF(fs);
-   
+   //qf.setPointSizeF(fs);
+   qf.setPixelSize(fs);
+
    m_fpsGage->setCurrentFont(qf);
    m_textCoordX->setCurrentFont(qf);
    m_textCoordY->setCurrentFont(qf);
@@ -589,19 +598,53 @@ void rtimvGraphicsView::textPixelVal( const char * nt )
 
 void rtimvGraphicsView::textPixelVal( float nv )
 {
+   //1.00e+5
+   //10000.0
+   //1000.0
+   //100.0
+   //10.0
+   //1.0
+   //0.10
+   //0.010
+   //0.0010
+   //0.00010
+   //1.0e-3
    char strtmp[24];
-   if(nv > 0.1)
+
+   float anv = fabs(nv);
+   if(anv == 0)
    {
-      snprintf(strtmp, 24, "Z: %0.1f", nv);
+      snprintf(strtmp, sizeof(strtmp), "Z: 0");
    }
-   else if(nv > 0.01)
+   else if(anv >= 100000)
    {
-      snprintf(strtmp, 24, "Z: %0.2f", nv);
+      snprintf(strtmp, sizeof(strtmp), "Z: %0.2e", nv);
+   }
+   else if(anv >= 1.0)
+   {
+      snprintf(strtmp, sizeof(strtmp), "Z: %0.1f", nv);
+   } 
+   else if(anv >= 0.1)
+   {
+      snprintf(strtmp, sizeof(strtmp), "Z: %0.2f", nv);
+   }
+   else if(anv >= 0.01)
+   {
+      snprintf(strtmp, sizeof(strtmp), "Z: %0.3f", nv);
+   }
+   else if(anv >= 0.001)
+   {
+      snprintf(strtmp, sizeof(strtmp), "Z: %0.4f", nv);
+   }
+   else if(anv >= 0.0001)
+   {
+      snprintf(strtmp, sizeof(strtmp), "Z: %0.5f", nv);
    }
    else
    {
-      snprintf(strtmp, 24, "Z: %0.1e", nv);
+      snprintf(strtmp, sizeof(strtmp), "Z: %0.1e", nv);
    }
+
    textPixelVal(strtmp);   
 }
 
@@ -622,8 +665,9 @@ void rtimvGraphicsView::zoomFontSize( float fs )
    m_zoomFontSize = fs;
    
    QFont qf = m_zoomText->currentFont();
-   qf.setPointSizeF(m_zoomFontSize);
-   
+   //qf.setPointSizeF(m_zoomFontSize);
+   qf.setPixelSize(m_zoomFontSize);
+
    m_zoomText->setCurrentFont(qf);
 }
 
