@@ -1,17 +1,21 @@
 
-#include "imviewer.hpp"
+#include "rtimvBase.hpp"
 
-imviewer * globalIMV;
+#include "images/shmimImage.hpp"
+#include "images/fitsImage.hpp"
+#include "images/mzmqImage.hpp"
 
-int imviewer::sigsegvFd[2];
+rtimvBase * globalIMV;
 
-imviewer::imviewer( QWidget * Parent, 
+int rtimvBase::sigsegvFd[2];
+
+rtimvBase::rtimvBase( QWidget * Parent, 
                     Qt::WindowFlags f
                   ) : QWidget(Parent, f)
 {
 }
 
-imviewer::imviewer( const std::vector<std::string> & shkeys, 
+rtimvBase::rtimvBase( const std::vector<std::string> & shkeys, 
                     QWidget * Parent, 
                     Qt::WindowFlags f
                   ) : QWidget(Parent, f)
@@ -19,7 +23,7 @@ imviewer::imviewer( const std::vector<std::string> & shkeys,
    startup(shkeys);
 }
 
-void imviewer::startup( const std::vector<std::string> & shkeys )
+void rtimvBase::startup( const std::vector<std::string> & shkeys )
 {
    m_images.resize(4, nullptr);
    
@@ -29,9 +33,42 @@ void imviewer::startup( const std::vector<std::string> & shkeys )
       {
          if(shkeys[i] != "")
          {
-            m_images[i] = new rtimvImage;
-            m_images[i]->shmimName(shkeys[i]); // Set the key
-            m_images[i]->shmimTimerout(); // And start checking for the image
+            //safely accept several different common fits extensions
+            bool isFits = false;
+            if( shkeys[i].size() > 4 )
+            {
+               if( shkeys[i].rfind(".fit") == shkeys[i].size()-4 || 
+                      shkeys[i].rfind(".FIT") == shkeys[i].size()-4 ) isFits = true;
+            }
+            if(shkeys[i].size() > 5 && !isFits)
+            {
+               if(shkeys[i].rfind(".fits") == shkeys[i].size()-5 || 
+                   shkeys[i].rfind(".FITS") == shkeys[i].size()-5) isFits = true;
+            }
+             
+            if(isFits)
+            {
+               fitsImage * fi = new fitsImage;
+               m_images[i] = (rtimvImage *) fi;
+            }
+            else if(shkeys[i].find('@') != std::string::npos || shkeys[i].find(':') != std::string::npos || m_mzmqAlways == true)
+            {
+               mzmqImage * mi = new mzmqImage;
+               
+               //change defaults
+               std::cerr << m_mzmqServer << "\n";
+               if(m_mzmqServer != "") mi->imageServer(m_mzmqServer);
+               if(m_mzmqPort != 0) mi->imagePort(m_mzmqPort);
+               
+               m_images[i] = (rtimvImage *) mi;
+            }
+            else
+            {
+               shmimImage * si = new shmimImage;
+               m_images[i] = (rtimvImage *) si;
+            }
+            
+            m_images[i]->imageKey(shkeys[i]); // Set the key
          }
       }
    }
@@ -68,7 +105,7 @@ void imviewer::startup( const std::vector<std::string> & shkeys )
    struct sigaction act;
    sigset_t set;
 
-   act.sa_sigaction = &imviewer::st_handleSigSegv;
+   act.sa_sigaction = &rtimvBase::st_handleSigSegv;
    act.sa_flags = SA_SIGINFO;
    sigemptyset(&set);
    act.sa_mask = set;
@@ -86,7 +123,7 @@ void imviewer::startup( const std::vector<std::string> & shkeys )
    
 }
 
-void imviewer::setImsize(uint32_t x, uint32_t y)
+void rtimvBase::setImsize(uint32_t x, uint32_t y)
 {
    int cb;
 
@@ -111,22 +148,22 @@ void imviewer::setImsize(uint32_t x, uint32_t y)
    }
 }
 
-void imviewer::postSetImsize()
+void rtimvBase::postSetImsize()
 {
    return;
 }
 
-uint32_t imviewer::nx()
+uint32_t rtimvBase::nx()
 {
    return m_nx;
 }
 
-uint32_t imviewer::ny()
+uint32_t rtimvBase::ny()
 {
    return m_ny;
 }
 
-void imviewer::timerout()
+void rtimvBase::timerout()
 {
    static bool connected = false;
    
@@ -134,10 +171,12 @@ void imviewer::timerout()
    
    if(m_images[0] != nullptr) doupdate = m_images[0]->update();
    
+   ///\todo we should update the display if one of the support images changes, i.e. a new dark, without the main image updating.
    for(size_t i=1;i<m_images.size(); ++i) 
    {
       if(m_images[i] != nullptr) m_images[i]->update();
    }
+
    
    if(doupdate >= RTIMVIMAGE_IMUPDATE) 
    {
@@ -164,7 +203,7 @@ void imviewer::timerout()
    
 }
 
-void imviewer::timeout(int to)
+void rtimvBase::timeout(int to)
 {
    m_timer.stop();
    
@@ -176,7 +215,7 @@ void imviewer::timeout(int to)
    m_timer.start(to);
 }
 
-imviewer::pixelF imviewer::pixel()
+rtimvBase::pixelF rtimvBase::pixel()
 {
    pixelF _pixel = nullptr;
    
@@ -228,28 +267,28 @@ imviewer::pixelF imviewer::pixel()
    return _pixel;
 }
 
-float imviewer::pixel_noCal( imviewer * imv,
+float rtimvBase::pixel_noCal( rtimvBase * imv,
                              size_t idx
                            )
 {
    return imv->m_images[0]->pixel(idx);
 }
 
-float imviewer::pixel_subDark( imviewer * imv,
+float rtimvBase::pixel_subDark( rtimvBase * imv,
                                size_t idx
                              )
 {
    return imv->m_images[0]->pixel(idx) - imv->m_images[1]->pixel(idx);
 }
 
-float imviewer::pixel_applyMask( imviewer * imv,
+float rtimvBase::pixel_applyMask( rtimvBase * imv,
                                  size_t idx
                                )
 {
    return imv->m_images[0]->pixel(idx) * imv->m_images[2]->pixel(idx);
 }
 
-float imviewer::pixel_subDarkApplyMask( imviewer * imv,
+float rtimvBase::pixel_subDarkApplyMask( rtimvBase * imv,
                                         size_t idx
                                       )
 {
@@ -288,7 +327,7 @@ realT pLightness( realT lum )
       
 }
 
-void imviewer::load_colorbar(int cb)
+void rtimvBase::load_colorbar(int cb)
 {
    if(current_colorbar != cb && m_qim)
    {
@@ -348,7 +387,7 @@ void imviewer::load_colorbar(int cb)
    }
 }
 
-void imviewer::set_cbStretch(int ct)
+void rtimvBase::set_cbStretch(int ct)
 {
    if(ct < 0 || ct >= cbStretches_max)
    {
@@ -359,33 +398,33 @@ void imviewer::set_cbStretch(int ct)
 
 }
 
-int imviewer::get_cbStretch()
+int rtimvBase::get_cbStretch()
 {
    return m_cbStretch;
 }
 
-void imviewer::mindat(float md)
+void rtimvBase::mindat(float md)
 {
    m_mindat = md;
 }
 
-float imviewer::mindat()
+float rtimvBase::mindat()
 {
    return m_mindat;
 }
       
       
-void imviewer::maxdat(float md)
+void rtimvBase::maxdat(float md)
 {
    m_maxdat = md;
 }
 
-float imviewer::maxdat()
+float rtimvBase::maxdat()
 {
    return m_maxdat;
 }
 
-void imviewer::bias(float b)
+void rtimvBase::bias(float b)
 {
    float cont = contrast();
 
@@ -393,12 +432,12 @@ void imviewer::bias(float b)
    maxdat(b + 0.5*cont);
 }
 
-float imviewer::bias()
+float rtimvBase::bias()
 {
    return 0.5*(m_maxdat+m_mindat);
 }
 
-void imviewer::bias_rel(float br)
+void rtimvBase::bias_rel(float br)
 {
    float cont = contrast();
 
@@ -406,29 +445,29 @@ void imviewer::bias_rel(float br)
    maxdat(imdat_min + br*(imdat_max-imdat_min) + 0.5*cont);
 }
 
-float imviewer::bias_rel()
+float rtimvBase::bias_rel()
 {
    return 0.5*(m_maxdat+m_mindat)/(m_maxdat-m_mindat);
 }
 
-void imviewer::contrast(float c)
+void rtimvBase::contrast(float c)
 {
    float b = bias();
    mindat(b - 0.5*c);
    maxdat(b + 0.5*c);
 }
 
-float imviewer::contrast()
+float rtimvBase::contrast()
 {
    return m_maxdat-m_mindat;
 }
    
-float imviewer::contrast_rel()
+float rtimvBase::contrast_rel()
 {
    return (imdat_max-imdat_min)/(m_maxdat-m_mindat);
 }
 
-void imviewer::contrast_rel(float cr)
+void rtimvBase::contrast_rel(float cr)
 {
    float b = bias();
    mindat(b - .5*(imdat_max-imdat_min)/cr);
@@ -514,7 +553,7 @@ int calcPixIndex_square( float pixval, float mindat, float maxdat, int mincol, i
    return pixval*(maxcol-mincol) + 0.5;
 }
 
-void imviewer::changeImdata(bool newdata)
+void rtimvBase::changeImdata(bool newdata)
 {
    float tmp_min;
    float tmp_max;
@@ -526,7 +565,7 @@ void imviewer::changeImdata(bool newdata)
    if(!m_images[0]->valid()) return;
 
    //Get the pixel calculating function
-   float (*_pixel)(imviewer*, size_t) = pixel();
+   float (*_pixel)(rtimvBase*, size_t) = pixel();
    
    //Get the color index calculating function
    int (*_index)(float,float,float,int,int);
@@ -709,12 +748,12 @@ void imviewer::changeImdata(bool newdata)
     amChangingimdata = false;
 }
 
-void imviewer::postChangeImdata()
+void rtimvBase::postChangeImdata()
 {
    return;
 }
 
-void imviewer::zoomLevel(float zl)
+void rtimvBase::zoomLevel(float zl)
 {
    if(zl < m_zoomLevelMin) zl = m_zoomLevelMin;
    if(zl > m_zoomLevelMax) zl = m_zoomLevelMax;
@@ -724,13 +763,13 @@ void imviewer::zoomLevel(float zl)
    post_zoomLevel();
 }
 
-void imviewer::post_zoomLevel()
+void rtimvBase::post_zoomLevel()
 {
    return;
 }
 
 
-void imviewer::setUserBoxActive(bool usba)
+void rtimvBase::setUserBoxActive(bool usba)
 {
    if(usba)
    {
@@ -795,12 +834,12 @@ void imviewer::setUserBoxActive(bool usba)
 }
 
 
-void imviewer::set_RealTimeEnabled(int rte)
+void rtimvBase::set_RealTimeEnabled(int rte)
 {
    RealTimeEnabled = (rte != 0);
 }
 
-void imviewer::set_RealTimeStopped(int rts)
+void rtimvBase::set_RealTimeStopped(int rts)
 {
    RealTimeStopped = (rts != 0);
 
@@ -814,17 +853,17 @@ void imviewer::set_RealTimeStopped(int rts)
    }
 }
 
-void imviewer::updateFPS()
+void rtimvBase::updateFPS()
 {
    return;
 }
 
-void imviewer::updateAge()
+void rtimvBase::updateAge()
 {
    return;
 }
 
-void imviewer::st_handleSigSegv( int signum,
+void rtimvBase::st_handleSigSegv( int signum,
                                  siginfo_t *siginf,
                                  void *ucont
                                )
@@ -839,7 +878,7 @@ void imviewer::st_handleSigSegv( int signum,
     static_cast<void>(rv);
 }
 
-void imviewer::handleSigSegv()
+void rtimvBase::handleSigSegv()
 {
    snSegv->setEnabled(false);
    

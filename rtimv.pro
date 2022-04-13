@@ -26,21 +26,27 @@ unix::LIBPATH += /usr/local/milk/lib/
 
 # Input
 HEADERS += src/rtimvGraphicsView.hpp \
-           src/imviewer.hpp \
+           src/rtimvBase.hpp \
            src/rtimvMainWindow.hpp \
            src/rtimvInterfaces.hpp \
-           src/imviewerControlPanel.h \
-           src/imviewerstats.hpp \
+           src/rtimvControlPanel.hpp \
+           src/rtimvStats.hpp \
            src/rtimvImage.hpp \
-           src/pixaccess.h \
-           src/colorMaps.hpp
+           src/colorMaps.hpp \
+           src/images/shmimImage.hpp \
+           src/images/fitsImage.hpp \
+           src/images/mzmqImage.hpp \
+           src/images/pixaccess.hpp \
+           src/images/ImageStruct.hpp 
 
-SOURCES += src/imviewer.cpp \
+SOURCES += src/rtimvBase.cpp \
            src/rtimvMainWindow.cpp \
-           src/imviewer_main.cpp \
-           src/imviewerControlPanel.cpp \
-           src/imviewerstats.cpp \
-           src/rtimvImage.cpp
+           src/rtimvMain.cpp \
+           src/rtimvControlPanel.cpp \
+           src/rtimvStats.cpp \
+           src/images/shmimImage.cpp \
+           src/images/fitsImage.cpp \
+           src/images/mzmqImage.cpp
            
 FORMS += forms/rtimvMainWindow.ui \
          forms/imviewerControlPanel.ui \
@@ -50,7 +56,9 @@ LIBS += -lImageStreamIO
 LIBS += -lcfitsio
 LIBS += -lrtimv
 LIBS += -lmxlib 
-        
+LIBS += -lzmq
+LIBS += -lxrif
+
 RESOURCES += res/imviewer.qrc
 
 #########################

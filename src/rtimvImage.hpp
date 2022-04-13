@@ -1,5 +1,5 @@
 /** \file rtimvImage.hpp
-  * \brief Declarations for the rtimvImage shared memory management class
+  * \brief Declarations for the rtimvImage virtual interface
   *
   * \author Jared R. Males (jaredmales@gmail.com)
   *
@@ -9,146 +9,104 @@
 #ifndef rtimv_rtimvImage_hpp
 #define rtimv_rtimvImage_hpp
 
-#include <iostream>
-
 #include <QObject>
-
 #include <QTimer>
-
-#include <fitsio.h>
-#include <ImageStreamIO/ImageStreamIO.h>
-
-#include "pixaccess.h"
 
 #define RTIMVIMAGE_NOUPDATE (0)
 #define RTIMVIMAGE_AGEUPDATE (1)
 #define RTIMVIMAGE_IMUPDATE (2)
 #define RTIMVIMAGE_FPSUPDATE (3)
 
+/// Base class for rtimv images 
+/** Defines the interface to an image stream to be displayed by rtimv.
+  *
+  */ 
 struct rtimvImage : public QObject
 {
-   Q_OBJECT
- 
+   
+    
 public:
    
-protected:
-   std::string m_shmimName; ///< The path to the shared memory buffer containing the image data.
-
-   bool m_isStatic {false}; ///< Flag set if the image is static, e.g. if it's loaded from a FITS file
-
-   bool m_staticUpdated {false}; ///< Flag used so that a static images is updated once and only once.
-   
-   int m_shmimTimeout {1000}; ///<The timeout for checking for shared memory file existence.
-   
-   int m_timeout {100}; ///< The image display timeout, should be set from the managing process.  Only used for F.P.S. calculations.
-   
-   IMAGE m_image; ///< A real-time image structure which contains the image data and meta-data.
-
-   uint32_t m_nx {0}; ///< Size of the image in pixels in the x direction (horizontal on screen)
-   
-   uint32_t m_ny {0}; ///< Size of the image in pixels in the y direction (vertical on screen)
-   
-   size_t m_typeSize; ///< The size, in bytes, of the image data type
- 
-   char * m_data {nullptr}; ///< Pointer to the image data
- 
-   QTimer m_timer; ///< When this times out imviewer checks for a new image.
-   
-   bool m_shmimAttached {false}; ///< Flag denoting whether or not the shared memory is attached.
-
-   uint64_t m_lastCnt0 {std::numeric_limits<uint64_t>::max()}; //make huge so we don't skip the 0 image
-   
-   int m_fps_counter {0};
-   int m_age_counter {0};
-   
-public:
-   
-   ///Default c'tor
-   rtimvImage();
-
-   ///Set the shared memory image name 
-   /** If this contains the string ".fits" then it is treated as a FITS file and loaded as a static image.  Otherwise
-     * it is treated as an ImageStreamIO image stream, and added to the path such as `/milk/shm/<m_shmimName>.im.shm`.
+   /// Set the image key
+   /** This function sets the image key, and must begin the connection and reading process.
      * 
      * \returns 0 on success
      * \returns -1 on error
      */ 
-   int shmimName(const std::string & sn /**< [in] the new share memory image name*/);
+   virtual int imageKey(const std::string & sn /**< [in] the new share memory image name*/) = 0;
    
-   /// Get the current share memory name
-   std::string shmimName();
+   /// Get the current image key.
+   /**
+     * \returns the image key.
+     */ 
+   virtual std::string imageKey() = 0;
    
-   /// Get the current value of the the m_isStatic flag.
-   bool isStatic();
-   
-   /// Set the shared-memory timeout
-   void shmimTimeout(int st /**< [in] the new timeout in milliseconds */);
-   
-   /// Get the shared-memory timeout
-   int shmimTimeout();
+   /// Get the image name, usually derived from the key.
+   /**
+     * The name may be a subset of the key, e.g. without the path for a file.
+     *
+     * \returns the image name
+     */ 
+   virtual std::string imageName() = 0;
    
    /// Set the managing processes display timeout, which is only used for F.P.S. calculations
-   void timeout(int to /**< [in] the new timeout in milliseconds */);
+   virtual void timeout(int to /**< [in] the new timeout in milliseconds */) = 0;
    
    /// Get the image dimension in the x direction.
    /** Units are pixels.
      *
-     * \returns the current value of m_nx;
+     * \returns the current x dimension
      */ 
-   uint32_t nx();
+   virtual uint32_t nx() = 0;
    
    /// Get the image dimension in the y direction.
    /** Units are pixels.
      *
-     * \returns the current value of m_ny;
+     * \returns the current y dimension;
      */
-   uint32_t ny();
+   virtual uint32_t ny() = 0;
    
    /// Get the image acquisition time 
    /** Gets the acquisition time converted to double, giving time since the epoch.
      * 
      * \returns the time the current image was acquired.
      */
-   double imageTime();
+   virtual double imageTime() = 0;
    
-public slots:
-   void shmimTimerout();
-   
-signals:
-   void connected();
-   
-public:
-   
-   virtual void imConnect();
+   /// Function called at intervals to check for updated image data.
+   /**
+     * \returns RTIMVIMAGE_NOUPDATE if there no updates
+     * \returns RTIMVIMAGE_AGEUPDATE if the image age has been updated but the data has not.
+     * \returns RTIMVIMAGE_IMUPDATE if the image data has updated
+     * \returns RTIMVIMAGE_FPSUPDATE if there is an F.P.S. update along with an image data update
+     */
+   virtual int update() = 0;
 
-   void imConnectStatic();
+   /// Detach / disconnect from the image source and clean up.  
+   /** Primarily used in the event of a SIGSEGV or SIGBUS.
+     * This instance must be ready to connect again, and begin monitoring the source for new data.
+     */ 
+   virtual void detach() = 0;
    
-   ///Function called by timer expiration.  Points to latest image and updates the FPS.
-   int update();
-
-   void detach();
+   /// Check whether image is connected and has valid data
+   /**
+     * \returns `true` if this instance is attached to its source and has valid data.  `false` otherwise.
+     */
+   virtual bool valid() = 0;
    
-   /// Returns `true` if this instance is attached to its stream and has valid data.  `false` otherwise.
-   bool valid();
+   /// Get the value at pixel n as a float.
+   /** The linear index n is determined by n = y * nx() + x where (x,y) is the pixel coordinate.
+     *
+     * \returns the value of the pixel 
+     */   
+   virtual float pixel(size_t n) = 0;
    
-public:
+   /// Get the latest estimate of FPS for this image.
+   /**
+     * \returns the latest FPS estimate.
+     */ 
+   virtual float fpsEst() = 0;
 
-    /*** Real time frames per second ***/
-
-   double m_fpsTime {0}; ///< The current image time.
-   
-   double m_fpsTime0 {0}; ///< The reference time for calculate f.p.s.
-   
-   uint64_t m_fpsFrame0 {0}; ///< The reference frame number for calculaiting f.p.s.
-   
-   float m_fpsEst {0}; ///< The current f.p.s. estimate.
-
-   void update_fps(); ///< Update the f.p.s. estimate from the current timestamp and frame numbers.
-
-   float (*pixget)(void *, size_t) {nullptr}; ///< Pointer to a function to extract the image data as a float.
-
-public:
-   float pixel(size_t n);
 };
 
 

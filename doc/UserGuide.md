@@ -1,22 +1,29 @@
 
-# rtimv
+# rtimv User's Guide
 
-An image viewer optimized for real-time image stream display. Works with MILK/CACAO shared memory image streams.
+An image viewer optimized for real-time image stream display. Works with MILK/CACAO shared memory image streams locally or via the `milkzmq` protocol.  Will also display local FITS files.
 
 ## Basic Startup
-The basic way to start `rtimv` is to provide a list of stream names:
+
+The basic way to start `rtimv` is to provide a list of local stream names:
 ```
 $ rtimv image dark mask sat_mask
 ```
-where each of the streamn names corresponds to an image, e.g. `image` => `/milk/shm/image.im.shm` but note that you only pass `image`.  Order matters in this list, and it must be the last thing on the command line (after any options).
+where each of the stream names corresponds to an image, e.g. `image` => `/milk/shm/image.im.shm` (but note that you only pass `image`).  Order matters in this list, and it must be the last thing on the command line (after any options).
 
 These (and many more) can also be specified in a configuration file, or with named command line options, as detailed below under [Configuration](#Configuration).
 
 For a camera named `camname` with an existing configuration file, start `rtimv` with
+```
+$ rtimv -c /path/to/camname_config.conf
+```
 
-```
-$ rtimv -c camname
-```
+## Image Keys
+
+The name and location of an image is specified by its `key`.  The following rules are followed in the given order to determine how to find an image:
+- If the `key` ends in `.fits`, `.fit`, `.FITS`, or `.FIT`, then the image is treated as a FITS file stored on local disk with `key` specifying a valid path.
+- If the `key` contains `@` or `:`, or the configuration option `--mzmq.always=true` (`-Z`) is set, then the `key` is interpreted as a `milkzmq` address of the form `name@server:port`.  If `mzmq.always` is set, then `@` and `:` are optional.
+- Otherwise, `key` is treated as a local `milk` `shmim` name and the standard path is followed, e.g. `/milk/shm/image.im.shm` for `key=image`.
 
 ## Operating rtimv
 
@@ -75,57 +82,60 @@ The displayed coordinate is for the center of a pixel, counting from `0,0` for t
 
 ## Configuration
 
+rtimv can be configured from the command line or using a config file.
 ```
-$ rtimv --image.shmim_name=image --dark.shmim_name=dark --mask.shmim_name=mask --satMask.shmim_name=sat_mask
+$ rtimv --image.key=image --dark.key=dark --mask.key=mask --satMask.key=sat_mask
 ```
 or with a configuration file
 ```
-rtimv -c config_file.conf 
+rtimv -c /path/to/config_file.conf 
 ```
 where the options would be specified in the file as
 ```
 [image]
-shmim_name=image 
+key=image 
 
 [dark]
-shmim_name=dark
+key=dark
 
 [mask]
-shmim_name=mask
+key=mask
 
 [satMask]
-shmim_name=sat_mask
+key=sat_mask
 ```
-Many more options are available.
+Many more options are available.  
 
 ### Configuration Options
-| Short | Long              | Config-File*         | Type          | Description |
-|-------|-------------------|----------------------|---------------|-----------|
-| `-h`  | `--help`          |                      | bool          | Print a help message and exit |
-| `-c`  | `--config`        | `config`             | string        | A local config file |
-|        | `--autoscale`  | `autoscale` | bool | Flag to turn on/off auto scaling (default is on) |
-|        | `--nofpsgage`  | `nofpsgage` | bool | Flag to turn on/off the FPS gauge (default is on) |
-|        | `--targetXc`   | `targetXc`  | real | The pixel location of the x center of the target cross | 
-|        | `--targetYc`   | `targetYc`  | real |  The pixel location of the x center of the target cross |
-|        | `--image.shmim_name`    | `image.shmim_name` | string | The shared memory image file name for the image, or a FITS file path. |
-|        | `--image.shmim_timeout` | `image.shmim_name` | int    | The timeout for checking for the shared memory image for the image.  Default is 1000 msec. |
-|        | `--image.timeout`       | `image.shmim_name` | int    | The timeout for checking for a new image.  Default is 100 msec (10 f.p.s.). |
-|        | `--dark.shmim_name`    | `dark.shmim_name` | string | The shared memory image file name for the dark-image, or a FITS file path. |
-|        | `--dark.shmim_timeout` | `dark.shmim_name` | int    | The timeout for checking for the shared memory image for the dark.  Default is 1000 msec. |
-|        | `--dark.timeout`       | `dark.shmim_name` | int    | The timeout for checking for a new dark.  Default is 100 msec (10 f.p.s.). |
-|        | `--mask.shmim_name`    | `mask.shmim_name` | string | The shared memory image file name for the mask-image, or a FITS file path. |
-|        | `--mask.shmim_timeout` | `mask.shmim_name` | int    | The timeout for checking for the shared memory image for the mask.  Default is 1000 msec. |
-|        | `--mask.timeout`       | `mask.shmim_name` | int    | The timeout for checking for a new mask.  Default is 100 msec (10 f.p.s.). |
-|        | `--satMask.shmim_name`    | `satMask.shmim_name` | string | The shared memory image file name for the sat-mask-image, or a FITS file path. |
-|        | `--satMask.shmim_timeout` | `satMask.shmim_name` | int    | The timeout for checking for the shared memory image for the satMask.  Default is 1000 msec. |
-|        | `--satMask.timeout`       | `satMask.shmim_name` | int    | The timeout for checking for a new satMask.  Default is 100 msec (10 f.p.s.). |
+| Short | Long             | Config-File          | Type   | Description |
+|-------|------------------|----------------------|--------|-----------|
+| `-h`  | `--help`         |                      | bool   | Print a help message and exit |
+| `-c`  | `--config`       | `config`             | string | A local config file. If RTIMV_CONFIG_PATH is set that path will be used, otherwise this must be the full path. |
+|        | `--autoscale`   | `autoscale`          | bool   | Set to turn autoscaling on at startup (default is off) |
+|        | `--nofpsgage`   | `nofpsgage`          | bool   | Set to turn the fps gage off at startup (default is on) |
+|        | `--darksub`     | `darksub`            | bool   | Set to false to turn off on at startup.  If a dark is supplied, darksub is otherwise on. |
+|        | `--targetXc`    | `targetXc`           | real   | The fractional x-coordinate of the target, 0<= targetXc <=1    | 
+|        | `--targetYc`    | `targetYc`           | real   | The fractional y-coordinate of the target, 0<= targetYc <=1  |
+| `-Z`   | `--mzmq.always` | `mzmq.always`        | bool   | Set to make milkzmq the protocol for bare image names.  Note that local shmims can not be used if this is set. |
+| `-s`   | `--mzmq.server` | `mzmq.server`        | int    | The default server for milkzmq.  The default default is localhost.  This will be overridden by an image specific server specified in a key. |
+| `-p`   | `--mzmq.port`   | `mzmq.port`          | string | The default port for milkzmq.  The default default is 5556.  This will be overridden by an image specific port specified in a key.
+|        | `--image.key`   | `image.key`          | string | The main image key. Specifies the protocol, location, and name of the main image. |
+|        | `--dark.key`    | `dark.key`           | string | The dark image key. Specifies the protocol, location, and name of the dark image. |
+|        | `--mask.key`    | `mask.key`           | string | The mask image key. Specifies the protocol, location, and name of the mask image. |
+|        | `--satMask.key` | `satMask.key`        | string | The satMask image key. Specifies the protocol, location, and name of the satMask image. |
 
-* the Config-File options of the form `section.keyword` specify the form
+
+The Config-File options of the form `section.keyword` specify the form
 ```
 [section]
 keyword=value
 ```
 in the configuration file.
 
-The location of the configuration file can be set via the environment variable `RTIMV_CONFIG_PATH`.  If set, this path will be added to the front of the filename specified with the `-c` or `--config` command line option.
+The path to `config_file.conf` can be specified via the environment variable `RTIMV_CONFIG_PATH`, in which case the path can be ommitted.  If set, this path will be added to the front of the filename specified with the `-c` or `--config` command line option. 
+
+Settings on the command line override settings in the config file.  So the same config file could be used for several images, changing only the image name on the command line for instance.
+
+
+
 

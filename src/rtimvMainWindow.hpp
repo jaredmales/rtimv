@@ -19,8 +19,8 @@ using namespace mx::app;
 
 
 #include "ui_rtimvMainWindow.h"
-#include "imviewer.hpp"
-#include "imviewerControlPanel.h"
+#include "rtimvBase.hpp"
+#include "rtimvControlPanel.hpp"
 
 #include "rtimvInterfaces.hpp"
 
@@ -28,7 +28,7 @@ using namespace mx::app;
 #include "StretchCircle.hpp"
 #include "StretchLine.hpp"
 
-#include "imviewerstats.hpp"
+#include "rtimvStats.hpp"
 
 
 #include <cstdio>
@@ -44,9 +44,9 @@ using namespace mx::app;
 #define ViewViewNoImage 1
 #define ViewViewModeMax 2
 
-class imviewerControlPanel;
+class rtimvControlPanel;
 
-class rtimvMainWindow : public imviewer, public application
+class rtimvMainWindow : public rtimvBase, public application
 {
    Q_OBJECT
    
@@ -59,7 +59,7 @@ public:
       
    ~rtimvMainWindow();
    
-      
+public:
    virtual void setupConfig();
       
    virtual void loadConfig();
@@ -67,6 +67,7 @@ public:
 protected:
    std::string m_title {"rtimv"};
 
+   
 public:
    
    ///Called on initial connection to the image stream, sets matching aspect ratio.
@@ -89,7 +90,7 @@ public:
    
    /*** The control Panel ***/
 protected:
-   imviewerControlPanel *imcp;
+   rtimvControlPanel *imcp;
    
    float pointerOverZoom;
    
@@ -197,7 +198,7 @@ public:
       std::unordered_set<StretchCircle *> m_userCircles;
       std::unordered_set<StretchLine *> m_userLines;
       
-      imviewerStats * imStats;
+      rtimvStats * imStats;
 
       void launchImStats();
       

@@ -1,10 +1,6 @@
+#ifndef pixaccess_hpp
+#define pixaccess_hpp
 
-
-
-
-#ifndef pixaccess_h
-#define pixaccess_h
-          
 #include "ImageStruct.hpp"
 
 ///Function to cast the data type to float.

@@ -1,6 +1,6 @@
 
-#ifndef rtimv_imviewerstats_hpp
-#define rtimv_imviewerstats_hpp
+#ifndef rtimv_rtimvStats_hpp
+#define rtimv_rtimvStats_hpp
 
 
 #include <cstdio>
@@ -12,33 +12,34 @@
 
 #include "ui_imviewerStats.h"
 
-#include "imviewer.hpp"
+#include "rtimvBase.hpp"
 
-class imviewerStats;
+class rtimvStats;
 
 ///Thread class to start the stats thread.
 class StatsThread : public QThread
 {
    public:
       void run();
-      imviewerStats *imvs;
+      rtimvStats *imvs;
 };
 
 /// Class to manage calculating statistics in the designated image region 
-class imviewerStats : public QDialog
+class rtimvStats : public QDialog
 {
    Q_OBJECT
    
    public:
-      imviewerStats( imviewer * imv, 
-                     QWidget * Parent = 0, 
-                     Qt::WindowFlags f = 0
-                   );
-      ~imviewerStats();
+      rtimvStats( rtimvBase * imv, 
+                  QWidget * Parent = 0, 
+                  Qt::WindowFlags f = 0
+                );
+      
+      ~rtimvStats();
       
    protected:
       
-      imviewer * m_imv {nullptr};
+      rtimvBase * m_imv {nullptr};
       
       int statsPause {20};
 
@@ -81,4 +82,4 @@ class imviewerStats : public QDialog
 
 };
 
-#endif //rtimv_imviewerstats_hpp
+#endif //rtimv_rtimvStats_hpp
