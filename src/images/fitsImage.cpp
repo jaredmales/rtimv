@@ -10,6 +10,11 @@ fitsImage::fitsImage()
    connect(&m_timer, SIGNAL(timeout()), this, SLOT(imageTimerout()));
 
    m_notifyfd = inotify_init1(IN_NONBLOCK);
+   if(m_notifyfd < 0)
+   {
+      perror("rtimv: fitsImage: error intializing inotify");
+      std::cerr << "Will not be able to watch file for changes\n";
+   }
 }
 
 int fitsImage::imageKey( const std::string & sn )
@@ -200,7 +205,18 @@ void fitsImage::imConnect()
 
    m_imageFound = 1;
    
+   if(m_notifyfd < 0) 
+   {
+      emit connected();
+      return;
+   }
+   
    m_notifywd = inotify_add_watch(m_notifyfd, m_imagePath.c_str(), IN_CLOSE_WRITE);
+
+   if(m_notifywd < 0)
+   {
+      perror("rtimv: fitsImage: error adding inotify watch");
+   }
 
    emit connected();
 }
@@ -221,6 +237,8 @@ int fitsImage::update()
    
    ssize_t len;
    
+   if(m_notifyfd < 0 ) return RTIMVIMAGE_NOUPDATE;
+
    len = read(m_notifyfd, m_notify_buf, sizeof(m_notify_buf));
    if (len == -1 && errno != EAGAIN) 
    {
