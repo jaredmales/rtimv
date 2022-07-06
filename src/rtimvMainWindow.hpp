@@ -53,8 +53,8 @@ class rtimvMainWindow : public rtimvBase, public application
 public:
    rtimvMainWindow( int argc,
                     char ** argv,
-                    QWidget * Parent = 0, 
-                    Qt::WindowFlags f = 0
+                    QWidget * Parent = nullptr, 
+                    Qt::WindowFlags f = Qt::WindowFlags()
                   );
       
    ~rtimvMainWindow();

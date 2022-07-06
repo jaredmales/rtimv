@@ -960,7 +960,7 @@ void rtimvMainWindow::doLaunchStatsBox()
    
    if(!imStats)
    {
-      imStats = new rtimvStats(this, this, 0);
+      imStats = new rtimvStats(this, this, Qt::WindowFlags());
       imStats->setAttribute(Qt::WA_DeleteOnClose); //Qt will delete imstats when it closes.
       connect(imStats, SIGNAL(finished(int )), this, SLOT(imStatsClosed(int )));
    }

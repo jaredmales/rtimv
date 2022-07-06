@@ -14,7 +14,9 @@ class rtimvControlPanel : public QWidget
    Q_OBJECT
    
    public:
-      rtimvControlPanel(rtimvMainWindow *imv, Qt::WindowFlags f = 0);
+      rtimvControlPanel( rtimvMainWindow *imv, 
+                         Qt::WindowFlags f = Qt::WindowFlags()
+                       );
    
    protected:
       rtimvMainWindow * imv;

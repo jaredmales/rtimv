@@ -31,9 +31,10 @@ class rtimvStats : public QDialog
    
    public:
       rtimvStats( rtimvBase * imv, 
-                  QWidget * Parent = 0, 
-                  Qt::WindowFlags f = 0
+                  QWidget * Parent = nullptr, 
+                  Qt::WindowFlags f = Qt::WindowFlags()
                 );
+
       
       ~rtimvStats();
       

@@ -339,32 +339,36 @@ void rtimvBase::load_colorbar(int cb)
       switch(cb)
       {
          case colorbarJet:
-            m_mincol = 0;
-            m_maxcol = load_colorbar_jet(m_qim);
-            m_maskcol = m_maxcol + 1;
-            m_satcol = m_maxcol + 2;
+            m_minColor = 0;
+            m_maxColor = load_colorbar_jet(m_qim);
+            m_maskColor = m_maxColor + 1;
+            m_satColor = m_maxColor + 2;
+            m_nanColor = m_maskColor;
             warning_color = QColor("white");
             break;
          case colorbarHot:
-            m_mincol = 0;
-            m_maxcol = load_colorbar_hot(m_qim);
-            m_maskcol = m_maxcol + 1;
-            m_satcol = m_maxcol + 2;
+            m_minColor = 0;
+            m_maxColor = load_colorbar_hot(m_qim);
+            m_maskColor = m_maxColor + 1;
+            m_satColor = m_maxColor + 2;
+            m_nanColor = m_maskColor;
             warning_color = QColor("cyan");
             break;
          case colorbarBone:
-            m_mincol = 0;
-            m_maxcol = load_colorbar_bone(m_qim);
-            m_maskcol = m_maxcol + 1;
-            m_satcol = m_maxcol + 2;
+            m_minColor = 0;
+            m_maxColor = load_colorbar_bone(m_qim);
+            m_maskColor = m_maxColor + 1;
+            m_satColor = m_maxColor + 2;
+            m_nanColor = m_maskColor;
             warning_color = QColor("lime");
             break;
          default:
-            m_mincol = 0;
-            m_maxcol = 253;
-            m_maskcol = m_maxcol + 1;
-            m_satcol = m_maxcol + 2;
-            for(int i=m_mincol; i <= m_maxcol; i++) 
+            m_minColor = 0;
+            m_maxColor = 253;
+            m_maskColor = m_maxColor + 1;
+            m_satColor = m_maxColor + 2;
+            m_nanColor = m_maskColor;
+            for(int i=m_minColor; i <= m_maxColor; i++) 
             {
                int c = (( (float) i) / 253. * 255.) + 0.5;
                m_qim->setColor(i, qRgb(c,c,c));
@@ -596,19 +600,30 @@ void rtimvBase::changeImdata(bool newdata)
       setImsize(m_images[0]->nx(), m_images[0]->ny());
       
       //Need to set these at the beginning
-      imdat_min = _pixel(this,0);
-      imdat_max = _pixel(this,0);
+      imdat_min = std::numeric_limits<float>::max();
+      imdat_max = -std::numeric_limits<float>::max();
       for(uint32_t i = 0; i < m_ny; ++i)
       {
          for(uint32_t j=0;j < m_nx; ++j)
          {
-            if(_pixel(this, i*m_nx + j) > imdat_max) imdat_max = _pixel(this, i*m_nx + j);
-            if(_pixel(this, i*m_nx + j) < imdat_min) imdat_min = _pixel(this, i*m_nx + j) ;
+            imval = _pixel(this,i*m_nx + j);
+            if(!std::isfinite(imval)) continue;
+            if(imval > imdat_max) imdat_max = _pixel(this, i*m_nx + j);
+            if(imval < imdat_min) imdat_min = _pixel(this, i*m_nx + j) ;
 
          }
       }
+
+      if(!std::isfinite(imdat_max) || !std::isfinite(imdat_min)) 
+      {
+         //It should be impossible for them to be infinite by themselves unless it's all NaNs.
+         imdat_max = 0;
+         imdat_min = 0;
+      }
+
       mindat(imdat_min);
       maxdat(imdat_max);
+
    }
    
    amChangingimdata = true;
@@ -633,7 +648,13 @@ void rtimvBase::changeImdata(bool newdata)
             {
                idx = i*m_nx + j;
                imval = _pixel(this, idx);
-               m_qim->setPixel(j, m_ny-i-1, _index(imval,m_mindat, m_maxdat, m_mincol, m_maxcol));
+               
+               if(!std::isfinite(imval))
+               {
+                  m_qim->setPixel(j, m_ny-i-1, m_nanColor);
+                  continue;   
+               }
+               m_qim->setPixel(j, m_ny-i-1, _index(imval,m_mindat, m_maxdat, m_minColor, m_maxColor));
             }
          }
       }
@@ -641,17 +662,14 @@ void rtimvBase::changeImdata(bool newdata)
    else
    {
       //Update statistics
-      imval = _pixel(this, 0);//m_imData[0];
-      tmp_min = imval;
-      tmp_max = imval;
+      tmp_min = std::numeric_limits<float>::max();
+      tmp_max = -std::numeric_limits<float>::max();
       saturated = 0;
 
       if(colorBoxActive)
       {
-         idx = colorBox_j0*m_nx + colorBox_i0;
-         imval = _pixel(this, idx); //m_imData[idx];
-         colorBox_min = imval;
-         colorBox_max = imval;
+         colorBox_min = std::numeric_limits<float>::max();      
+         colorBox_max = -std::numeric_limits<float>::max();
       }
 
       if( m_mindat == m_maxdat )
@@ -663,6 +681,12 @@ void rtimvBase::changeImdata(bool newdata)
                idx = i*m_nx + j;
                imval = _pixel(this, idx); //m_imData[idx];
                
+               if(!std::isfinite(imval))
+               {
+                  m_qim->setPixel(j, m_ny-i-1, m_nanColor);
+                  continue;
+               }
+
                if(imval > tmp_max) tmp_max = imval;
                if(imval < tmp_min) tmp_min = imval;
       
@@ -676,7 +700,6 @@ void rtimvBase::changeImdata(bool newdata)
                      if(imval > colorBox_max) colorBox_max = imval;
                   }
                }
-      
                m_qim->setPixel(j, m_ny-i-1, 0);
       
             }
@@ -691,6 +714,12 @@ void rtimvBase::changeImdata(bool newdata)
                idx = i*m_nx + j;
                imval = _pixel(this, idx); //m_imData[idx];
                
+               if(!std::isfinite(imval))
+               {
+                  m_qim->setPixel(j, m_ny-i-1, m_nanColor);
+                  continue;
+               }
+
                if(imval > tmp_max) tmp_max = imval;
                if(imval < tmp_min) tmp_min = imval;
       
@@ -705,7 +734,7 @@ void rtimvBase::changeImdata(bool newdata)
                   }
                }
       
-               m_qim->setPixel(j, m_ny-i-1, _index(imval,m_mindat, m_maxdat, m_mincol, m_maxcol));
+               m_qim->setPixel(j, m_ny-i-1, _index(imval,m_mindat, m_maxdat, m_minColor, m_maxColor));
       
             }
          }
@@ -725,7 +754,7 @@ void rtimvBase::changeImdata(bool newdata)
             for(uint32_t j=0;j < m_nx; ++j)
             {
                idx = i*m_nx + j;
-               if( m_images[2]->pixel(idx) == 0 ) m_qim->setPixel(j, m_ny-i-1, m_maskcol);
+               if( m_images[2]->pixel(idx) == 0 ) m_qim->setPixel(j, m_ny-i-1, m_maskColor);
             }
          }
       }
@@ -740,7 +769,7 @@ void rtimvBase::changeImdata(bool newdata)
             for(uint32_t j=0;j < m_nx; ++j)
             {
                idx = i*m_nx + j;
-               if( m_images[3]->pixel(idx) == 1 ) m_qim->setPixel(j, m_ny-i-1, m_satcol);
+               if( m_images[3]->pixel(idx) == 1 ) m_qim->setPixel(j, m_ny-i-1, m_satColor);
             }
          }
       }
