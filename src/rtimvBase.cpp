@@ -837,12 +837,8 @@ void rtimvBase::setUserBoxActive(bool usba)
 
       pixelF _pixel = pixel();
    
-      idx = colorBox_j0*m_nx + colorBox_i0;
-      
-      imval = _pixel(this, idx); //m_imData[idx];
-
-      colorBox_min = imval;
-      colorBox_max = imval;
+      colorBox_min = std::numeric_limits<float>::max();
+      colorBox_max = -std::numeric_limits<float>::max();
       for(int i = colorBox_i0; i < colorBox_i1; i++)
       {
          for(int j = colorBox_j0; j < colorBox_j1; j++)
@@ -850,11 +846,19 @@ void rtimvBase::setUserBoxActive(bool usba)
             idx = j*m_nx + i;
             imval = _pixel(this, idx);// m_imData[idx];
 
+            if(!std::isfinite(imval)) continue;
+
             if(imval < colorBox_min) colorBox_min = imval;
             if(imval > colorBox_max) colorBox_max = imval;
          }
       }
 
+      if(colorBox_min == std::numeric_limits<float>::max() && colorBox_max == -std::numeric_limits<float>::max()) //If all nans
+      {
+         colorBox_min = 0;
+         colorBox_max = 0;
+      }
+      
       mindat(colorBox_min);
       maxdat(colorBox_max);
       colorBoxActive = usba;
