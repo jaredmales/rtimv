@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>724</width>
-    <height>378</height>
+    <width>723</width>
+    <height>367</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,8 +16,8 @@
   <widget class="QTabWidget" name="tabWidget">
    <property name="geometry">
     <rect>
-     <x>8</x>
-     <y>10</y>
+     <x>0</x>
+     <y>0</y>
      <width>721</width>
      <height>361</height>
     </rect>
@@ -35,7 +35,7 @@
    <property name="usesScrollButtons">
     <bool>false</bool>
    </property>
-   <widget class="QWidget" name="tab">
+   <widget class="QWidget" name="tabView">
     <attribute name="title">
      <string>View</string>
     </attribute>
@@ -1217,7 +1217,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QWidget" name="tab_2">
+   <widget class="QWidget" name="tabColor">
     <attribute name="title">
      <string>Color</string>
     </attribute>
@@ -1735,7 +1735,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QWidget" name="tab_3">
+   <widget class="QWidget" name="tabSetup">
     <attribute name="title">
      <string>Setup</string>
     </attribute>
@@ -1857,6 +1857,102 @@
      <property name="text">
       <string>Show Static Coords</string>
      </property>
+    </widget>
+    <widget class="QWidget" name="verticalLayoutWidget">
+     <property name="geometry">
+      <rect>
+       <x>370</x>
+       <y>170</y>
+       <width>321</width>
+       <height>140</height>
+      </rect>
+     </property>
+     <layout class="QVBoxLayout" name="vLayoutTargetCross">
+      <item>
+       <layout class="QHBoxLayout" name="hlTargetCross" stretch="1,2,1">
+        <item>
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QLabel" name="labelTargetCross">
+          <property name="text">
+           <string>Target Cross</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="buttonTargetCross">
+          <property name="text">
+           <string>show</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QGridLayout" name="gLayoutTargetCross">
+        <item row="2" column="2">
+         <widget class="QLineEdit" name="lineEditTargetFractionY"/>
+        </item>
+        <item row="1" column="1">
+         <widget class="QLineEdit" name="lineEditTargetPixelX"/>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="labelPixel">
+          <property name="text">
+           <string>Pixel</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="labelFraction">
+          <property name="text">
+           <string>Fraction</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QLineEdit" name="lineEditTargetFractionX"/>
+        </item>
+        <item row="0" column="2">
+         <widget class="QLabel" name="labelTargetY">
+          <property name="text">
+           <string>Y</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignBottom|Qt::AlignHCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLabel" name="labelTargetX">
+          <property name="text">
+           <string>X</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignBottom|Qt::AlignHCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="QLineEdit" name="lineEditTargetPixelY"/>
+        </item>
+       </layout>
+      </item>
+     </layout>
     </widget>
    </widget>
   </widget>

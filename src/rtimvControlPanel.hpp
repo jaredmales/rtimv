@@ -169,7 +169,7 @@ class rtimvControlPanel : public QWidget
    public:
       Ui::imviewerControlPanel ui;
       
-   /* Mouse coordinates display */
+   /*--------- Mouse coordinates display ---------------*/
 public slots:
    /// Receive signal that the tool tip coords display flag has changed.
    /** Updates the button text.
@@ -194,6 +194,50 @@ signals:
    /// Request that the static coords display flag change.
    void showStaticCoords(bool /**< [in] the new value of the flag*/);   
 
+
+   /*--------- Target Cross ---------------*/
+public slots:
+   /// Notify that the x-coordinate of the target has changed
+   /** This updates both the fraction and pixel values.
+     */ 
+   void targetXcChanged( float txc /**< [in] the new target x coordinate*/);
+
+   /// Notify that the y-coordinate of the target has changed
+   /** This updates both the fraction and pixel values.
+     */
+   void targetYcChanged( float tyc /**< [in] the new target y coordinate*/);
+
+   /// Notify that the target visibility has changed.
+   /** This updates the push button text.
+     */
+   void targetVisibleChanged( bool tv );
+       
+
+   /// Toggle the target cross visibility when button pressed.
+   void on_buttonTargetCross_clicked();
+
+   /// Set the target cross x coordinate by pixel value when enter is pressed.
+   void on_lineEditTargetPixelX_returnPressed();
+
+   /// Set the target cross y coordinate by pixel value when enter is pressed.
+   void on_lineEditTargetPixelY_returnPressed();
+
+   /// Set the target cross x coordinate by fraction when enter is pressed.
+   void on_lineEditTargetFractionX_returnPressed();
+
+   /// Set the target cross y coordinate by fraction when enter is pressed.
+   void on_lineEditTargetFractionY_returnPressed();
+
+signals:
+
+   /// Request to set the target cross x coordinate by fraction.
+   void targetXc( float txc /**< [in] the new target x coordinate*/);
+
+   /// Request to set the target cross y coordinate by fraction.
+   void targetYc( float tyc /**< [in] the new target y coordinate*/);
+
+   /// Request to set the target cross visibility
+   void targetVisible( bool tv );
 };
 
 

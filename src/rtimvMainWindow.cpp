@@ -193,7 +193,7 @@ void rtimvMainWindow::setupConfig()
    config.add("nofpsgage", "", "nofpsgage", argType::True, "", "nofpsgage", false, "bool", "Set to turn the fps gage off at startup");
    config.add("darksub", "", "darksub", argType::True, "", "darksub", false, "bool", "Set to false to turn off on at startup.  If a dark is supplied, darksub is otherwise on.");
    config.add("targetXc", "", "targetXc", argType::Required, "", "targetXc", false, "float", "The fractional x-coordinate of the target, 0<= x <=1");
-   config.add("targetYc", "", "targetYc", argType::Required, "", "targetXc", false, "float", "The fractional y-coordinate of the target, 0<= y <=1");
+   config.add("targetYc", "", "targetYc", argType::Required, "", "targetYc", false, "float", "The fractional y-coordinate of the target, 0<= y <=1");
 
    config.add("mouse.pointerCoords", "", "mouse.pointerCoords", argType::Required, "mouse", "pointerCoords", false, "bool", "Show or don't show the pointer coordinates.  Default is true.");
    config.add("mouse.staticCoords", "", "mouse.staticCoords", argType::Required, "mouse", "staticCoords", false, "bool", "Show or don't show the static coordinates at bottom of display.  Default is false.");
@@ -346,29 +346,6 @@ void rtimvMainWindow::postSetImsize()
    setTarget();
 }
 
-void rtimvMainWindow::setTarget()
-{
-   if(!m_cenLineVert)
-   {
-      m_cenLineVert = m_qgs->addLine(QLineF(m_targetXc*nx(),0, m_targetXc*nx(), ny()), QColor("lime"));
-      m_cenLineHorz = m_qgs->addLine(QLineF(0, (1.0-m_targetYc)*ny(), nx(), (1.0-m_targetYc)*ny()), QColor("lime"));
-      if(m_targetVisible)
-      {
-         m_cenLineVert->setVisible(true);
-         m_cenLineHorz->setVisible(true);
-      }
-      else
-      {
-         m_cenLineVert->setVisible(false);
-         m_cenLineHorz->setVisible(false);
-      } 
-   }
-   else
-   {
-      m_cenLineVert->setLine(QLineF(m_targetXc*nx(),0, m_targetXc*nx(), ny()));
-      m_cenLineHorz->setLine(QLineF(0, (1.0-m_targetYc)*ny(), nx(), (1.0-m_targetYc)*ny()));
-   }
-}
 
 void rtimvMainWindow::post_zoomLevel()
 {
@@ -928,7 +905,22 @@ void rtimvMainWindow::addUserLine()
       
 }
 
-int rtimvMainWindow::targetXc( float txc )
+float rtimvMainWindow::targetXc()
+{
+   return m_targetXc;
+}
+
+float rtimvMainWindow::targetYc()
+{
+   return m_targetYc;
+}
+
+bool rtimvMainWindow::targetVisible()
+{
+   return m_targetVisible;
+}
+
+void rtimvMainWindow::targetXc( float txc )
 {
    if(txc < 0) txc = 0;
    if(txc > 1) txc = 1;
@@ -937,15 +929,11 @@ int rtimvMainWindow::targetXc( float txc )
    
    setTarget();
    
-   return 0;
+   emit targetXcChanged(m_targetXc);
+
 }
      
-float rtimvMainWindow::targetXc()
-{
-   return m_targetXc;
-}
-      
-int rtimvMainWindow::targetYc( float tyc )
+void rtimvMainWindow::targetYc( float tyc )
 {
    if(tyc < 0) tyc = 0;
    if(tyc > 1) tyc = 1;
@@ -954,14 +942,63 @@ int rtimvMainWindow::targetYc( float tyc )
    
    setTarget();
    
-   return 0;
+   emit targetYcChanged(m_targetYc);
+
 }
      
-float rtimvMainWindow::targetYc()
+void rtimvMainWindow::targetVisible(bool tv)
 {
-   return m_targetYc;
+   if(m_targetVisible != tv)
+   {
+      if(tv)
+      {
+         ui.graphicsView->zoomText("target on");
+      }
+      else
+      {
+         ui.graphicsView->zoomText("target off");
+      }
+   }
+   m_targetVisible = tv;
+   setTarget();
+   emit targetVisibleChanged(m_targetVisible);
 }
-      
+
+void rtimvMainWindow::setTarget()
+{
+   if(!m_cenLineVert)
+   {
+      m_cenLineVert = m_qgs->addLine(QLineF(m_targetXc*nx(),0, m_targetXc*nx(), ny()), QColor("lime"));
+      m_cenLineHorz = m_qgs->addLine(QLineF(0, (1.0-m_targetYc)*ny(), nx(), (1.0-m_targetYc)*ny()), QColor("lime"));
+      if(m_targetVisible)
+      {
+         m_cenLineVert->setVisible(true);
+         m_cenLineHorz->setVisible(true);
+      }
+      else
+      {
+         m_cenLineVert->setVisible(false);
+         m_cenLineHorz->setVisible(false);
+      } 
+   }
+   else
+   {
+      m_cenLineVert->setLine(QLineF(m_targetXc*nx(),0, m_targetXc*nx(), ny()));
+      m_cenLineHorz->setLine(QLineF(0, (1.0-m_targetYc)*ny(), nx(), (1.0-m_targetYc)*ny()));
+      if(m_targetVisible)
+      {
+         m_cenLineVert->setVisible(true);
+         m_cenLineHorz->setVisible(true);
+      }
+      else
+      {
+         m_cenLineVert->setVisible(false);
+         m_cenLineHorz->setVisible(false);
+      }
+   }
+}
+
+
 void rtimvMainWindow::addStretchBox(StretchBox * sb)
 {
    if(sb == nullptr) return;
@@ -1669,16 +1706,18 @@ void rtimvMainWindow::toggleTarget()
 {
    if(m_targetVisible)
    {
-      m_cenLineVert->setVisible(false);
+      targetVisible(false);
+/*      m_cenLineVert->setVisible(false);
       m_cenLineHorz->setVisible(false);
-      m_targetVisible = false;
+      m_targetVisible = false;*/
       ui.graphicsView->zoomText("target off");
    }
    else
    {
-      m_cenLineVert->setVisible(true);
+      targetVisible(true);
+      /*m_cenLineVert->setVisible(true);
       m_cenLineHorz->setVisible(true);
-      m_targetVisible=true;
+      m_targetVisible=true;*/
       ui.graphicsView->zoomText("target on");
    }
 }

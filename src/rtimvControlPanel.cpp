@@ -45,12 +45,21 @@ rtimvControlPanel::rtimvControlPanel(rtimvMainWindow *v, Qt::WindowFlags f): QWi
    connect(imv, SIGNAL(showStaticCoordsChanged(bool)), this, SLOT(showStaticCoordsChanged(bool)));
    connect(this, SIGNAL(showStaticCoords(bool)), imv, SLOT(showStaticCoords(bool)));
 
+   connect(imv, SIGNAL(targetXcChanged(float)), this, SLOT(targetXcChanged(float)));
+   connect(imv, SIGNAL(targetYcChanged(float)), this, SLOT(targetYcChanged(float)));
+   connect(imv, SIGNAL(targetVisibleChanged(bool)), this, SLOT(targetVisibleChanged(bool)));
+                                                            
+
+   connect(this, SIGNAL(targetXc(float)), imv, SLOT(targetXc(float)));
+   connect(this, SIGNAL(targetYc(float)), imv, SLOT(targetYc(float)));
+   connect(this, SIGNAL(targetVisible(bool)), imv, SLOT(targetVisible(bool)));
 
    init_panel();
    
    //connect(viewBox, SIGNAL(moved(const QRectF & )), this, SLOT(viewBoxMoved(const QRectF &)));
 
    statsBoxButtonState = false;
+
 }
 
 void rtimvControlPanel::setupMode()
@@ -148,6 +157,10 @@ void rtimvControlPanel::init_panel()
    //initialize the button state for coordinate displays
    showToolTipCoordsChanged(imv->showToolTipCoords());
    showStaticCoordsChanged(imv->showStaticCoords());
+
+   targetXcChanged(imv->targetXc());
+   targetYcChanged(imv->targetYc());
+   targetVisibleChanged(imv->targetVisible());
 }
 
 void rtimvControlPanel::update_panel()
@@ -929,4 +942,119 @@ void rtimvControlPanel::on_staticCoordsButton_clicked()
 {
    //Toggle
    emit showStaticCoords(!imv->showStaticCoords());
+}
+
+void rtimvControlPanel::targetXcChanged( float txc )
+{
+   char str[16];
+   snprintf(str, sizeof(str), "%0.3f", txc);
+   ui.lineEditTargetFractionX->setText(str);
+
+   snprintf(str, sizeof(str), "%0.2f", txc*(imv->nx()) -0.5 );
+   ui.lineEditTargetPixelX->setText(str);
+}
+
+void rtimvControlPanel::targetYcChanged( float tyc )
+{
+   char str[16];
+   snprintf(str, sizeof(str), "%0.3f", tyc);
+   ui.lineEditTargetFractionY->setText(str);
+
+   snprintf(str, sizeof(str), "%0.2f", tyc*(imv->ny()) -0.5 );
+   ui.lineEditTargetPixelY->setText(str);
+}
+
+void rtimvControlPanel::targetVisibleChanged( bool tv )
+{
+   if(tv)
+   {
+      ui.buttonTargetCross->setText("hide");
+   }
+   else
+   {
+      ui.buttonTargetCross->setText("show");
+   }
+}
+
+void rtimvControlPanel::on_buttonTargetCross_clicked()
+{
+   //toggle
+   emit targetVisible(!imv->targetVisible());
+}
+
+void rtimvControlPanel::on_lineEditTargetPixelX_returnPressed()
+{
+   float txc = -1;
+   bool ok = false;
+   try
+   {
+      txc = ui.lineEditTargetPixelX->text().toFloat(&ok);
+   }
+   catch(...)
+   {
+      return;
+   }
+      
+   if(txc == -1 || ok == false) return;
+
+   txc = (txc + 0.5)/imv->nx();
+
+   emit targetXc(txc);
+}
+
+void rtimvControlPanel::on_lineEditTargetPixelY_returnPressed()
+{
+   float tyc = -1;
+   bool ok = false;
+   try
+   {
+      tyc = ui.lineEditTargetPixelY->text().toFloat(&ok);
+   }
+   catch(...)
+   {
+      return;
+   }
+      
+   if(tyc == -1 || ok == false) return;
+
+   tyc = (tyc + 0.5)/imv->ny();
+
+   emit targetYc(tyc);
+}
+
+void rtimvControlPanel::on_lineEditTargetFractionX_returnPressed()
+{
+   float txc = -1;
+   bool ok = false;
+   try
+   {
+      txc = ui.lineEditTargetFractionX->text().toFloat(&ok);
+   }
+   catch(...)
+   {
+      return;
+   }
+      
+   if(txc == -1 || ok == false) return;
+
+   emit targetXc(txc);
+}
+
+
+void rtimvControlPanel::on_lineEditTargetFractionY_returnPressed()
+{
+   float tyc = -1;
+   bool ok = false;
+   try
+   {
+      tyc = ui.lineEditTargetFractionY->text().toFloat(&ok);
+   }
+   catch(...)
+   {
+      return;
+   }
+      
+   if(tyc == -1 || ok == false) return;
+
+   emit targetYc(tyc);
 }

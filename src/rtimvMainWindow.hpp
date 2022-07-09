@@ -74,8 +74,6 @@ public:
    
    virtual void postSetImsize();
 
-   /// Setup the target lines
-   void setTarget();
    
    virtual void post_zoomLevel();
    
@@ -226,7 +224,7 @@ public:
       
    StretchBox* m_colorBox;
       
-      StretchBox* m_statsBox {nullptr};
+   StretchBox* m_statsBox {nullptr};
 
       std::unordered_set<StretchBox *> m_userBoxes;
       std::unordered_set<StretchCircle *> m_userCircles;
@@ -236,14 +234,7 @@ public:
 
       void launchImStats();
       
-   protected:
-      float m_targetXc {0.5}; ///< The x-coordinate of the target, 0<= x <= 1
-      float m_targetYc {0.5}; ///< The y-coordinate of the target, 0<= y <= 1
-      
-      bool m_targetVisible;  ///< Flag controlling whether the target is visible
-      
-      QGraphicsLineItem * m_cenLineVert; ///< The vertical line component of the target
-      QGraphicsLineItem * m_cenLineHorz; ///< The horizontal line component of the target
+
    
       
    public:
@@ -260,35 +251,66 @@ public:
       QGraphicsEllipseItem * m_lineHead;
       QGraphicsLineItem * m_objCenV;
       QGraphicsLineItem * m_objCenH;
+
+   /*---- Target Cross ----*/
+protected:
+   float m_targetXc {0.5}; ///< The x-coordinate of the target, 0<= x <= 1
+   float m_targetYc {0.5}; ///< The y-coordinate of the target, 0<= y <= 1
       
-      /// Set the x-coordinate of the target 
-      /** The coordinate is set as a fraction of the image, 0 <= targetXc <= 1.0
-        * It will be clamped to this range by this function..
-        * 
-        * \returns 0 on success
-        */ 
-      int targetXc( float txc /**< [in] the new target x coordinate*/);
+   bool m_targetVisible;  ///< Flag controlling whether the target is visible
       
-      /// Get the x-coordinate of the target
-      /** 
-        * \returns the current value of m_targetXc
-        */ 
-      float targetXc();
-      
-      /// Set the y-coordinate of the target 
-      /** The coordinate is set as a fraction of the image, 0 <= targetYc <= 1.0
-        * It will be clamped to this range by this function..
-        * 
-        * \returns 0 on success
-        */
-      int targetYc( float tyc /**< [in] the new target y coordinate*/);
-      
-      /// Get the y-coordinate of the target
-      /** 
-        * \returns the current value of m_targetYc
-        */
-      float targetYc();
-      
+   QGraphicsLineItem * m_cenLineVert; ///< The vertical line component of the target
+   QGraphicsLineItem * m_cenLineHorz; ///< The horizontal line component of the target
+
+public:      
+   /// Get the x-coordinate of the target
+   /** 
+     * \returns the current value of m_targetXc
+     */ 
+   float targetXc();
+
+   /// Get the y-coordinate of the target
+   /** 
+     * \returns the current value of m_targetYc
+     */
+   float targetYc();
+   
+   /// Get whether or not the target is currently visible
+   /** 
+     * \returns the current value of m_targetVisible.
+     */
+   bool targetVisible();
+
+public slots:
+   /// Set the x-coordinate of the target 
+   /** The coordinate is set as a fraction of the image, 0 <= targetXc <= 1.0
+     * It will be clamped to this range by this function..
+     */ 
+   void targetXc( float txc /**< [in] the new target x coordinate*/);
+
+   /// Set the y-coordinate of the target 
+   /** The coordinate is set as a fraction of the image, 0 <= targetYc <= 1.0
+     * It will be clamped to this range by this function..
+     */
+   void targetYc( float tyc /**< [in] the new target y coordinate*/);
+
+   /// Set whether or not the target is visible   
+   void targetVisible( bool tv /**< [in] the new status of target visibility */ );
+
+signals:
+
+   void targetXcChanged(float txc /**< [in] the new target x coordinate*/);
+
+   void targetYcChanged(float tyc /**< [in] the new target y coordinate*/);
+
+   void targetVisibleChanged(bool tv /**< [in] the new status of target visibility */);
+
+public:
+   /// Position the target lines
+   /** This is normally called by the targetXc(float) and targetYc(float) slots
+     */
+   void setTarget();
+
 protected slots:
    
    /// Add a StretchBox to user boxes
