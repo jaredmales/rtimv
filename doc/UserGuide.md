@@ -59,7 +59,6 @@ In general, if you see the "resize arrows" cursor when your mouse hovers over th
 | `l`     | add a line               | draw a line overlay and show its length and angle |
 | `n`     | toggle display of the North arrow | |
 | `p`     | open control panel                | |
-| `o`     | toggle display of the circle      | |
 | `r`     | re-stretch the display            | reset the min/max in the color table using the current image |
 | `s`     | toggle the statistics box         | |
 | `t`     | toggle the target cross           | |
@@ -75,9 +74,13 @@ In general, if you see the "resize arrows" cursor when your mouse hovers over th
 | `ctrl+c`     | center the display                | |
 
 
-### Pixel Conventions
+### Pixel Coordinates and Value 
 
-The displayed coordinate is for the center of a pixel, counting from `0,0` for the center of the lower left pixel.  The center of the array (and default target-cross coordinate) is `0.5*(Nx-1), 0.5*(Ny-1)`.
+By default the cuurent (x,y) pixel coordinate of the mouse pointer, and the image value under it, are displayed next to the mouse pointer.  This can be turned off in configuration using `--mouse.pointerCoords=true/false` or with the control panel.  
+
+The mouse coordinates and value can also be displayed in a static location at the lower left of the window.  This can be set in configuration using `--mouse.staticCoords=true/false` or with the control panel.
+
+The displayed coordinate is for the center of a pixel, counting from `0,0` for the center of the lower left pixel.  The center of the array (and default target-cross coordinate) is `(0.5*(Nx-1), 0.5*(Ny-1))`.
 
 
 ## Configuration

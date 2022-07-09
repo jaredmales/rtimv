@@ -40,6 +40,12 @@ rtimvControlPanel::rtimvControlPanel(rtimvMainWindow *v, Qt::WindowFlags f): QWi
    PointerViewFixed = false;
    PointerViewWaiting = false;
    
+   connect(imv, SIGNAL(showToolTipCoordsChanged(bool)), this, SLOT(showToolTipCoordsChanged(bool)));
+   connect(this, SIGNAL(showToolTipCoords(bool)), imv, SLOT(showToolTipCoords(bool)));
+   connect(imv, SIGNAL(showStaticCoordsChanged(bool)), this, SLOT(showStaticCoordsChanged(bool)));
+   connect(this, SIGNAL(showStaticCoords(bool)), imv, SLOT(showStaticCoords(bool)));
+
+
    init_panel();
    
    //connect(viewBox, SIGNAL(moved(const QRectF & )), this, SLOT(viewBoxMoved(const QRectF &)));
@@ -86,6 +92,8 @@ void rtimvControlPanel::setupCombos()
    ui.pointerViewModecomboBox->insertItem(PointerViewOnPress, "On mouse press");
    ui.pointerViewModecomboBox->insertItem(PointerViewDisabled, "Disabled");
    ui.pointerViewModecomboBox->setCurrentIndex(PointerViewOnPress);
+
+
 }
 
 void rtimvControlPanel::init_panel()
@@ -136,6 +144,10 @@ void rtimvControlPanel::init_panel()
    ui.scaleTypeCombo->setCurrentIndex(imv->get_cbStretch());
    ui.scaleModeCombo->setCurrentIndex(imv->get_colorbar_mode());
    ui.colorbarCombo->setCurrentIndex(imv->get_current_colorbar());
+
+   //initialize the button state for coordinate displays
+   showToolTipCoordsChanged(imv->showToolTipCoords());
+   showStaticCoordsChanged(imv->showStaticCoords());
 }
 
 void rtimvControlPanel::update_panel()
@@ -879,8 +891,42 @@ void rtimvControlPanel::viewBoxMoved ( const QRectF & vbr)
    
    imv->set_viewcen(nxcen/(double)imv->nx(), nycen/(double)imv->nx(), true);
    
-   
-   
+
    
 }
 
+void rtimvControlPanel::showToolTipCoordsChanged(bool sttc)
+{
+   if(sttc)
+   {
+      ui.toolTipCoordsButton->setText("Hide Pointer Coords");
+   }
+   else
+   {
+      ui.toolTipCoordsButton->setText("Show Pointer Coords");
+   }
+}
+
+void rtimvControlPanel::showStaticCoordsChanged(bool ssc)
+{
+   if(ssc)
+   {
+      ui.staticCoordsButton->setText("Hide Static Coords");
+   }
+   else
+   {
+      ui.staticCoordsButton->setText("Show Static Coords");
+   }
+}
+
+void rtimvControlPanel::on_toolTipCoordsButton_clicked()
+{
+   //Toggle
+   emit showToolTipCoords(!imv->showToolTipCoords());
+}
+
+void rtimvControlPanel::on_staticCoordsButton_clicked()
+{
+   //Toggle
+   emit showStaticCoords(!imv->showStaticCoords());
+}

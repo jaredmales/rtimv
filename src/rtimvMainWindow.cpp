@@ -39,7 +39,7 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    
    
    rightClickDragging = false;
-   
+
    m_nullMouseCoords = true;
    
    
@@ -194,7 +194,10 @@ void rtimvMainWindow::setupConfig()
    config.add("darksub", "", "darksub", argType::True, "", "darksub", false, "bool", "Set to false to turn off on at startup.  If a dark is supplied, darksub is otherwise on.");
    config.add("targetXc", "", "targetXc", argType::Required, "", "targetXc", false, "float", "The fractional x-coordinate of the target, 0<= x <=1");
    config.add("targetYc", "", "targetYc", argType::Required, "", "targetXc", false, "float", "The fractional y-coordinate of the target, 0<= y <=1");
-   
+
+   config.add("mouse.pointerCoords", "", "mouse.pointerCoords", argType::Required, "mouse", "pointerCoords", false, "bool", "Show or don't show the pointer coordinates.  Default is true.");
+   config.add("mouse.staticCoords", "", "mouse.staticCoords", argType::Required, "mouse", "staticCoords", false, "bool", "Show or don't show the static coordinates at bottom of display.  Default is false.");
+
    config.add("mzmq.always", "Z", "mzmq.always", argType::True, "mzmq", "always", false, "bool", "Set to make milkzmq the protocol for bare image names.  Note that local shmims can not be used if this is set.");
    config.add("mzmq.server", "s", "mzmq.server", argType::Required, "mzmq", "server", false, "string", "The default server for milkzmq.  The default default is localhost.  This will be overridden by an image specific server specified in a key.");
    config.add("mzmq.port", "p", "mzmq.port", argType::Required, "mzmq", "port", false, "int", "The default port for milkzmq.  The default default is 5556.  This will be overridden by an image specific port specified in a key.");
@@ -277,7 +280,9 @@ void rtimvMainWindow::loadConfig()
    config(m_targetXc, "targetXc");
    config(m_targetYc, "targetYc");
    
-   
+   config(m_showToolTipCoords, "mouse.pointerCoords");
+   config(m_showStaticCoords, "mouse.staticCoords");
+
 }
 
 void rtimvMainWindow::onConnect()
@@ -623,7 +628,11 @@ void rtimvMainWindow::nullMouseCoords()
       ui.graphicsView->textCoordX("");
       ui.graphicsView->textCoordY("");
       ui.graphicsView->textPixelVal("");
+
+      ui.graphicsView->hideMouseToolTip();
    }
+
+  
 }
 
 void rtimvMainWindow::updateMouseCoords()
@@ -649,10 +658,6 @@ void rtimvMainWindow::updateMouseCoords()
    
    if(!m_nullMouseCoords)
    {
-      ui.graphicsView->textCoordX(mx-0.5);
-      ui.graphicsView->textCoordY(m_qpmi->boundingRect().height() - my-0.5);
-      
-      
       idx_x = ((int64_t)(mx-0));
       if(idx_x < 0) idx_x = 0;
       if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
@@ -663,10 +668,26 @@ void rtimvMainWindow::updateMouseCoords()
 
       pixelF _pixel = pixel();
       
-      if(_pixel != nullptr)
-      ui.graphicsView->textPixelVal(_pixel(this,  (int)(idx_y*m_nx) + (int)(idx_x)) );
+      float val = 0;
+      if(_pixel != nullptr) val = _pixel(this,  (int)(idx_y*m_nx) + (int)(idx_x));
+      
+      if(m_showStaticCoords)
+      {
+         ui.graphicsView->textCoordX(mx-0.5);
+         ui.graphicsView->textCoordY(m_qpmi->boundingRect().height() - my-0.5);
+         ui.graphicsView->textPixelVal( val );
+      }
 
-      //m_qpmi->setToolTip("test\nnewt\nxxxyy");
+      if(m_showToolTipCoords)
+      {
+         char valStr[32];
+         char posStr[32];
+         snprintf(valStr, sizeof(valStr), "%0f", _pixel(this,  (int)(idx_y*m_nx) + (int)(idx_x)));
+         snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );
+
+         ui.graphicsView->showMouseToolTip(valStr, posStr, QPoint(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY()));
+      }
+
       if(imcp)
       {
          if(_pixel != nullptr)
@@ -690,6 +711,29 @@ void rtimvMainWindow::updateMouseCoords()
    
    
 }
+
+bool rtimvMainWindow::showToolTipCoords()
+{
+   return m_showToolTipCoords;
+}
+
+bool rtimvMainWindow::showStaticCoords()
+{
+   return m_showStaticCoords;
+}
+
+void rtimvMainWindow::showToolTipCoords(bool sttc)
+{
+   m_showToolTipCoords = sttc;
+   emit showToolTipCoordsChanged(m_showToolTipCoords);
+}
+
+void rtimvMainWindow::showStaticCoords(bool ssc)
+{
+   m_showStaticCoords = ssc;
+   emit showStaticCoordsChanged(m_showStaticCoords);
+}
+
 
 void rtimvMainWindow::changeMouseCoords()
 {

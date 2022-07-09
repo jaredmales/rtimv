@@ -12,7 +12,6 @@
 #include <QPluginLoader>
 #include <QDir>
 
-
 #include <mx/app/application.hpp>
 
 using namespace mx::app;
@@ -159,41 +158,73 @@ public:
       void resizeEvent(QResizeEvent *);
    
    /*** pointer data***/
-   protected:
-      bool rightClickDragging;
-      QPointF rightClickStart;
-      float biasStart;
-      float contrastStart;
-      void mouseMoveEvent(QMouseEvent *e);
-      void nullMouseCoords();
+protected:
+
+   bool rightClickDragging;
+   QPointF rightClickStart;
+   float biasStart;
+   float contrastStart;
+
+   bool m_showToolTipCoords {true}; ///< Flag indicating whether the mouse tool tip should be shown
+   bool m_showStaticCoords {false}; ///< Flag indicating whether the mouse tool tip should be shown
+
+   bool m_nullMouseCoords {true}; ///< Flag indicating whether or not the mouse coordinates have been nulled.
+
+   void mouseMoveEvent(QMouseEvent *e);
+
+   void nullMouseCoords();
+
+   /// Update the GUI for a change in mouse coordinates in the viewport
+   /** Performs the following functions:
+     * - Decides whether or not the mouse is currently in the pixmap.
+     * - If it is not in the pixmap, clears the mouse coord text boxes
+     * - If it is, updates the mouse coord text boxes
+     * - If the mouse is right-clicked and dragging, updates the strech bias and contrast.
+     */ 
+   void updateMouseCoords();
+
+public:
+   /// Get the value of the flag controlling whether tool tip coordinates are shown
+   /** \returns the current value of m_showToolTipCoords
+     */
+   bool showToolTipCoords();
+
+   /// Get the value of the flag controlling whether static coordinates are shown
+   /** \returns the current value of m_showStaticCoords
+     */
+   bool showStaticCoords();
+
+public slots:
       
-      bool m_nullMouseCoords {true}; ///< Flag indicating whether or not the mouse coordinates have been nulled.
+   /// Receive signal to show or hide tool tip coordinates
+   void showToolTipCoords(bool sttc /**< [in] The new value of the flag */);
       
-      /// Update the GUI for a change in mouse coordinates in the viewport
-      /** Performs the following functions:
-        * - Decides whether or not the mouse is currently in the pixmap.
-        * - If it is not in the pixmap, clears the mouse coord text boxes
-        * - If it is, updates the moust coord text boxes
-        * - If the moust is right-clicked and dragging, updates the strech bias and contrast.
-        */ 
-      void updateMouseCoords();
+   /// Receive signal to show or hide static coordinates
+   void showStaticCoords(bool ssc /**< [in] The new value of the flag */);
+
+signals:
+   /// Notify that the tool tip coordinate display flag has changed.
+   void showToolTipCoordsChanged(bool sttc /**< [in] The new value of the flag */);
+
+   /// Notify that the static coordinate display flag has changed.
+   void showStaticCoordsChanged(bool sttc /**< [in] The new value of the flag */);
+
+public slots:
+   /// Receive signal that the viewport mouse coordinates have changed.
+   void changeMouseCoords();
       
-   protected slots:
+   void viewLeftPressed(QPointF mp);
+   void viewLeftClicked(QPointF mp);
       
-      /// Receive signal that the viewport mouse coordinates have changed.
-      void changeMouseCoords();
+   void viewRightPressed(QPointF mp);
+   void viewRightClicked(QPointF mp);
       
-      void viewLeftPressed(QPointF mp);
-      void viewLeftClicked(QPointF mp);
+   void onWheelMoved(int delta);
+
+
+public:
       
-      void viewRightPressed(QPointF mp);
-      void viewRightClicked(QPointF mp);
-      
-      void onWheelMoved(int delta);
-      
-   public:
-      
-      StretchBox* m_colorBox;
+   StretchBox* m_colorBox;
       
       StretchBox* m_statsBox {nullptr};
 

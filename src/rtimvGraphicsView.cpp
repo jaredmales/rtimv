@@ -56,6 +56,10 @@ rtimvGraphicsView::rtimvGraphicsView(QWidget *parent): QGraphicsView(parent)
    textEditSetup(m_textPixelVal);
    textPixelVal("");
    
+   m_mouseCoords = new QTextEdit(this);
+   textEditSetup(m_mouseCoords);
+   m_mouseCoords->hide();
+
    gageFontFamily(RTIMV_DEF_GAGEFONTFAMILY);
    gageFontSize(RTIMV_DEF_GAGEFONTSIZE);
    gageFontColor(RTIMV_DEF_GAGEFONTCOLOR);
@@ -499,6 +503,7 @@ void rtimvGraphicsView::gageFontFamily(const char * ff)
    m_textCoordX->setCurrentFont(qf);
    m_textCoordY->setCurrentFont(qf);
    m_textPixelVal->setCurrentFont(qf);
+   m_mouseCoords->setCurrentFont(qf);
    
 }
 
@@ -514,6 +519,7 @@ void rtimvGraphicsView::gageFontSize( float fs )
    m_textCoordX->setCurrentFont(qf);
    m_textCoordY->setCurrentFont(qf);
    m_textPixelVal->setCurrentFont(qf);
+   m_mouseCoords->setCurrentFont(qf);
 }
 
 void rtimvGraphicsView::gageFontColor(const char * fc)
@@ -523,7 +529,7 @@ void rtimvGraphicsView::gageFontColor(const char * fc)
    m_textCoordX->setTextColor(QColor(m_gageFontColor));
    m_textCoordY->setTextColor(QColor(m_gageFontColor));
    m_textPixelVal->setTextColor(QColor(m_gageFontColor));
-   
+   m_mouseCoords->setTextColor(QColor(m_gageFontColor));
 }
 
 QString rtimvGraphicsView::gageFontFamily()
@@ -595,6 +601,69 @@ void rtimvGraphicsView::textPixelVal( const char * nt )
    m_textPixelVal->setPlainText(nt);
    m_textPixelVal->setAlignment(Qt::AlignLeft);  
 }      
+
+void rtimvGraphicsView::showMouseToolTip( const std::string & valStr, 
+                                          const std::string & posStr,
+                                          const QPoint & pt
+                                        )
+{
+   std::string str;
+
+   m_mouseCoords->setWordWrapMode(QTextOption::NoWrap);
+   
+   int x = pt.x();
+   int y = pt.y();
+
+   //First construct the text in correct order for y position
+   if(y > this->height()*0.5) 
+   {
+      std::string sp;
+      if(x > this->width()*0.5)
+      {
+         //Right justify the value string if needed
+         if(posStr.size() > valStr.size())
+         {
+            sp.append(posStr.size() - valStr.size(), ' ');
+         }
+      }
+      str = posStr + "\n" + sp + valStr;
+   }
+   else
+   {
+      str = valStr + "\n" + posStr;
+   }
+   
+   m_mouseCoords->setPlainText(str.c_str());
+
+   QFontMetrics fm(m_mouseCoords->currentFont());
+   QSize textSize = fm. size(0, str.c_str());
+   m_mouseCoords->resize(textSize.width()+5, textSize.height());
+
+   if(x > this->width()*0.5) 
+   {
+      x -= m_mouseCoords->width();
+      if(x < 0) x = 0;
+      m_mouseCoords->setAlignment(Qt::AlignRight);
+   }
+   else
+   {
+      m_mouseCoords->setAlignment(Qt::AlignLeft);
+   }
+
+   if(y > this->height()*0.5) 
+   {
+      y-= m_mouseCoords->height();
+   }
+   
+   m_mouseCoords->move(QPoint(x,y));
+   m_mouseCoords->show();
+   
+}
+
+void rtimvGraphicsView::hideMouseToolTip()
+{
+   m_mouseCoords->hide();
+}
 
 void rtimvGraphicsView::textPixelVal( float nv )
 {

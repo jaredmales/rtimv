@@ -168,7 +168,32 @@ class rtimvControlPanel : public QWidget
       
    public:
       Ui::imviewerControlPanel ui;
-   
+      
+   /* Mouse coordinates display */
+public slots:
+   /// Receive signal that the tool tip coords display flag has changed.
+   /** Updates the button text.
+     */
+   void showToolTipCoordsChanged(bool sttc /**< [in] the new value of the flag*/ );
+
+   /// Receive signal that the static coords display flag has changed.
+   /** Updates the button text.
+     */
+   void showStaticCoordsChanged(bool /**< [in] the new value of the flag*/);
+
+   /// Toggle the tool tip coords display flag 
+   void on_toolTipCoordsButton_clicked();
+
+   /// Toggle the static coords display flag 
+   void on_staticCoordsButton_clicked();
+
+signals:
+   /// Request that the tool tip coords display flag change.
+   void showToolTipCoords(bool /**< [in] the new value of the flag*/);
+
+   /// Request that the static coords display flag change.
+   void showStaticCoords(bool /**< [in] the new value of the flag*/);   
+
 };
 
 
