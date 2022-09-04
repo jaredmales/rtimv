@@ -123,6 +123,13 @@ void rtimvBase::startup( const std::vector<std::string> & shkeys )
    
 }
 
+bool rtimvBase::imageValid(size_t n)
+{
+   if( n >= m_images.size()) return false;
+   if(m_images[n] == nullptr) return false;
+   return m_images[n]->valid();
+}
+
 void rtimvBase::setImsize(uint32_t x, uint32_t y)
 {
    int cb;
@@ -168,17 +175,20 @@ void rtimvBase::timerout()
    static bool connected = false;
    
    int doupdate = RTIMVIMAGE_NOUPDATE;
-   
+   int supportUpdate = RTIMVIMAGE_NOUPDATE;
+
    if(m_images[0] != nullptr) doupdate = m_images[0]->update();
    
-   ///\todo we should update the display if one of the support images changes, i.e. a new dark, without the main image updating.
    for(size_t i=1;i<m_images.size(); ++i) 
    {
-      if(m_images[i] != nullptr) m_images[i]->update();
+      if(m_images[i] != nullptr) 
+      {
+         int sU = m_images[i]->update();
+         if(sU > supportUpdate) supportUpdate = sU;
+      }
    }
 
-   
-   if(doupdate >= RTIMVIMAGE_IMUPDATE) 
+   if(doupdate >= RTIMVIMAGE_IMUPDATE || supportUpdate >= RTIMVIMAGE_IMUPDATE) 
    {
       changeImdata(true);
       

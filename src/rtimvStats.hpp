@@ -10,6 +10,8 @@
 #include <QDialog>
 #include <QThread>
 
+#include <mx/improc/eigenImage.hpp>
+
 #include "ui_imviewerStats.h"
 
 #include "rtimvBase.hpp"
@@ -21,61 +23,91 @@ class StatsThread : public QThread
 {
    public:
       void run();
-      rtimvStats *imvs;
+      rtimvStats *m_imvs;
 };
 
 /// Class to manage calculating statistics in the designated image region 
+/** Copies the data in the region to a local array.  While less efficient than not doing so,
+  * this is done to avoid problems if the image goes away while the stats calculations are occuring.
+  */ 
 class rtimvStats : public QDialog
 {
    Q_OBJECT
    
+   private:
+      rtimvStats(){}
+
    public:
-      rtimvStats( rtimvBase * imv, 
-                  QWidget * Parent = nullptr, 
-                  Qt::WindowFlags f = Qt::WindowFlags()
+
+      /// Constructor
+      rtimvStats( rtimvBase * imv,                      ///< [in] The rtimv instance this is connected to
+                  QWidget * Parent = nullptr,           ///< [in] [optional] Qt parent widget
+                  Qt::WindowFlags f = Qt::WindowFlags() ///< [in] [optional] Qt flags for this widget
                 );
 
       
+      /// Destructor
       ~rtimvStats();
       
    protected:
       
-      rtimvBase * m_imv {nullptr};
+      rtimvBase * m_imv {nullptr}; ///< The rtimv instance this is connected to
       
-      int statsPause {20};
+      int m_statsPause {20}; ///< Pause between checks if the stats thread needs to calculate, milliseconds.
 
-      QTimer updateTimer; ///< When this times out the GUI is updated.
-      int updateTimerTimeout {50};
+      QTimer m_updateTimer; ///< When this times out the GUI is updated if needed.
+      int m_updateTimerTimeout {50}; ///< The GUI update timeout, milliseconds.
       
-      size_t image_nx {0};
-      size_t image_ny {0};
-      size_t region_x0 {0};
-      size_t region_x1 {0};
-      size_t region_y0 {0};
-      size_t region_y1 {0};
+      size_t m_nx {0}; ///< The x size of the image, stored internally for copying from image data to local array
+      size_t m_ny {0}; ///< The y size of the image, stored internally for copying from image data to local array
+      size_t m_x0 {0}; ///< The x coordinate of the starting corner of the region, stored internally for copying from image data to local array
+      size_t m_x1 {0}; ///< The x coordinate of the ending corner of the region, stored internally for copying from image data to local array
+      size_t m_y0 {0}; ///< The y coordinate of the starting corner of the region, stored internally for copying from image data to local array
+      size_t m_y1 {0}; ///< The y coordinate of the ending corner of the region, stored internally for copying from image data to local array
 
-      float imdata_min {0};
-      float imdata_max {0};
-      float imdata_mean {0};
-      float imdata_median {0};
+      mx::improc::eigenImage<float> m_imdata; ///< Local image storage.  The region is copied to this for robustness against segfaults from image changes.
 
-      int regionChanged {0};
-      int regionSizeChanged {0};
-      int regionChangedFit {0};
-      int statsChanged {0};
-      int dieNow {0};
+      float m_dataMin {0};    ///< The minimum value in the data
+      float m_dataMax {0};    ///< The maximum value in the data
+      float m_dataMean {0};   ///< The mean value in the data
+      float m_dataMedian {0}; ///< The median value in the data
 
-      StatsThread sth;
+      int m_regionChanged {0}; ///< Flag indicating that the region has changed, either size, location, or the data itself
+      int m_statsChanged {0};  ///< Flag indicating that the statistics have changed
+      int m_dieNow {0};        ///< Flag indicating that the stats thread should exit
+
+      std::mutex m_dataMutex; ///< Mutex for updating the local image (m_imdata).
+
+      StatsThread m_statsThread; ///< Thread for calculating the stats.
       
    public:
-      void set_imdata();
-      void set_imdata(size_t _nx, size_t _ny, size_t x0, size_t x1, size_t y0, size_t y1);
+      
+      /// Called by rtimvMainWindow to indicate that the data has changed.
+      void setImdata();
 
-      void stats_thread();
-      void calc_stats();
+      /// Called by rtimvMainWindow to indicate that the region has changed.
+      void setImdata( size_t nx, ///< [in] the new image x size
+                      size_t ny, ///< [in] the new image y size
+                      size_t x0, ///< The x coordinate of the starting corner of the region.
+                      size_t x1, ///< The x coordinate of the ending corner of the region.
+                      size_t y0, ///< The y coordinate of the starting corner of the region.
+                      size_t y1  ///< The y coordinate of the ending corner of the region.
+                    );
+
+      /// Run funciton for the statistics thread.  
+      /** Pauses for m_statsPause then calls calcStats, until m_dieNow is called.
+        */ 
+      void statsThread();
+
+      /// Calculate the statistics.
+      void calcStats();
 
       
    protected slots:
+
+      /// Update the GUI.
+      /** Called when m_updateTimer times out.
+       */
       void updateGUI();
       
    private:

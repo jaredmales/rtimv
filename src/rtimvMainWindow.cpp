@@ -416,7 +416,7 @@ void rtimvMainWindow::postChangeImdata()
    
    if(imStats) 
    {
-      imStats->set_imdata();
+      imStats->setImdata();
    }
 
    
@@ -1078,7 +1078,7 @@ void rtimvMainWindow::statsBoxMoved(StretchBox * sb)
 
    if(imStats) 
    {
-      imStats->set_imdata(m_nx, m_ny, np.x() + .5, np2.x(), m_ny-np2.y()+.5, m_ny-np.y());
+      imStats->setImdata(m_nx, m_ny, np.x(), np2.x(), m_ny-np2.y(), m_ny-np.y());
    }
    
 

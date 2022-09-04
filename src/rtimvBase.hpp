@@ -80,10 +80,21 @@ protected:
 
    std::vector<rtimvImage *> m_images;
       
-public:   
-   void setImsize(uint32_t x, uint32_t y); ///Changes the image size, but only if necessary.
+public: 
+
+   /// Check if an image is currently valid.
+   /** \returns true if valid
+     * \returns false otherwise 
+     */
+   bool imageValid( size_t n /**< [in] the image number */);
+
+   /// Changes the image size, but only if necessary.
+   void setImsize( uint32_t x, ///< [in] the new x size
+                   uint32_t y  ///< [in] the new y size
+                 ); 
    
-   virtual void postSetImsize(); ///<to call after set_imsize to handle allocations for derived classes
+   /// Called after set_imsize to handle allocations for derived classes
+   virtual void postSetImsize(); 
       
    ///Get the number of x pixels
    /**
