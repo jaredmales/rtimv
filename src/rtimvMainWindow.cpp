@@ -263,7 +263,7 @@ void rtimvMainWindow::onConnect()
 }
 
 void rtimvMainWindow::postSetImsize()
-{   
+{      
    ScreenZoom = std::min((float) ui.graphicsView->viewport()->width()/(float)m_nx,(float)ui.graphicsView->viewport()->height()/(float)m_ny);
    zoomLevel(1.0);
    set_viewcen(.5, .5);
@@ -279,22 +279,35 @@ void rtimvMainWindow::postSetImsize()
    }
    
    //resize the boxes
+   float w;
+   if(m_nx < m_ny) w = m_nx/4;
+   else w = m_ny/4;
+   float xc = 0.5*(m_nx)-w/2;
+   float yc = 0.5*(m_ny)-w/2;
+
    std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
    while(ubit != m_userBoxes.end())
    {
       StretchBox *sb = *ubit;
-      sb->setRect(sb->mapRectFromScene(m_ny*.35, m_nx*.35, .4*m_ny, .4*m_nx));
+      sb->setRect(sb->mapRectFromScene(xc, yc, w, w));
+      xc += (RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom)*10;
+      yc += (RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom)*10;
       sb->setEdgeTol(RTIMV_EDGETOL_DEFAULT/ScreenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/ScreenZoom);
       sb->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
       ++ubit;
    }
+   
+   if(m_statsBox) statsBoxMoved(m_statsBox);
+   if(m_colorBox) colorBoxMoved(m_colorBox);
    
    //resize the circles 
    std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
    while(ucit != m_userCircles.end())
    {
       StretchCircle *sc = *ucit;
-      sc->setRect(sc->mapRectFromScene(m_ny*.35, m_nx*.35, .4*m_ny, .4*m_nx));
+      sc->setRect(sc->mapRectFromScene(xc, yc, w, w));
+      xc += (RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom)*10;
+      yc += (RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom)*10;
       sc->setEdgeTol(RTIMV_EDGETOL_DEFAULT/ScreenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/ScreenZoom);
       sc->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
       ++ucit;
@@ -1027,15 +1040,11 @@ void rtimvMainWindow::doLaunchStatsBox()
 
 void rtimvMainWindow::doHideStatsBox()
 {
-   if(!m_statsBox) return;
-
-   m_statsBox->setVisible(false);
+   if(m_statsBox) m_statsBox->setVisible(false);
 
    if (imStats)
    {
       delete imStats;
-      //imStats->hide();
-      //imStats->close(); 
       imStats = 0; //imStats is set to delete on close
    }
 
