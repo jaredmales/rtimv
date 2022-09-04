@@ -647,6 +647,7 @@ void rtimvGraphicsView::showMouseToolTip( const std::string & valStr,
    }
    else
    {
+      if(y < this->height()*0.5) x+=10; //have to move past the arrow
       m_mouseCoords->setAlignment(Qt::AlignLeft);
    }
 

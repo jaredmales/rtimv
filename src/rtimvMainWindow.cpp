@@ -47,37 +47,6 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    
    maxdat(600);
    
-
-   
-
-   colorBox_i0 = 0;
-   colorBox_i1 = 32;
-   colorBox_j0 = 0;
-   colorBox_j1 = 32;
-   m_colorBox = new StretchBox(0,0,32,32);
-   m_colorBox->setPenColor("Yellow");
-   m_colorBox->setPenWidth(0.1);
-   m_colorBox->setVisible(false);
-   m_colorBox->setStretchable(true);
-   m_colorBox->setRemovable(false);
-   m_userBoxes.insert(m_colorBox);
-   connect(m_colorBox, SIGNAL(moved(StretchBox *)), this, SLOT(colorBoxMoved(StretchBox * )));
-   connect(m_colorBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
-   m_qgs->addItem(m_colorBox);
-
-   m_statsBox = new StretchBox(0,0,32,32);
-   m_statsBox->setPenColor("Red");
-   m_statsBox->setPenWidth(0.1);
-   m_statsBox->setVisible(false);
-   m_statsBox->setStretchable(true);
-   m_statsBox->setRemovable(true);
-   m_userBoxes.insert(m_statsBox);
-   connect(m_statsBox, SIGNAL(moved(StretchBox *)), this, SLOT(statsBoxMoved(StretchBox *)));
-   connect(m_statsBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
-   connect(m_statsBox, SIGNAL(remove(StretchBox *)), this, SLOT(userBoxRemove(StretchBox *)));
-   m_qgs->addItem(m_statsBox);
-   
-   
    m_targetVisible = false;
    
    m_cenLineVert = 0;
@@ -1037,6 +1006,8 @@ void rtimvMainWindow::addStretchLine(StretchLine * sl)
 
 void rtimvMainWindow::doLaunchStatsBox()
 {
+   if(!m_statsBox) return;
+
    m_statsBox->setVisible(true);
    
    if(!imStats)
@@ -1056,6 +1027,8 @@ void rtimvMainWindow::doLaunchStatsBox()
 
 void rtimvMainWindow::doHideStatsBox()
 {
+   if(!m_statsBox) return;
+
    m_statsBox->setVisible(false);
 
    if (imStats)
@@ -1072,6 +1045,8 @@ void rtimvMainWindow::imStatsClosed(int result)
 {
    static_cast<void>(result);
    
+   if(!m_statsBox) return;
+
    m_statsBox->setVisible(false);
    imStats = 0; //imStats is set to delete on close
    if(imcp)
@@ -1087,6 +1062,8 @@ void rtimvMainWindow::statsBoxMoved(StretchBox * sb)
 {
    static_cast<void>(sb);
    
+   if(!m_statsBox) return;
+
    QPointF np = m_qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x(),m_statsBox->rect().y()));
    QPointF np2 = m_qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x()+m_statsBox->rect().width(),m_statsBox->rect().y()+m_statsBox->rect().height()));
 
@@ -1101,6 +1078,8 @@ void rtimvMainWindow::statsBoxMoved(StretchBox * sb)
 
 void rtimvMainWindow::colorBoxMoved(StretchBox * sb)
 {
+   if(!m_colorBox) return;
+   
    QRectF newr = sb->rect();
    
    QPointF np = m_qpmi->mapFromItem(m_colorBox, QPointF(newr.x(),newr.y()));
@@ -1361,6 +1340,8 @@ void rtimvMainWindow::userLineRemove(StretchLine * sl)
 
 void rtimvMainWindow::post_setUserBoxActive(bool usba)
 {
+   if(!m_colorBox) return;
+
    m_colorBox->setVisible(usba);
 }
 
@@ -1508,6 +1489,30 @@ void rtimvMainWindow::center()
 
 void rtimvMainWindow::toggleColorBox()
 {
+   if(m_colorBox == nullptr)
+   {
+      float w;
+      if(m_nx < m_ny) w = m_nx/4;
+      else w = m_ny/4;
+         
+      colorBox_i0 = 0.5*(m_nx)-w/2;
+      colorBox_i1 = colorBox_i0 + w;
+      colorBox_j0 = 0.5*(m_ny)-w/2;
+      colorBox_j1 = colorBox_j0 + w;
+      
+      m_colorBox = new StretchBox(colorBox_i0, colorBox_j0, w, w);
+
+      m_colorBox->setPenColor("Yellow");
+      m_colorBox->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
+      m_colorBox->setVisible(false);
+      m_colorBox->setStretchable(true);
+      m_colorBox->setRemovable(false);
+      m_userBoxes.insert(m_colorBox);
+      connect(m_colorBox, SIGNAL(moved(StretchBox *)), this, SLOT(colorBoxMoved(StretchBox * )));
+      connect(m_colorBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
+      m_qgs->addItem(m_colorBox);
+   }
+
    if(!colorBoxActive)
    {
       if(imcp)
@@ -1538,6 +1543,25 @@ void rtimvMainWindow::toggleColorBox()
 
 void rtimvMainWindow::toggleStatsBox()
 {
+   if(m_statsBox == nullptr)
+   {
+      float w;
+      if(m_nx < m_ny) w = m_nx/4;
+      else w = m_ny/4;
+   
+      m_statsBox = new StretchBox(0.5*(m_nx)-w/2,0.5*(m_ny)-w/2, w, w);
+      m_statsBox->setPenColor("Red");
+      m_statsBox->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
+      m_statsBox->setVisible(false);
+      m_statsBox->setStretchable(true);
+      m_statsBox->setRemovable(true);
+      m_userBoxes.insert(m_statsBox);
+      connect(m_statsBox, SIGNAL(moved(StretchBox *)), this, SLOT(statsBoxMoved(StretchBox *)));
+      connect(m_statsBox, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
+      connect(m_statsBox, SIGNAL(remove(StretchBox *)), this, SLOT(userBoxRemove(StretchBox *)));
+      m_qgs->addItem(m_statsBox);
+   }
+
    if(m_statsBox->isVisible())
    {
       doHideStatsBox();

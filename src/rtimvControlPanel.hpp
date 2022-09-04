@@ -211,7 +211,6 @@ public slots:
    /** This updates the push button text.
      */
    void targetVisibleChanged( bool tv );
-       
 
    /// Toggle the target cross visibility when button pressed.
    void on_buttonTargetCross_clicked();
