@@ -755,27 +755,24 @@ void rtimvMainWindow::updateAge()
 
    if(m_showFPSGage && m_images[0] != nullptr  )
    {      
-      if(m_images[0]->valid())    //have to check this after checking nullptr
+      struct timespec tstmp;
+         
+      clock_gettime(CLOCK_REALTIME, &tstmp);
+            
+      double timetmp = (double)tstmp.tv_sec + ((double)tstmp.tv_nsec)/1e9;
+         
+      double fpsTime = m_images[0]->imageTime();//m_image.md->atime.tv_sec + ((double) m_images[0]->m_image.md->atime.tv_nsec)/1e9;
+         
+      double age = timetmp - fpsTime;
+            
+      if(m_images[0]->fpsEst() > 1.0 && age < 2.0) 
       {
-         struct timespec tstmp;
-         
-         clock_gettime(CLOCK_REALTIME, &tstmp);
-            
-         double timetmp = (double)tstmp.tv_sec + ((double)tstmp.tv_nsec)/1e9;
-         
-         double fpsTime = m_images[0]->imageTime();//m_image.md->atime.tv_sec + ((double) m_images[0]->m_image.md->atime.tv_nsec)/1e9;
-         
-         double age = timetmp - fpsTime;
-            
-         if(m_images[0]->fpsEst() > 1.0 && age < 2.0) 
-         {
-            ui.graphicsView->fpsGageText(m_images[0]->fpsEst());
-         }
-         else
-         {
-            ui.graphicsView->fpsGageText(age, true);
-         } 
+         ui.graphicsView->fpsGageText(m_images[0]->fpsEst());
       }
+      else
+      {
+         ui.graphicsView->fpsGageText(age, true);
+      } 
    }
 
    for(size_t n=0;n<m_overlays.size(); ++n)

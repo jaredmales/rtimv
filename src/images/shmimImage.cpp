@@ -250,6 +250,16 @@ int shmimImage::update()
    {
       if(m_age_counter > 250/m_timeout)
       {
+         //Check if the file has disappeared.
+         int SM_fd;
+         char SM_fname[200];
+         ImageStreamIO_filename(SM_fname, sizeof(SM_fname), m_shmimName.c_str());
+         SM_fd = open(SM_fname, O_RDWR);
+         if(SM_fd == -1)
+         {
+            detach();
+         }
+
          m_age_counter = 0;
          m_fps_counter = 1000/m_timeout+1;
          return RTIMVIMAGE_AGEUPDATE;
