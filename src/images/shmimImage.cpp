@@ -1,19 +1,21 @@
 #include "shmimImage.hpp"
 
+#include <fcntl.h>
+
 #include <iostream>
 
-errno_t isio_err_to_ignore = 0;
+/*errno_t isio_err_to_ignore = 0;
 errno_t new_printError( const char *file, const char *func, int line, errno_t code, char *errmessage )
 {
    if(code == isio_err_to_ignore) return IMAGESTREAMIO_SUCCESS;
    
    std::cerr << "ImageStreamIO Error:\n\tFile: " << file << "\n\tLine: " << line << "\n\tFunc: " << func << "\n\tMsg:  " << errmessage << std::endl; 
    return IMAGESTREAMIO_SUCCESS;
-}
+}*/
 
 shmimImage::shmimImage()
 {
-   ImageStreamIO_set_printError(new_printError);
+   //ImageStreamIO_set_printError(new_printError);
    
    connect(&m_timer, SIGNAL(timeout()), this, SLOT(shmimTimerout()));
    
@@ -81,15 +83,31 @@ void shmimImage::shmimTimerout()
 
 void shmimImage::imConnect()
 {
-   isio_err_to_ignore = IMAGESTREAMIO_FILEOPEN;
+   //b/c ImageStreamIO prints every single time, and latest version don't support stopping it yet, and that isn't thread-safe-able anyway
+   //we do our own checks.  This is the same code in ImageStreamIO_openIm...
+   int SM_fd;
+   char SM_fname[200];
+   ImageStreamIO_filename(SM_fname, sizeof(SM_fname), m_shmimName.c_str());
+   SM_fd = open(SM_fname, O_RDWR);
+   if(SM_fd == -1)
+   {
+      if(!m_notFoundLogged) std::cerr << "ImageStream " <<  m_shmimName << " not found (yet).  Retrying . . .\n";
+      m_notFoundLogged = true;
+      return;   
+   }
+         
+   //Found and opened,  close it and then use ImageStreamIO
+   if(m_notFoundLogged) std::cerr << "ImageStream " <<  m_shmimName << " found.  Connecting . . .\n";
+   m_notFoundLogged = false;
+   close(SM_fd);
+
    if( ImageStreamIO_openIm(&m_image, m_shmimName.c_str()) != 0)
    {
+      //This shouldn't really happen . . .
       m_data = nullptr;
       m_shmimAttached = 0;
-      isio_err_to_ignore = 0;
       return; //comeback on next timeout
    }
-   isio_err_to_ignore = 0;
    
    if(m_image.md->sem <= 1)  //Creation not complete yet (believe it or not this happens!)
    {
