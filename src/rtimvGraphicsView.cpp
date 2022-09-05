@@ -58,7 +58,9 @@ rtimvGraphicsView::rtimvGraphicsView(QWidget *parent): QGraphicsView(parent)
    
    m_mouseCoords = new QTextEdit(this);
    textEditSetup(m_mouseCoords);
+   m_mouseCoords->viewport()->setAutoFillBackground(false);
    m_mouseCoords->hide();
+   m_mouseCoords->setTextBackgroundColor(QColor(0,0,0,125));
 
    gageFontFamily(RTIMV_DEF_GAGEFONTFAMILY);
    gageFontSize(RTIMV_DEF_GAGEFONTSIZE);
@@ -334,8 +336,7 @@ void rtimvGraphicsView::statusTextNo(size_t no)
    
    for(size_t n=0; n<m_statusText.size(); ++n)
    {
-      m_statusText[n]->setText("");
-      m_statusText[n]->setAlignment(Qt::AlignRight);  
+      statusTextText(n, "");
    }
 }
 
@@ -412,7 +413,8 @@ void rtimvGraphicsView::statusTextText( size_t n,        ///< [in] the field num
    
    m_statusText[n]->setPlainText(nt);
    m_statusText[n]->setAlignment(Qt::AlignRight);  
-   
+   m_statusText[n]->setWordWrapMode(QTextOption::NoWrap);
+
    if(fc)
    {
       m_statusText[n]->setTextColor(QColor(fc));
@@ -421,6 +423,10 @@ void rtimvGraphicsView::statusTextText( size_t n,        ///< [in] the field num
    {
       m_statusText[n]->setTextColor(QColor(m_statusTextFontColor));
    }
+
+   QFontMetrics fm(m_statusText[n]->currentFont());
+   QSize textSize = fm.size(0, nt);
+   m_statusText[n]->setGeometry(width()-(textSize.width()+5),LOOPHEIGHT+GAGEHEIGHT*n, textSize.width()+5, GAGEHEIGHT);
 
 }
 

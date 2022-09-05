@@ -426,13 +426,61 @@ protected slots:
       
       void toggleHelp();
       
-      int fontLuminance(QTextEdit* qte);
+   /** \name Font Luminance
+     *
+     * Tools to change the opacity of the overlay font background color based on the 
+     * luminance of the background pixels.
+     * 
+     * @{
+     */
+   protected:
       
-      int fontLuminance();
+      /// The power for averaging pixel luminance.
+      /** The average is formed as pow( sum(pow(pixel-luminance, m_lumPwr), 1/m_lumPwr).  This 
+        * being a large number causes a few very bright pixels to bias the average.
+        */ 
+      double m_lumPwr {8};
       
+      /// The luminance threshold below which no background transparency is set.
+      /** Above this, but below m_lumMax, linear interpolation is used to set the opacity.
+        * 
+        * Range: 0-255;
+        */
+      double m_lumThresh {100};
+
+      /// The maximum luminance, at which point the opacity is set to m_opacityMax.
+      /** Below this, but above m_lumThresh, linear interpolation is used to set the opacity.
+        * 
+        * Range: 0-255;
+        */ 
+      double m_lumMax {200};
+
+      /// The maximum opacity which will be set.
+      /** This is the opacity set when at or above m_lumMax.
+        * Between m_lumThresh and m_lumMax, the opacity is interpolated between 0 and this value.
+        * 
+        * Range: 0-255;
+        */
+      double m_opacityMax {150};
+   
+   public:
+
+      /// Sets the background transparency of a QTextEdit based on the average luminance of the background pixels.
+      /** Uses a power-quadrature average (see m_lumPwr) and sets the background opacity based on interpolation with
+        * the values of m_lumThresh, m_lumMax, and m_opacityMax.
+        */
+      void fontLuminance( QTextEdit* qte,    ///< [in/out] the QTextEdit to modify
+                          bool print = false ///< [in] [out] if true the average luminance is printed.  Used for debugging.
+                        );
+       
+      /// Update the background opacity for all the text fields.  Called periodically.
+      void fontLuminance();
+      
+   ///@}
+
    /** \name Data Dictionary
      *
-     * A map of key=binary-blog pairs to be used and managed by plugins.
+     * A map of key=binary-blob pairs to be used and managed by plugins.
      * 
      * @{
      */

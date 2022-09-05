@@ -307,7 +307,6 @@ class rtimvGraphicsView : public QGraphicsView
       QTextEdit * m_textPixelVal; /// The value of the pixel under the mouse pointer
       
       QTextEdit * m_mouseCoords;
-      
 
       QString m_gageFontFamily; ///< The font family for the gages
       float m_gageFontSize; ///< The font size of the gages

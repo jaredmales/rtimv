@@ -366,6 +366,7 @@ void rtimvMainWindow::post_zoomLevel()
    char zlstr[16];
    snprintf(zlstr,16, "%0.1fx", m_zoomLevel);
    ui.graphicsView->zoomText(zlstr);
+   fontLuminance(ui.graphicsView->m_zoomText);
    
 }
 
@@ -645,6 +646,7 @@ void rtimvMainWindow::updateMouseCoords()
          snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );
 
          ui.graphicsView->showMouseToolTip(valStr, posStr, QPoint(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY()));
+         fontLuminance(ui.graphicsView->m_mouseCoords);
       }
 
       if(imcp)
@@ -932,10 +934,12 @@ void rtimvMainWindow::targetVisible(bool tv)
       if(tv)
       {
          ui.graphicsView->zoomText("target on");
+         fontLuminance(ui.graphicsView->m_zoomText);
       }
       else
       {
          ui.graphicsView->zoomText("target off");
+         fontLuminance(ui.graphicsView->m_zoomText);
       }
    }
    m_targetVisible = tv;
@@ -1466,10 +1470,12 @@ void rtimvMainWindow::setAutoScale( bool as )
    if(m_autoScale) 
    {
       ui.graphicsView->zoomText("autoscale on");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
    else 
    {
       ui.graphicsView->zoomText("autoscale off");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
 }
 
@@ -1491,6 +1497,7 @@ void rtimvMainWindow::center()
    post_zoomLevel();
       
    ui.graphicsView->zoomText("centered");
+   fontLuminance(ui.graphicsView->m_zoomText);
 }
 
 void rtimvMainWindow::toggleColorBox()
@@ -1531,6 +1538,7 @@ void rtimvMainWindow::toggleColorBox()
          setUserBoxActive(true);
       }
       ui.graphicsView->zoomText("color box scale");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
    else
    {
@@ -1544,6 +1552,7 @@ void rtimvMainWindow::toggleColorBox()
          setUserBoxActive(false);
       }
       ui.graphicsView->zoomText("global scale");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
 }
 
@@ -1572,6 +1581,7 @@ void rtimvMainWindow::toggleStatsBox()
    {
       doHideStatsBox();
       ui.graphicsView->zoomText("stats off");
+      fontLuminance(ui.graphicsView->m_zoomText);
       if(imcp)
       {
          imcp->statsBoxButtonState = false;
@@ -1582,6 +1592,7 @@ void rtimvMainWindow::toggleStatsBox()
    {
       doLaunchStatsBox();
       ui.graphicsView->zoomText("stats on");
+      fontLuminance(ui.graphicsView->m_zoomText);
       if(imcp)
       {
          imcp->statsBoxButtonState = true;
@@ -1600,12 +1611,14 @@ void rtimvMainWindow::toggleNorthArrow()
       nup->setVisible(false);
       nup_tip->setVisible(false);
       ui.graphicsView->zoomText("North Off");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
    else
    {
       nup->setVisible(true);
       nup_tip->setVisible(true);
       ui.graphicsView->zoomText("North On");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
    
 }
@@ -1616,11 +1629,13 @@ void rtimvMainWindow::showFPSGage( bool sfg )
    if(m_showFPSGage)
    {
       ui.graphicsView->zoomText("fps gage on");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
    else
    {
       ui.graphicsView->fpsGageText("");
       ui.graphicsView->zoomText("fps gage off");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
 }
 
@@ -1642,10 +1657,12 @@ void rtimvMainWindow::setDarkSub( bool ds )
    if(m_subtractDark)
    {
       ui.graphicsView->zoomText("dark sub. on");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
    else
    {
       ui.graphicsView->zoomText("dark sub. off");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
    changeImdata(false);
 }
@@ -1668,10 +1685,12 @@ void rtimvMainWindow::setApplyMask( bool am )
    if(m_applyMask)
    {
       ui.graphicsView->zoomText("mask on");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
    else
    {
       ui.graphicsView->zoomText("mask off");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
    changeImdata(false);
 }
@@ -1694,10 +1713,12 @@ void rtimvMainWindow::setApplySatMask( bool as )
    if(m_applySatMask)
    {
       ui.graphicsView->zoomText("sat mask on");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
    else
    {
       ui.graphicsView->zoomText("sat mask off");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
    
    changeImdata(false);
@@ -1724,11 +1745,13 @@ void rtimvMainWindow::toggleLogLinear()
    {
       set_cbStretch(stretchLinear);
       ui.graphicsView->zoomText("linear stretch");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
    else
    {
       set_cbStretch(stretchLog);
       ui.graphicsView->zoomText("log stretch");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
 }
 
@@ -1741,6 +1764,7 @@ void rtimvMainWindow::toggleTarget()
       m_cenLineHorz->setVisible(false);
       m_targetVisible = false;*/
       ui.graphicsView->zoomText("target off");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
    else
    {
@@ -1749,6 +1773,7 @@ void rtimvMainWindow::toggleTarget()
       m_cenLineHorz->setVisible(true);
       m_targetVisible=true;*/
       ui.graphicsView->zoomText("target on");
+      fontLuminance(ui.graphicsView->m_zoomText);
    }
 }
 
@@ -1827,7 +1852,9 @@ realT pLightness( realT lum )
       
 }
 
-int rtimvMainWindow::fontLuminance(QTextEdit* qte)
+void rtimvMainWindow::fontLuminance( QTextEdit* qte, 
+                                     bool print
+                                   )
 {
    
    QPointF ptul = ui.graphicsView->mapToScene(qte->x(),qte->y());
@@ -1845,57 +1872,61 @@ int rtimvMainWindow::fontLuminance(QTextEdit* qte)
    unsigned mxlr = ptlr.x();
    if(mxlr > m_nx-1) mxlr = m_nx-1;
    
-   //std::cerr << mxul << " " << myul << " " << mxlr << " " << mylr << "\n";
-   //std::cerr << m_qim->pixelIndex(mxul, myul) << " " << m_qim->pixelIndex(mxlr, mylr) << "\n";
-   
+   if(mxul == 0 && myul == 0 && mxlr == 0 && mylr == 0) return;
+   if(mxul == mxlr || myul == mylr) return;
+
    double avgLum = 0;
-   int N =0;
+   int N = 0;
    for(unsigned x = mxul; x<= mxlr; ++x)
    {
       for(unsigned y=myul; y<=mylr; ++y)
       {
-         avgLum += pow(m_lightness[ m_qim->pixelIndex(x,y) ],2);
+         avgLum += pow(m_lightness[ m_qim->pixelIndex(x,y) ],m_lumPwr); 
          ++N;
       }
    }
-   avgLum/=N;
-   avgLum = sqrt(avgLum);
-   //std::cerr << "avgLum: " << avgLum << "\n";
-   
-   QColor sb("skyblue");
-   
-   //int flight = sb.lightness();
-   //std::cout << avgLum << " " << flight << "\n";
-   
-   if(avgLum > 100 && avgLum <= 140)
+   avgLum /= N;
+   avgLum = pow(avgLum, 1.0/m_lumPwr);
+
+   if(print) std::cerr << "avgLum: " << avgLum << "\n";
+
+   if(avgLum <= m_lumThresh)
    {
-      QColor nc = QColor::fromHsl(sb.hslHue(), sb.hslSaturation(), 255);
-      qte->setTextColor(nc);
+      qte->setTextBackgroundColor(QColor(0,0,0,0));
    }
-   else if(avgLum > 140)
+   else if(avgLum < m_lumMax)
    {
-      QColor nc = QColor::fromHsl(sb.hslHue(), sb.hslSaturation(), 0);
-      qte->setTextColor(nc);
+      int op = (avgLum - m_lumThresh)/(m_lumMax - m_lumThresh) * m_opacityMax + 0.5;
+      qte->setTextBackgroundColor(QColor(0,0,0,op));
    }
-   else 
+   else
    {
-      qte->setTextColor(sb);
+      qte->setTextBackgroundColor(QColor(0,0,0,m_opacityMax));
    }
-   
-   return 0;
-   
+
+   return;
+
 }
 
-int rtimvMainWindow::fontLuminance()
+void rtimvMainWindow::fontLuminance()
 {   
    fontLuminance(ui.graphicsView->m_fpsGage);
    
+   fontLuminance(ui.graphicsView->m_zoomText);
+
    if(!m_nullMouseCoords)
    {
-      fontLuminance(ui.graphicsView->m_textCoordX);
-      fontLuminance(ui.graphicsView->m_textCoordY);
-      fontLuminance(ui.graphicsView->m_textPixelVal);
-      fontLuminance(ui.graphicsView->m_zoomText);
+      if(m_showStaticCoords)
+      {
+         fontLuminance(ui.graphicsView->m_textCoordX);
+         fontLuminance(ui.graphicsView->m_textCoordY);
+         fontLuminance(ui.graphicsView->m_textPixelVal);   
+      }
+
+      if(m_showToolTipCoords)
+      {
+         fontLuminance(ui.graphicsView->m_mouseCoords);
+      }
    }
    
    for(size_t n=0; n< ui.graphicsView->m_statusText.size(); ++n)
@@ -1904,7 +1935,7 @@ int rtimvMainWindow::fontLuminance()
    }
    
    
-   return 0;
+   return;
    
 }
 
