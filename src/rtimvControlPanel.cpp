@@ -451,7 +451,7 @@ void rtimvControlPanel::updateMouseCoords(double x, double y, double v)
 			ui.pointerView->setScene(imv->get_qgs());
 			PointerViewEmpty = false;
 		}
-	 	ui.pointerView->centerOn(x, imv->ny()-y);
+	 	ui.pointerView->centerOn(x, y);
 	
 	}
 }	
@@ -471,14 +471,15 @@ void rtimvControlPanel::nullMouseCoords()
 		
 void rtimvControlPanel::viewLeftPressed(QPointF mp)
 {
+   static_cast<void>(mp);
+   
    if(PointerViewMode == PointerViewOnPress)
    {
       ui.pointerView->setScene(imv->get_qgs());
       PointerViewEmpty = false;
-      if (!PointerViewFixed) ui.pointerView->centerOn(mp.x()*imv->nx(), mp.y()*imv->ny());
-      else
+      if(PointerViewFixed)
       {
-         ui.pointerView->centerOn(pointerViewCen.x()*imv->nx(), pointerViewCen.y()*imv->ny());
+         ui.pointerView->centerOn(pointerViewCen.x(), pointerViewCen.y());
       }
    }
 }
@@ -540,6 +541,8 @@ void rtimvControlPanel::on_pointerSetLocButton_clicked()
 
 void rtimvControlPanel::set_pointerViewCen(QPointF mp)
 {
+   std::cerr << mp.x() << " " << mp.y() << "\n";
+
    pointerViewCen = mp;
    ui.pointerSetLocButton->setText("Clear Location");
    PointerViewWaiting = false;
@@ -885,7 +888,6 @@ void rtimvControlPanel::on_statsBoxButton_clicked()
 
 void rtimvControlPanel::viewBoxMoved ( const QRectF & vbr)
 {
-   
    //QPointF newcenV = ui.viewView->mapFromScene(newcen);
    //double viewZoom = (double)ui.viewView->width()/(double)imv->nx();
    //QRectF vbr = viewBox->rect();
