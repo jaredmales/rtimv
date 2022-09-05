@@ -128,6 +128,7 @@ int fitsImage::readImage()
       fstatus = 0;
       fits_close_file(fptr, &fstatus);
 
+      delete naxes;
       return -1;
    }
    m_reported = false;
@@ -139,24 +140,29 @@ int fitsImage::readImage()
       if(m_data) delete[] m_data;
       m_data = new char[naxes[0]*naxes[1]*sizeof(float)];
    }
-      
+
    //always set in case of a reformat
    m_nx = naxes[0];
    m_ny = naxes[1];
       
-   long fpix[2];
-   long lpix[2];
-   long inc[2];
+   long fpix[3];
+   long lpix[3];
+   long inc[3];
    
    fpix[0] = 1;
    fpix[1] = 1;
-   
+   fpix[2] = 1;
+
    lpix[0] = naxes[0];
    lpix[1] = naxes[1];
-   
+   lpix[2] = 1;
+
    inc[0] = 1;
    inc[1] = 1;
-   
+   inc[2] = 1;
+
+   delete naxes;
+
    int anynul;
    
    fits_read_subset(fptr, TFLOAT, fpix, lpix, inc, 0,
