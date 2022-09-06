@@ -196,3 +196,13 @@ void StretchCircle::emitRemove()
 {
    emit remove(this);
 }
+
+void StretchCircle::emitSelected()
+{
+   emit selected(this);
+}
+
+void StretchCircle::emitDeSelected()
+{
+   emit deSelected(this);
+}

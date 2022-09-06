@@ -118,7 +118,9 @@ protected slots:
    void emitMouseIn();
    void emitMouseOut();
    void emitRemove();
-   
+   void emitSelected();
+   void emitDeSelected();
+
 signals:
    void moved(StretchLine * s);
    void resized(StretchLine * s);
@@ -126,7 +128,9 @@ signals:
    void mouseIn(StretchLine * s);
    void mouseOut(StretchLine * s);
    void remove(StretchLine * s);   
-   
+   void selected(StretchLine * s);
+   void deSelected(StretchLine * s);
+
    ///@}
    
 

@@ -234,9 +234,13 @@ public:
 
       void launchImStats();
       
+   protected:
+      QGraphicsEllipseItem * m_lineHead;
+      QGraphicsLineItem * m_objCenV;
+      QGraphicsLineItem * m_objCenH;
 
-   
-      
+      bool m_userItemSelected {false};
+         
    public:
       
       /// Add a user box 
@@ -248,9 +252,7 @@ public:
       /// Add a user line 
       void addUserLine();
       
-      QGraphicsEllipseItem * m_lineHead;
-      QGraphicsLineItem * m_objCenV;
-      QGraphicsLineItem * m_objCenH;
+      
 
    /*---- Target Cross ----*/
 protected:
@@ -363,14 +365,17 @@ protected slots:
    void userBoxMouseOut(StretchBox * sb);
    void userBoxRejectMouse(StretchBox *);
    void userBoxRemove(StretchBox * sc);
-   
+   void userBoxSelected(StretchBox * sc);
+   void userBoxDeSelected(StretchBox * sc);
+
    void userCircleResized(StretchCircle * sc);
    void userCircleMoved(StretchCircle * sc);
    void userCircleMouseIn(StretchCircle * sc);
    void userCircleMouseOut(StretchCircle * sc);
    void userCircleRejectMouse(StretchCircle * sc);
    void userCircleRemove(StretchCircle * sc);
-
+   void userCircleSelected(StretchCircle * sc);
+   void userCircleDeSelected(StretchCircle * sc);
    
    void userLineResized(StretchLine * sl);
    void userLineMoved(StretchLine * sl);
@@ -378,7 +383,9 @@ protected slots:
    void userLineMouseOut(StretchLine * sl);
    void userLineRejectMouse(StretchLine * sl);
    void userLineRemove(StretchLine * sl);
-         
+   void userLineSelected(StretchLine * sl);
+   void userLineDeSelected(StretchLine * sl);
+
    public:
       virtual void post_setUserBoxActive(bool usba);
          

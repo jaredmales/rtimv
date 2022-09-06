@@ -1,6 +1,7 @@
 
 #include "StretchBox.hpp"
 #include <cmath>
+#include <iostream>
 
 StretchBox::StretchBox(QGraphicsItem * parent) : QGraphicsRectItem(parent)
 {
@@ -280,6 +281,11 @@ void StretchBox::sizingCalcNewPos(QGraphicsSceneMouseEvent * e)
       neww = m_width - (e->scenePos().x() - m_mv_x0);
       newh = m_height + (e->scenePos().y() - m_mv_y0);
    }
+   else 
+   {
+      std::cerr << "StretchBox::sizingCalcNewPos (" << __FILE__ << " " << __LINE__ << "): m_sizing has invalid value.\n";
+      return;
+   }
       
    setRect(newx, newy, neww, newh);
 }
@@ -320,4 +326,14 @@ void StretchBox::emitMouseOut()
 void StretchBox::emitRemove()
 {
    emit remove(this);
+}
+
+void StretchBox::emitSelected()
+{
+   emit selected(this);
+}
+
+void StretchBox::emitDeSelected()
+{
+   emit deSelected(this);
 }

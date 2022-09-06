@@ -396,7 +396,9 @@ void rtimvMainWindow::postChangeImdata()
         
    if(m_colorBox) m_qpmi->stackBefore(m_colorBox);
    if(m_statsBox) m_qpmi->stackBefore(m_statsBox);
-   //if(guideBox) m_qpmi->stackBefore(guideBox);
+   if(m_objCenH) m_qpmi->stackBefore(m_objCenH);
+   if(m_objCenV) m_qpmi->stackBefore(m_objCenV);
+   if(m_lineHead) m_qpmi->stackBefore(m_lineHead);
    
    if(imcp)
    {
@@ -616,6 +618,11 @@ void rtimvMainWindow::updateMouseCoords()
       nullMouseCoords();
    }
    
+   if(m_userItemSelected)
+   {
+      nullMouseCoords();
+   }
+
    if(!m_nullMouseCoords)
    {
       idx_x = ((int64_t)(mx-0));
@@ -822,7 +829,8 @@ void rtimvMainWindow::addUserBox()
    connect(sb, SIGNAL(mouseOut(StretchBox *)), this, SLOT(userBoxMouseOut(StretchBox *)));
    connect(sb, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
    connect(sb, SIGNAL(remove(StretchBox*)), this, SLOT(userBoxRemove(StretchBox*)));
-
+   connect(sb, SIGNAL(selected(StretchBox*)), this, SLOT(userBoxSelected(StretchBox*)));
+   connect(sb, SIGNAL(deSelected(StretchBox*)), this, SLOT(userBoxDeSelected(StretchBox*)));
    
    m_qgs->addItem(sb);
       
@@ -851,7 +859,8 @@ void rtimvMainWindow::addUserCircle()
    connect(sc, SIGNAL(mouseOut(StretchCircle *)), this, SLOT(userCircleMouseOut(StretchCircle *)));
    connect(sc, SIGNAL(rejectMouse(StretchCircle *)), this, SLOT(userCircleRejectMouse(StretchCircle *)));
    connect(sc, SIGNAL(remove(StretchCircle*)), this, SLOT(userCircleRemove(StretchCircle*)));
-
+   connect(sc, SIGNAL(selected(StretchCircle *)), this, SLOT(userCircleSelected(StretchCircle *)));
+   connect(sc, SIGNAL(deSelected(StretchCircle*)), this, SLOT(userCircleDeSelected(StretchCircle*)));
    
    m_qgs->addItem(sc);
       
@@ -880,6 +889,8 @@ void rtimvMainWindow::addUserLine()
    connect(sl, SIGNAL(mouseOut(StretchLine *)), this, SLOT(userLineMouseOut(StretchLine *)));
    connect(sl, SIGNAL(rejectMouse(StretchLine *)), this, SLOT(userLineRejectMouse(StretchLine *)));
    connect(sl, SIGNAL(remove(StretchLine*)), this, SLOT(userLineRemove(StretchLine*)));
+   connect(sl, SIGNAL(selected(StretchLine *)), this, SLOT(userLineSelected(StretchLine *)));
+   connect(sl, SIGNAL(deSelected(StretchLine*)), this, SLOT(userLineDeSelected(StretchLine*)));
 
    
    m_qgs->addItem(sl);
@@ -1081,8 +1092,6 @@ void rtimvMainWindow::statsBoxMoved(StretchBox * sb)
    {
       imStats->setImdata(m_nx, m_ny, np.x(), np2.x(), m_ny-np2.y(), m_ny-np.y());
    }
-   
-
 }
 
 
@@ -1101,8 +1110,6 @@ void rtimvMainWindow::colorBoxMoved(StretchBox * sb)
    colorBox_j1 = m_ny-(int) np.y();
    
    setUserBoxActive(true); //recalcs and recolors.
-   
-   
 }
 
 void rtimvMainWindow::userBoxResized(StretchBox * sb)
@@ -1112,6 +1119,17 @@ void rtimvMainWindow::userBoxResized(StretchBox * sb)
    snprintf(tmp, 256, "%0.1f x %0.1f", sb->rect().width(), sb->rect().height());
    
    ui.graphicsView->coords->setText(tmp);
+
+   float cx = sb->rect().x() + sb->pos().x() + 0.5*sb->rect().width();
+   float cy = sb->rect().y() + sb->pos().y() + 0.5*sb->rect().height();
+   m_objCenH->setPen(sb->pen());
+   m_objCenV->setPen(sb->pen());
+
+   float w = std::max(sb->rect().width(), sb->rect().height());
+   if(w < 100) w = 100;
+   m_objCenH->setLine(cx-w*0.05, cy, cx+w*0.05, cy);
+   m_objCenV->setLine(cx, cy-w*0.05, cx, cy+w*0.05);
+
 }
 
 void rtimvMainWindow::userBoxMoved(StretchBox * sb)
@@ -1128,10 +1146,11 @@ void rtimvMainWindow::userBoxMoved(StretchBox * sb)
    float cy = sb->rect().y() + sb->pos().y() + 0.5*sb->rect().height();
    m_objCenH->setPen(sb->pen());
    m_objCenV->setPen(sb->pen());
-   float w = sb->penWidth();
-   if(w < 1) w = 1;
-   m_objCenH->setLine(cx-2*w, cy, cx+2*w, cy);
-   m_objCenV->setLine(cx, cy-2*w, cx, cy+2*w);
+
+   float w = std::max(sb->rect().width(), sb->rect().height());
+   if(w < 100) w = 100;
+   m_objCenH->setLine(cx-w*0.05, cy, cx+w*0.05, cy);
+   m_objCenV->setLine(cx, cy-w*0.05, cx, cy+w*0.05);
 
 }
 
@@ -1139,18 +1158,11 @@ void rtimvMainWindow::userBoxMouseIn(StretchBox * sb)
 {
    userBoxResized(sb);
    userBoxMoved(sb);
-   ui.graphicsView->coords->setVisible(true);
-   m_objCenH->setVisible(true);
-   m_objCenV->setVisible(true);
-
 }
 
 void rtimvMainWindow::userBoxMouseOut(StretchBox * sb)
 {
    static_cast<void>(sb);
-   ui.graphicsView->coords->setVisible(false);
-   m_objCenH->setVisible(false);
-   m_objCenV->setVisible(false);
 }
 
 void rtimvMainWindow::userBoxRejectMouse(StretchBox * sb)
@@ -1189,7 +1201,34 @@ void rtimvMainWindow::userBoxRemove(StretchBox * sb)
    m_userBoxes.erase(sb); //Remove it from our list
    m_qgs->removeItem(sb); //Remove it from the scene
    sb->deleteLater(); //clean it up after we're no longer in an asynch function
+
+   ui.graphicsView->coords->setVisible(false);
+   m_objCenH->setVisible(false);
+   m_objCenV->setVisible(false);
+   m_nullMouseCoords=false;
+   m_userItemSelected = false;
 }
+
+void rtimvMainWindow::userBoxSelected(StretchBox * sb)
+{
+   static_cast<void>(sb);
+   ui.graphicsView->coords->setVisible(true);
+   m_objCenH->setVisible(true);
+   m_objCenV->setVisible(true);
+   nullMouseCoords();
+   m_userItemSelected = true;
+}
+
+void rtimvMainWindow::userBoxDeSelected(StretchBox * sb)
+{
+   static_cast<void>(sb);
+   ui.graphicsView->coords->setVisible(false);
+   m_objCenH->setVisible(false);
+   m_objCenV->setVisible(false);
+   m_nullMouseCoords=false;
+   m_userItemSelected = false;
+}
+
 
 void rtimvMainWindow::userCircleResized(StretchCircle * sc)
 {
@@ -1197,6 +1236,16 @@ void rtimvMainWindow::userCircleResized(StretchCircle * sc)
    snprintf(tmp, 256, "%0.1f", sc->radius());
    
    ui.graphicsView->coords->setText(tmp);
+
+   float cx = sc->rect().x() + sc->pos().x() + 0.5*sc->rect().width();
+   float cy = sc->rect().y() + sc->pos().y() + 0.5*sc->rect().height();
+   m_objCenH->setPen(sc->pen());
+   m_objCenV->setPen(sc->pen());
+
+   float w = std::max(sc->rect().width(), sc->rect().height());
+   if(w < 100) w = 100;
+   m_objCenH->setLine(cx-w*0.05, cy, cx+w*0.05, cy);
+   m_objCenV->setLine(cx, cy-w*0.05, cx, cy+w*0.05);
 }
 
 void rtimvMainWindow::userCircleMoved(StretchCircle * sc)
@@ -1213,27 +1262,22 @@ void rtimvMainWindow::userCircleMoved(StretchCircle * sc)
    float cy = sc->rect().y() + sc->pos().y() + 0.5*sc->rect().height();
    m_objCenH->setPen(sc->pen());
    m_objCenV->setPen(sc->pen());
-   float w = sc->penWidth();
-   if(w < 1) w = 1;
-   m_objCenH->setLine(cx-2*w, cy, cx+2*w, cy);
-   m_objCenV->setLine(cx, cy-2*w, cx, cy+2*w);
+
+   float w = std::max(sc->rect().width(), sc->rect().height());
+   if(w < 100) w = 100;
+   m_objCenH->setLine(cx-w*0.05, cy, cx+w*0.05, cy);
+   m_objCenV->setLine(cx, cy-w*0.05, cx, cy+w*0.05);
 }
 
 void rtimvMainWindow::userCircleMouseIn(StretchCircle * sc)
 {
    userCircleResized(sc);
    userCircleMoved(sc);
-   ui.graphicsView->coords->setVisible(true);
-   m_objCenH->setVisible(true);
-   m_objCenV->setVisible(true);
 }
 
 void rtimvMainWindow::userCircleMouseOut(StretchCircle * sc)
 {
    static_cast<void>(sc);
-   ui.graphicsView->coords->setVisible(false);
-   m_objCenH->setVisible(false);
-   m_objCenV->setVisible(false);
 }
 
 void rtimvMainWindow::userCircleRejectMouse(StretchCircle * sc)
@@ -1266,6 +1310,29 @@ void rtimvMainWindow::userCircleRemove(StretchCircle * sc)
    m_userCircles.erase(sc); //Remove it from our list
    m_qgs->removeItem(sc); //Remove it from the scene
    sc->deleteLater(); //clean it up after we're no longer in an asynch function
+
+   ui.graphicsView->coords->setVisible(false);
+   m_objCenH->setVisible(false);
+   m_objCenV->setVisible(false);
+   m_userItemSelected = false;
+}
+
+void rtimvMainWindow::userCircleSelected(StretchCircle * sb)
+{
+   static_cast<void>(sb);
+   ui.graphicsView->coords->setVisible(true);
+   m_objCenH->setVisible(true);
+   m_objCenV->setVisible(true);
+   m_userItemSelected = true;
+}
+
+void rtimvMainWindow::userCircleDeSelected(StretchCircle * sb)
+{
+   static_cast<void>(sb);
+   ui.graphicsView->coords->setVisible(false);
+   m_objCenH->setVisible(false);
+   m_objCenV->setVisible(false);
+   m_userItemSelected = false;
 }
 
 void rtimvMainWindow::userLineResized(StretchLine * sl)
@@ -1302,18 +1369,14 @@ void rtimvMainWindow::userLineMouseIn(StretchLine * sl)
    float lhx = sl->line().x1() - w*1.5;
    float lhy = sl->line().y1() - w*1.5;
    m_lineHead->setRect(lhx, lhy, 3*w, 3*w);
-   m_lineHead->setVisible(true);
 
    userLineResized(sl);
    userLineMoved(sl);
-   ui.graphicsView->coords->setVisible(true);
 }
 
 void rtimvMainWindow::userLineMouseOut(StretchLine * sl)
 {
    static_cast<void>(sl);
-   m_lineHead->setVisible(false);
-   ui.graphicsView->coords->setVisible(false);
 }
 
 void rtimvMainWindow::userLineRejectMouse(StretchLine * sl)
@@ -1346,6 +1409,26 @@ void rtimvMainWindow::userLineRemove(StretchLine * sl)
    m_userLines.erase(sl); //Remove it from our list
    m_qgs->removeItem(sl); //Remove it from the scene
    sl->deleteLater(); //clean it up after we're no longer in an asynch function
+
+   ui.graphicsView->coords->setVisible(false);
+   m_lineHead->setVisible(false);
+   m_userItemSelected = false;
+}
+
+void rtimvMainWindow::userLineSelected(StretchLine * sl)
+{
+   static_cast<void>(sl);
+   ui.graphicsView->coords->setVisible(true);
+   m_lineHead->setVisible(true);
+   m_userItemSelected = true;
+}
+
+void rtimvMainWindow::userLineDeSelected(StretchLine * sl)
+{
+   static_cast<void>(sl);
+   ui.graphicsView->coords->setVisible(false);
+   m_lineHead->setVisible(false);
+   m_userItemSelected = false;
 }
 
 void rtimvMainWindow::post_setUserBoxActive(bool usba)
