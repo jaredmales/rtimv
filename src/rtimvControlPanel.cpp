@@ -394,42 +394,42 @@ void rtimvControlPanel::on_view_center_clicked()
 
 void rtimvControlPanel::on_view_ul_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() - 1./imv->zoomLevel(), imv->get_ycen()-1./imv->zoomLevel());
+	imv->set_viewcen(imv->get_xcen()/imv->nx() - 1./imv->zoomLevel(), imv->get_ycen()/imv->ny()-1./imv->zoomLevel());
 }
 
 void rtimvControlPanel::on_view_up_clicked()
 {
-	imv->set_viewcen(imv->get_xcen(), imv->get_ycen()-1./imv->zoomLevel());
+	imv->set_viewcen(imv->get_xcen()/imv->nx(), imv->get_ycen()/imv->ny()-1./imv->zoomLevel());
 }
 
 void rtimvControlPanel::on_view_ur_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() + 1./imv->zoomLevel(), imv->get_ycen() - 1./imv->zoomLevel());
+	imv->set_viewcen(imv->get_xcen()/imv->nx() + 1./imv->zoomLevel(), imv->get_ycen()/imv->ny() - 1./imv->zoomLevel());
 }
 
 void rtimvControlPanel::on_view_right_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() + 1./imv->zoomLevel(), imv->get_ycen());
+	imv->set_viewcen(imv->get_xcen()/imv->nx() + 1./imv->zoomLevel(), imv->get_ycen()/imv->ny());
 }
 
 void rtimvControlPanel::on_view_dr_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() + 1./imv->zoomLevel(), imv->get_ycen()+1./imv->zoomLevel());
+	imv->set_viewcen(imv->get_xcen()/imv->nx() + 1./imv->zoomLevel(), imv->get_ycen()/imv->ny()+1./imv->zoomLevel());
 }
 
 void rtimvControlPanel::on_view_down_clicked()
 {
-	imv->set_viewcen(imv->get_xcen(), imv->get_ycen()+1./imv->zoomLevel());
+	imv->set_viewcen(imv->get_xcen()/imv->nx(), imv->get_ycen()/imv->ny()+1./imv->zoomLevel());
 }
 
 void rtimvControlPanel::on_view_dl_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() - 1./imv->zoomLevel(), imv->get_ycen()+1./imv->zoomLevel());
+	imv->set_viewcen(imv->get_xcen()/imv->nx() - 1./imv->zoomLevel(), imv->get_ycen()/imv->ny()+1./imv->zoomLevel());
 }
 
 void rtimvControlPanel::on_view_left_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() - 1./imv->zoomLevel(), imv->get_ycen());
+	imv->set_viewcen(imv->get_xcen()/imv->nx() - 1./imv->zoomLevel(), imv->get_ycen()/imv->ny());
 }
 
 void rtimvControlPanel::updateMouseCoords(double x, double y, double v)
@@ -472,7 +472,7 @@ void rtimvControlPanel::nullMouseCoords()
 void rtimvControlPanel::viewLeftPressed(QPointF mp)
 {
    static_cast<void>(mp);
-   
+
    if(PointerViewMode == PointerViewOnPress)
    {
       ui.pointerView->setScene(imv->get_qgs());
