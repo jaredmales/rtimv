@@ -28,7 +28,7 @@
 rtimvGraphicsView::rtimvGraphicsView(QWidget *parent): QGraphicsView(parent)
 {
    setMouseTracking(true);
-   
+   setResizeAnchor(QGraphicsView::AnchorViewCenter);
    m_xCen = .5;
    m_yCen = .5;
    
@@ -794,8 +794,8 @@ void rtimvGraphicsView::zoomTimerOut()
 }
       
 void rtimvGraphicsView::centerOn( qreal x, 
-                             qreal y 
-                           )
+                                  qreal y 
+                                )
 {
    m_xCen = x;
    m_yCen = y;
@@ -804,8 +804,8 @@ void rtimvGraphicsView::centerOn( qreal x,
 }
       
 void rtimvGraphicsView::mapCenterToScene( float xc,
-                                     float yc
-                                   )
+                                          float yc
+                                       )  
 {
    QPointF p = mapToScene(xc, yc);
    m_xCen = p.x();

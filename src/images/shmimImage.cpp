@@ -93,6 +93,7 @@ void shmimImage::imConnect()
    {
       if(!m_notFoundLogged) std::cerr << "ImageStream " <<  m_shmimName << " not found (yet).  Retrying . . .\n";
       m_notFoundLogged = true;
+      close(SM_fd);
       return;   
    }
          
@@ -259,6 +260,7 @@ int shmimImage::update()
          {
             detach();
          }
+         close(SM_fd);
 
          m_age_counter = 0;
          m_fps_counter = 1000/m_timeout+1;
