@@ -808,10 +808,13 @@ void rtimvMainWindow::updateNC()
 void rtimvMainWindow::addUserBox()
 {
    float w;
-   if(m_nx < m_ny) w = m_nx/4;
-   else w = m_ny/4;
+
+   float znx = m_nx/m_zoomLevel;
+   float zny = m_ny/m_zoomLevel;
+   if(znx < zny) w = znx/4;
+   else w = zny/4;
    
-   std::pair<std::unordered_set<StretchBox *>::iterator,bool> it = m_userBoxes.insert(new StretchBox(0.5*(m_nx)-w/2,0.5*(m_ny)-w/2, w, w));
+   std::pair<std::unordered_set<StretchBox *>::iterator,bool> it = m_userBoxes.insert(new StretchBox(ui.graphicsView->xCen()-w/2, ui.graphicsView->yCen()-w/2, w, w));
    
    StretchBox * sb = *it.first;
    
@@ -839,10 +842,13 @@ void rtimvMainWindow::addUserBox()
 void rtimvMainWindow::addUserCircle()
 {
    float w;
-   if(m_nx < m_ny) w = m_nx/4;
-   else w = m_ny/4;
+
+   float znx = m_nx/m_zoomLevel;
+   float zny = m_ny/m_zoomLevel;
+   if(znx < zny) w = znx/4;
+   else w = zny/4;
    
-   std::pair<std::unordered_set<StretchCircle *>::iterator,bool> it = m_userCircles.insert(new StretchCircle(0.5*(m_nx)-w/2,0.5*(m_ny)-w/2, w, w));
+   std::pair<std::unordered_set<StretchCircle *>::iterator,bool> it = m_userCircles.insert(new StretchCircle(ui.graphicsView->xCen()-w/2, ui.graphicsView->yCen()-w/2, w, w));
    
    StretchCircle * sc = *it.first;
    
@@ -869,10 +875,13 @@ void rtimvMainWindow::addUserCircle()
 void rtimvMainWindow::addUserLine()
 {
    float w;
-   if(m_nx < m_ny) w = m_nx/4;
-   else w = m_ny/4;
+
+   float znx = m_nx/m_zoomLevel;
+   float zny = m_ny/m_zoomLevel;
+   if(znx < zny) w = znx/4;
+   else w = zny/4;
    
-   std::pair<std::unordered_set<StretchLine *>::iterator,bool> it = m_userLines.insert(new StretchLine(0.5*(m_nx)-w/2,0.5*(m_ny)-w/2, 0.5*(m_nx)+w/2,0.5*(m_ny)+w/2));
+   std::pair<std::unordered_set<StretchLine *>::iterator,bool> it = m_userLines.insert(new StretchLine(ui.graphicsView->xCen()-w/2, ui.graphicsView->yCen()-w/2, ui.graphicsView->xCen()+w/2, ui.graphicsView->yCen()+w/2));
    
    StretchLine * sl = *it.first;
    
