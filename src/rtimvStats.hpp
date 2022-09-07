@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <unistd.h>
 
+#include <mutex>
 
 #include <QDialog>
 #include <QThread>
