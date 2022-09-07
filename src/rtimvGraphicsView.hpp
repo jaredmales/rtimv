@@ -432,7 +432,8 @@ class rtimvGraphicsView : public QGraphicsView
       void zoomTimerOut();
       
    public:
-      QTextEdit * coords;
+      QTextEdit * m_userItemSize;
+      QTextEdit * m_userItemMouseCoords;
 
    /** \name Mouse Interaction 
      * 

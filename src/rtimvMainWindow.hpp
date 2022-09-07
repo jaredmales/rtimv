@@ -313,6 +313,18 @@ public:
      */
    void setTarget();
 
+   void userBoxItemSize( StretchBox * sb );
+
+   void userCircleItemSize( StretchCircle * sb );
+
+   void userItemMouseCoords( float mx,
+                             float my
+                           );
+
+   void userBoxItemMouseCoords( StretchBox * sb );
+
+   void userCircleItemMouseCoords( StretchCircle * sc );
+
 protected slots:
    
    /// Add a StretchBox to user boxes

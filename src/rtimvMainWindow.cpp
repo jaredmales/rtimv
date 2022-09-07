@@ -805,6 +805,84 @@ void rtimvMainWindow::updateNC()
    }
 }
 
+void rtimvMainWindow::userBoxItemSize(StretchBox * sb)
+{
+   char tmp[256];
+   snprintf(tmp, 256, "%0.1f x %0.1f", sb->rect().width(), sb->rect().height());
+   ui.graphicsView->m_userItemSize->setText(tmp);
+   //ui.graphicsView->m_userItemSize->setGeometry(sb->rect().x() + sb->pos().x(), sb->rect().y() + sb->pos().y(), 200,40);
+   
+   QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
+   QSize textSize = fm.size(0, tmp);
+   ui.graphicsView->m_userItemSize->setGeometry(sb->rect().x() + sb->pos().x(), sb->rect().y() + sb->pos().y(), textSize.width()+5,textSize.height()+5);
+
+   fontLuminance(ui.graphicsView->m_userItemSize);
+}
+
+void rtimvMainWindow::userCircleItemSize(StretchCircle * sc)
+{
+   char tmp[32];
+   snprintf(tmp, sizeof(tmp), "r=%0.1f", sc->radius());
+
+   ui.graphicsView->m_userItemSize->setText(tmp);
+   
+   QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
+   QSize textSize = fm.size(0, tmp);
+   
+   ui.graphicsView->m_userItemSize->setGeometry(sc->rect().x() + sc->pos().x() + sc->rect().width()*0.5 - sc->radius()*0.707, sc->rect().y() + sc->pos().y()+ sc->rect().height()*0.5 - sc->radius()*0.707, textSize.width()+5,textSize.height()+5);
+
+   fontLuminance(ui.graphicsView->m_userItemSize);
+}
+
+void rtimvMainWindow::userItemMouseCoords( float mx,
+                                           float my
+                                         )
+{
+   int idx_x = ((int64_t)(mx-0));
+   if(idx_x < 0) idx_x = 0;
+   if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
+      
+   int idx_y = (int)(m_qpmi->boundingRect().height() - (my-0));
+   if(idx_y < 0) idx_y = 0;
+   if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;
+
+   pixelF _pixel = pixel();
+      
+   float val = 0;
+   if(_pixel != nullptr) val = _pixel(this,  (int)(idx_y*m_nx) + (int)(idx_x));
+      
+   char valStr[32];
+   char posStr[32];
+   snprintf(valStr, sizeof(valStr), "%0f", val);
+   snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );
+
+   std::string str = std::string(valStr) + "\n" + posStr;
+   ui.graphicsView->m_userItemMouseCoords->setPlainText(str.c_str());
+
+   QFontMetrics fm(ui.graphicsView->m_userItemMouseCoords->currentFont());
+   QSize textSize = fm.size(0, str.c_str());
+   ui.graphicsView->m_userItemMouseCoords->setGeometry(mx, my, textSize.width()+5,textSize.height()+5);
+
+   fontLuminance(ui.graphicsView->m_userItemMouseCoords);
+
+}
+
+void rtimvMainWindow::userBoxItemMouseCoords(StretchBox * sb)
+{
+   float mx = sb->rect().x() + sb->pos().x() + sb->rect().width()*0.5;
+   float my = sb->rect().y() + sb->pos().y() + sb->rect().height()*0.5;
+
+   userItemMouseCoords(mx, my);
+}
+
+void rtimvMainWindow::userCircleItemMouseCoords(StretchCircle * sc)
+{
+   float mx = sc->rect().x() + sc->pos().x() + sc->rect().width()*0.5;
+   float my = sc->rect().y() + sc->pos().y() + sc->rect().height()*0.5;
+
+   userItemMouseCoords(mx, my);
+}
+
 void rtimvMainWindow::addUserBox()
 {
    float w;
@@ -1001,7 +1079,6 @@ void rtimvMainWindow::setTarget()
    }
 }
 
-
 void rtimvMainWindow::addStretchBox(StretchBox * sb)
 {
    if(sb == nullptr) return;
@@ -1123,14 +1200,12 @@ void rtimvMainWindow::colorBoxMoved(StretchBox * sb)
 
 void rtimvMainWindow::userBoxResized(StretchBox * sb)
 {
-   
-   char tmp[256];
-   snprintf(tmp, 256, "%0.1f x %0.1f", sb->rect().width(), sb->rect().height());
-   
-   ui.graphicsView->coords->setText(tmp);
+   userBoxItemSize(sb);
+   userBoxItemMouseCoords(sb);
 
    float cx = sb->rect().x() + sb->pos().x() + 0.5*sb->rect().width();
    float cy = sb->rect().y() + sb->pos().y() + 0.5*sb->rect().height();
+   
    m_objCenH->setPen(sb->pen());
    m_objCenV->setPen(sb->pen());
 
@@ -1143,16 +1218,13 @@ void rtimvMainWindow::userBoxResized(StretchBox * sb)
 
 void rtimvMainWindow::userBoxMoved(StretchBox * sb)
 {
-   QRectF newr = sb->rect();
-   QPointF np = m_qpmi->mapFromItem(sb, QPointF(newr.x(),newr.y()));
-   
-   float x = np.x()+.5*newr.width();
-   float y = np.y()+.5*newr.height();
-   
-   ui.graphicsView->coords->setGeometry(x*ScreenZoom-50., y*ScreenZoom-50., 200,40);
+   userBoxItemSize(sb);
+   userBoxItemMouseCoords(sb);
+
    
    float cx = sb->rect().x() + sb->pos().x() + 0.5*sb->rect().width();
    float cy = sb->rect().y() + sb->pos().y() + 0.5*sb->rect().height();
+
    m_objCenH->setPen(sb->pen());
    m_objCenV->setPen(sb->pen());
 
@@ -1165,7 +1237,6 @@ void rtimvMainWindow::userBoxMoved(StretchBox * sb)
 
 void rtimvMainWindow::userBoxMouseIn(StretchBox * sb)
 {
-   userBoxResized(sb);
    userBoxMoved(sb);
 }
 
@@ -1211,7 +1282,8 @@ void rtimvMainWindow::userBoxRemove(StretchBox * sb)
    m_qgs->removeItem(sb); //Remove it from the scene
    sb->deleteLater(); //clean it up after we're no longer in an asynch function
 
-   ui.graphicsView->coords->setVisible(false);
+   ui.graphicsView->m_userItemSize->setVisible(false);
+   ui.graphicsView->m_userItemMouseCoords->setVisible(false);
    m_objCenH->setVisible(false);
    m_objCenV->setVisible(false);
    m_nullMouseCoords=false;
@@ -1221,7 +1293,8 @@ void rtimvMainWindow::userBoxRemove(StretchBox * sb)
 void rtimvMainWindow::userBoxSelected(StretchBox * sb)
 {
    static_cast<void>(sb);
-   ui.graphicsView->coords->setVisible(true);
+   ui.graphicsView->m_userItemSize->setVisible(true);
+   ui.graphicsView->m_userItemMouseCoords->setVisible(true);
    m_objCenH->setVisible(true);
    m_objCenV->setVisible(true);
    nullMouseCoords();
@@ -1231,7 +1304,8 @@ void rtimvMainWindow::userBoxSelected(StretchBox * sb)
 void rtimvMainWindow::userBoxDeSelected(StretchBox * sb)
 {
    static_cast<void>(sb);
-   ui.graphicsView->coords->setVisible(false);
+   ui.graphicsView->m_userItemSize->setVisible(false);
+   ui.graphicsView->m_userItemMouseCoords->setVisible(false);
    m_objCenH->setVisible(false);
    m_objCenV->setVisible(false);
    m_nullMouseCoords=false;
@@ -1241,11 +1315,9 @@ void rtimvMainWindow::userBoxDeSelected(StretchBox * sb)
 
 void rtimvMainWindow::userCircleResized(StretchCircle * sc)
 {
-   char tmp[256];
-   snprintf(tmp, 256, "%0.1f", sc->radius());
+   userCircleItemSize(sc);
+   userCircleItemMouseCoords(sc);
    
-   ui.graphicsView->coords->setText(tmp);
-
    float cx = sc->rect().x() + sc->pos().x() + 0.5*sc->rect().width();
    float cy = sc->rect().y() + sc->pos().y() + 0.5*sc->rect().height();
    m_objCenH->setPen(sc->pen());
@@ -1259,13 +1331,8 @@ void rtimvMainWindow::userCircleResized(StretchCircle * sc)
 
 void rtimvMainWindow::userCircleMoved(StretchCircle * sc)
 {
-   QRectF newr = sc->rect();
-   QPointF np = m_qpmi->mapFromItem(sc, QPointF(newr.x(),newr.y()));
-   
-   float x = np.x()+.5*newr.width();
-   float y = np.y()+.5*newr.height();
-   
-   ui.graphicsView->coords->setGeometry(x*ScreenZoom-50., y*ScreenZoom-50., 70,40);
+   userCircleItemSize(sc);
+   userCircleItemMouseCoords(sc);
   
    float cx = sc->rect().x() + sc->pos().x() + 0.5*sc->rect().width();
    float cy = sc->rect().y() + sc->pos().y() + 0.5*sc->rect().height();
@@ -1281,7 +1348,6 @@ void rtimvMainWindow::userCircleMoved(StretchCircle * sc)
 void rtimvMainWindow::userCircleMouseIn(StretchCircle * sc)
 {
    userCircleResized(sc);
-   userCircleMoved(sc);
 }
 
 void rtimvMainWindow::userCircleMouseOut(StretchCircle * sc)
@@ -1320,7 +1386,8 @@ void rtimvMainWindow::userCircleRemove(StretchCircle * sc)
    m_qgs->removeItem(sc); //Remove it from the scene
    sc->deleteLater(); //clean it up after we're no longer in an asynch function
 
-   ui.graphicsView->coords->setVisible(false);
+   ui.graphicsView->m_userItemSize->setVisible(false);
+   ui.graphicsView->m_userItemMouseCoords->setVisible(false);
    m_objCenH->setVisible(false);
    m_objCenV->setVisible(false);
    m_userItemSelected = false;
@@ -1329,7 +1396,8 @@ void rtimvMainWindow::userCircleRemove(StretchCircle * sc)
 void rtimvMainWindow::userCircleSelected(StretchCircle * sb)
 {
    static_cast<void>(sb);
-   ui.graphicsView->coords->setVisible(true);
+   ui.graphicsView->m_userItemSize->setVisible(true);
+   ui.graphicsView->m_userItemMouseCoords->setVisible(true);
    m_objCenH->setVisible(true);
    m_objCenV->setVisible(true);
    m_userItemSelected = true;
@@ -1338,7 +1406,8 @@ void rtimvMainWindow::userCircleSelected(StretchCircle * sb)
 void rtimvMainWindow::userCircleDeSelected(StretchCircle * sb)
 {
    static_cast<void>(sb);
-   ui.graphicsView->coords->setVisible(false);
+   ui.graphicsView->m_userItemSize->setVisible(false);
+   ui.graphicsView->m_userItemMouseCoords->setVisible(false);
    m_objCenH->setVisible(false);
    m_objCenV->setVisible(false);
    m_userItemSelected = false;
@@ -1351,7 +1420,7 @@ void rtimvMainWindow::userLineResized(StretchLine * sl)
    char tmp[256];
    snprintf(tmp, 256, "%0.1f @ %0.1f", sl->length(), sl->angle());
    
-   ui.graphicsView->coords->setText(tmp);
+   ui.graphicsView->m_userItemSize->setText(tmp);
 }
 
 void rtimvMainWindow::userLineMoved(StretchLine * sl)
@@ -1361,7 +1430,7 @@ void rtimvMainWindow::userLineMoved(StretchLine * sl)
    float x = np.x();
    float y = np.y();
    
-   ui.graphicsView->coords->setGeometry(x*ScreenZoom, y*ScreenZoom-20., 200,40);
+   ui.graphicsView->m_userItemSize->setGeometry(x*ScreenZoom, y*ScreenZoom-20., 200,40);
  
    float w = sl->penWidth();
    if(w < 1) w = 1;
@@ -1419,7 +1488,7 @@ void rtimvMainWindow::userLineRemove(StretchLine * sl)
    m_qgs->removeItem(sl); //Remove it from the scene
    sl->deleteLater(); //clean it up after we're no longer in an asynch function
 
-   ui.graphicsView->coords->setVisible(false);
+   ui.graphicsView->m_userItemSize->setVisible(false);
    m_lineHead->setVisible(false);
    m_userItemSelected = false;
 }
@@ -1427,7 +1496,7 @@ void rtimvMainWindow::userLineRemove(StretchLine * sl)
 void rtimvMainWindow::userLineSelected(StretchLine * sl)
 {
    static_cast<void>(sl);
-   ui.graphicsView->coords->setVisible(true);
+   ui.graphicsView->m_userItemSize->setVisible(true);
    m_lineHead->setVisible(true);
    m_userItemSelected = true;
 }
@@ -1435,7 +1504,7 @@ void rtimvMainWindow::userLineSelected(StretchLine * sl)
 void rtimvMainWindow::userLineDeSelected(StretchLine * sl)
 {
    static_cast<void>(sl);
-   ui.graphicsView->coords->setVisible(false);
+   ui.graphicsView->m_userItemSize->setVisible(false);
    m_lineHead->setVisible(false);
    m_userItemSelected = false;
 }

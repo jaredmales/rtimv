@@ -90,19 +90,27 @@ rtimvGraphicsView::rtimvGraphicsView(QWidget *parent): QGraphicsView(parent)
    connect(&m_zoomTimer, SIGNAL(timeout()), this, SLOT(zoomTimerOut()));
    zoomText("1.0x");
    
-   coords = new QTextEdit(this);
-   textEditSetup(coords);
-   coords->setGeometry(150, 150, 300, 50);
+   m_userItemSize = new QTextEdit(this);
+   textEditSetup(m_userItemSize);
+   m_userItemSize->setGeometry(150, 150, 300, 50);
    
    QFont qf;
-   qf = coords->currentFont();
-   //qf.setPointSize(14);
+   qf = m_userItemSize->currentFont();
    qf.setPixelSize(14);
+   m_userItemSize->setCurrentFont(qf);
+   m_userItemSize->setVisible(false);
+   m_userItemSize->setTextColor("lime");
+   m_userItemSize->setWordWrapMode(QTextOption::NoWrap);
 
-   coords->setCurrentFont(qf);
-   coords->setVisible(false);
-   coords->setTextColor("lime");
-   
+   m_userItemMouseCoords = new QTextEdit(this);
+   textEditSetup(m_userItemMouseCoords);
+   m_userItemMouseCoords->setGeometry(150, 150, 300, 50);
+   m_userItemMouseCoords->setCurrentFont(qf);
+   m_userItemMouseCoords->setVisible(false);
+   m_userItemMouseCoords->setTextColor("lime");
+   m_userItemMouseCoords->setWordWrapMode(QTextOption::NoWrap);
+
+
    m_helpText = new QTextEdit(this);
    textEditSetup(m_helpText);
    helpTextFontSize(RTIMV_DEF_HELPFONTSIZE);
