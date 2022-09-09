@@ -313,13 +313,26 @@ public:
      */
    void setTarget();
 
-   void userBoxItemSize( StretchBox * sb );
 
-   void userCircleItemSize( StretchCircle * sb );
-
+   /** \name User Shapes
+     * @{
+     */
+ 
    void userItemMouseCoords( float mx,
                              float my
                            );
+
+   void userBoxItemSize( StretchBox * sb );
+   void userBoxItemCoords( StretchBox * sb );
+
+   void userCircleItemSize( StretchCircle * sb );
+   void userCircleItemCoords( StretchCircle * sc );
+
+   float m_userItemXCen {0}; ///< Center of active user item in scene coordinates
+   float m_userItemYCen {0}; ///< Center of active user item in scene coordinates
+   float m_userItemMouseViewX {0}; ///< Center of active user item in viewport coordinates
+   float m_userItemMouseViewY {0}; ///< Center of active user item in viewport coordinates
+   
 
    void userBoxItemMouseCoords( StretchBox * sb );
 

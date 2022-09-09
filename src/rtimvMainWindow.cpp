@@ -621,6 +621,7 @@ void rtimvMainWindow::updateMouseCoords()
    if(m_userItemSelected)
    {
       nullMouseCoords();
+      userItemMouseCoords(m_userItemMouseViewX, m_userItemMouseViewY);
    }
 
    if(!m_nullMouseCoords)
@@ -810,13 +811,31 @@ void rtimvMainWindow::userBoxItemSize(StretchBox * sb)
    char tmp[256];
    snprintf(tmp, 256, "%0.1f x %0.1f", sb->rect().width(), sb->rect().height());
    ui.graphicsView->m_userItemSize->setText(tmp);
-   //ui.graphicsView->m_userItemSize->setGeometry(sb->rect().x() + sb->pos().x(), sb->rect().y() + sb->pos().y(), 200,40);
    
    QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
    QSize textSize = fm.size(0, tmp);
-   ui.graphicsView->m_userItemSize->setGeometry(sb->rect().x() + sb->pos().x(), sb->rect().y() + sb->pos().y(), textSize.width()+5,textSize.height()+5);
 
+   QRectF sbr = sb->sceneBoundingRect();
+   QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x(), sbr.y()));
+ 
+   ui.graphicsView->m_userItemSize->resize(textSize.width()+5,textSize.height()+5);
+   ui.graphicsView->m_userItemSize->move(qr.x(), qr.y());
+   
    fontLuminance(ui.graphicsView->m_userItemSize);
+}
+
+void rtimvMainWindow::userBoxItemCoords(StretchBox * sb)
+{
+   m_userItemXCen = sb->rect().x() + sb->pos().x() + 0.5*sb->rect().width();
+   m_userItemYCen = sb->rect().y() + sb->pos().y() + 0.5*sb->rect().height();
+
+   m_objCenH->setPen(sb->pen());
+   m_objCenV->setPen(sb->pen());
+
+   float w = std::max(sb->rect().width(), sb->rect().height());
+   if(w < 100) w = 100;
+   m_objCenH->setLine(m_userItemXCen-w*0.05, m_userItemYCen, m_userItemXCen+w*0.05, m_userItemYCen);
+   m_objCenV->setLine(m_userItemXCen, m_userItemYCen-w*0.05, m_userItemXCen, m_userItemYCen+w*0.05);
 }
 
 void rtimvMainWindow::userCircleItemSize(StretchCircle * sc)
@@ -831,7 +850,29 @@ void rtimvMainWindow::userCircleItemSize(StretchCircle * sc)
    
    ui.graphicsView->m_userItemSize->setGeometry(sc->rect().x() + sc->pos().x() + sc->rect().width()*0.5 - sc->radius()*0.707, sc->rect().y() + sc->pos().y()+ sc->rect().height()*0.5 - sc->radius()*0.707, textSize.width()+5,textSize.height()+5);
 
+   //Take scene coordinates to viewport coordinates.
+   QRectF sbr = sc->sceneBoundingRect();
+   QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x()+sc->rect().width()*0.5 - sc->radius()*0.707, sbr.y()+ sc->rect().height()*0.5 - sc->radius()*0.707));
+ 
+   ui.graphicsView->m_userItemSize->resize(textSize.width()+5,textSize.height()+5);
+   ui.graphicsView->m_userItemSize->move(qr.x(), qr.y());
+
    fontLuminance(ui.graphicsView->m_userItemSize);
+}
+
+void rtimvMainWindow::userCircleItemCoords(StretchCircle * sc)
+{
+   m_userItemXCen = sc->rect().x() + sc->pos().x() + 0.5*sc->rect().width();
+   m_userItemYCen = sc->rect().y() + sc->pos().y() + 0.5*sc->rect().height();
+
+   m_objCenH->setPen(sc->pen());
+   m_objCenV->setPen(sc->pen());
+
+   float w = std::max(sc->rect().width(), sc->rect().height());
+   if(w < 100) w = 100;
+   m_objCenH->setLine(m_userItemXCen-w*0.05, m_userItemYCen, m_userItemXCen+w*0.05, m_userItemYCen);
+   m_objCenV->setLine(m_userItemXCen, m_userItemYCen-w*0.05, m_userItemXCen, m_userItemYCen+w*0.05);
+
 }
 
 void rtimvMainWindow::userItemMouseCoords( float mx,
@@ -869,18 +910,22 @@ void rtimvMainWindow::userItemMouseCoords( float mx,
 
 void rtimvMainWindow::userBoxItemMouseCoords(StretchBox * sb)
 {
-   float mx = sb->rect().x() + sb->pos().x() + sb->rect().width()*0.5;
-   float my = sb->rect().y() + sb->pos().y() + sb->rect().height()*0.5;
+   QRectF sbr = sb->sceneBoundingRect();
+   QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x()+0.5*sbr.width(), sbr.y() + 0.5*sbr.height()));
 
-   userItemMouseCoords(mx, my);
+   m_userItemMouseViewX = qr.x();
+   m_userItemMouseViewY = qr.y();
+   userItemMouseCoords(qr.x(), qr.y());
 }
 
 void rtimvMainWindow::userCircleItemMouseCoords(StretchCircle * sc)
 {
-   float mx = sc->rect().x() + sc->pos().x() + sc->rect().width()*0.5;
-   float my = sc->rect().y() + sc->pos().y() + sc->rect().height()*0.5;
+   QRectF sbr = sc->sceneBoundingRect();
+   QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x()+0.5*sbr.width(), sbr.y() + 0.5*sbr.height()));
 
-   userItemMouseCoords(mx, my);
+   m_userItemMouseViewX = qr.x();
+   m_userItemMouseViewY = qr.y();
+   userItemMouseCoords(qr.x(), qr.y());
 }
 
 void rtimvMainWindow::addUserBox()
@@ -1071,7 +1116,8 @@ void rtimvMainWindow::setTarget()
          m_cenLineVert->setVisible(true);
          m_cenLineHorz->setVisible(true);
       }
-      else
+      else   //ui.graphicsView->m_userItemSize->setGeometry(sb->rect().x() + sb->pos().x(), sb->rect().y() + sb->pos().y(), 200,40);
+
       {
          m_cenLineVert->setVisible(false);
          m_cenLineHorz->setVisible(false);
@@ -1202,37 +1248,14 @@ void rtimvMainWindow::userBoxResized(StretchBox * sb)
 {
    userBoxItemSize(sb);
    userBoxItemMouseCoords(sb);
-
-   float cx = sb->rect().x() + sb->pos().x() + 0.5*sb->rect().width();
-   float cy = sb->rect().y() + sb->pos().y() + 0.5*sb->rect().height();
-   
-   m_objCenH->setPen(sb->pen());
-   m_objCenV->setPen(sb->pen());
-
-   float w = std::max(sb->rect().width(), sb->rect().height());
-   if(w < 100) w = 100;
-   m_objCenH->setLine(cx-w*0.05, cy, cx+w*0.05, cy);
-   m_objCenV->setLine(cx, cy-w*0.05, cx, cy+w*0.05);
-
+   userBoxItemCoords(sb);
 }
 
 void rtimvMainWindow::userBoxMoved(StretchBox * sb)
 {
    userBoxItemSize(sb);
    userBoxItemMouseCoords(sb);
-
-   
-   float cx = sb->rect().x() + sb->pos().x() + 0.5*sb->rect().width();
-   float cy = sb->rect().y() + sb->pos().y() + 0.5*sb->rect().height();
-
-   m_objCenH->setPen(sb->pen());
-   m_objCenV->setPen(sb->pen());
-
-   float w = std::max(sb->rect().width(), sb->rect().height());
-   if(w < 100) w = 100;
-   m_objCenH->setLine(cx-w*0.05, cy, cx+w*0.05, cy);
-   m_objCenV->setLine(cx, cy-w*0.05, cx, cy+w*0.05);
-
+   userBoxItemCoords(sb);
 }
 
 void rtimvMainWindow::userBoxMouseIn(StretchBox * sb)
@@ -1298,6 +1321,8 @@ void rtimvMainWindow::userBoxSelected(StretchBox * sb)
    m_objCenH->setVisible(true);
    m_objCenV->setVisible(true);
    nullMouseCoords();
+   m_userItemXCen = sb->rect().x() + sb->pos().x() + 0.5*sb->rect().width();
+   m_userItemYCen = sb->rect().y() + sb->pos().y() + 0.5*sb->rect().height();
    m_userItemSelected = true;
 }
 
@@ -1317,32 +1342,16 @@ void rtimvMainWindow::userCircleResized(StretchCircle * sc)
 {
    userCircleItemSize(sc);
    userCircleItemMouseCoords(sc);
-   
-   float cx = sc->rect().x() + sc->pos().x() + 0.5*sc->rect().width();
-   float cy = sc->rect().y() + sc->pos().y() + 0.5*sc->rect().height();
-   m_objCenH->setPen(sc->pen());
-   m_objCenV->setPen(sc->pen());
-
-   float w = std::max(sc->rect().width(), sc->rect().height());
-   if(w < 100) w = 100;
-   m_objCenH->setLine(cx-w*0.05, cy, cx+w*0.05, cy);
-   m_objCenV->setLine(cx, cy-w*0.05, cx, cy+w*0.05);
+   userCircleItemCoords(sc);
 }
 
 void rtimvMainWindow::userCircleMoved(StretchCircle * sc)
 {
    userCircleItemSize(sc);
    userCircleItemMouseCoords(sc);
-  
-   float cx = sc->rect().x() + sc->pos().x() + 0.5*sc->rect().width();
-   float cy = sc->rect().y() + sc->pos().y() + 0.5*sc->rect().height();
-   m_objCenH->setPen(sc->pen());
-   m_objCenV->setPen(sc->pen());
+   userCircleItemCoords(sc);
 
-   float w = std::max(sc->rect().width(), sc->rect().height());
-   if(w < 100) w = 100;
-   m_objCenH->setLine(cx-w*0.05, cy, cx+w*0.05, cy);
-   m_objCenV->setLine(cx, cy-w*0.05, cx, cy+w*0.05);
+   
 }
 
 void rtimvMainWindow::userCircleMouseIn(StretchCircle * sc)
@@ -1393,13 +1402,14 @@ void rtimvMainWindow::userCircleRemove(StretchCircle * sc)
    m_userItemSelected = false;
 }
 
-void rtimvMainWindow::userCircleSelected(StretchCircle * sb)
+void rtimvMainWindow::userCircleSelected(StretchCircle * sc)
 {
-   static_cast<void>(sb);
    ui.graphicsView->m_userItemSize->setVisible(true);
    ui.graphicsView->m_userItemMouseCoords->setVisible(true);
    m_objCenH->setVisible(true);
    m_objCenV->setVisible(true);
+   m_userItemXCen = sc->rect().x() + sc->pos().x() + 0.5*sc->rect().width();
+   m_userItemYCen = sc->rect().y() + sc->pos().y() + 0.5*sc->rect().height();
    m_userItemSelected = true;
 }
 
@@ -1421,6 +1431,18 @@ void rtimvMainWindow::userLineResized(StretchLine * sl)
    snprintf(tmp, 256, "%0.1f @ %0.1f", sl->length(), sl->angle());
    
    ui.graphicsView->m_userItemSize->setText(tmp);
+
+   m_userItemXCen = sl->line().x1();
+   m_userItemYCen = sl->line().y1();
+
+   //QRectF sbr = sl->sceneBoundingRect();
+   QPoint qr = ui.graphicsView->mapFromScene(QPointF(sl->line().x1(), sl->line().y1()));
+
+   m_userItemMouseViewX = qr.x();
+   m_userItemMouseViewY = qr.y();
+   userItemMouseCoords(qr.x(), qr.y());
+
+   //userItemMouseCoords(m_userItemXCen, m_userItemYCen);
 }
 
 void rtimvMainWindow::userLineMoved(StretchLine * sl)
@@ -1432,6 +1454,15 @@ void rtimvMainWindow::userLineMoved(StretchLine * sl)
    
    ui.graphicsView->m_userItemSize->setGeometry(x*ScreenZoom, y*ScreenZoom-20., 200,40);
  
+   m_userItemXCen = sl->line().x1();
+   m_userItemYCen = sl->line().y1();
+
+   QPoint qr = ui.graphicsView->mapFromScene(QPointF(sl->line().x1(), sl->line().y1()));
+
+   m_userItemMouseViewX = qr.x();
+   m_userItemMouseViewY = qr.y();
+   userItemMouseCoords(qr.x(), qr.y());
+
    float w = sl->penWidth();
    if(w < 1) w = 1;
    float lhx = sl->line().x1() - w*1.5;
@@ -1442,6 +1473,11 @@ void rtimvMainWindow::userLineMoved(StretchLine * sl)
 void rtimvMainWindow::userLineMouseIn(StretchLine * sl)
 {
    m_lineHead->setPen(sl->pen());
+
+   m_userItemXCen = sl->line().x1();
+   m_userItemYCen = sl->line().y1();
+
+
    float w = sl->penWidth();
    if(w < 1) w = 1;
    float lhx = sl->line().x1() - w*1.5;
@@ -1497,7 +1533,11 @@ void rtimvMainWindow::userLineSelected(StretchLine * sl)
 {
    static_cast<void>(sl);
    ui.graphicsView->m_userItemSize->setVisible(true);
+   ui.graphicsView->m_userItemMouseCoords->setVisible(true);
    m_lineHead->setVisible(true);
+
+   m_userItemXCen = sl->line().x1();
+   m_userItemYCen = sl->line().y1();
    m_userItemSelected = true;
 }
 
@@ -1505,6 +1545,7 @@ void rtimvMainWindow::userLineDeSelected(StretchLine * sl)
 {
    static_cast<void>(sl);
    ui.graphicsView->m_userItemSize->setVisible(false);
+   ui.graphicsView->m_userItemMouseCoords->setVisible(false);
    m_lineHead->setVisible(false);
    m_userItemSelected = false;
 }
