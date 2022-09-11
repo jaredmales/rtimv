@@ -164,81 +164,76 @@ void StretchBox::setMovingGeometry(QGraphicsSceneMouseEvent * e)
 
 void StretchBox::sizingCalcNewPos(QGraphicsSceneMouseEvent * e)
 {
-   double newx, newy, neww, newh;
+   double newx, newy, neww, newh, dw, dh;
    
+   dw = (e->scenePos().x() - m_mv_x0);
+   dh = (e->scenePos().y() - m_mv_y0);
+
    if(m_sizing == szLeft)
    {
-      newx = m_ul_x;
+      newx = m_ul_x + dw;
       if(m_maintainCenter)
       {
-         newx += 0.5*(e->scenePos().x() - m_mv_x0);
+         dw *= 2;
       }
-      else
-      {
-         newx += (e->scenePos().x() - m_mv_x0);
-      }
+
       newy = m_ul_y;
-      neww = m_width - (e->scenePos().x() - m_mv_x0);
+      neww = m_width - dw; 
       newh = m_height; 
    }
    else if(m_sizing == szTopl)
    {
-      newx = m_ul_x;
-      newy = m_ul_y;
+      newx = m_ul_x + dw;
+      newy = m_ul_y + dh;
+
       if(m_maintainCenter)
       {
-         newx += 0.5*(e->scenePos().x() - m_mv_x0);
-         newy += 0.5*(e->scenePos().y() - m_mv_y0);
-      }
-      else
-      {
-         newx += (e->scenePos().x() - m_mv_x0);
-         newy += (e->scenePos().y() - m_mv_y0);
+         dw *= 2;
+         dh *= 2;
       }
       
-      neww = m_width - (e->scenePos().x() - m_mv_x0);
-      newh = m_height - (e->scenePos().y() - m_mv_y0);    
+      neww = m_width - dw;
+      newh = m_height - dh;    
    }
    else if(m_sizing == szTop)
    {
       newx = m_ul_x;
-      newy = m_ul_y;
+      newy = m_ul_y + dh;
       if(m_maintainCenter)
       {
-         newy += 0.5*(e->scenePos().y() - m_mv_y0);
+         dh *= 2;
       }
-      else
-      {
-         newy += (e->scenePos().y() - m_mv_y0);
-      }
+
       neww = m_width;
-      newh = m_height - (e->scenePos().y() - m_mv_y0); 
+      newh = m_height - dh; 
    }
    else if(m_sizing == szTopr)
    {
       newx = m_ul_x;
-      newy = m_ul_y;
+      newy = m_ul_y + dh;
       if(m_maintainCenter)
       {
-         newx -= 0.5*(e->scenePos().x() - m_mv_x0);
-         newy += 0.5*(e->scenePos().y() - m_mv_y0);
+         newx -= dw;
+
+         dw *= 2;
+         dh *= 2;
       }
-      else
-      {
-         newy += (e->scenePos().y() - m_mv_y0);
-      }
-      neww = m_width + (e->scenePos().x() - m_mv_x0);
-      newh = m_height - (e->scenePos().y() - m_mv_y0); 
+
+      neww = m_width + dw;
+      newh = m_height - dh; 
    }
    else if(m_sizing == szRight)
    {
       newx = m_ul_x;
       newy = m_ul_y;
+
       if(m_maintainCenter)
       {
-         newx -= 0.5*(e->scenePos().x() - m_mv_x0);
+         newx -= dw;
+         dw *= 2;
       }
-      neww = m_width + (e->scenePos().x() - m_mv_x0);
+
+      neww = m_width + dw;
       newh = m_height; 
    }
    else if(m_sizing == szBotr)
@@ -247,11 +242,13 @@ void StretchBox::sizingCalcNewPos(QGraphicsSceneMouseEvent * e)
       newy = m_ul_y;
       if(m_maintainCenter)
       {
-         newx -= 0.5*(e->scenePos().x() - m_mv_x0);
-         newy -= 0.5*(e->scenePos().y() - m_mv_y0);
+         newx -= (e->scenePos().x() - m_mv_x0);
+         newy -= (e->scenePos().y() - m_mv_y0);
+         dw *= 2;
+         dh *= 2;
       }
-      neww = m_width + (e->scenePos().x() - m_mv_x0);
-      newh = m_height + (e->scenePos().y() - m_mv_y0);
+      neww = m_width + dw;
+      newh = m_height + dh;
    }
    else if(m_sizing == szBot)
    {
@@ -259,27 +256,26 @@ void StretchBox::sizingCalcNewPos(QGraphicsSceneMouseEvent * e)
       newy = m_ul_y;
       if(m_maintainCenter)
       {
-         newy -= 0.5*(e->scenePos().y() - m_mv_y0);
+         newy -= dh;
+         dh *= 2;
       }
       neww = m_width;
-      newh = m_height + (e->scenePos().y() - m_mv_y0);
+      newh = m_height + dh;
    }
    else if(m_sizing == szBotl)
    {
-      newx = m_ul_x;
+      newx = m_ul_x + dw;
       newy = m_ul_y;
       if(m_maintainCenter)
       {
-         newx += 0.5*(e->scenePos().x() - m_mv_x0);
-         newy -= 0.5*(e->scenePos().y() - m_mv_y0);
-      }
-      else
-      {
-         m_ul_x += (e->scenePos().x() - m_mv_x0);
+         newy -= dh;
+         
+         dw *= 2;
+         dh *= 2;
       }
       
-      neww = m_width - (e->scenePos().x() - m_mv_x0);
-      newh = m_height + (e->scenePos().y() - m_mv_y0);
+      neww = m_width - dw;
+      newh = m_height + dh;
    }
    else 
    {

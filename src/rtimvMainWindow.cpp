@@ -1561,12 +1561,18 @@ void rtimvMainWindow::post_setUserBoxActive(bool usba)
 void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
 {
    //First deal with the control sequences
-   if(ke->modifiers() == Qt::ControlModifier) 
+   if(ke->modifiers() & Qt::ControlModifier) 
    {
       switch(ke->key())
       {
          case Qt::Key_C:
             center();
+            break;
+         case Qt::Key_Plus:
+            zoomLevel(zoomLevel() + 0.1);
+            break;
+         case Qt::Key_Minus:
+            zoomLevel(zoomLevel() - 0.1);
             break;
       }
    }
@@ -1987,24 +1993,26 @@ std::string rtimvMainWindow::generateHelp()
    help += "\n";
    help += "Shortcuts:\n";
    //      "01234567890123456789012345678901234567890123456789012345678901234567890123456789
-   help += "a: toggle autoscale           \tb: add box                     \n";
-   help += "c: add circle                 \tf: toggle FPS gauge            \n";
-   help += "h: toggle help                \tl: add line                    \n";
-   help += "n: toggle north arrow         \tp: launch control panel        \n";
-   help += "r: re-stretch color table     \ts: toggle statistics box       \n";
-   help += "t: toggle target cross        \tx: freeze real-time            \n";
+   help += "a: toggle autoscale           b: add box                     \n";
+   help += "c: add circle                 f: toggle FPS gauge            \n";
+   help += "h: toggle help                l: add line                    \n";
+   help += "n: toggle north arrow         p: launch control panel        \n";
+   help += "r: re-stretch color table     s: toggle statistics box       \n";
+   help += "t: toggle target cross        x: freeze real-time            \n";
    help += "z: toggle color box\n";
    
    help += "\n";
-   help += "D: toggle dark subtraction    \tL: toggle log scale            \n";
-   help += "M: toggle mask                \tS: toggle saturation mask      \n";
+   help += "D: toggle dark subtraction    L: toggle log scale            \n";
+   help += "M: toggle mask                S: toggle saturation mask      \n";
    
    help += "\n";
    help += "1-9: change zoom level\n";
+   help += "ctrl +: zoom in\n";
+   help += "ctrl -: zoom out\n";
    help += "\n";
-   help += "[: shrink to fit              \t]: grow to fit\n";
+   help += "[: shrink to fit              ]: grow to fit\n";
    help += "\n";
-   help += "ctrl-c: center image          \tdelete: remove selected object \n";
+   help += "ctrl c: center image          delete: remove selected object \n";
    
    return help;
 }
