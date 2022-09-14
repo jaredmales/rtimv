@@ -471,7 +471,7 @@ protected slots:
       /** The average is formed as pow( sum(pow(pixel-luminance, m_lumPwr), 1/m_lumPwr).  This 
         * being a large number causes a few very bright pixels to bias the average.
         */ 
-      double m_lumPwr {8};
+      double m_lumPwr {12};
       
       /// The luminance threshold below which no background transparency is set.
       /** Above this, but below m_lumMax, linear interpolation is used to set the opacity.
@@ -485,7 +485,7 @@ protected slots:
         * 
         * Range: 0-255;
         */ 
-      double m_lumMax {200};
+      double m_lumMax {175};
 
       /// The maximum opacity which will be set.
       /** This is the opacity set when at or above m_lumMax.
