@@ -1523,7 +1523,7 @@ void rtimvMainWindow::userLineRemove(StretchLine * sl)
    m_userLines.erase(sl); //Remove it from our list
    m_qgs->removeItem(sl); //Remove it from the scene
    sl->deleteLater(); //clean it up after we're no longer in an asynch function
-
+   ui.graphicsView->m_userItemMouseCoords->setVisible(false);
    ui.graphicsView->m_userItemSize->setVisible(false);
    m_lineHead->setVisible(false);
    m_userItemSelected = false;
