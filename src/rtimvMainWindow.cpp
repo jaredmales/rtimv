@@ -1773,7 +1773,7 @@ void rtimvMainWindow::toggleStatsBox()
       else w = m_ny/4;
    
       m_statsBox = new StretchBox(0.5*(m_nx)-w/2,0.5*(m_ny)-w/2, w, w);
-      m_statsBox->setPenColor("Red");
+      m_statsBox->setPenColor("#3DA5FF");
       m_statsBox->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
       m_statsBox->setVisible(false);
       m_statsBox->setStretchable(true);
