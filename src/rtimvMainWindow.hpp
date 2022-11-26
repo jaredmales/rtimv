@@ -101,25 +101,73 @@ public:
    float get_act_ycen();
    
    void setPointerOverZoom(float poz);
-   
-   
-protected slots:
-   //void on_buttonPanelLaunch_clicked();
 
 /*** Graphics stuff ***/
 protected:
    QGraphicsScene * m_qgs {nullptr};
    QGraphicsPixmapItem * m_qpmi {nullptr};
-   
-   QGraphicsLineItem * nup;
-   QGraphicsLineItem * nup_tip;
-   
+
+
+
    float ScreenZoom;
+
 public:
-   QGraphicsScene * get_qgs(){return m_qgs;}
+   QGraphicsScene * get_qgs();
+
+/** \name North Arrow
+  * The north arrow is toggled on/off with the `n` key.  The angle of the north arrow returned by northAngle() is determined by
+  * the dictionary key "rtimv.north.angle", which can be set from a dictionary plugin or using the slot
+  * northAngleRaw(float).  This is multiplied by m_northAngleScale and then m_northAngleOffset is added to the result to produce
+  * a counter clockwise rotation angle in degrees.
+  * 
+  * The north arrow can be disabled in configuration.  If "north.enabled=false" is set, the north arrow will not be displayed.
+  * 
+  * Relevant configuration key=value pairs are
+  * - `north.enabled=true/false`: Whether or not to enable the north arrow. Default is true.
+  * - `north.offset=float`: Offset in degrees c.c.w. to apply to the north angle. Default is 0.
+  * - `north.scale=float`: Scaling factor to apply to north angle to convert to degrees c.c.w. on the image.  Default is -1.
+  * @{ 
+  */
+protected:   
+   
+   QGraphicsLineItem * m_northArrow; ///< The north arrow line.
+   
+   QGraphicsLineItem * m_northArrowTip; ///< The north arrow tip line.
+   
+   bool m_northArrowEnabled {true}; ///< Flag controlling whether or not the north arrow is enabled.
+   
+   float m_northAngleScale {-1}; ///< The scale to multiply the value contained in "rtimv.north.angle" to convert to degrees c.c.w.
+   
+   float m_northAngleOffset {0}; ///< The offset to apply to the scaled north angle in degrees c.c.w.
+
+   void centerNorthArrow(); ///< Center the north arrow on the current display center.
+
+   void updateNorthArrow(); ///< Update the angle of the north arrow.
+
+public:
+
+   /// Get the angle of North on the image display
+   /** Uses "rtimv.north.angle" in the dictionary to fine the current `north` for the target, then calculates:
+     *   north = -1*(m_northAngleOffset + m_northAngleScale*north) 
+     * and returns the result. 
+     * 
+     * \returns the angle of north on the image display if "rtimv.north.angle" is set
+     * \returns 0 otherwise
+     */
+   float northAngle();
+
+public slots:
+
+   /// Set the value of the north angle in the dictionary, for use by northAngle()
+   /** Sets the value of "rtimv.north.angle" in the dictionary.
+     * 
+     */
+   void northAngleRaw(float north /**< [in] the new value of the raw north angle*/);
+
+  ///@}
 
    /*** Real Time Controls ***/
-   
+public:
    void freezeRealTime();
 
    void reStretch();
