@@ -459,6 +459,8 @@ protected slots:
    void userLineSelected(StretchLine * sl);
    void userLineDeSelected(StretchLine * sl);
 
+   void savingState(bool ss);
+   
    public:
       virtual void post_setUserBoxActive(bool usba);
          

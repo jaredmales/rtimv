@@ -1602,6 +1602,21 @@ void rtimvMainWindow::userLineDeSelected(StretchLine * sl)
    m_userItemSelected = false;
 }
 
+void rtimvMainWindow::savingState(bool ss)
+{
+   if(ss)
+   {
+      ui.graphicsView->saveBoxFontColor("lightgreen");
+      ui.graphicsView->m_saveBox->setText("S");
+   }
+   else
+   {
+      ui.graphicsView->saveBoxFontColor("red");
+      ui.graphicsView->m_saveBox->setText("X");
+
+   }
+}
+
 void rtimvMainWindow::post_setUserBoxActive(bool usba)
 {
    if(!m_colorBox) return;
@@ -2203,6 +2218,7 @@ void rtimvMainWindow::fontLuminance()
       if(ui.graphicsView->m_statusText[n]->toPlainText().size() > 0) fontLuminance(ui.graphicsView->m_statusText[n]);
    }
    
+   fontLuminance(ui.graphicsView->m_saveBox);
    
    return;
    
