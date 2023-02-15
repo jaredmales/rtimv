@@ -66,12 +66,12 @@ void rtimvBase::startup( const std::vector<std::string> & shkeys )
             }
             else
             {
-#ifdef RTIMV_MILK
-               shmimImage * si = new shmimImage;
-               m_images[i] = (rtimvImage *) si;
-#else
-               qFatal("Unrecognized image key format");
-#endif
+               #ifdef RTIMV_MILK
+                  shmimImage * si = new shmimImage;
+                  m_images[i] = (rtimvImage *) si;
+               #else
+                  qFatal("Unrecognized image key format");
+               #endif
             }
             
             m_images[i]->imageKey(shkeys[i]); // Set the key

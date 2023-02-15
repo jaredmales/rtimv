@@ -64,7 +64,13 @@ unix:!macx {
 }
 
 CONFIG += link_pkgconfig
-PKGCONFIG += cfitsio libzmq
+PKGCONFIG += cfitsio 
+
+packagesExist(libzmq) {
+   PKGCONFIG += libzmq
+} else {
+   LIBS += -lzmq 
+}
 
 _conda_prefix = $$(CONDA_PREFIX)
 !isEmpty(_conda_prefix) {

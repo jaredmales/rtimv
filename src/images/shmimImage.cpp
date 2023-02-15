@@ -4,6 +4,8 @@
 
 #include <iostream>
 
+#ifdef RTIMV_MILK
+
 shmimImage::shmimImage()
 {
    //ImageStreamIO_set_printError(new_printError);

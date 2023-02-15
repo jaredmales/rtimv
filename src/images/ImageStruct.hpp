@@ -3,8 +3,8 @@
 
 //milk includes
 #ifdef RTIMV_MILK
-#include <ImageStreamIO.h>
-#include <ImageStruct.h>
+#include <ImageStreamIO/ImageStreamIO.h>
+#include <ImageStreamIO/ImageStruct.h>
 #else
 typedef struct {
     float re;
