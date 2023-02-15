@@ -236,3 +236,13 @@ void StretchLine::emitRemove()
 {
    emit remove(this);
 }
+
+void StretchLine::emitSelected()
+{
+   emit selected(this);
+}
+
+void StretchLine::emitDeSelected()
+{
+   emit deSelected(this);
+}

@@ -20,6 +20,13 @@ QT += widgets
 
 MAKEFILE = makefile.rtimv
 
+#MILK include path
+unix::INCLUDEPATH += /usr/local/milk/include 
+unix::LIBPATH += /usr/local/milk/lib/
+
+#EIGEN include path 
+unix::INCLUDEPATH += /usr/local/include/eigen3/
+
 # Input
 HEADERS += src/rtimvGraphicsView.hpp \
            src/rtimvBase.hpp \

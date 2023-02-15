@@ -40,11 +40,26 @@ rtimvControlPanel::rtimvControlPanel(rtimvMainWindow *v, Qt::WindowFlags f): QWi
    PointerViewFixed = false;
    PointerViewWaiting = false;
    
+   connect(imv, SIGNAL(showToolTipCoordsChanged(bool)), this, SLOT(showToolTipCoordsChanged(bool)));
+   connect(this, SIGNAL(showToolTipCoords(bool)), imv, SLOT(showToolTipCoords(bool)));
+   connect(imv, SIGNAL(showStaticCoordsChanged(bool)), this, SLOT(showStaticCoordsChanged(bool)));
+   connect(this, SIGNAL(showStaticCoords(bool)), imv, SLOT(showStaticCoords(bool)));
+
+   connect(imv, SIGNAL(targetXcChanged(float)), this, SLOT(targetXcChanged(float)));
+   connect(imv, SIGNAL(targetYcChanged(float)), this, SLOT(targetYcChanged(float)));
+   connect(imv, SIGNAL(targetVisibleChanged(bool)), this, SLOT(targetVisibleChanged(bool)));
+                                                            
+
+   connect(this, SIGNAL(targetXc(float)), imv, SLOT(targetXc(float)));
+   connect(this, SIGNAL(targetYc(float)), imv, SLOT(targetYc(float)));
+   connect(this, SIGNAL(targetVisible(bool)), imv, SLOT(targetVisible(bool)));
+
    init_panel();
    
    //connect(viewBox, SIGNAL(moved(const QRectF & )), this, SLOT(viewBoxMoved(const QRectF &)));
 
    statsBoxButtonState = false;
+
 }
 
 void rtimvControlPanel::setupMode()
@@ -86,6 +101,8 @@ void rtimvControlPanel::setupCombos()
    ui.pointerViewModecomboBox->insertItem(PointerViewOnPress, "On mouse press");
    ui.pointerViewModecomboBox->insertItem(PointerViewDisabled, "Disabled");
    ui.pointerViewModecomboBox->setCurrentIndex(PointerViewOnPress);
+
+
 }
 
 void rtimvControlPanel::init_panel()
@@ -136,6 +153,14 @@ void rtimvControlPanel::init_panel()
    ui.scaleTypeCombo->setCurrentIndex(imv->get_cbStretch());
    ui.scaleModeCombo->setCurrentIndex(imv->get_colorbar_mode());
    ui.colorbarCombo->setCurrentIndex(imv->get_current_colorbar());
+
+   //initialize the button state for coordinate displays
+   showToolTipCoordsChanged(imv->showToolTipCoords());
+   showStaticCoordsChanged(imv->showStaticCoords());
+
+   targetXcChanged(imv->targetXc());
+   targetYcChanged(imv->targetYc());
+   targetVisibleChanged(imv->targetVisible());
 }
 
 void rtimvControlPanel::update_panel()
@@ -369,42 +394,42 @@ void rtimvControlPanel::on_view_center_clicked()
 
 void rtimvControlPanel::on_view_ul_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() - 1./imv->zoomLevel(), imv->get_ycen()-1./imv->zoomLevel());
+	imv->set_viewcen(imv->get_xcen()/imv->nx() - 1./imv->zoomLevel(), imv->get_ycen()/imv->ny()-1./imv->zoomLevel());
 }
 
 void rtimvControlPanel::on_view_up_clicked()
 {
-	imv->set_viewcen(imv->get_xcen(), imv->get_ycen()-1./imv->zoomLevel());
+	imv->set_viewcen(imv->get_xcen()/imv->nx(), imv->get_ycen()/imv->ny()-1./imv->zoomLevel());
 }
 
 void rtimvControlPanel::on_view_ur_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() + 1./imv->zoomLevel(), imv->get_ycen() - 1./imv->zoomLevel());
+	imv->set_viewcen(imv->get_xcen()/imv->nx() + 1./imv->zoomLevel(), imv->get_ycen()/imv->ny() - 1./imv->zoomLevel());
 }
 
 void rtimvControlPanel::on_view_right_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() + 1./imv->zoomLevel(), imv->get_ycen());
+	imv->set_viewcen(imv->get_xcen()/imv->nx() + 1./imv->zoomLevel(), imv->get_ycen()/imv->ny());
 }
 
 void rtimvControlPanel::on_view_dr_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() + 1./imv->zoomLevel(), imv->get_ycen()+1./imv->zoomLevel());
+	imv->set_viewcen(imv->get_xcen()/imv->nx() + 1./imv->zoomLevel(), imv->get_ycen()/imv->ny()+1./imv->zoomLevel());
 }
 
 void rtimvControlPanel::on_view_down_clicked()
 {
-	imv->set_viewcen(imv->get_xcen(), imv->get_ycen()+1./imv->zoomLevel());
+	imv->set_viewcen(imv->get_xcen()/imv->nx(), imv->get_ycen()/imv->ny()+1./imv->zoomLevel());
 }
 
 void rtimvControlPanel::on_view_dl_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() - 1./imv->zoomLevel(), imv->get_ycen()+1./imv->zoomLevel());
+	imv->set_viewcen(imv->get_xcen()/imv->nx() - 1./imv->zoomLevel(), imv->get_ycen()/imv->ny()+1./imv->zoomLevel());
 }
 
 void rtimvControlPanel::on_view_left_clicked()
 {
-	imv->set_viewcen(imv->get_xcen() - 1./imv->zoomLevel(), imv->get_ycen());
+	imv->set_viewcen(imv->get_xcen()/imv->nx() - 1./imv->zoomLevel(), imv->get_ycen()/imv->ny());
 }
 
 void rtimvControlPanel::updateMouseCoords(double x, double y, double v)
@@ -426,7 +451,7 @@ void rtimvControlPanel::updateMouseCoords(double x, double y, double v)
 			ui.pointerView->setScene(imv->get_qgs());
 			PointerViewEmpty = false;
 		}
-	 	ui.pointerView->centerOn(x, imv->ny()-y);
+	 	ui.pointerView->centerOn(x, y);
 	
 	}
 }	
@@ -446,14 +471,15 @@ void rtimvControlPanel::nullMouseCoords()
 		
 void rtimvControlPanel::viewLeftPressed(QPointF mp)
 {
+   static_cast<void>(mp);
+
    if(PointerViewMode == PointerViewOnPress)
    {
       ui.pointerView->setScene(imv->get_qgs());
       PointerViewEmpty = false;
-      if (!PointerViewFixed) ui.pointerView->centerOn(mp.x()*imv->nx(), mp.y()*imv->ny());
-      else
+      if(PointerViewFixed)
       {
-         ui.pointerView->centerOn(pointerViewCen.x()*imv->nx(), pointerViewCen.y()*imv->ny());
+         ui.pointerView->centerOn(pointerViewCen.x(), pointerViewCen.y());
       }
    }
 }
@@ -515,6 +541,8 @@ void rtimvControlPanel::on_pointerSetLocButton_clicked()
 
 void rtimvControlPanel::set_pointerViewCen(QPointF mp)
 {
+   std::cerr << mp.x() << " " << mp.y() << "\n";
+
    pointerViewCen = mp;
    ui.pointerSetLocButton->setText("Clear Location");
    PointerViewWaiting = false;
@@ -860,7 +888,6 @@ void rtimvControlPanel::on_statsBoxButton_clicked()
 
 void rtimvControlPanel::viewBoxMoved ( const QRectF & vbr)
 {
-   
    //QPointF newcenV = ui.viewView->mapFromScene(newcen);
    //double viewZoom = (double)ui.viewView->width()/(double)imv->nx();
    //QRectF vbr = viewBox->rect();
@@ -879,8 +906,157 @@ void rtimvControlPanel::viewBoxMoved ( const QRectF & vbr)
    
    imv->set_viewcen(nxcen/(double)imv->nx(), nycen/(double)imv->nx(), true);
    
-   
-   
+
    
 }
 
+void rtimvControlPanel::showToolTipCoordsChanged(bool sttc)
+{
+   if(sttc)
+   {
+      ui.toolTipCoordsButton->setText("Hide Pointer Coords");
+   }
+   else
+   {
+      ui.toolTipCoordsButton->setText("Show Pointer Coords");
+   }
+}
+
+void rtimvControlPanel::showStaticCoordsChanged(bool ssc)
+{
+   if(ssc)
+   {
+      ui.staticCoordsButton->setText("Hide Static Coords");
+   }
+   else
+   {
+      ui.staticCoordsButton->setText("Show Static Coords");
+   }
+}
+
+void rtimvControlPanel::on_toolTipCoordsButton_clicked()
+{
+   //Toggle
+   emit showToolTipCoords(!imv->showToolTipCoords());
+}
+
+void rtimvControlPanel::on_staticCoordsButton_clicked()
+{
+   //Toggle
+   emit showStaticCoords(!imv->showStaticCoords());
+}
+
+void rtimvControlPanel::targetXcChanged( float txc )
+{
+   char str[16];
+   snprintf(str, sizeof(str), "%0.3f", txc);
+   ui.lineEditTargetFractionX->setText(str);
+
+   snprintf(str, sizeof(str), "%0.2f", txc*(imv->nx()) -0.5 );
+   ui.lineEditTargetPixelX->setText(str);
+}
+
+void rtimvControlPanel::targetYcChanged( float tyc )
+{
+   char str[16];
+   snprintf(str, sizeof(str), "%0.3f", tyc);
+   ui.lineEditTargetFractionY->setText(str);
+
+   snprintf(str, sizeof(str), "%0.2f", tyc*(imv->ny()) -0.5 );
+   ui.lineEditTargetPixelY->setText(str);
+}
+
+void rtimvControlPanel::targetVisibleChanged( bool tv )
+{
+   if(tv)
+   {
+      ui.buttonTargetCross->setText("hide");
+   }
+   else
+   {
+      ui.buttonTargetCross->setText("show");
+   }
+}
+
+void rtimvControlPanel::on_buttonTargetCross_clicked()
+{
+   //toggle
+   emit targetVisible(!imv->targetVisible());
+}
+
+void rtimvControlPanel::on_lineEditTargetPixelX_returnPressed()
+{
+   float txc = -1;
+   bool ok = false;
+   try
+   {
+      txc = ui.lineEditTargetPixelX->text().toFloat(&ok);
+   }
+   catch(...)
+   {
+      return;
+   }
+      
+   if(txc == -1 || ok == false) return;
+
+   txc = (txc + 0.5)/imv->nx();
+
+   emit targetXc(txc);
+}
+
+void rtimvControlPanel::on_lineEditTargetPixelY_returnPressed()
+{
+   float tyc = -1;
+   bool ok = false;
+   try
+   {
+      tyc = ui.lineEditTargetPixelY->text().toFloat(&ok);
+   }
+   catch(...)
+   {
+      return;
+   }
+      
+   if(tyc == -1 || ok == false) return;
+
+   tyc = (tyc + 0.5)/imv->ny();
+
+   emit targetYc(tyc);
+}
+
+void rtimvControlPanel::on_lineEditTargetFractionX_returnPressed()
+{
+   float txc = -1;
+   bool ok = false;
+   try
+   {
+      txc = ui.lineEditTargetFractionX->text().toFloat(&ok);
+   }
+   catch(...)
+   {
+      return;
+   }
+      
+   if(txc == -1 || ok == false) return;
+
+   emit targetXc(txc);
+}
+
+
+void rtimvControlPanel::on_lineEditTargetFractionY_returnPressed()
+{
+   float tyc = -1;
+   bool ok = false;
+   try
+   {
+      tyc = ui.lineEditTargetFractionY->text().toFloat(&ok);
+   }
+   catch(...)
+   {
+      return;
+   }
+      
+   if(tyc == -1 || ok == false) return;
+
+   emit targetYc(tyc);
+}

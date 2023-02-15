@@ -28,7 +28,7 @@
 rtimvGraphicsView::rtimvGraphicsView(QWidget *parent): QGraphicsView(parent)
 {
    setMouseTracking(true);
-   
+   setResizeAnchor(QGraphicsView::AnchorViewCenter);
    m_xCen = .5;
    m_yCen = .5;
    
@@ -56,6 +56,12 @@ rtimvGraphicsView::rtimvGraphicsView(QWidget *parent): QGraphicsView(parent)
    textEditSetup(m_textPixelVal);
    textPixelVal("");
    
+   m_mouseCoords = new QTextEdit(this);
+   textEditSetup(m_mouseCoords);
+   m_mouseCoords->viewport()->setAutoFillBackground(false);
+   m_mouseCoords->hide();
+   m_mouseCoords->setTextBackgroundColor(QColor(0,0,0,125));
+
    gageFontFamily(RTIMV_DEF_GAGEFONTFAMILY);
    gageFontSize(RTIMV_DEF_GAGEFONTSIZE);
    gageFontColor(RTIMV_DEF_GAGEFONTCOLOR);
@@ -84,19 +90,27 @@ rtimvGraphicsView::rtimvGraphicsView(QWidget *parent): QGraphicsView(parent)
    connect(&m_zoomTimer, SIGNAL(timeout()), this, SLOT(zoomTimerOut()));
    zoomText("1.0x");
    
-   coords = new QTextEdit(this);
-   textEditSetup(coords);
-   coords->setGeometry(150, 150, 300, 50);
+   m_userItemSize = new QTextEdit(this);
+   textEditSetup(m_userItemSize);
+   m_userItemSize->setGeometry(150, 150, 300, 50);
    
    QFont qf;
-   qf = coords->currentFont();
-   //qf.setPointSize(14);
+   qf = m_userItemSize->currentFont();
    qf.setPixelSize(14);
+   m_userItemSize->setCurrentFont(qf);
+   m_userItemSize->setVisible(false);
+   m_userItemSize->setTextColor("lime");
+   m_userItemSize->setWordWrapMode(QTextOption::NoWrap);
 
-   coords->setCurrentFont(qf);
-   coords->setVisible(false);
-   coords->setTextColor("lime");
-   
+   m_userItemMouseCoords = new QTextEdit(this);
+   textEditSetup(m_userItemMouseCoords);
+   m_userItemMouseCoords->setGeometry(150, 150, 300, 50);
+   m_userItemMouseCoords->setCurrentFont(qf);
+   m_userItemMouseCoords->setVisible(false);
+   m_userItemMouseCoords->setTextColor("lime");
+   m_userItemMouseCoords->setWordWrapMode(QTextOption::NoWrap);
+
+
    m_helpText = new QTextEdit(this);
    textEditSetup(m_helpText);
    helpTextFontSize(RTIMV_DEF_HELPFONTSIZE);
@@ -330,8 +344,7 @@ void rtimvGraphicsView::statusTextNo(size_t no)
    
    for(size_t n=0; n<m_statusText.size(); ++n)
    {
-      m_statusText[n]->setText("");
-      m_statusText[n]->setAlignment(Qt::AlignRight);  
+      statusTextText(n, "");
    }
 }
 
@@ -408,7 +421,8 @@ void rtimvGraphicsView::statusTextText( size_t n,        ///< [in] the field num
    
    m_statusText[n]->setPlainText(nt);
    m_statusText[n]->setAlignment(Qt::AlignRight);  
-   
+   m_statusText[n]->setWordWrapMode(QTextOption::NoWrap);
+
    if(fc)
    {
       m_statusText[n]->setTextColor(QColor(fc));
@@ -417,6 +431,10 @@ void rtimvGraphicsView::statusTextText( size_t n,        ///< [in] the field num
    {
       m_statusText[n]->setTextColor(QColor(m_statusTextFontColor));
    }
+
+   QFontMetrics fm(m_statusText[n]->currentFont());
+   QSize textSize = fm.size(0, nt);
+   m_statusText[n]->setGeometry(width()-(textSize.width()+5),LOOPHEIGHT+GAGEHEIGHT*n, textSize.width()+5, GAGEHEIGHT);
 
 }
 
@@ -499,6 +517,7 @@ void rtimvGraphicsView::gageFontFamily(const char * ff)
    m_textCoordX->setCurrentFont(qf);
    m_textCoordY->setCurrentFont(qf);
    m_textPixelVal->setCurrentFont(qf);
+   m_mouseCoords->setCurrentFont(qf);
    
 }
 
@@ -514,6 +533,7 @@ void rtimvGraphicsView::gageFontSize( float fs )
    m_textCoordX->setCurrentFont(qf);
    m_textCoordY->setCurrentFont(qf);
    m_textPixelVal->setCurrentFont(qf);
+   m_mouseCoords->setCurrentFont(qf);
 }
 
 void rtimvGraphicsView::gageFontColor(const char * fc)
@@ -523,7 +543,7 @@ void rtimvGraphicsView::gageFontColor(const char * fc)
    m_textCoordX->setTextColor(QColor(m_gageFontColor));
    m_textCoordY->setTextColor(QColor(m_gageFontColor));
    m_textPixelVal->setTextColor(QColor(m_gageFontColor));
-   
+   m_mouseCoords->setTextColor(QColor(m_gageFontColor));
 }
 
 QString rtimvGraphicsView::gageFontFamily()
@@ -595,6 +615,70 @@ void rtimvGraphicsView::textPixelVal( const char * nt )
    m_textPixelVal->setPlainText(nt);
    m_textPixelVal->setAlignment(Qt::AlignLeft);  
 }      
+
+void rtimvGraphicsView::showMouseToolTip( const std::string & valStr, 
+                                          const std::string & posStr,
+                                          const QPoint & pt
+                                        )
+{
+   std::string str;
+
+   m_mouseCoords->setWordWrapMode(QTextOption::NoWrap);
+   
+   int x = pt.x();
+   int y = pt.y();
+
+   //First construct the text in correct order for y position
+   if(y > this->height()*0.5) 
+   {
+      std::string sp;
+      if(x > this->width()*0.5)
+      {
+         //Right justify the value string if needed
+         if(posStr.size() > valStr.size())
+         {
+            sp.append(posStr.size() - valStr.size(), ' ');
+         }
+      }
+      str = posStr + "\n" + sp + valStr;
+   }
+   else
+   {
+      str = valStr + "\n" + posStr;
+   }
+   
+   m_mouseCoords->setPlainText(str.c_str());
+
+   QFontMetrics fm(m_mouseCoords->currentFont());
+   QSize textSize = fm. size(0, str.c_str());
+   m_mouseCoords->resize(textSize.width()+5, textSize.height());
+
+   if(x > this->width()*0.5) 
+   {
+      x -= m_mouseCoords->width();
+      if(x < 0) x = 0;
+      m_mouseCoords->setAlignment(Qt::AlignRight);
+   }
+   else
+   {
+      if(y < this->height()*0.5) x+=10; //have to move past the arrow
+      m_mouseCoords->setAlignment(Qt::AlignLeft);
+   }
+
+   if(y > this->height()*0.5) 
+   {
+      y-= m_mouseCoords->height();
+   }
+   
+   m_mouseCoords->move(QPoint(x,y));
+   m_mouseCoords->show();
+   
+}
+
+void rtimvGraphicsView::hideMouseToolTip()
+{
+   m_mouseCoords->hide();
+}
 
 void rtimvGraphicsView::textPixelVal( float nv )
 {
@@ -718,8 +802,8 @@ void rtimvGraphicsView::zoomTimerOut()
 }
       
 void rtimvGraphicsView::centerOn( qreal x, 
-                             qreal y 
-                           )
+                                  qreal y 
+                                )
 {
    m_xCen = x;
    m_yCen = y;
@@ -728,8 +812,8 @@ void rtimvGraphicsView::centerOn( qreal x,
 }
       
 void rtimvGraphicsView::mapCenterToScene( float xc,
-                                     float yc
-                                   )
+                                          float yc
+                                       )  
 {
    QPointF p = mapToScene(xc, yc);
    m_xCen = p.x();

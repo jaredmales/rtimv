@@ -41,7 +41,6 @@ protected:
    float m_height {0}; ///< The height of the bounding box
    float m_mv_x0 {0}; ///< The x-coordinate of the mouse at the start of a re-size
    float m_mv_y0 {0}; ///< The y-coordinate of the mouse at the start of a re-size
-
    
 public:
    
@@ -112,6 +111,8 @@ protected slots:
    void emitMouseIn();
    void emitMouseOut();
    void emitRemove();
+   void emitSelected();
+   void emitDeSelected();
    
 signals:
    void moved(StretchBox * s);
@@ -120,7 +121,9 @@ signals:
    void mouseIn(StretchBox * s);
    void mouseOut(StretchBox * s);
    void remove(StretchBox * s);   
-   
+   void selected(StretchBox * s);
+   void deSelected(StretchBox * s);
+
    ///@}
    
 

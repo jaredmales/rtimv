@@ -421,6 +421,7 @@ void StretchGraphicsItem<QGraphicsItemT>::handleHoverLeaveEvent(QGraphicsSceneHo
    setCursorStatus(cursorOff);
    derived()->clearFocus();
    derived()->setSelected(false);
+   derived()->emitDeSelected();
    derived()->emitMouseOut();
 }
    
@@ -434,6 +435,7 @@ void StretchGraphicsItem<QGraphicsItemT>::handleMousePressEvent(QGraphicsSceneMo
    }
    
    derived()->setSelected(true);
+   derived()->emitSelected();
    if(m_grabbing || !m_stretchable)
    {
       bool onGrab = derived()->onMousePressCalcGrabbed(e);

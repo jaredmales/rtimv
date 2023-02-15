@@ -14,7 +14,9 @@ class rtimvControlPanel : public QWidget
    Q_OBJECT
    
    public:
-      rtimvControlPanel(rtimvMainWindow *imv, Qt::WindowFlags f = 0);
+      rtimvControlPanel( rtimvMainWindow *imv, 
+                         Qt::WindowFlags f = Qt::WindowFlags()
+                       );
    
    protected:
       rtimvMainWindow * imv;
@@ -166,7 +168,75 @@ class rtimvControlPanel : public QWidget
       
    public:
       Ui::imviewerControlPanel ui;
-   
+      
+   /*--------- Mouse coordinates display ---------------*/
+public slots:
+   /// Receive signal that the tool tip coords display flag has changed.
+   /** Updates the button text.
+     */
+   void showToolTipCoordsChanged(bool sttc /**< [in] the new value of the flag*/ );
+
+   /// Receive signal that the static coords display flag has changed.
+   /** Updates the button text.
+     */
+   void showStaticCoordsChanged(bool /**< [in] the new value of the flag*/);
+
+   /// Toggle the tool tip coords display flag 
+   void on_toolTipCoordsButton_clicked();
+
+   /// Toggle the static coords display flag 
+   void on_staticCoordsButton_clicked();
+
+signals:
+   /// Request that the tool tip coords display flag change.
+   void showToolTipCoords(bool /**< [in] the new value of the flag*/);
+
+   /// Request that the static coords display flag change.
+   void showStaticCoords(bool /**< [in] the new value of the flag*/);   
+
+
+   /*--------- Target Cross ---------------*/
+public slots:
+   /// Notify that the x-coordinate of the target has changed
+   /** This updates both the fraction and pixel values.
+     */ 
+   void targetXcChanged( float txc /**< [in] the new target x coordinate*/);
+
+   /// Notify that the y-coordinate of the target has changed
+   /** This updates both the fraction and pixel values.
+     */
+   void targetYcChanged( float tyc /**< [in] the new target y coordinate*/);
+
+   /// Notify that the target visibility has changed.
+   /** This updates the push button text.
+     */
+   void targetVisibleChanged( bool tv );
+
+   /// Toggle the target cross visibility when button pressed.
+   void on_buttonTargetCross_clicked();
+
+   /// Set the target cross x coordinate by pixel value when enter is pressed.
+   void on_lineEditTargetPixelX_returnPressed();
+
+   /// Set the target cross y coordinate by pixel value when enter is pressed.
+   void on_lineEditTargetPixelY_returnPressed();
+
+   /// Set the target cross x coordinate by fraction when enter is pressed.
+   void on_lineEditTargetFractionX_returnPressed();
+
+   /// Set the target cross y coordinate by fraction when enter is pressed.
+   void on_lineEditTargetFractionY_returnPressed();
+
+signals:
+
+   /// Request to set the target cross x coordinate by fraction.
+   void targetXc( float txc /**< [in] the new target x coordinate*/);
+
+   /// Request to set the target cross y coordinate by fraction.
+   void targetYc( float tyc /**< [in] the new target y coordinate*/);
+
+   /// Request to set the target cross visibility
+   void targetVisible( bool tv );
 };
 
 

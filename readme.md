@@ -18,16 +18,21 @@ NOTE: if you are on the newest version of milk, a.k.a. the dev branch, you shoul
 Dependencies:
  - qt-5
    - on Ubuntu 20 `sudo apt-get install qt5-default`
+   - on Ubuntu 22 `sudo apt install qtbase5-dev qt5-qmake`
  - mxlib [https://github.com/jaredmales/mxlib](https://github.com/jaredmales/mxlib)
    - for best results checkout the `magaox` branch of mxlib
- - milk-org/milk-package from https://github.com/milk-org/milk-package
+ - milk-org/milk  from https://github.com/milk-org/milk
    - If you are looking for an image viewer for cacao, you probably already have this!
+   - If not follow the instructions in the README to checkout milk and build it.
+   - See also https://github.com/milk-org/milk/wiki/install-DownloadCompile, I recommend creating the `tmpfs` for `milk/shm`
+ - milkzmq from https://github.com/jaredmales/milkzmq
+
 
 On CentOS-7 you may need to install mesa-libGL-devel.x86_64
  
 For `ubuntu` you just need to type `make`.  This should work on `CentOS 7` as well, but if not try calling it with `make QMAKE=qmake-qt5`. 
 
-You will be asked for sudo privileges to install the plulgin library.  `sudo make install` will install the executable to `/usr/local/bin`.
+You will be asked for sudo privileges to install the plugin library.  `sudo make install` will install the executable to `/usr/local/bin`.
 
 ## User's Guide
 
@@ -42,7 +47,7 @@ Users: Many improvements have been made based on inputs from users of MagAO+VisA
 
 ## License
 
-Copyright 2012-2019 Jared R. Males
+Copyright 2012-2022 Jared R. Males
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 

@@ -32,7 +32,6 @@
 
 #include <signal.h>
 
-
 #include "colorMaps.hpp"
 
 class rtimvBase : public QWidget
@@ -44,16 +43,16 @@ public:
    /// Basic c'tor.  Does not startup the images.
    /** startup should be called with the list of keys.
      */
-   rtimvBase( QWidget * Parent = 0, 
-             Qt::WindowFlags f = 0
+   rtimvBase( QWidget * Parent = nullptr, 
+             Qt::WindowFlags f = Qt::WindowFlags()
            );
    
    /// Image c'tor, starts up the images.
    /** startup should not be called.
      */
    rtimvBase( const std::vector<std::string> & shkeys,  ///< [in] The shmim keys used ot access the images.
-             QWidget * Parent = 0, 
-             Qt::WindowFlags f = 0
+             QWidget * Parent = nullptr, 
+             Qt::WindowFlags f = Qt::WindowFlags()
            );
 
 protected:
@@ -79,10 +78,21 @@ protected:
 
    std::vector<rtimvImage *> m_images;
       
-public:   
-   void setImsize(uint32_t x, uint32_t y); ///Changes the image size, but only if necessary.
+public: 
+
+   /// Check if an image is currently valid.
+   /** \returns true if valid
+     * \returns false otherwise 
+     */
+   bool imageValid( size_t n /**< [in] the image number */);
+
+   /// Changes the image size, but only if necessary.
+   void setImsize( uint32_t x, ///< [in] the new x size
+                   uint32_t y  ///< [in] the new y size
+                 ); 
    
-   virtual void postSetImsize(); ///<to call after set_imsize to handle allocations for derived classes
+   /// Called after set_imsize to handle allocations for derived classes
+   virtual void postSetImsize(); 
       
    ///Get the number of x pixels
    /**
@@ -211,13 +221,15 @@ public:
                       };
    
 protected:
-   int m_mincol {0}; ///< The minimum index to use for the color table.
+   int m_minColor {0}; ///< The minimum index to use for the color table.
    
-   int m_maxcol {253}; ///< The maximum index to use for the color table.
+   int m_maxColor {253}; ///< The maximum index to use for the color table.
    
-   int m_maskcol {254}; ///< The index in the color table to use for the mask color.
+   int m_maskColor {254}; ///< The index in the color table to use for the mask color.
    
-   int m_satcol {255}; ///< The index in the color table to use for the saturation color.
+   int m_satColor {255}; ///< The index in the color table to use for the saturation color.
+
+   int m_nanColor {254}; ///< The index in the color table to use for nans and infinities.
 
    int colorbar_mode {minmaxglobal};
    int m_cbStretch {stretchLinear};

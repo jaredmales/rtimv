@@ -10,6 +10,11 @@ fitsImage::fitsImage()
    connect(&m_timer, SIGNAL(timeout()), this, SLOT(imageTimerout()));
 
    m_notifyfd = inotify_init1(IN_NONBLOCK);
+   if(m_notifyfd < 0)
+   {
+      perror("rtimv: fitsImage: error intializing inotify");
+      std::cerr << "Will not be able to watch file for changes\n";
+   }
 }
 
 int fitsImage::imageKey( const std::string & sn )
@@ -123,6 +128,7 @@ int fitsImage::readImage()
       fstatus = 0;
       fits_close_file(fptr, &fstatus);
 
+      delete naxes;
       return -1;
    }
    m_reported = false;
@@ -134,24 +140,29 @@ int fitsImage::readImage()
       if(m_data) delete[] m_data;
       m_data = new char[naxes[0]*naxes[1]*sizeof(float)];
    }
-      
+
    //always set in case of a reformat
    m_nx = naxes[0];
    m_ny = naxes[1];
       
-   long fpix[2];
-   long lpix[2];
-   long inc[2];
+   long fpix[3];
+   long lpix[3];
+   long inc[3];
    
    fpix[0] = 1;
    fpix[1] = 1;
-   
+   fpix[2] = 1;
+
    lpix[0] = naxes[0];
    lpix[1] = naxes[1];
-   
+   lpix[2] = 1;
+
    inc[0] = 1;
    inc[1] = 1;
-   
+   inc[2] = 1;
+
+   delete naxes;
+
    int anynul;
    
    fits_read_subset(fptr, TFLOAT, fpix, lpix, inc, 0,
@@ -200,7 +211,18 @@ void fitsImage::imConnect()
 
    m_imageFound = 1;
    
+   if(m_notifyfd < 0) 
+   {
+      emit connected();
+      return;
+   }
+   
    m_notifywd = inotify_add_watch(m_notifyfd, m_imagePath.c_str(), IN_CLOSE_WRITE);
+
+   if(m_notifywd < 0)
+   {
+      perror("rtimv: fitsImage: error adding inotify watch");
+   }
 
    emit connected();
 }
@@ -221,6 +243,8 @@ int fitsImage::update()
    
    ssize_t len;
    
+   if(m_notifyfd < 0 ) return RTIMVIMAGE_NOUPDATE;
+
    len = read(m_notifyfd, m_notify_buf, sizeof(m_notify_buf));
    if (len == -1 && errno != EAGAIN) 
    {

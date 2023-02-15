@@ -1,7 +1,3 @@
-
-
-
-
 #ifndef pixaccess_hpp
 #define pixaccess_hpp
 

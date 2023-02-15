@@ -14,11 +14,13 @@
 #include "StretchLine.hpp"
 
 #include <unordered_map>
+#include <mutex>
 
 #include <mx/app/application.hpp>
 
 struct rtimvDictBlob
 {
+protected:
    size_t m_sz {0};
    size_t m_memSz {0};
    
@@ -27,6 +29,24 @@ struct rtimvDictBlob
    bool m_owner {false};
    
    timespec m_lastMod {0,0};
+
+   std::mutex m_mutex;
+
+   void clearBlob()
+   {
+      if(m_blob && m_owner) 
+      {
+         free(m_blob);
+         m_blob = nullptr;
+         m_owner = false;
+         m_sz = 0;
+         m_memSz = 0;
+      }
+   }
+
+
+public:
+
 
    rtimvDictBlob()
    {
@@ -42,24 +62,18 @@ struct rtimvDictBlob
       rdb.m_owner = false;
    }
    
-   rtimvDictBlob( const rtimvDictBlob & rdb) = delete;
+   rtimvDictBlob( const rtimvDictBlob & rdb) = delete; //no copies!
    
-   void clearBlob()
-   {
-      if(m_blob && m_owner) 
-      {
-         free(m_blob);
-         m_blob = nullptr;
-         m_owner = false;
-         m_sz = 0;
-         m_memSz = 0;
-      }
-   }
-   
-   void setBlob( const void * blob,
-                 size_t sz
+   /// Set the blob
+   /** Allocates m_blob and copies \p sz bytes from \p blob.
+     * Allocation only occurs if more size is needed according to m_memSz.
+     * Sets m_sz to sz.
+     */    
+   void setBlob( const void * blob, ///< [in] The new blob data
+                 size_t sz          ///< [in] The number of bytes in the new blob data
                )
    {
+      std::unique_lock<std::mutex> lock(m_mutex);
       if(sz > m_memSz || m_owner == false)
       {
          clearBlob();
@@ -80,8 +94,65 @@ struct rtimvDictBlob
       clock_gettime(CLOCK_REALTIME, &m_lastMod);
    }
    
+   /// Get the data stored in the blob
+   /** Copies the smaller of \p mxsz and m_sz bytes to \p blob 
+     * \returns the number of bytes copied
+     */
+   size_t getBlob( char * blob, ///< [out] The pointer to the array to copy the data to
+                   size_t mxsz, ///< [in] The max number of bytes to copy to blob
+                   timespec * ts = nullptr /// [out] [optional] if not null this will be filled in with the time of last modification
+                 )
+   {
+      std::unique_lock<std::mutex> lock(m_mutex);
+
+      size_t cpsz = m_sz;
+      if( cpsz > mxsz ) cpsz = mxsz;
+
+      if(m_blob)
+      {
+         memcpy(blob, m_blob, cpsz);
+      }
+      else cpsz = 0;
+
+      if(ts != nullptr) *ts = m_lastMod;
+
+      return cpsz;
+   }
+
+   /// Get the data stored in the blob as a C string
+   /** Copies the smaller of \p mxsz and m_sz bytes to \p blob.  
+     * 
+     * This guarantees that blob[sz-1] = 0
+     * where sz is the number of bytes copied.  If the returned size == mxsz then you should not trust the
+     * contents unless you know that the correct size was copied or don't care if the string is truncated.  
+     * 
+     * If m_blob has 0 size or is nullptr, then this sets blob[0] = 0 and returns 1.
+     * 
+     * \returns the number of bytes copied
+     */
+   size_t getBlobStr( char * blob, ///< [in/out] The pointer to the array to copy the data to
+                      size_t mxsz,  ///< [in] The max number of bytes to copy to blob
+                      timespec * ts = nullptr /// [out] [optional] if not null this will be filled in with the time of last modification
+                    )
+   {
+      size_t cpsz = getBlob(blob, mxsz, ts);
+
+      if(cpsz == 0)
+      {
+         if(mxsz > 0) 
+         {
+            blob[0] = '\0';
+            cpsz = 1;
+         }
+      }
+      else blob[cpsz-1] = '\0';
+
+      return cpsz;
+   }
+
    ~rtimvDictBlob()
    {
+      std::unique_lock<std::mutex> lock(m_mutex);
       clearBlob();
    }
    
@@ -103,7 +174,7 @@ class rtimvDictionaryInterface
                                   ) = 0;
 };
 
-#define rtimvDictionaryInterface_iid "rtimv.dictionaryInterface/1.0"
+#define rtimvDictionaryInterface_iid "rtimv.dictionaryInterface/1.1"
 
 Q_DECLARE_INTERFACE(rtimvDictionaryInterface, rtimvDictionaryInterface_iid)
 
@@ -174,7 +245,7 @@ class rtimvOverlayInterface : public QObject
    
 };
 
-#define rtimvOverlayInterface_iid "rtimv.overlayInterface/1.0"
+#define rtimvOverlayInterface_iid "rtimv.overlayInterface/1.1"
 
 Q_DECLARE_INTERFACE(rtimvOverlayInterface, rtimvOverlayInterface_iid)
 

@@ -22,6 +22,8 @@ struct shmimImage : public rtimvImage
 protected:
    std::string m_shmimName; ///< The path to the shared memory buffer containing the image data.
 
+   bool m_notFoundLogged {false}; ///< Flag to record whether the image not being found has been logged.
+
    int m_shmimTimeout {1000}; ///<The timeout for checking for shared memory file existence.
    
    int m_timeout {100}; ///< The image display timeout, should be set from the managing process.  Only used for F.P.S. calculations.

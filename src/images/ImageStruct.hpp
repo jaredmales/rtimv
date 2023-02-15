@@ -1,7 +1,3 @@
-
-
-
-
 #ifndef ImageStruct_hpp
 #define ImageStruct_hpp
 

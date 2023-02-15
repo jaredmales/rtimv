@@ -15,9 +15,10 @@
 #include <QScrollBar>
 #include <QMouseEvent>
 #include <QTextEdit>
+#include <QFontMetrics>
 
 #define RTIMV_DEF_HELPFONTFAMILY "LKLUG"
-#define RTIMV_DEF_HELPFONTCOLOR "skyblue"
+#define RTIMV_DEF_HELPFONTCOLOR "#3DA5FF" /**"skyblue"*/
 #define RTIMV_DEF_HELPFONTSIZE (12*1.4)
 
 //Defaults
@@ -34,16 +35,16 @@
 #define RTIMV_DEF_LOOPFONTSIZE (18*1.4)
 
 #define RTIMV_DEF_GAGEFONTFAMILY "LKLUG"
-#define RTIMV_DEF_GAGEFONTCOLOR "skyblue"
+#define RTIMV_DEF_GAGEFONTCOLOR "#3DA5FF" /**"skyblue"*/
 #define RTIMV_DEF_GAGEFONTSIZE (14*1.4)
 
 #define RTIMV_DEF_ZOOMFONTFAMILY "LKLUG"
-#define RTIMV_DEF_ZOOMFONTCOLOR "skyblue"
+#define RTIMV_DEF_ZOOMFONTCOLOR "#3DA5FF" /**"skyblue"*/
 #define RTIMV_DEF_ZOOMFONTSIZE (18*1.4)
 #define RTIMV_DEF_ZOOMTIMEOUT 2000
 
 #define RTIMV_DEF_STATUSTEXTFONTFAMILY "LKLUG"
-#define RTIMV_DEF_STATUSTEXTFONTCOLOR "skyblue"
+#define RTIMV_DEF_STATUSTEXTFONTCOLOR "#3DA5FF" /**"skyblue"*/
 #define RTIMV_DEF_STATUSTEXTFONTSIZE (14*1.4)
 
 ///The rtimv Graphics View
@@ -305,9 +306,12 @@ class rtimvGraphicsView : public QGraphicsView
       QTextEdit * m_textCoordY; ///< The y-coordinate of the mouse pointer
       QTextEdit * m_textPixelVal; /// The value of the pixel under the mouse pointer
       
+      QTextEdit * m_mouseCoords;
+
       QString m_gageFontFamily; ///< The font family for the gages
       float m_gageFontSize; ///< The font size of the gages
       QString m_gageFontColor; ///< The font color of the gages
+      
       
    public:
       
@@ -366,7 +370,15 @@ class rtimvGraphicsView : public QGraphicsView
       ///Set the Value Gage text by value.
       void textPixelVal( float nv /**< [in] The new value */ );
       
-      
+      /// Update and show the mouse tooltip
+      void showMouseToolTip( const std::string & valStr, ///< [in] String holding the pixel value text
+                             const std::string & posStr, ///< [in] String holding the pixel position text
+                             const QPoint & pt           ///< [in] The current position of the pointer
+                           );
+                          
+      /// Hide the mouse tooltip.
+      void hideMouseToolTip();
+
    protected:
       ///The zoom level box
       QTextEdit * m_zoomText;
@@ -420,7 +432,8 @@ class rtimvGraphicsView : public QGraphicsView
       void zoomTimerOut();
       
    public:
-      QTextEdit * coords;
+      QTextEdit * m_userItemSize;
+      QTextEdit * m_userItemMouseCoords;
 
    /** \name Mouse Interaction 
      * 
@@ -525,6 +538,16 @@ class rtimvGraphicsView : public QGraphicsView
       void resizeEvent(QResizeEvent *);
       
    protected:
+      bool viewportEvent(QEvent * e)
+      {
+        /*if(e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd)
+        {
+          std::cerr << "touch event\n";
+        }*/
+
+        return QGraphicsView::viewportEvent(e);
+      }
+
       void mouseMoveEvent(QMouseEvent *e);
       void leaveEvent(QEvent * e);
       

@@ -68,6 +68,7 @@ public:
    
    /// Get the image acquisition time 
    /** Gets the acquisition time converted to double, giving time since the epoch.
+     * This must be safe to call regardless of whehter valid() is true.
      * 
      * \returns the time the current image was acquired.
      */
@@ -102,7 +103,8 @@ public:
    virtual float pixel(size_t n) = 0;
    
    /// Get the latest estimate of FPS for this image.
-   /**
+   /** This must be safe to call regardless of whehter valid() is true.
+     * 
      * \returns the latest FPS estimate.
      */ 
    virtual float fpsEst() = 0;

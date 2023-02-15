@@ -1,7 +1,7 @@
 
 # rtimv User's Guide
 
-An image viewer optimized for real-time image stream display. Works with MILK/CACAO shared memory image streams locally or via the `milkzmq` protocol.  Will also display local FITS files.
+An astronomical image viewer optimized for real-time image stream display. Works with MILK/CACAO shared memory image streams locally or via the `milkzmq` protocol.  Will also display local FITS files.
 
 ## Basic Startup
 
@@ -41,7 +41,7 @@ The `b` key adds a box, which works similarly. Dimensions shown are full-width b
 
 ![rtimv with a box overlay](userbox.png)
 
-You can also use `l` to add a line. The numbers shown are `length @ direction` where direction is degrees from the screen +X direction. (This will eventually be degrees from the North vector.) Clicking and and moving the mouse while in the middle rotates it.  If you click and drag the opposite end from the small circle you can change the length and the angle.
+You can also use `l` to add a line. The numbers shown are `length @ direction` where direction is degrees counter clockwise from North. (or straight up if North is not set). Clicking and and moving the mouse while in the middle rotates it.  If you click and drag the opposite end from the small circle you can change the length and the angle.
 
 ![rtimv with a line overlay](userline.png)
 
@@ -56,10 +56,9 @@ In general, if you see the "resize arrows" cursor when your mouse hovers over th
 | `c`     | add a circle                | draw a circle overlay and show its radius |
 | `f`     | toggle the FPS gauge               | |
 | `h`     | toggle help screen               | |
-| `l`     | add a line               | draw a line overlay and show its length and angle |
+| `l`     | add a line               | draw a line overlay and show its length and angle relative to North |
 | `n`     | toggle display of the North arrow | |
 | `p`     | open control panel                | |
-| `o`     | toggle display of the circle      | |
 | `r`     | re-stretch the display            | reset the min/max in the color table using the current image |
 | `s`     | toggle the statistics box         | |
 | `t`     | toggle the target cross           | |
@@ -75,9 +74,13 @@ In general, if you see the "resize arrows" cursor when your mouse hovers over th
 | `ctrl+c`     | center the display                | |
 
 
-### Pixel Conventions
+### Pixel Coordinates and Value 
 
-The displayed coordinate is for the center of a pixel, counting from `0,0` for the center of the lower left pixel.  The center of the array (and default target-cross coordinate) is `0.5*(Nx-1), 0.5*(Ny-1)`.
+By default the cuurent (x,y) pixel coordinate of the mouse pointer, and the image value under it, are displayed next to the mouse pointer.  This can be turned off in configuration using `--mouse.pointerCoords=true/false` or with the control panel.  
+
+The mouse coordinates and value can also be displayed in a static location at the lower left of the window.  This can be set in configuration using `--mouse.staticCoords=true/false` or with the control panel.
+
+The displayed coordinate is for the center of a pixel, counting from `0,0` for the center of the lower left pixel.  The center of the array (and default target-cross coordinate) is `(0.5*(Nx-1), 0.5*(Ny-1))`.
 
 
 ## Configuration
@@ -107,23 +110,27 @@ key=sat_mask
 Many more options are available.  
 
 ### Configuration Options
-| Short | Long             | Config-File          | Type   | Description |
-|-------|------------------|----------------------|--------|-----------|
-| `-h`  | `--help`         |                      | bool   | Print a help message and exit |
-| `-c`  | `--config`       | `config`             | string | A local config file. If RTIMV_CONFIG_PATH is set that path will be used, otherwise this must be the full path. |
-|        | `--autoscale`   | `autoscale`          | bool   | Set to turn autoscaling on at startup (default is off) |
-|        | `--nofpsgage`   | `nofpsgage`          | bool   | Set to turn the fps gage off at startup (default is on) |
-|        | `--darksub`     | `darksub`            | bool   | Set to false to turn off on at startup.  If a dark is supplied, darksub is otherwise on. |
-|        | `--targetXc`    | `targetXc`           | real   | The fractional x-coordinate of the target, 0<= targetXc <=1    | 
-|        | `--targetYc`    | `targetYc`           | real   | The fractional y-coordinate of the target, 0<= targetYc <=1  |
-| `-Z`   | `--mzmq.always` | `mzmq.always`        | bool   | Set to make milkzmq the protocol for bare image names.  Note that local shmims can not be used if this is set. |
-| `-s`   | `--mzmq.server` | `mzmq.server`        | int    | The default server for milkzmq.  The default default is localhost.  This will be overridden by an image specific server specified in a key. |
-| `-p`   | `--mzmq.port`   | `mzmq.port`          | string | The default port for milkzmq.  The default default is 5556.  This will be overridden by an image specific port specified in a key.
-|        | `--image.key`   | `image.key`          | string | The main image key. Specifies the protocol, location, and name of the main image. |
-|        | `--dark.key`    | `dark.key`           | string | The dark image key. Specifies the protocol, location, and name of the dark image. |
-|        | `--mask.key`    | `mask.key`           | string | The mask image key. Specifies the protocol, location, and name of the mask image. |
-|        | `--satMask.key` | `satMask.key`        | string | The satMask image key. Specifies the protocol, location, and name of the satMask image. |
-
+| Short | Long                   | Config-File           | Type   | Description |
+|-------|------------------------|-----------------------|--------|-------------|
+| `-h`  | `--help`               |                       | bool   | Print a help message and exit. |
+| `-c`  | `--config`             | `config`              | string | A local config file. If RTIMV_CONFIG_PATH is set that path will be used, otherwise this must be the full path. |
+|       | `--autoscale`          | `autoscale`           | bool   | Set to turn autoscaling on at startup (default is off). |
+|       | `--nofpsgage`          | `nofpsgage`           | bool   | Set to turn the fps gage off at startup (default is on). |
+|       | `--darksub`            | `darksub`             | bool   | Set to false to turn off on at startup.  If a dark is supplied, darksub is otherwise on. |
+|       | `--targetXc`           | `targetXc`            | real   | The fractional x-coordinate of the target, 0<= targetXc <=1.    | 
+|       | `--targetYc`           | `targetYc`            | real   | The fractional y-coordinate of the target, 0<= targetYc <=1.  |
+| `-Z`  | `--mzmq.always`        | `mzmq.always`         | bool   | Set to make milkzmq the protocol for bare image names.  Note that local shmims can not be used if this is set. |
+| `-s`  | `--mzmq.server`        | `mzmq.server`         | int    | The default server for milkzmq.  The default default is localhost.  This will be overridden by an image specific server specified in a key. |     
+| `-p`  | `--mzmq.port`          | `mzmq.port`           | string | The default port for milkzmq.  The default default is 5556.  This will be overridden by an image specific port specified in a key.
+|       | `--image.key`          | `image.key`           | string | The main image key. Specifies the protocol, location, and name of the main image. |
+|       | `--dark.key`           | `dark.key`            | string | The dark image key. Specifies the protocol, location, and name of the dark image. |
+|       | `--mask.key`           | `mask.key`            | string | The mask image key. Specifies the protocol, location, and name of the mask image. |
+|       | `--satMask.key`        | `satMask.key`         | string | The satMask image key. Specifies the protocol, location, and name of the satMask image. |
+|       | `--mouse.pointerCoords`| `mouse.pointerCoords` | bool   | Show or don't show the pointer coordinates.  Default is true. |
+|       | `--mouse.staticCoords` | `mouse.staticCoords`  | bool   | Show or don't show the static coordinates at bottom of display.  Default is false. |
+|       | `--north.enabled`      | `north.enabled`       | bool   | Whether or not to enable the north arrow. Default is true. |
+|       | `--north.offset`       | `north.offset`        | float  | Offset in degrees c.c.w. to apply to the north angle. Default is 0. |
+|       | `--north.scale`        | `north.scale`         | float  | Scaling factor to apply to north angle to convert to degrees c.c.w. on the image.  Default is -1. |
 
 The Config-File options of the form `section.keyword` specify the form
 ```
@@ -137,5 +144,14 @@ The path to `config_file.conf` can be specified via the environment variable `RT
 Settings on the command line override settings in the config file.  So the same config file could be used for several images, changing only the image name on the command line for instance.
 
 
+## North Arrow
+The north arrow is toggled on/off with the `n` key.  If the angle of the north arrow is being updated (i.e. from a plugin that talks to the telescope)
+the value received is multiplied by a scale (e.g. -1 or 180/pi) and then an offset (in degrees) is added to the result to produce
+a counter clockwise (c.c.w.) rotation angle in degrees.
 
+The north arrow can be disabled in configuration.  If `north.enabled=false` is set, the north arrow will not be displayed.
 
+Relevant configuration key=value pairs are
+- `north.enabled=true/false`: Whether or not to enable the north arrow. Default is true.
+- `north.offset=float`: Offset in degrees c.c.w. to apply to the north angle. Default is 0.
+- `north.scale=float`: Scaling factor to apply to north angle to convert to degrees c.c.w. on the image.  Default is -1.

@@ -1,6 +1,19 @@
-
 #ifndef colorMaps_hpp
 #define colorMaps_hpp
+
+struct rtimvColorMap 
+{
+   std::string m_helpFontColor {"#3DA5FF"};
+   std::string m_gageFontColor {"#3DA5FF"};
+   std::string m_zoomFontColor {"#3DA5FF"};
+   std::string m_statusFontColor {"#3DA5FF"};
+   std::string m_statsBoxColor {"#3DA5FF"};
+   std::string m_userShapeColor {"lime"};
+
+   std::string m_warningFontColor {"lightgreen"};
+   std::string m_saveBoxFontColor {"lime"};
+   std::string m_loopFontColor {"lime"};
+};   
 
 /// Jet: load the Matlab Jet colormap
 inline
