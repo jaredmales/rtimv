@@ -959,7 +959,7 @@ void rtimvMainWindow::userItemMouseCoords( float mx,
 void rtimvMainWindow::userBoxItemMouseCoords(StretchBox * sb)
 {
    QRectF sbr = sb->sceneBoundingRect();
-   QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x()+0.5*sbr.width(), sbr.y() + 0.5*sbr.height()));
+   QPointF qr = QPointF(sbr.x()+0.5*sbr.width(),sbr.y()+0.5*sbr.height()); 
 
    m_userItemMouseViewX = qr.x();
    m_userItemMouseViewY = qr.y();
@@ -969,7 +969,7 @@ void rtimvMainWindow::userBoxItemMouseCoords(StretchBox * sb)
 void rtimvMainWindow::userCircleItemMouseCoords(StretchCircle * sc)
 {
    QRectF sbr = sc->sceneBoundingRect();
-   QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x()+0.5*sbr.width(), sbr.y() + 0.5*sbr.height()));
+   QPointF qr = QPointF(sbr.x()+0.5*sbr.width(),sbr.y()+0.5*sbr.height());
 
    m_userItemMouseViewX = qr.x();
    m_userItemMouseViewY = qr.y();
@@ -1398,8 +1398,6 @@ void rtimvMainWindow::userCircleMoved(StretchCircle * sc)
    userCircleItemSize(sc);
    userCircleItemMouseCoords(sc);
    userCircleItemCoords(sc);
-
-   
 }
 
 void rtimvMainWindow::userCircleMouseIn(StretchCircle * sc)
@@ -1487,14 +1485,11 @@ void rtimvMainWindow::userLineResized(StretchLine * sl)
    m_userItemXCen = sl->line().x1();
    m_userItemYCen = sl->line().y1();
 
-   //QRectF sbr = sl->sceneBoundingRect();
-   QPoint qr = ui.graphicsView->mapFromScene(QPointF(sl->line().x1(), sl->line().y1()));
+   QPointF qr = QPointF(sl->line().x1(), sl->line().y1());
 
    m_userItemMouseViewX = qr.x();
    m_userItemMouseViewY = qr.y();
    userItemMouseCoords(qr.x(), qr.y());
-
-   //userItemMouseCoords(m_userItemXCen, m_userItemYCen);
 }
 
 void rtimvMainWindow::userLineMoved(StretchLine * sl)
@@ -1509,7 +1504,7 @@ void rtimvMainWindow::userLineMoved(StretchLine * sl)
    m_userItemXCen = sl->line().x1();
    m_userItemYCen = sl->line().y1();
 
-   QPoint qr = ui.graphicsView->mapFromScene(QPointF(sl->line().x1(), sl->line().y1()));
+   QPointF qr = QPointF(sl->line().x1(), sl->line().y1()); 
 
    m_userItemMouseViewX = qr.x();
    m_userItemMouseViewY = qr.y();
