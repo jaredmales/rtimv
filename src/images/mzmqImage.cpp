@@ -1,8 +1,7 @@
 #include "mzmqImage.hpp"
 
 #include <iostream>
-
-
+#include <mx/sys/timeUtils.hpp>
 #include <xrif/xrif.h>
 
 //The milkzmq messager format:
@@ -301,7 +300,7 @@ void mzmqImage::imageThreadExec()
          
          if(msg.size() <= headerSize) //If we don't get enough data, we reconnect to the server.
          {
-            sleep(1); //Give server time to finish its shutdown.
+            mx::sys::sleep(1); //Give server time to finish its shutdown.
             reconnect= true;
             continue;
          }

@@ -23,13 +23,11 @@ all: rtimv
 rtimv:
 	$(QMAKE) -makefile librtimv.pro
 	sudo $(MAKE) -f makefile.librtimv install
-	sudo ldconfig
 	$(QMAKE) -makefile rtimv.pro
 	$(MAKE) -f makefile.rtimv
 
 install: rtimv
 	$(MAKE) -f makefile.librtimv install
-	ldconfig
 	$(MAKE) -f makefile.rtimv install 
 
 clean:

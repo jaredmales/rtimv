@@ -4,15 +4,6 @@
 
 #include <iostream>
 
-/*errno_t isio_err_to_ignore = 0;
-errno_t new_printError( const char *file, const char *func, int line, errno_t code, char *errmessage )
-{
-   if(code == isio_err_to_ignore) return IMAGESTREAMIO_SUCCESS;
-   
-   std::cerr << "ImageStreamIO Error:\n\tFile: " << file << "\n\tLine: " << line << "\n\tFunc: " << func << "\n\tMsg:  " << errmessage << std::endl; 
-   return IMAGESTREAMIO_SUCCESS;
-}*/
-
 shmimImage::shmimImage()
 {
    //ImageStreamIO_set_printError(new_printError);
@@ -332,3 +323,4 @@ float shmimImage::fpsEst()
 }
 
 
+#endif // RTIMV_MILK

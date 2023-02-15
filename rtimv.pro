@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = rtimv
-DESTDIR = bin/ 
+DESTDIR = bin/
 DEPENDPATH += src/
 
 MOC_DIR = moc/
@@ -40,7 +40,7 @@ HEADERS += src/rtimvGraphicsView.hpp \
            src/images/fitsImage.hpp \
            src/images/mzmqImage.hpp \
            src/images/pixaccess.hpp \
-           src/images/ImageStruct.hpp 
+           src/images/ImageStruct.hpp
 
 SOURCES += src/rtimvBase.cpp \
            src/rtimvMainWindow.cpp \
@@ -50,31 +50,41 @@ SOURCES += src/rtimvBase.cpp \
            src/images/shmimImage.cpp \
            src/images/fitsImage.cpp \
            src/images/mzmqImage.cpp
-           
+
 FORMS += forms/rtimvMainWindow.ui \
          forms/imviewerControlPanel.ui \
-         forms/imviewerStats.ui 
-           
-LIBS += -lImageStreamIO
-LIBS += -lcfitsio
-LIBS += -lrtimv
-LIBS += -lmxlib 
-LIBS += -lzmq
+         forms/imviewerStats.ui
+
+unix:!macx {
+    $$system(which milk, blob, which_milk_exit_code)
+    equals(which_milk_exit_code, 0) {
+        LIBS += -lImageStreamIO
+        DEFINES += RTIMV_MILK
+    }
+}
+
+CONFIG += link_pkgconfig
+PKGCONFIG += cfitsio libzmq
+
+_conda_prefix = $$(CONDA_PREFIX)
+!isEmpty(_conda_prefix) {
+    INCLUDEPATH += $$(CONDA_PREFIX)/include
+    LIBS += -L$$(CONDA_PREFIX)/lib
+}
+
+LIBS += -lmxlib
 LIBS += -lxrif
+LIBS += -lrtimv
 
 RESOURCES += res/imviewer.qrc
 
 #########################
-# installation 
+# installation
 #########################
 
 unix:target.path = /usr/local/bin
 INSTALLS += target
 
-# unix:includefiles.path = /usr/local/include/rtimv
-# includefiles.files = src/rtimvInterfaces.hpp src/rtimvGraphicsView.hpp
-# INSTALLS += includefiles
-
-
-
-
+!isEmpty(_conda_prefix) {
+    unix:target.path = $$(CONDA_PREFIX)/bin
+}
