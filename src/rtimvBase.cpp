@@ -5,6 +5,7 @@
 #include "images/shmimImage.hpp"
 #endif
 #include "images/fitsImage.hpp"
+#include "images/fitsDirectory.hpp"
 #include "images/mzmqImage.hpp"
 
 rtimvBase * globalIMV;
@@ -48,10 +49,24 @@ void rtimvBase::startup( const std::vector<std::string> & shkeys )
                    shkeys[i].rfind(".FITS") == shkeys[i].size()-5) isFits = true;
             }
              
+            bool isDirectory = false;
+            if(!isFits)
+            {
+               if(shkeys[i][shkeys[i].size()-1] == '/')
+               {
+                  isDirectory = true;
+               }
+            }
+
             if(isFits)
             {
                fitsImage * fi = new fitsImage;
                m_images[i] = (rtimvImage *) fi;
+            }
+            else if(isDirectory)
+            {
+               fitsDirectory * fd = new fitsDirectory;
+               m_images[i] = (rtimvImage *) fd;
             }
             else if(shkeys[i].find('@') != std::string::npos || shkeys[i].find(':') != std::string::npos || m_mzmqAlways == true)
             {

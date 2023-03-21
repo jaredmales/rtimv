@@ -37,11 +37,9 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    
    m_colorBox = 0;
    
-   
    rightClickDragging = false;
 
    m_nullMouseCoords = true;
-   
    
    mindat(400);
    

@@ -12,5 +12,5 @@ res/qrc_imviewer.cpp
 *~
 *.stash
 doc/html
-
+.vscode
 .DS_Store

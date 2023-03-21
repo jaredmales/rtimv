@@ -38,6 +38,7 @@ HEADERS += src/rtimvGraphicsView.hpp \
            src/colorMaps.hpp \
            src/images/shmimImage.hpp \
            src/images/fitsImage.hpp \
+           src/images/fitsDirectory.hpp \
            src/images/mzmqImage.hpp \
            src/images/pixaccess.hpp \
            src/images/ImageStruct.hpp
@@ -49,6 +50,7 @@ SOURCES += src/rtimvBase.cpp \
            src/rtimvStats.cpp \
            src/images/shmimImage.cpp \
            src/images/fitsImage.cpp \
+           src/images/fitsDirectory.cpp \
            src/images/mzmqImage.cpp
 
 FORMS += forms/rtimvMainWindow.ui \
