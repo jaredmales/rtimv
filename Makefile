@@ -20,15 +20,19 @@ endif
 
 all: rtimv
 
-rtimv:
+makefile.librtimv:
 	$(QMAKE) -makefile librtimv.pro
-	sudo $(MAKE) -f makefile.librtimv install
+makefile.rtimv:
 	$(QMAKE) -makefile rtimv.pro
+
+rtimv: makefile.librtimv makefile.rtimv
+	$(MAKE) -f makefile.librtimv
 	$(MAKE) -f makefile.rtimv
 
-install: rtimv
-	$(MAKE) -f makefile.librtimv install
-	$(MAKE) -f makefile.rtimv install 
+
+install: makefile.librtimv makefile.rtimv rtimv
+	sudo $(MAKE) -f makefile.librtimv install
+	sudo $(MAKE) -f makefile.rtimv install
 
 clean:
 	rm -f obj/*.o *~
