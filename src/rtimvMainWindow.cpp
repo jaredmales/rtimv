@@ -242,6 +242,7 @@ void rtimvMainWindow::loadConfig()
    
    //Now load remaining options, respecting coded defaults.
    config(m_autoScale, "autoscale");
+   config(m_subtractDark, "darksub");
 
    bool nofpsgage = !m_showFPSGage;
    config(nofpsgage, "nofpsgage");
