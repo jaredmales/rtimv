@@ -37,11 +37,9 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    
    m_colorBox = 0;
    
-   
    rightClickDragging = false;
 
    m_nullMouseCoords = true;
-   
    
    mindat(400);
    
@@ -244,6 +242,7 @@ void rtimvMainWindow::loadConfig()
    
    //Now load remaining options, respecting coded defaults.
    config(m_autoScale, "autoscale");
+   config(m_subtractDark, "darksub");
 
    bool nofpsgage = !m_showFPSGage;
    config(nofpsgage, "nofpsgage");
@@ -638,8 +637,6 @@ void rtimvMainWindow::nullMouseCoords()
 
       ui.graphicsView->hideMouseToolTip();
    }
-
-  
 }
 
 void rtimvMainWindow::updateMouseCoords()
@@ -695,7 +692,16 @@ void rtimvMainWindow::updateMouseCoords()
       {
          char valStr[32];
          char posStr[32];
-         snprintf(valStr, sizeof(valStr), "%0f", _pixel(this,  (int)(idx_y*m_nx) + (int)(idx_x)));
+         
+         if(fabs(val) < 1e-1)
+         {
+            snprintf(valStr, sizeof(valStr), "%0.04g", val);
+         }
+         else
+         {
+            snprintf(valStr, sizeof(valStr), "%0.02f", val);
+         }
+
          snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );
 
          ui.graphicsView->showMouseToolTip(valStr, posStr, QPoint(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY()));
@@ -942,7 +948,17 @@ void rtimvMainWindow::userItemMouseCoords( float mx,
       
    char valStr[32];
    char posStr[32];
-   snprintf(valStr, sizeof(valStr), "%0f", val);
+   
+   if(fabs(val) < 1e-1)
+   {
+      snprintf(valStr, sizeof(valStr), "%0.04g", val);
+   }
+   else
+   {
+      snprintf(valStr, sizeof(valStr), "%0.02f", val);
+   }
+
+
    snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );
 
    std::string str = std::string(valStr) + "\n" + posStr;
@@ -959,7 +975,7 @@ void rtimvMainWindow::userItemMouseCoords( float mx,
 void rtimvMainWindow::userBoxItemMouseCoords(StretchBox * sb)
 {
    QRectF sbr = sb->sceneBoundingRect();
-   QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x()+0.5*sbr.width(), sbr.y() + 0.5*sbr.height()));
+   QPointF qr = QPointF(sbr.x()+0.5*sbr.width(),sbr.y()+0.5*sbr.height()); 
 
    m_userItemMouseViewX = qr.x();
    m_userItemMouseViewY = qr.y();
@@ -969,7 +985,7 @@ void rtimvMainWindow::userBoxItemMouseCoords(StretchBox * sb)
 void rtimvMainWindow::userCircleItemMouseCoords(StretchCircle * sc)
 {
    QRectF sbr = sc->sceneBoundingRect();
-   QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x()+0.5*sbr.width(), sbr.y() + 0.5*sbr.height()));
+   QPointF qr = QPointF(sbr.x()+0.5*sbr.width(),sbr.y()+0.5*sbr.height());
 
    m_userItemMouseViewX = qr.x();
    m_userItemMouseViewY = qr.y();
@@ -1398,8 +1414,6 @@ void rtimvMainWindow::userCircleMoved(StretchCircle * sc)
    userCircleItemSize(sc);
    userCircleItemMouseCoords(sc);
    userCircleItemCoords(sc);
-
-   
 }
 
 void rtimvMainWindow::userCircleMouseIn(StretchCircle * sc)
@@ -1487,14 +1501,11 @@ void rtimvMainWindow::userLineResized(StretchLine * sl)
    m_userItemXCen = sl->line().x1();
    m_userItemYCen = sl->line().y1();
 
-   //QRectF sbr = sl->sceneBoundingRect();
-   QPoint qr = ui.graphicsView->mapFromScene(QPointF(sl->line().x1(), sl->line().y1()));
+   QPointF qr = QPointF(sl->line().x1(), sl->line().y1());
 
    m_userItemMouseViewX = qr.x();
    m_userItemMouseViewY = qr.y();
    userItemMouseCoords(qr.x(), qr.y());
-
-   //userItemMouseCoords(m_userItemXCen, m_userItemYCen);
 }
 
 void rtimvMainWindow::userLineMoved(StretchLine * sl)
@@ -1509,7 +1520,7 @@ void rtimvMainWindow::userLineMoved(StretchLine * sl)
    m_userItemXCen = sl->line().x1();
    m_userItemYCen = sl->line().y1();
 
-   QPoint qr = ui.graphicsView->mapFromScene(QPointF(sl->line().x1(), sl->line().y1()));
+   QPointF qr = QPointF(sl->line().x1(), sl->line().y1()); 
 
    m_userItemMouseViewX = qr.x();
    m_userItemMouseViewY = qr.y();
