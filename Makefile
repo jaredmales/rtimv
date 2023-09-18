@@ -18,17 +18,22 @@ endif
 
 ##############################
 
-all: rtimv
+all: bin/librtimv.so bin/rtimv
 
-rtimv:
+makefile.librtimv: librtimv.pro
 	$(QMAKE) -makefile librtimv.pro
-	sudo $(MAKE) -f makefile.librtimv install
+makefile.rtimv: rtimv.pro
 	$(QMAKE) -makefile rtimv.pro
+
+bin/librtimv.so: makefile.librtimv
+	$(MAKE) -f makefile.librtimv
+
+bin/rtimv: makefile.rtimv
 	$(MAKE) -f makefile.rtimv
 
-install: rtimv
-	$(MAKE) -f makefile.librtimv install
-	$(MAKE) -f makefile.rtimv install 
+install: makefile.librtimv makefile.rtimv bin/librtimv.so bin/rtimv
+	sudo $(MAKE) -f makefile.librtimv install
+	sudo $(MAKE) -f makefile.rtimv install
 
 clean:
 	rm -f obj/*.o *~
@@ -37,3 +42,5 @@ clean:
 	rm -f makefile.rtimv
 	rm -f bin/librtimv.so
 	rm -f bin/rtimv
+
+.PHONY: all install clean
