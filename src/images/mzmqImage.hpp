@@ -11,7 +11,10 @@
 
 #include <thread>
 
+#ifndef ZMQ_BUILD_DRAFT_API
 #define ZMQ_BUILD_DRAFT_API
+#endif
+
 #define ZMQ_CPP11
 #include <zmq.hpp>
 
