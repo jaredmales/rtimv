@@ -12,9 +12,6 @@ This is now a stripped down version, with only minimal analysis tools.  A plugin
 
 ## Installation
 
-NOTE: if you are on the newest version of milk, a.k.a. the dev branch, you should switch to the `new_milk` branch with `git checkout new_milk && git pull`
-
-
 Dependencies:
  - qt-5
    - on Ubuntu 20 `sudo apt-get install qt5-default`
@@ -32,7 +29,7 @@ On CentOS-7 you may need to install mesa-libGL-devel.x86_64
  
 For `ubuntu` you just need to type `make`.  This should work on `CentOS 7` as well, but if not try calling it with `make QMAKE=qmake-qt5`. 
 
-You will be asked for sudo privileges to install the plugin library.  `sudo make install` will install the executable to `/usr/local/bin`.
+Once make completes, `sudo make install` will install the executable to `/usr/local/bin`.  You may need to run `sudo ldconfig` to update the linker.
 
 ## User's Guide
 

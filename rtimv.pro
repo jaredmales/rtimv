@@ -20,13 +20,6 @@ QT += widgets
 
 MAKEFILE = makefile.rtimv
 
-#MILK include path
-unix::INCLUDEPATH += /usr/local/milk/include 
-unix::LIBPATH += /usr/local/milk/lib/
-
-#EIGEN include path 
-unix::INCLUDEPATH += /usr/local/include/eigen3/
-
 # Input
 HEADERS += src/rtimvGraphicsView.hpp \
            src/rtimvBase.hpp \
@@ -65,8 +58,18 @@ unix:!macx {
     }
 }
 
+#MILK include path
+unix::INCLUDEPATH += /usr/local/milk/include 
+unix::LIBPATH += /usr/local/milk/lib/
+
+
 CONFIG += link_pkgconfig
+
+#CFITSIO
 PKGCONFIG += cfitsio 
+
+#EIGEN 
+PKGCONFIG += eigen3
 
 packagesExist(libzmq) {
    PKGCONFIG += libzmq
@@ -82,7 +85,7 @@ _conda_prefix = $$(CONDA_PREFIX)
 
 LIBS += -lmxlib
 LIBS += -lxrif
-LIBS += -lrtimv
+LIBS += -L../bin -lrtimv
 
 RESOURCES += res/imviewer.qrc
 
