@@ -85,7 +85,7 @@ _conda_prefix = $$(CONDA_PREFIX)
 
 LIBS += -lmxlib
 LIBS += -lxrif
-LIBS += -L../bin -lrtimv
+LIBS += -L./bin -lrtimv
 
 RESOURCES += res/imviewer.qrc
 
