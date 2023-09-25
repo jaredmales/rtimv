@@ -33,12 +33,6 @@ SOURCES += src/rtimvGraphicsView.cpp \
            src/StretchLine.cpp
 
 
-_conda_prefix = $$(CONDA_PREFIX)
-!isEmpty(_conda_prefix) {
-    INCLUDEPATH += $$(CONDA_PREFIX)/include
-    LIBS += -L$$(CONDA_PREFIX)/lib
-}
-
 
 #########################
 # installation 
@@ -50,11 +44,3 @@ INSTALLS += target
 unix:includefiles.path = /usr/local/include/rtimv
 includefiles.files = src/rtimvInterfaces.hpp src/rtimvGraphicsView.hpp src/StretchGraphicsItem.hpp src/StretchBox.hpp src/StretchCircle.hpp src/StretchLine.hpp
 INSTALLS += includefiles
-
-
-!isEmpty(_conda_prefix) {
-    INCLUDEPATH += $$(CONDA_PREFIX)/include
-    LIBS += -L$$(CONDA_PREFIX)/lib
-    unix:includefiles.path = $$(CONDA_PREFIX)/rtimv
-    unix:target.path = $$(CONDA_PREFIX)/lib
-}
