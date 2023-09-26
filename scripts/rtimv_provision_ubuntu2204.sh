@@ -115,11 +115,19 @@ sudo make install
 ## rtimv
 cd ~/Source
 sudo apt install -y qtbase5-dev qt5-qmake
-if [[ ! -d rtimv ]]; then
+
+if [[ ! -z $GITHUB_WORKSPACE ]]; then
+    # Only if we're running in GitHub Actions
+    cd $GITHUB_WORKSPACE
+elif [[ ! -d rtimv ]]; then
+    # Only if ~/Source/rtimv doesn't exist
     git clone https://github.com/jaredmales/rtimv.git
+    cd rtimv
+    git checkout dev
+else
+    cd rtimv
+    git checkout dev
 fi
-cd rtimv
-git checkout dev
 make
 sudo make install
 
