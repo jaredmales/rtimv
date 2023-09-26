@@ -1,6 +1,7 @@
 #!/bin/bash
 set -o pipefail
-
+# since we care about almost every exit status, check them all. use `|| true` to bypass.
+set -e
 #########################################################################
 # A script to provision an Ubuntu 22.04 machine to run rtimv
 #
