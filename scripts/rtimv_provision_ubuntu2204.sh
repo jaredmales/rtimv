@@ -12,7 +12,28 @@ set -e
 # Switches some repos to dev TODO: make this configurable
 #########################################################################
 
-sudo apt-get install -y build-essential cmake wget pkg-config
+# from https://github.com/milk-org/milk/blob/dev/Dockerfile
+sudo apt-get install -y \
+    git \
+    make \
+    dpkg-dev \
+    libc6-dev \
+    cmake \
+    pkg-config \
+    python3-dev \
+    libcfitsio-dev \
+    pybind11-dev \
+    python3-pybind11 \
+    libgsl-dev \
+    libfftw3-dev \
+    libncurses-dev \
+    libbison-dev \
+    libfl-dev \
+    libreadline-dev \
+    gfortran libopenblas-dev liblapacke-dev \
+    pkg-config \
+    gcc \
+    g++
 
 ## Make work directory
 mkdir -p ~/Source
