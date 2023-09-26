@@ -17,8 +17,8 @@ jobs:
     steps:
       - name: Fetch package definitions
         run: 'apt-get update'
-      - name: Install git for checkout action
-        run: 'apt-get install -y git'
+      - name: Install basic prerequisites
+        run: 'apt-get install -y git sudo build-essential'
       - name: Check out repository code
         uses: actions/checkout@v4
       - run: 'bash -x scripts/rtimv_provision_ubuntu2204.sh'
