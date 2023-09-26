@@ -12,6 +12,8 @@ set -e
 # Switches some repos to dev TODO: make this configurable
 #########################################################################
 
+sudo apt-get install -y build-essential cmake
+
 ## Setup milk for linking TODO: check if already done
 echo /usr/local/milk/lib/ | sudo tee -a  /etc/ld.so.conf.d/milk.conf
 sudo ldconfig
