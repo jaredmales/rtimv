@@ -12,7 +12,7 @@ set -e
 # Switches some repos to dev TODO: make this configurable
 #########################################################################
 
-sudo apt-get install -y build-essential cmake wget
+sudo apt-get install -y build-essential cmake wget pkg-config
 
 ## Make work directory
 mkdir -p ~/Source
