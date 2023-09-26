@@ -77,12 +77,6 @@ packagesExist(libzmq) {
    LIBS += -lzmq 
 }
 
-_conda_prefix = $$(CONDA_PREFIX)
-!isEmpty(_conda_prefix) {
-    INCLUDEPATH += $$(CONDA_PREFIX)/include
-    LIBS += -L$$(CONDA_PREFIX)/lib
-}
-
 LIBS += -lmxlib
 LIBS += -lxrif
 LIBS += -L./bin -lrtimv
@@ -95,7 +89,3 @@ RESOURCES += res/imviewer.qrc
 
 unix:target.path = /usr/local/bin
 INSTALLS += target
-
-!isEmpty(_conda_prefix) {
-    unix:target.path = $$(CONDA_PREFIX)/bin
-}
