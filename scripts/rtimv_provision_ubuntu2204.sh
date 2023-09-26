@@ -14,13 +14,28 @@ set -e
 
 sudo apt-get install -y build-essential cmake wget
 
+## Make work directory
+mkdir -p ~/Source
+cd ~/Source
+
+if ! command -v milk; then
+    if [[ ! -d milk ]]; then
+        git clone --recursive https://github.com/milk-org/milk.git
+    fi
+    cd milk
+    git checkout dev
+    mkdir -p _build
+    cd _build
+    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+    sudo make install
+    if [[ ! -h /usr/local/milk ]]; then
+        ln -sfv /usr/local/milk-* /usr/local/milk
+    fi
+fi
+
 ## Setup milk for linking TODO: check if already done
 echo /usr/local/milk/lib/ | sudo tee -a  /etc/ld.so.conf.d/milk.conf
 sudo ldconfig
-
-## Make work director
-mkdir -p ~/Source
-cd ~/Source
 
 ## xrif
 if [[ ! -d xrif ]]; then
