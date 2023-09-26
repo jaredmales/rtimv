@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include <mx/ioutils/fileUtils.hpp>
-
+#include <unistd.h>
 #include <sys/inotify.h>
 
 fitsImage::fitsImage()

@@ -33,7 +33,10 @@ sudo apt-get install -y \
     gfortran libopenblas-dev liblapacke-dev \
     pkg-config \
     gcc \
-    g++
+    g++ \
+
+# for this script
+sudo apt-get install -y wget
 
 ## Make work directory
 mkdir -p ~/Source
