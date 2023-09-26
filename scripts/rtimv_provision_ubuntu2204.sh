@@ -16,7 +16,7 @@ echo /usr/local/milk/lib/ | sudo tee -a  /etc/ld.so.conf.d/milk.conf
 sudo ldconfig
 
 ## Make work director
-mkdir -f ~/Source
+mkdir -p ~/Source
 cd ~/Source
 
 ## xrif
