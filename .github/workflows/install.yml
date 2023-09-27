@@ -1,0 +1,22 @@
+name: Compile rtimv
+on:
+  push:
+  schedule:
+      - cron: '8 2 * * *'
+jobs:
+  install-ubuntu:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:22.04
+      env:
+        NEEDRESTART_SUSPEND: 'yes'
+        DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Fetch package definitions
+        run: 'apt-get update'
+      - name: Install basic prerequisites
+        run: 'apt-get install -y git sudo'
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - run: 'bash -x scripts/rtimv_provision_ubuntu2204.sh'
+        name: Test compilation script
