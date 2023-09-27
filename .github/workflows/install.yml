@@ -1,10 +1,8 @@
 name: Compile rtimv
 on:
   push:
-      branches:
-          - 'add-ci'
   schedule:
-      - cron: '43 5 * * *'
+      - cron: '8 2 * * *'
 jobs:
   install-ubuntu:
     runs-on: ubuntu-latest
