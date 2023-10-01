@@ -222,7 +222,7 @@ int shmimImage::update()
    if(cnt0 != m_lastCnt0) //Only redraw if it's actually a new image.
    {
       m_data = ((char *) (m_image.array.raw)) + curr_image*snx*sny*m_typeSize;
-      m_imageTime = m_image.md->atime.tv_sec + ((double) m_image.md->atime.tv_nsec)/1e9;
+      m_imageTime = m_image.md->writetime.tv_sec + ((double) m_image.md->writetime.tv_nsec)/1e9;
       
       m_lastCnt0 = cnt0;
       m_age_counter = 0;

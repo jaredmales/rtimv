@@ -18,7 +18,7 @@ endif
 
 ##############################
 
-all: bin/librtimv.so bin/rtimv
+all: librtimv rtimv
 
 makefile.librtimv: librtimv.pro
 	$(QMAKE) -makefile librtimv.pro
@@ -26,13 +26,13 @@ makefile.librtimv: librtimv.pro
 makefile.rtimv: rtimv.pro
 	$(QMAKE) -makefile rtimv.pro
 
-bin/librtimv.so: makefile.librtimv
+librtimv: makefile.librtimv
 	$(MAKE) -f makefile.librtimv
 
-bin/rtimv: makefile.rtimv
+rtimv: makefile.rtimv
 	$(MAKE) -f makefile.rtimv
 
-install: makefile.librtimv makefile.rtimv bin/librtimv.so bin/rtimv
+install: makefile.librtimv makefile.rtimv librtimv rtimv
 	$(MAKE) -f makefile.librtimv install
 	$(MAKE) -f makefile.rtimv install
 
@@ -44,4 +44,4 @@ clean:
 	rm -f bin/librtimv.so*
 	rm -f bin/rtimv
 
-.PHONY: all install clean
+.PHONY: all install clean librtimv rtimv

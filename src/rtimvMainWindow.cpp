@@ -830,10 +830,14 @@ void rtimvMainWindow::updateAge()
       {
          ui.graphicsView->fpsGageText(m_images[0]->fpsEst());
       }
-      else
+      else if(age < 86400*10000) //only if age is reasonable
       {
          ui.graphicsView->fpsGageText(age, true);
-      } 
+      }
+      else  
+      {
+         ui.graphicsView->fpsGageText("");
+      }
    }
 
    for(size_t n=0;n<m_overlays.size(); ++n)
