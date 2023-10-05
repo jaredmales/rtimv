@@ -20,7 +20,9 @@ struct shmimImage : public rtimvImage
 
    
 protected:
-   std::string m_shmimName; ///< The path to the shared memory buffer containing the image data.
+   std::string m_shmimName; ///< The path to the shared memory buffer containing the image data. 
+
+   ino_t m_inode {0}; ///< The inode of the shared memory file
 
    bool m_notFoundLogged {false}; ///< Flag to record whether the image not being found has been logged.
 

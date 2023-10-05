@@ -1,7 +1,7 @@
 #include "shmimImage.hpp"
 
 #include <fcntl.h>
-
+#include <sys/stat.h>
 #include <iostream>
 
 #ifdef RTIMV_MILK
@@ -153,6 +153,19 @@ void shmimImage::imConnect()
          exit(0);
    }
    
+   struct stat buffer;
+   int rv = stat(SM_fname, &buffer);
+
+   if(rv != 0)
+   {
+      ImageStreamIO_closeIm(&m_image);
+      m_data = nullptr;
+      m_shmimAttached = 0;
+      std::cerr << "Could not get inode for image. " << strerror(errno) << "\n";
+      return; //We just need to wait for the server process to finish startup, so come back on next timeout
+   }
+   m_inode = buffer.st_ino;
+
    m_shmimAttached = 1;
 
 }
@@ -184,7 +197,7 @@ int shmimImage::update()
    uint32_t snx, sny;
 
    
-   if(m_image.md->sem <= 0) //Indicates that the server has cleaned up.
+   if(m_image.md->sem <= 0 || m_image.md == NULL) //Indicates that the server has cleaned up.
    {
       m_data = nullptr;
       ImageStreamIO_closeIm(&m_image);
@@ -254,6 +267,21 @@ int shmimImage::update()
             detach();
          }
          close(SM_fd);
+
+
+         //Check if the inode changed
+         struct stat buffer;
+         int rv = stat(SM_fname, &buffer);
+         if(rv != 0)
+         {
+            detach();
+         }
+
+         if(buffer.st_ino != m_inode)
+         {
+            detach();
+         }
+
 
          m_age_counter = 0;
          m_fps_counter = 1000/m_timeout+1;
