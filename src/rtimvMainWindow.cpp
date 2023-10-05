@@ -822,7 +822,7 @@ void rtimvMainWindow::updateAge()
             
       double timetmp = (double)tstmp.tv_sec + ((double)tstmp.tv_nsec)/1e9;
          
-      double fpsTime = m_images[0]->imageTime();//m_image.md->atime.tv_sec + ((double) m_images[0]->m_image.md->atime.tv_nsec)/1e9;
+      double fpsTime = m_images[0]->imageTime();
          
       double age = timetmp - fpsTime;
             
