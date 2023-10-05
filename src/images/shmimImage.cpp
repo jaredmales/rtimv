@@ -162,7 +162,7 @@ void shmimImage::imConnect()
       m_data = nullptr;
       m_shmimAttached = 0;
       std::cerr << "Could not get inode for image. " << strerror(errno) << "\n";
-      return; //We just need to wait for the server process to finish startup, so come back on next timeout
+      return; 
    }
    m_inode = buffer.st_ino;
 
