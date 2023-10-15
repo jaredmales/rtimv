@@ -304,4 +304,10 @@ float fitsImage::pixel(size_t n)
    return pixget(m_data, n);
 }
 
+std::vector<std::string> fitsImage::info()
+{
+    std::vector<std::string> info = rtimvImage::info();
+    info.push_back(std::string( imageName().size()+1, ' ') + imageKey());
 
+    return info;
+}

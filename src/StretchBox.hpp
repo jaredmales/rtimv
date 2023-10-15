@@ -1,6 +1,6 @@
 
-#ifndef __StretchBox_h__
-#define __StretchBox_h__
+#ifndef __StretchBox_hpp__
+#define __StretchBox_hpp__
 
 
 #include <QGraphicsRectItem>

@@ -18,6 +18,7 @@
 
 #include <mx/app/application.hpp>
 
+///\todo need a separate dictionary file(s)
 struct rtimvDictBlob
 {
 protected:
@@ -173,17 +174,43 @@ typedef std::map<std::string, rtimvDictBlob> dictionaryT;
 ///The dictionary iterator type.
 typedef std::map<std::string, rtimvDictBlob>::iterator dictionaryIteratorT;
       
-class rtimvDictionaryInterface
+/// The base plugin class type
+/** All supported plugins inherit from this
+ * 
+ */
+class rtimvInterface : public QObject
+{
+public:
+
+    /// Get the information about this plugin for user display
+    /** The first entry should start with the plugin name and type, e.g.:
+     * \verbatim
+     * INDI dictionary
+     * \endverbatim
+     * plus additional information.
+     * Subsequent entries should start with spaces to move past the name and type.
+    */
+    virtual std::vector<std::string> info() = 0;
+};
+
+class rtimvDictionaryInterface : public rtimvInterface
 {
    public:
+      /// Destructor, implement as needed.
       virtual ~rtimvDictionaryInterface() = default;
       
-      virtual int attachDictionary( dictionaryT *,
-                                    mx::app::appConfigurator &
+      /// Attach the dictionary plugin to rtimv
+      /** 
+        * \returns 0 on successful configuration of the interface 
+        * \returns >0 if the dictionary is not configured but no error
+        * \returns <0 if an error occurs
+       */
+      virtual int attachDictionary( dictionaryT *,             ///< [in] pointer to the dictionary itself, which is part of rtimv
+                                    mx::app::appConfigurator & ///< [in] configuration from which to extract specifics
                                   ) = 0;
 };
 
-#define rtimvDictionaryInterface_iid "rtimv.dictionaryInterface/1.1"
+#define rtimvDictionaryInterface_iid "rtimv.dictionaryInterface/1.2"
 
 Q_DECLARE_INTERFACE(rtimvDictionaryInterface, rtimvDictionaryInterface_iid)
 
@@ -229,32 +256,44 @@ struct rtimvMouseCoord
    float maskValue {0};
 };
    
-class rtimvOverlayInterface : public QObject
+/// Interface for adding information to the display
+class rtimvOverlayInterface : public rtimvInterface
 {
    public:
       
-      
       virtual ~rtimvOverlayInterface() = default;
 
-      virtual int attachOverlay( rtimvOverlayAccess &,
-                                 mx::app::appConfigurator &
+      /// Configure and attach the overlay
+      /** 
+        * \return 0 on success
+        * \return <0 on error
+        * \return >0 on not-configured
+        */
+      virtual int attachOverlay( rtimvOverlayAccess &,      ///< [in] The exposed information for overlays
+                                 mx::app::appConfigurator & ///< [in] configuration from which to extract specifics
                                ) = 0; 
       
+      /// Update the overlay
       virtual int updateOverlay() = 0;
 
       /// Handle a key press event
+      /** Note that there is currently no way to register and deconflict keys 
+        * 
+        */
       virtual void keyPressEvent(QKeyEvent * ke) = 0;
       
       /// Check if the overlay is currently enabled.
       virtual bool overlayEnabled() = 0;
       
+      /// Enable the overlay
       virtual void enableOverlay() = 0;
 
+      /// Disable the overlay
       virtual void disableOverlay() = 0;
    
 };
 
-#define rtimvOverlayInterface_iid "rtimv.overlayInterface/1.1"
+#define rtimvOverlayInterface_iid "rtimv.overlayInterface/1.2"
 
 Q_DECLARE_INTERFACE(rtimvOverlayInterface, rtimvOverlayInterface_iid)
 

@@ -5,6 +5,8 @@
   * 
   */
 
+#include <QFontDatabase>
+
 #include "rtimvGraphicsView.hpp"
 
 #include <cmath>
@@ -442,12 +444,15 @@ void rtimvGraphicsView::statusTextText( size_t n,        ///< [in] the field num
 
 void rtimvGraphicsView::helpTextFontFamily(const char * ff)
 {
-   m_helpTextFontFamily = ff;
+    ///\todo need to refactor this since we want to use fixed font all the time
+    
+    static_cast<void>(ff);
+   //m_helpTextFontFamily = ff;
    
-   QFont qf = m_helpText->currentFont();
-   qf.setFamily(m_helpTextFontFamily);
+   //QFont qf = m_helpText->currentFont();
+   //qf.setFamily(m_helpTextFontFamily);
    
-   m_helpText->setCurrentFont(qf);
+   m_helpText->setCurrentFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
 }
 
 void rtimvGraphicsView::helpTextFontSize( float fs )
@@ -944,7 +949,7 @@ void rtimvGraphicsView::mouseDoubleClickEvent(QMouseEvent *e)
 
 void rtimvGraphicsView::wheelEvent(QWheelEvent *e)
 {
-   emit wheelMoved(e->delta());
+   emit wheelMoved(e->angleDelta().y());
 }
 
 

@@ -163,6 +163,8 @@ public:
 
 public:
    float pixel(size_t n);
+
+   virtual std::vector<std::string> info();
 };
 
 

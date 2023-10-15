@@ -188,6 +188,8 @@ public:
      */ 
    float fpsEst();
    
+   virtual std::vector<std::string> info();
+   
 };
 
 

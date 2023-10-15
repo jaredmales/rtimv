@@ -561,3 +561,11 @@ float mzmqImage::fpsEst()
 {
    return m_fpsEst;
 }
+
+std::vector<std::string> mzmqImage::info()
+{
+    std::vector<std::string> info = rtimvImage::info();
+    info.push_back(std::string( imageName().size()+1, ' ') + "mzmq://" + m_server + ":" + std::to_string(m_port));
+
+    return info;
+}

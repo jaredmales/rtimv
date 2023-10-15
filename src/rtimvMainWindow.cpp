@@ -96,12 +96,12 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    QDir pluginsDir = QDir(QCoreApplication::applicationDirPath());
 
    #if defined(Q_OS_WIN)
-   if (pluginsDir.dirName().toLower() == "debug" || pluginsDir.dirName().toLower() == "release")
+   if(pluginsDir.dirName().toLower() == "debug" || pluginsDir.dirName().toLower() == "release")
    {
       pluginsDir.cdUp();
    }
    #elif defined(Q_OS_MAC)
-   if (pluginsDir.dirName() == "MacOS") 
+   if(pluginsDir.dirName() == "MacOS") 
    {
       pluginsDir.cdUp();
       pluginsDir.cdUp();
@@ -117,7 +117,7 @@ rtimvMainWindow::rtimvMainWindow( int argc,
       {
          QPluginLoader loader(pluginsDir.absoluteFilePath(fileName));
          QObject *plugin = loader.instance();
-         if (plugin) 
+         if(plugin) 
          {
             int arv = loadPlugin(plugin);
             if( arv != 0 )
@@ -1256,7 +1256,7 @@ void rtimvMainWindow::doHideStatsBox()
 {
    if(m_statsBox) m_statsBox->setVisible(false);
 
-   if (imStats)
+   if(imStats)
    {
       delete imStats;
       imStats = 0; //imStats is set to delete on close
@@ -1684,6 +1684,9 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
          case Qt::Key_H:
             if(key == 'h') return toggleHelp();
             break;
+         case Qt::Key_I:
+            if(key == 'i') return toggleInfo();
+            break;
          case Qt::Key_L:
             if(key == 'l') return addUserLine();
             if(key == 'L') return toggleLogLinear();
@@ -1745,6 +1748,9 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
             break;
          case Qt::Key_BracketRight:
             return squareUp();
+         case Qt::Key_Up:
+            std::cerr << "up arrow\n";
+            return;
          default:
             break;
       }
@@ -2086,7 +2092,8 @@ std::string rtimvMainWindow::generateHelp()
    //      "01234567890123456789012345678901234567890123456789012345678901234567890123456789
    help += "a: toggle autoscale           b: add box                     \n";
    help += "c: add circle                 f: toggle FPS gauge            \n";
-   help += "h: toggle help                l: add line                    \n";
+   help += "h: toggle help                i: toggle info                 \n";
+   help += "l: add line                                                  \n";
    help += "n: toggle north arrow         p: launch control panel        \n";
    help += "r: re-stretch color table     s: toggle statistics box       \n";
    help += "t: toggle target cross        x: freeze real-time            \n";
@@ -2097,11 +2104,10 @@ std::string rtimvMainWindow::generateHelp()
    help += "M: toggle mask                S: toggle saturation mask      \n";
    
    help += "\n";
-   help += "1-9: change zoom level\n";
-   help += "ctrl +: zoom in\n";
-   help += "ctrl -: zoom out\n";
+   help += "1-9: change zoom level        ctrl +: zoom in\n";
+   help += "                              ctrl -: zoom out\n";
    help += "\n";
-   help += "[: shrink to fit              ]: grow to fit\n";
+   help += "[: fit horizontal             ]: fit vertical\n";
    help += "\n";
    help += "ctrl c: center image          delete: remove selected object \n";
    
@@ -2110,15 +2116,130 @@ std::string rtimvMainWindow::generateHelp()
 
 void rtimvMainWindow::toggleHelp()
 {
-   if(ui.graphicsView->m_helpText->isVisible())
+   if(m_helpVisible)
    {
       ui.graphicsView->m_helpText->setVisible(false);
+      m_helpVisible = false;
    }
    else
    {
       std::string help = generateHelp();
       ui.graphicsView->helpTextText(help.c_str());
       ui.graphicsView->m_helpText->setVisible(true);
+      m_helpVisible = true;
+      m_infoVisible = false;
+   }
+}
+
+std::string rtimvMainWindow::generateInfo()
+{
+    std::string info;
+    info  = "                       rtimv online info                   \n";
+    info += "                     press 'i' to exit info        \n";
+    info += "\n";
+    info += "Images:\n";
+    //      "01234567890123456789012345678901234567890123456789012345678901234567890123456789m_images[1]->imageName() + 
+    if(m_images[0] != nullptr)
+    {
+        std::vector<std::string> iinfo = m_images[0]->info();
+        if(iinfo.size() > 0)
+        {
+            info += "  image:   " + iinfo[0] + "\n";
+        }
+
+        for(size_t i=1; i<iinfo.size(); ++i)
+        {
+            info += "           " + iinfo[i] + "\n";
+        }
+    }
+    else
+    {
+        info += "  image:   \n";
+    }
+    if(m_images[1] != nullptr)
+    {
+        std::vector<std::string> iinfo = m_images[1]->info();
+        if(iinfo.size() > 0)
+        {
+            info += "  dark:    " + iinfo[0] + "\n";
+        }
+
+        for(size_t i=1; i<iinfo.size(); ++i)
+        {
+            info += "           " + iinfo[i] + "\n";
+        }
+    }
+    else
+    {
+        info += "  dark:    \n";
+    }
+    if(m_images[2] != nullptr)
+    {
+        std::vector<std::string> iinfo = m_images[2]->info();
+        if(iinfo.size() > 0)
+        {
+            info += "  mask:    " + iinfo[0] + "\n";
+        }
+
+        for(size_t i=1; i<iinfo.size(); ++i)
+        {
+            info += "           " + iinfo[i] + "\n";
+        }
+    }
+    else
+    {
+        info += "  mask:    \n";
+    }
+    if(m_images[3] != nullptr)
+    {
+        std::vector<std::string> iinfo = m_images[3]->info();
+        if(iinfo.size() > 0)
+        {
+            info += "  sat-mask: " + iinfo[0] + "\n";
+        }
+
+        for(size_t i=1; i<iinfo.size(); ++i)
+        {
+            info += "            " + iinfo[i] + "\n";
+        }
+    }
+    else
+    {
+        info += "  satMask: \n";
+    }
+
+    info += "\n";
+    info += "Plugins:\n";
+    for(size_t p=0;p<m_plugins.size(); ++p)
+    {
+        if(m_plugins[p] != nullptr)
+        {
+            std::vector<std::string> pinfo = m_plugins[p]->info();
+            for(size_t i=0; i < pinfo.size(); ++i)
+            {
+                info += "  " + pinfo[i] + "\n";
+            }
+        }
+    }
+    info += "\n";
+   
+    return info;
+}
+
+void rtimvMainWindow::toggleInfo()
+{
+   if(m_infoVisible)
+   {
+      ui.graphicsView->m_helpText->setVisible(false);
+      m_infoVisible = false;
+   }
+   else
+   {
+      std::string info = generateInfo();
+      ui.graphicsView->helpTextText(info.c_str());
+      ui.graphicsView->m_helpText->setVisible(true);
+      m_infoVisible = true;
+      m_helpVisible = false;
    }
 }
 
@@ -2245,13 +2366,29 @@ void rtimvMainWindow::fontLuminance()
 int rtimvMainWindow::loadPlugin(QObject *plugin)
 {
    auto rdi = qobject_cast<rtimvDictionaryInterface *>(plugin);
-   if (rdi)
+   rtimvInterface * ri {nullptr};
+
+   if(rdi)
    {
-      rdi->attachDictionary(&m_dictionary, config);
+      int arv = rdi->attachDictionary(&m_dictionary, config);
+      
+      if(arv < 0)
+      {
+         std::cerr << "Error from attachDictionary: " << arv << "\n";
+         return arv;
+      }
+      else if(arv > 0)
+      {
+         return arv;
+      }
+      else 
+      {
+         ri = rdi;
+      }
    }
    
    auto roi = qobject_cast<rtimvOverlayInterface *>(plugin);
-   if (roi)
+   if(roi)
    {
       rtimvOverlayAccess roa;
       roa.m_mainWindowObject = this;
@@ -2267,7 +2404,7 @@ int rtimvMainWindow::loadPlugin(QObject *plugin)
       
       if(arv < 0)
       {
-         std::cerr << "Error from attachOverlay\n";
+         std::cerr << "Error from attachOverlay: " << arv << "\n";
          return arv;
       }
       else if(arv > 0)
@@ -2277,8 +2414,41 @@ int rtimvMainWindow::loadPlugin(QObject *plugin)
       else
       {
          m_overlays.push_back(roi);
+         ri = roi;
       }
    }
-   
-   return 0;
+
+    //If ri is not null, we store it.  Note this could be many types of interfaces at once.
+    if(ri) 
+    {
+        m_plugins.push_back(ri);
+        return 0;
+    }
+    else
+    {
+        return 2; //this means no valid plugin matches
+    }
+}
+
+bool rtimvMainWindow::eventFilter( QObject *obj, 
+                                   QEvent *event
+                                 )
+{
+    //Events from the QGraphiscScene
+    if(obj == m_qgs) 
+    {
+        if(event->type() == QEvent::KeyPress) 
+        {
+            QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
+            if(keyEvent->key() == Qt::Key_Left || keyEvent->key() == Qt::Key_Right 
+                   || keyEvent->key() == Qt::Key_Up || keyEvent->key() == Qt::Key_Down
+                       || keyEvent->key() == Qt::Key_PageUp || keyEvent->key() == Qt::Key_PageDown)
+            {
+                //We still want to take these for use in the main window, but don't want QGS to process them.
+                keyPressEvent(keyEvent);
+                return true;
+            }
+        } 
+    } 
+    return false;
 }
