@@ -33,6 +33,8 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    ui.graphicsView->setGeometry(0,0, width(), height());
    
    m_qgs = new QGraphicsScene();
+   m_qgs->installEventFilter(this);
+
    ui.graphicsView->setScene(m_qgs);
    
    m_colorBox = 0;

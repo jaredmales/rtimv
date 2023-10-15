@@ -558,7 +558,7 @@ class rtimvGraphicsView : public QGraphicsView
       void wheelEvent(QWheelEvent *e);
       
    ///@}
-      
+    
 };
 
 #endif //rtimv_rtimvGraphicsView_hpp

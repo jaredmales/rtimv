@@ -11,6 +11,7 @@
 #include <QGraphicsPixmapItem>
 #include <QPluginLoader>
 #include <QDir>
+#include <QMainWindow>
 
 #include <mx/app/application.hpp>
 
@@ -588,7 +589,25 @@ protected slots:
    private:
       Ui::rtimvMainWindow ui;
 
-   
+   public:
+   bool eventFilter(QObject *obj, QEvent *event)
+    {
+        if (obj == m_qgs) 
+        {
+            if (event->type() == QEvent::KeyPress) 
+            {
+                QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
+                if(keyEvent->key() == Qt::Key_Left || keyEvent->key() == Qt::Key_Right 
+                       || keyEvent->key() == Qt::Key_Up || keyEvent->key() == Qt::Key_Down
+                           || keyEvent->key() == Qt::Key_PageUp || keyEvent->key() == Qt::Key_PageDown)
+                {
+                    return true;
+                }
+            } 
+        } 
+
+        return false;
+    }
 
 };
 
