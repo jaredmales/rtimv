@@ -150,6 +150,15 @@ public:
       return cpsz;
    }
 
+   size_t getBlobSize()
+   {
+      std::unique_lock<std::mutex> lock(m_mutex);
+      
+      if(m_blob == nullptr) return 0;
+      return m_sz;
+      
+   }
+
    ~rtimvDictBlob()
    {
       std::unique_lock<std::mutex> lock(m_mutex);

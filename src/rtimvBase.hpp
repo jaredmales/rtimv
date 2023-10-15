@@ -368,7 +368,7 @@ public:
    /*** Abstract Zoom ***/
    protected:
       float m_zoomLevel {1};
-      float m_zoomLevelMin {0.125};
+      float m_zoomLevelMin {1};
       float m_zoomLevelMax {64};
 
    public:
