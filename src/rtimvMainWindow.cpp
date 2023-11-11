@@ -148,22 +148,20 @@ rtimvMainWindow::~rtimvMainWindow()
 void rtimvMainWindow::setupConfig()
 {
    config.add("image.key", "", "image.key", argType::Required, "image", "key", false, "string", "The main image key. Specifies the protocol, location, and name of the main image.");
-   config.add("image.shmim_name", "", "image.shmim_name", argType::Required, "image", "shmim_name", false, "string", "Same as image.key. Deprecated -- do not use for new configs.");
    
    config.add("dark.key", "", "dark.key", argType::Required, "dark", "key", false, "string", "The dark image key. Specifies the protocol, location, and name of the dark image.");   
-   config.add("dark.shmim_name", "", "dark.shmim_name", argType::Required, "dark", "shmim_name", false, "string", "Same as dark.key. Deprecated -- do not use for new configs.");
    
    config.add("mask.key", "", "mask.key", argType::Required, "mask", "key", false, "string", "The mask image key. Specifies the protocol, location, and name of the mask image.");   
-   config.add("mask.shmim_name", "", "mask.shmim_name", argType::Required, "mask", "shmim_name", false, "string", "Same as mask.key. Deprecated -- do not use for new configs.");
    
    config.add("satMask.key", "", "satMask.key", argType::Required, "satMask", "key", false, "string", "The saturation mask image key. Specifies the protocol, location, and name of the saturation mask image.");
-   config.add("satMask.shmim_name", "", "satMask.shmim_name", argType::Required, "satMask", "shmim_name", false, "string", "Same as satMask.key. Deprecated -- do not use for new configs.");
-
+   
    config.add("autoscale", "", "autoscale", argType::True, "", "autoscale", false, "bool", "Set to turn autoscaling on at startup");
    config.add("nofpsgage", "", "nofpsgage", argType::True, "", "nofpsgage", false, "bool", "Set to turn the fps gage off at startup");
-   config.add("darksub", "", "darksub", argType::True, "", "darksub", false, "bool", "Set to false to turn off on at startup.  If a dark is supplied, darksub is otherwise on.");
+   config.add("darksub", "", "darksub", argType::True, "", "darksub", false, "bool", "Set to false to turn off dark subtraction at startup.  If a dark is supplied, darksub is otherwise on.");
    config.add("targetXc", "", "targetXc", argType::Required, "", "targetXc", false, "float", "The fractional x-coordinate of the target, 0<= x <=1");
    config.add("targetYc", "", "targetYc", argType::Required, "", "targetYc", false, "float", "The fractional y-coordinate of the target, 0<= y <=1");
+   config.add("satLevel", "", "satLevel", argType::Required, "", "satLevel", false, "float", "The saturation level for this camera");
+   config.add("masksat", "", "masksat", argType::True, "", "masksat", false, "bool", "Set to false to turn off sat-masking at startup.  If a satMaks is supplied, masksat is otherwise on.");
 
    config.add("mouse.pointerCoords", "", "mouse.pointerCoords", argType::Required, "mouse", "pointerCoords", false, "bool", "Show or don't show the pointer coordinates.  Default is true.");
    config.add("mouse.staticCoords", "", "mouse.staticCoords", argType::Required, "mouse", "staticCoords", false, "bool", "Show or don't show the static coordinates at bottom of display.  Default is false.");
@@ -197,17 +195,13 @@ void rtimvMainWindow::loadConfig()
 
    
    //Check for use of deprecated shmim_name keyword by itself, but use key if available
-   if(!config.isSet("image.key")) config(imKey, "image.shmim_name");
-   else config(imKey, "image.key");
+   config(imKey, "image.key");
    
-   if(!config.isSet("dark.key")) config(darkKey, "dark.shmim_name");
-   else config(darkKey, "dark.key");
+   config(darkKey, "dark.key");
       
-   if(!config.isSet("mask.key")) config(maskKey, "mask.shmim_name");
-   else config(maskKey, "mask.key");
+   config(maskKey, "mask.key");
    
-   if(!config.isSet("satMask.key")) config(satMaskKey, "satMask.shmim_name");
-   else config(satMaskKey, "satMask.key");
+   config(satMaskKey, "satMask.key");
    
    //Populate the key vector, a "" means no image specified
    keys.resize(4);
@@ -254,6 +248,19 @@ void rtimvMainWindow::loadConfig()
    config(m_targetXc, "targetXc");
    config(m_targetYc, "targetYc");
    
+   float satLevelDefault = m_satLevel;
+   config(m_satLevel, "satLevel");
+
+   //If we set a sat level or mask, apply it
+   if(m_satLevel != satLevelDefault || satMaskKey != "")
+   {
+        m_applySatMask = true;
+   }
+
+   //except turn it off if requested
+   config(m_applySatMask, "masksat");
+
+
    config(m_showToolTipCoords, "mouse.pointerCoords");
    config(m_showStaticCoords, "mouse.staticCoords");
 
@@ -265,47 +272,30 @@ void rtimvMainWindow::loadConfig()
 
 void rtimvMainWindow::onConnect()
 {
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::onConnect begin)
-
     setWindowTitle(m_title.c_str());
    
-    DEBUG_TRACE_CRUMB
-
     squareDown();
-
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::onConnect end)
 }
 
 void rtimvMainWindow::postSetImsize()
 {
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::postSetImsize begin)
-
     m_screenZoom = std::min( (float) ui.graphicsView->viewport()->width()/(float)m_nx,
                              (float)ui.graphicsView->viewport()->height()/(float)m_ny );
 
-    DEBUG_TRACE_VAL(m_screenZoom)
-
     if(m_qpmi)
     {
-        DEBUG_TRACE_CRUMB
         delete m_qpmi;
         m_qpmi = nullptr;
     }
 
-    DEBUG_TRACE_CRUMB
-    
     if(imcp)
     {
-        DEBUG_TRACE_CRUMB
-
         QTransform transform;
         float viewZoom = (float)imcp->ui.viewView->width()/(float)m_nx;
       
         transform.scale(viewZoom, viewZoom);
         imcp->ui.viewView->setTransform(transform);
     }
-   
-    DEBUG_TRACE_CRUMB
 
     //resize the boxes
     float w;
@@ -352,62 +342,39 @@ void rtimvMainWindow::postSetImsize()
         sl->setPenWidth(2*RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
         ++ulit;
     }
-   
-    DEBUG_TRACE_CRUMB
 
     setTarget();
-
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::postSetImsize end)
 }
 
 
 void rtimvMainWindow::post_zoomLevel()
 {
-    DEBUG_TRACE_ANCHOR(rtimvBase::post_zoomLevel begin)
-
     QTransform transform;
    
-    DEBUG_TRACE_VAL(m_screenZoom)
-
     ui.graphicsView->screenZoom(m_screenZoom);
    
-    DEBUG_TRACE_VAL(m_screenZoom)
-
     transform.scale(m_zoomLevel*m_screenZoom, m_zoomLevel*m_screenZoom);
    
-    DEBUG_TRACE_VAL(transform.m11())
-
     ui.graphicsView->setTransform(transform);
       
-    DEBUG_TRACE_CRUMB
-
     if(imcp) 
     {
-        DEBUG_TRACE_CRUMB
         transform.scale(pointerOverZoom, pointerOverZoom);
         imcp->ui.pointerView->setTransform(transform);
     }
    
-    DEBUG_TRACE_CRUMB
     change_center();
    
-    DEBUG_TRACE_CRUMB
     char zlstr[16];
     snprintf(zlstr,16, "%0.1fx", m_zoomLevel);
     ui.graphicsView->zoomText(zlstr);
 
-    DEBUG_TRACE_CRUMB
     fontLuminance(ui.graphicsView->m_zoomText);
-
-    DEBUG_TRACE_ANCHOR(rtimvBase::post_zoomLevel end)
-   
 }
 
 void rtimvMainWindow::postChangeImdata()
 {
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::postChangeImdata begin)
-
-    if(saturated)
+    if(m_saturated && !m_applySatMask)
     {
         ui.graphicsView->warningText("Saturated!");
     }
@@ -416,28 +383,17 @@ void rtimvMainWindow::postChangeImdata()
         ui.graphicsView->warningText("");
     }
    
-    DEBUG_TRACE_CRUMB
-
     if(!m_qpmi) //This happens on first time through
     {
-        DEBUG_TRACE_CRUMB
         m_qpmi = m_qgs->addPixmap(m_qpm);
 
-        DEBUG_TRACE_VAL(m_qpmi)
-
         //So we need to initialize the viewport center, etc.
-        DEBUG_TRACE_CRUMB
         center();
-        DEBUG_TRACE_CRUMB
     }
     else 
     {
-        DEBUG_TRACE_CRUMB
         m_qpmi->setPixmap(m_qpm);
-        DEBUG_TRACE_CRUMB
     }
-
-    DEBUG_TRACE_CRUMB
 
     if(m_colorBox) m_qpmi->stackBefore(m_colorBox);
     if(m_statsBox) m_qpmi->stackBefore(m_statsBox);
@@ -447,11 +403,8 @@ void rtimvMainWindow::postChangeImdata()
     if(m_northArrow) m_qpmi->stackBefore(m_northArrow);
     if(m_northArrowTip) m_qpmi->stackBefore(m_northArrowTip);
 
-    DEBUG_TRACE_CRUMB
-
     if(imcp)
     {
-        DEBUG_TRACE_CRUMB
         if(imcp->ViewViewMode == ViewViewEnabled)
         {
             if(!imcp->qpmi_view) imcp->qpmi_view = imcp->qgs_view->addPixmap(m_qpm);
@@ -461,27 +414,17 @@ void rtimvMainWindow::postChangeImdata()
         }
     }
 
-    DEBUG_TRACE_CRUMB
-
     updateMouseCoords(); //This is to update the pixel val box if set.
    
-    DEBUG_TRACE_CRUMB
-    
     if(imcp)
     {
-        DEBUG_TRACE_CRUMB
         imcp->update_panel();
     }
    
-    DEBUG_TRACE_CRUMB
-
     if(imStats) 
     {
-        DEBUG_TRACE_CRUMB
         imStats->setImdata();
     }
-
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::postChangeImdata end)
 
 }
 
@@ -501,11 +444,8 @@ void rtimvMainWindow::launchControlPanel()
 
 void rtimvMainWindow::centerNorthArrow()
 {
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::centerNorthArrow begin)
-
     if(m_northArrow && m_northArrowTip)
     {
-        DEBUG_TRACE_CRUMB
         m_northArrow->setLine(ui.graphicsView->xCen(), ui.graphicsView->yCen()-.1*m_ny/m_zoomLevel, ui.graphicsView->xCen(), ui.graphicsView->yCen()+.1*m_ny/m_zoomLevel);
 
         m_northArrow->setTransformOriginPoint ( QPointF(ui.graphicsView->xCen(),ui.graphicsView->yCen()) );
@@ -523,25 +463,17 @@ void rtimvMainWindow::centerNorthArrow()
         m_northArrowTip->setPen(qp);
     }
 
-    DEBUG_TRACE_CRUMB
-
     updateNorthArrow();
-
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::centerNorthArrow end)
 }
 
 void rtimvMainWindow::updateNorthArrow()
 {
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::updateNorthArrow begin)
-
     if(m_northArrow && m_northArrowTip)
     {
         float ang = northAngle();
         m_northArrow->setRotation(ang);
         m_northArrowTip->setRotation(ang);
     }
-
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::updateNorthArrow end)
 }
 
 float rtimvMainWindow::northAngle()
@@ -614,23 +546,12 @@ void rtimvMainWindow::setPointerOverZoom(float poz)
 
 void rtimvMainWindow::change_center(bool movezoombox)
 {   
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::change_center begin)
-
-    DEBUG_TRACE_VAL(ui.graphicsView->xCen());
-    DEBUG_TRACE_VAL(ui.graphicsView->yCen());
-
     ui.graphicsView->centerOn((qreal) ui.graphicsView->xCen(), (qreal) ui.graphicsView->yCen());
    
-    DEBUG_TRACE_CRUMB
-
     centerNorthArrow();
-
-    DEBUG_TRACE_CRUMB
 
     if(imcp)
     {
-        DEBUG_TRACE_CRUMB
-      
         imcp->viewLineVert->setLine(ui.graphicsView->xCen(), 0, ui.graphicsView->xCen(), m_ny);
         imcp->viewLineHorz->setLine(0, ui.graphicsView->yCen(), m_nx, ui.graphicsView->yCen());
       
@@ -649,70 +570,43 @@ void rtimvMainWindow::change_center(bool movezoombox)
         imcp->update_panel();
     }
 
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::change_center end)
-
 }
 
 void rtimvMainWindow::set_viewcen(float x, float y, bool movezoombox)
 {
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::set_viewcen begin)
-    
     if(m_qpmi == nullptr) 
     {
-        DEBUG_TRACE_ANCHOR(rtimvMainWindow::set_viewcen early-null)
         return;
     }
 
-    DEBUG_TRACE_CRUMB
-
-    DEBUG_TRACE_VAL(x)
-    DEBUG_TRACE_VAL(y)
-    DEBUG_TRACE_VAL(m_qpmi->boundingRect().width())
-    DEBUG_TRACE_VAL(m_qpmi->boundingRect().height())
-
     QPointF sp( x* m_qpmi->boundingRect().width(), y*m_qpmi->boundingRect().height() );
 
-    DEBUG_TRACE_CRUMB
-   
     QPointF vp = ui.graphicsView->mapFromScene(sp);
    
-    DEBUG_TRACE_CRUMB
-
     ui.graphicsView->mapCenterToScene(vp.x(), vp.y());
    
-    DEBUG_TRACE_CRUMB
-
     change_center(movezoombox);
-
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::set_viewcen end)
 }
 
 void rtimvMainWindow::squareDown()
 {
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::squareDown begin)
-
     double imrat = ((double)nx())/ny();
     double winrat = ((double) width())/height();
    
     ///\todo make threshold responsive to current dimensions so we don't enter loops.
     if( fabs( 1.0 - imrat/winrat) < 0.01) 
     {
-        DEBUG_TRACE_ANCHOR(rtimvMainWindow::squareDown noop)
         return;
     }
 
     if(width() <= height())
     {
-        DEBUG_TRACE_CRUMB
         resize(width(), width()/imrat);
     }   
     else
     {
-        DEBUG_TRACE_CRUMB
         resize(height()*imrat, height());
     }
-
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::squareDown end)
 }
 
 void rtimvMainWindow::squareUp()
@@ -738,28 +632,20 @@ void rtimvMainWindow::squareUp()
       
 void rtimvMainWindow::resizeEvent(QResizeEvent *)
 {
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::resizeEvent begin)
-
     if(m_nx == 0 || m_ny == 0)
     {
-        DEBUG_TRACE_ANCHOR(rtimvMainWindow::resizeEvent early)
         ui.graphicsView->setGeometry(0,0,width(), height());
         return;
     }
    
     m_screenZoom = std::min((float)width()/(float)m_nx,(float)height()/(float)m_ny);
    
-    DEBUG_TRACE_VAL(m_screenZoom)
-
     change_center();
    
     ui.graphicsView->setGeometry(0,0,width(), height());
    
-    DEBUG_TRACE_CRUMB
-
     post_zoomLevel();
     
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::resizeEvent end)
 }
 
 void rtimvMainWindow::mouseMoveEvent(QMouseEvent *e)
@@ -789,55 +675,33 @@ void rtimvMainWindow::nullMouseCoords()
 
 void rtimvMainWindow::updateMouseCoords()
 {
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::updateMouseCoords begin)
-
-    /*std::unique_lock<std::mutex> lock(m_accessMutex, std::try_to_lock);    
-    if(!lock.owns_lock())
-    {
-        DEBUG_TRACE_ANCHOR(rtimvMainWindow::updateMouseCoords no-lock)
-        return;
-    }*/
-
     int64_t idx_x, idx_y; //image size are uint32_t, so this allows signed comparison without overflow issues
     
     if(!m_qpmi) return;
     
-    DEBUG_TRACE_CRUMB
-
     if(ui.graphicsView->mouseViewX() < 0 || ui.graphicsView->mouseViewY() < 0)
     {
-       DEBUG_TRACE_CRUMB
        nullMouseCoords();
     }
     
-    DEBUG_TRACE_CRUMB
-    
     QPointF pt = ui.graphicsView->mapToScene(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY());
     
-    DEBUG_TRACE_CRUMB
     float mx = pt.x();
     float my = pt.y();
     
     if( mx < 0 || mx > m_qpmi->boundingRect().width() || my < 0 || my > m_qpmi->boundingRect().height() ) 
     {
-       DEBUG_TRACE_CRUMB
        nullMouseCoords();
     }
     
     if(m_userItemSelected)
     {
-       DEBUG_TRACE_CRUMB
        nullMouseCoords();
-       DEBUG_TRACE_CRUMB
        userItemMouseCoords(m_userItemMouseViewX, m_userItemMouseViewY);
     }    
 
-    DEBUG_TRACE_CRUMB
-
     if(!m_nullMouseCoords)
     {
-       DEBUG_TRACE_CRUMB
-
        idx_x = ((int64_t)(mx-0));
        if(idx_x < 0) idx_x = 0;
        if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
@@ -847,32 +711,8 @@ void rtimvMainWindow::updateMouseCoords()
        if(idx_y < 0) idx_y = 0;
        if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;  
 
-       DEBUG_TRACE_CRUMB
-/*
-       //pixelF _pixel = nullptr;
-       float val = 0;    
-       
-       DEBUG_TRACE_CRUMB        
-       //_pixel = pixel();
-
-       DEBUG_TRACE_CRUMB
-
-       if(_pixel != nullptr) 
-       {
-        DEBUG_TRACE_CRUMB
-        DEBUG_TRACE_VAL(m_nx)
-        DEBUG_TRACE_VAL(m_images[0]->nx());
-        DEBUG_TRACE_VAL(m_ny)
-        DEBUG_TRACE_VAL(m_images[0]->ny());
-        DEBUG_TRACE_VAL(idx_x)
-        DEBUG_TRACE_VAL(idx_y)
-        val = _pixel(this,  (int)(idx_y*m_nx) + (int)(idx_x));
-       }
-*/
        float val = calPixel(idx_x, idx_y);
             
-       DEBUG_TRACE_CRUMB
-
        if(m_showStaticCoords)
        {
           ui.graphicsView->textCoordX(mx-0.5);
@@ -880,12 +720,8 @@ void rtimvMainWindow::updateMouseCoords()
           ui.graphicsView->textPixelVal( val );
        }
 
-       DEBUG_TRACE_CRUMB
-
        if(m_showToolTipCoords)
        {
-          DEBUG_TRACE_CRUMB
-
           char valStr[32];
           char posStr[32];
           
@@ -899,28 +735,19 @@ void rtimvMainWindow::updateMouseCoords()
           }    
           snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );    
           ui.graphicsView->showMouseToolTip(valStr, posStr, QPoint(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY()));
-          DEBUG_TRACE_CRUMB
           fontLuminance(ui.graphicsView->m_mouseCoords);
-          DEBUG_TRACE_CRUMB
        }    
 
-       DEBUG_TRACE_CRUMB    
-       
        if(imcp)
        {
-          DEBUG_TRACE_CRUMB
           imcp->updateMouseCoords(mx, my, val );
        }
 
    }
    
-   DEBUG_TRACE_CRUMB
-   
    //Adjust bias and contrast
    if(rightClickDragging)
    {
-      DEBUG_TRACE_CRUMB
-
       float dx = ui.graphicsView->mouseViewX() - rightClickStart.x();
       float dy = ui.graphicsView->mouseViewY() - rightClickStart.y();
       
@@ -929,10 +756,9 @@ void rtimvMainWindow::updateMouseCoords()
       
       bias(biasStart + dbias*.5*(imdat_max+imdat_min));
       contrast(contrastStart + dcontrast*(imdat_max-imdat_min));
-      if(!amChangingimdata) changeImdata();
+      if(!m_amChangingimdata) changeImdata();
    }
    
-   DEBUG_TRACE_ANCHOR(rtimvMainWindow::updateMouseCoords end)
 } //rtimvMainWindow::updateMouseCoords
 
 bool rtimvMainWindow::showToolTipCoords()
@@ -1013,10 +839,8 @@ void rtimvMainWindow::updateFPS()
 
 void rtimvMainWindow::updateAge()
 {
-   //Check the font luminance to make sure it is visibleDEBUG_TRACE_CRUMB
-   DEBUG_TRACE_CRUMB
+   //Check the font luminance to make sure it is visible
    fontLuminance();
-   DEBUG_TRACE_CRUMB
 
 
    if(m_showFPSGage && m_images[0] != nullptr  )
@@ -1084,9 +908,7 @@ void rtimvMainWindow::userBoxItemSize(StretchBox * sb)
    ui.graphicsView->m_userItemSize->resize(textSize.width()+5,textSize.height()+5);
    ui.graphicsView->m_userItemSize->move(qr.x(), qr.y());
    
-   DEBUG_TRACE_CRUMB
    fontLuminance(ui.graphicsView->m_userItemSize);
-   DEBUG_TRACE_CRUMB
 }
 
 void rtimvMainWindow::userBoxItemCoords(StretchBox * sb)
@@ -1122,9 +944,7 @@ void rtimvMainWindow::userCircleItemSize(StretchCircle * sc)
    ui.graphicsView->m_userItemSize->resize(textSize.width()+5,textSize.height()+5);
    ui.graphicsView->m_userItemSize->move(qr.x(), qr.y());
 
-   DEBUG_TRACE_CRUMB
    fontLuminance(ui.graphicsView->m_userItemSize);
-   DEBUG_TRACE_CRUMB
 }
 
 void rtimvMainWindow::userCircleItemCoords(StretchCircle * sc)
@@ -1198,11 +1018,7 @@ void rtimvMainWindow::userItemMouseCoords( float mx,
     QSize textSize = fm.size(0, str.c_str());
     ui.graphicsView->m_userItemMouseCoords->setGeometry(mx, my, textSize.width()+5,textSize.height()+5);
  
-    DEBUG_TRACE_CRUMB
-
     fontLuminance(ui.graphicsView->m_userItemMouseCoords);
-
-    DEBUG_TRACE_CRUMB
 
 }
 
@@ -1375,16 +1191,12 @@ void rtimvMainWindow::targetVisible(bool tv)
       if(tv)
       {
          ui.graphicsView->zoomText("target on");
-         DEBUG_TRACE_CRUMB
          fontLuminance(ui.graphicsView->m_zoomText);
-         DEBUG_TRACE_CRUMB
       }
       else
       {
          ui.graphicsView->zoomText("target off");
-         DEBUG_TRACE_CRUMB
          fontLuminance(ui.graphicsView->m_zoomText);
-         DEBUG_TRACE_CRUMB
       }
    }
    m_targetVisible = tv;
@@ -2004,16 +1816,12 @@ void rtimvMainWindow::setAutoScale( bool as )
    if(m_autoScale) 
    {
       ui.graphicsView->zoomText("autoscale on");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
    else 
    {
       ui.graphicsView->zoomText("autoscale off");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
 }
 
@@ -2031,23 +1839,13 @@ void rtimvMainWindow::toggleAutoScale()
 
 void rtimvMainWindow::center()
 {
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::center begin)
-
     set_viewcen(.5, .5);
     
-    DEBUG_TRACE_CRUMB
-
     post_zoomLevel();
-
-    DEBUG_TRACE_CRUMB
 
     ui.graphicsView->zoomText("centered");
     
-    DEBUG_TRACE_CRUMB
-
     fontLuminance(ui.graphicsView->m_zoomText);
-
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::center begin)
 }
 
 void rtimvMainWindow::toggleColorBox()
@@ -2088,9 +1886,7 @@ void rtimvMainWindow::toggleColorBox()
          setUserBoxActive(true);
       }
       ui.graphicsView->zoomText("color box scale");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
    else
    {
@@ -2104,9 +1900,7 @@ void rtimvMainWindow::toggleColorBox()
          setUserBoxActive(false);
       }
       ui.graphicsView->zoomText("global scale");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
 }
 
@@ -2135,9 +1929,7 @@ void rtimvMainWindow::toggleStatsBox()
    {
       doHideStatsBox();
       ui.graphicsView->zoomText("stats off");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
       if(imcp)
       {
          imcp->statsBoxButtonState = false;
@@ -2148,9 +1940,7 @@ void rtimvMainWindow::toggleStatsBox()
    {
       doLaunchStatsBox();
       ui.graphicsView->zoomText("stats on");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
       if(imcp)
       {
          imcp->statsBoxButtonState = true;
@@ -2176,18 +1966,14 @@ void rtimvMainWindow::toggleNorthArrow()
       m_northArrow->setVisible(false);
       m_northArrowTip->setVisible(false);
       ui.graphicsView->zoomText("North Off");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
    else
    {
       m_northArrow->setVisible(true);
       m_northArrowTip->setVisible(true);
       ui.graphicsView->zoomText("North On");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
    
 }
@@ -2198,17 +1984,13 @@ void rtimvMainWindow::showFPSGage( bool sfg )
    if(m_showFPSGage)
    {
       ui.graphicsView->zoomText("fps gage on");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
    else
    {
       ui.graphicsView->fpsGageText("");
       ui.graphicsView->zoomText("fps gage off");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
 }
 
@@ -2230,16 +2012,12 @@ void rtimvMainWindow::setDarkSub( bool ds )
    if(m_subtractDark)
    {
       ui.graphicsView->zoomText("dark sub. on");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
    else
    {
       ui.graphicsView->zoomText("dark sub. off");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
    changeImdata(false);
 }
@@ -2262,16 +2040,12 @@ void rtimvMainWindow::setApplyMask( bool am )
    if(m_applyMask)
    {
       ui.graphicsView->zoomText("mask on");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
    else
    {
       ui.graphicsView->zoomText("mask off");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
    changeImdata(false);
 }
@@ -2294,16 +2068,12 @@ void rtimvMainWindow::setApplySatMask( bool as )
    if(m_applySatMask)
    {
       ui.graphicsView->zoomText("sat mask on");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
    else
    {
       ui.graphicsView->zoomText("sat mask off");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
    
    changeImdata(false);
@@ -2330,17 +2100,13 @@ void rtimvMainWindow::toggleLogLinear()
    {
       set_cbStretch(stretchLinear);
       ui.graphicsView->zoomText("linear stretch");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
    else
    {
       set_cbStretch(stretchLog);
       ui.graphicsView->zoomText("log stretch");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
 }
 
@@ -2350,17 +2116,13 @@ void rtimvMainWindow::toggleTarget()
    {
       targetVisible(false);
       ui.graphicsView->zoomText("target off");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
    else
    {
       targetVisible(true);
       ui.graphicsView->zoomText("target on");
-      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
-      DEBUG_TRACE_CRUMB
    }
 }
 
@@ -2594,15 +2356,6 @@ void rtimvMainWindow::fontLuminance( QTextEdit* qte,
                                      bool print
                                    )
 {
-    /*std::unique_lock<std::mutex> lock(m_accessMutex, std::try_to_lock);
-    if(!lock.owns_lock())
-    {        
-       DEBUG_TRACE_ANCHOR(rtimvMainWindow::fontLuminance early-no-lock) 
-       return;
-    }*/
-
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::fontLuminance(QTextEdit *, bool) begin)
-
     QPointF ptul = ui.graphicsView->mapToScene(qte->x(),qte->y());
     QPointF ptlr = ui.graphicsView->mapToScene(qte->x()+qte->width(),qte->y()+qte->height());
     
@@ -2650,16 +2403,12 @@ void rtimvMainWindow::fontLuminance( QTextEdit* qte,
         qte->setTextBackgroundColor(QColor(0,0,0,m_opacityMax));
     }
  
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::fontLuminance(QTextEdit *, bool) end)
-
     return;
 
 }
 
 void rtimvMainWindow::fontLuminance()
 {   
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::fontLuminance() begin)
-
     fontLuminance(ui.graphicsView->m_fpsGage);
    
     fontLuminance(ui.graphicsView->m_zoomText);
@@ -2686,8 +2435,6 @@ void rtimvMainWindow::fontLuminance()
    
     fontLuminance(ui.graphicsView->m_saveBox);
    
-    DEBUG_TRACE_ANCHOR(rtimvMainWindow::fontLuminance() end)
-
     return;
    
 }

@@ -15,19 +15,6 @@
 
 #include <mx/sys/timeUtils.hpp>
 
-//#define DEBUG_TRACE
-
-#ifdef DEBUG_TRACE
-#define DEBUG_TRACE_CRUMB std::cerr << __FILE__ << " " << __LINE__ << std::endl;
-#define DEBUG_TRACE_ANCHOR(anchor) std::cerr << __FILE__ << " " << __LINE__ << " " << #anchor << std::endl;
-#define DEBUG_TRACE_VAL(val) std::cerr << __FILE__ << " " << __LINE__ << " " << #val << "=" << val << std::endl;
-#else
-#define DEBUG_TRACE_CRUMB 
-#define DEBUG_TRACE_ANCHOR(anchor)
-#define DEBUG_TRACE_VAL(val) 
-#endif
-
-
 #define RTIMVIMAGE_NOUPDATE (0)
 #define RTIMVIMAGE_AGEUPDATE (1)
 #define RTIMVIMAGE_IMUPDATE (2)

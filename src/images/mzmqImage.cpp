@@ -314,10 +314,7 @@ void mzmqImage::imageThreadExec()
          
          if( nx != new_nx || ny != new_ny || atype != new_atype || !m_imageAttached)
          {
-            DEBUG_TRACE_CRUMB
             std::lock_guard<std::mutex> guard(*m_accessMutex);
-
-            DEBUG_TRACE_CRUMB
 
             if(m_data) //This can't be a call to detach due to mutex
             {
@@ -375,8 +372,6 @@ void mzmqImage::imageThreadExec()
             xe = xrif_allocate(xrif);
             
             m_imageAttached = true;
-
-            DEBUG_TRACE_CRUMB
          }
          
          atype = new_atype;
@@ -511,32 +506,22 @@ int mzmqImage::update()
 
 void mzmqImage::detach()
 {  
-    DEBUG_TRACE_ANCHOR(mzmqImage::detach begin)
-
     std::lock_guard<std::mutex> guard(*m_accessMutex);
-
-    DEBUG_TRACE_CRUMB
 
     m_imageAttached = false;
     if(m_data) delete m_data;
     m_data = nullptr; 
    
     m_lastCnt0 = -1;
-
-    DEBUG_TRACE_ANCHOR(mzmqImage::detach end)
 }
 
 bool mzmqImage::valid()
 {
-    DEBUG_TRACE_ANCHOR(mzmqImage::valid begin)
-
     if(m_data && m_imageAttached) 
     {
-        DEBUG_TRACE_ANCHOR(mzmqImage::valid true)
         return true;
     }
 
-    DEBUG_TRACE_ANCHOR(mzmqImage::valid false)
     return false;
 
 }

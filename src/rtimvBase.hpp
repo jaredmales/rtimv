@@ -195,6 +195,7 @@ protected:
     bool m_applySatMask {false};
 
     float * m_calData {nullptr};
+    uint8_t * m_satData {nullptr};
 
     ///Mutex for locking access to memory
     std::mutex m_rawMutex;
@@ -260,6 +261,10 @@ public:
     float calPixel( uint32_t x,
                     uint32_t y
                   );
+
+    uint8_t satPixel( uint32_t x,
+                      uint32_t y
+                    );
 
     ///@}
    
@@ -396,26 +401,24 @@ protected:
    
    QPixmap m_qpm; ///<A QT pixmap, used to prep the QImage for display.
 
-   bool amChangingimdata;
+    ///Flag indicating that changeImdata(bool) is currently executing
+    bool m_amChangingimdata {false};
    
 public:
       
-   ///Get the QPixMap pointer
-   QPixmap * getPixmap(){return &m_qpm;}
+    ///Get the QPixMap pointer
+    QPixmap * getPixmap(){return &m_qpm;}
 
-   
-   ///Updates the QImage and basic statistics after a new image.
-   /** \param newdata determines whether statistics are calculated (true) or not (false).
-     */
-   void changeImdata(bool newdata = false);
+    ///Updates the QImage and basic statistics after a new image.
+    /** \param newdata determines whether statistics are calculated (true) or not (false).
+      */
+    void changeImdata(bool newdata = false);
 
-   virtual void postChangeImdata(); ///<to call after change imdata does its work.
+    virtual void postChangeImdata(); ///<to call after change imdata does its work.
 
-   
-
-   protected:
-      float sat_level {1e30};
-      int saturated {0};
+protected:
+    float m_satLevel {1e30};
+    uint32_t m_saturated {0};
 
 
    /* Image Stats */
