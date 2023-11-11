@@ -65,8 +65,10 @@ protected:
    
 public:
    
-   ///Default c'tor
-   mzmqImage();
+   mzmqImage() = delete;
+   
+   ///Only c'tor
+   mzmqImage(std::mutex * mut);
 
    ///Destructor, cleans up the zmq context and allocate memory.
    ~mzmqImage();

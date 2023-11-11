@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <sys/inotify.h>
 
-fitsDirectory::fitsDirectory()
+fitsDirectory::fitsDirectory(std::mutex * mut) : rtimvImage(mut)
 {
    connect(&m_timer, SIGNAL(timeout()), this, SLOT(imageTimerout()));
 

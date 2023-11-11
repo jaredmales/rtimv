@@ -55,8 +55,10 @@ protected:
    
 public:
    
-   ///Default c'tor
-   shmimImage();
+   shmimImage() = delete;
+
+   ///Only c'tor
+   shmimImage(std::mutex * mut);
 
    ///Set the image key to a shared memory image name 
    /** If this contains the string ".fits" then it is treated as a FITS file and loaded as a static image.  Otherwise

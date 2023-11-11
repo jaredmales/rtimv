@@ -34,176 +34,234 @@
 
 #include "colorMaps.hpp"
 
+
+
 class rtimvBase : public QWidget
 {
-   Q_OBJECT
+    Q_OBJECT
 
 public:
 
-   /// Basic c'tor.  Does not startup the images.
-   /** startup should be called with the list of keys.
-     */
-   rtimvBase( QWidget * Parent = nullptr, 
-             Qt::WindowFlags f = Qt::WindowFlags()
-           );
+    /// Basic c'tor.  Does not startup the images.
+    /** startup should be called with the list of keys.
+      */
+    rtimvBase( QWidget * Parent = nullptr, 
+               Qt::WindowFlags f = Qt::WindowFlags()
+             );
    
-   /// Image c'tor, starts up the images.
-   /** startup should not be called.
-     */
-   rtimvBase( const std::vector<std::string> & shkeys,  ///< [in] The shmim keys used ot access the images.
-             QWidget * Parent = nullptr, 
-             Qt::WindowFlags f = Qt::WindowFlags()
-           );
+    /// Image c'tor, starts up the images.
+    /** startup should not be called.
+      */
+    rtimvBase( const std::vector<std::string> & shkeys,  ///< [in] The shmim keys used ot access the images.
+               QWidget * Parent = nullptr, 
+               Qt::WindowFlags f = Qt::WindowFlags()
+             );
 
 protected:
    
-   bool m_mzmqAlways {false};
-   std::string m_mzmqServer;
-   int m_mzmqPort {0};
+    bool m_mzmqAlways {false};
+    std::string m_mzmqServer;
+    int m_mzmqPort {0};
    
 public:
    
-   /// Start the images checking for updates.
-   /** 
-     */
-   void startup( const std::vector<std::string> & shkeys /**< [in] The shmim keys used ot access the images.*/);
-   
- /** @name Image Data
-     *    
-     * @{
-     */ 
+    
+    /** @name The Images - Data
+      *    
+      * @{
+      */ 
 protected:
-   uint32_t m_nx {0}; ///< The number of pixels in the x (horizontal) direction
-   uint32_t m_ny {0}; ///< The number of pixels in the y (vertical) direction
 
-   std::vector<rtimvImage *> m_images;
+    uint32_t m_nx {0}; ///< The number of pixels in the x (horizontal) direction
+    uint32_t m_ny {0}; ///< The number of pixels in the y (vertical) direction
+
+    std::vector<rtimvImage *> m_images;
       
+    ///@}
+
 public: 
 
-   /// Check if an image is currently valid.
-   /** \returns true if valid
-     * \returns false otherwise 
-     */
-   bool imageValid( size_t n /**< [in] the image number */);
+    /** @name The Images
+      *    
+      * @{
+      */ 
 
-   /// Changes the image size, but only if necessary.
-   void setImsize( uint32_t x, ///< [in] the new x size
-                   uint32_t y  ///< [in] the new y size
-                 ); 
+    /// Configure the image sources and start checking for updates.
+    /** 
+      */
+    void startup( const std::vector<std::string> & shkeys /**< [in] The shmim keys used ot access the images.*/);
+
+    /// Check if an image is currently valid.
+    /** \returns true if valid
+      * \returns false otherwise 
+      */
+    bool imageValid( size_t n /**< [in] the image number */);
+
+    /// Changes the image size, but only if necessary.
+    /** The reallocates m_calData and m_qim
+      * 
+      */
+    void setImsize( uint32_t x, ///< [in] the new x size
+                    uint32_t y  ///< [in] the new y size
+                  ); 
    
-   /// Called after set_imsize to handle allocations for derived classes
-   virtual void postSetImsize(); 
+    /// Called after set_imsize to handle allocations for derived classes
+    virtual void postSetImsize(); 
       
-   ///Get the number of x pixels
-   /**
-     * \returns the current vvalue of m_nx
-     */ 
-   uint32_t nx();
+    ///Get the number of x pixels
+    /**
+      * \returns the current vvalue of m_nx
+      */ 
+    uint32_t nx();
 
-   ///Get the number of y pixels
-   /**
-     * \returns the current vvalue of m_ny
-     */
-   uint32_t ny();
+    ///Get the number of y pixels
+    /**
+      * \returns the current vvalue of m_ny
+      */
+    uint32_t ny();
    
-   /// @}
+    /// @}
 
 protected:
-   virtual void onConnect() {}
-   
-   /** @name Image Data Update Interval
-     *    
-     * @{
-     */       
-protected:
-   QTimer m_timer; ///< When this times out rtimvBase checks for a new image.
-   
-   int m_timeout {100}; ///<The timeout for checking for a new images, ms.
+    
+    virtual void onConnect() {}
 
+    /** @name Image Update Data
+      *    
+      * @{
+      */       
+
+protected:
+   
+    QTimer m_imageTimer; ///< When this times out rtimvBase checks for a new image.
+   
+    int m_imageTimeout {50}; ///<The timeout for checking for a new images, ms.
+
+    ///@}
+
+    /** @name Image Update Slots
+      *    
+      * @{
+      */
 protected slots:
    
-   /// Function called by m_timer expiration.
-   /** This is what actually checks for image data updates.
-     */
-   void timerout();
-   
+    /// Function called by m_imageTimer expiration.
+    /** This is what actually checks for image data updates.
+      */
+    void updateImages();
+
+    ///@}
+
+    /** @name Image Update
+      *    
+      * @{
+      */ 
+
 public:
    
-   /// Set the image display timeout.
-   /** This sets the display frame rate, e.g. a timeout of 100 msec will 
-     * cause the display to update at 10 f.p.s.
-     */ 
-   void timeout(int to /**< [in] the new image display timeout*/);
+    /// Set the image display timeout.
+    /** This sets the display frame rate, e.g. a timeout of 100 msec will 
+      * cause the display to update at 10 f.p.s.
+      */ 
+    void imageTimeout(int to /**< [in] the new image display timeout*/);
 
-   /// @}
+    /// Get the image display timeout.
+    /** 
+      * \returns the current value of m_imageTimeout 
+      */
+    int imageTimeout();
    
-   /** @name Calibrated Pixel Access
+   /// @}
+
+   /** \name Calibrated Pixel Data
      * 
-     * Settings to control which calibrations are applied, and provide acccess to calibrated pixels.
+     * Settings to control which calibrations are applied, and manage access to memory.
+     * 
+     * @{
+     */ 
+
+protected:   
+
+    /// Whether or not the dark image is subtracted, default is false.
+    bool m_subtractDark {false};
+
+    /// Whether or not the mask is applied, default is false.
+    bool m_applyMask {false};
+   
+    /// Whether or not the saturation mask is applied, default is false.  
+    /** Note this only controls whether the pixles are colored m_satColor.  It does
+      * not change the values returned by rawPixel().
+      */  
+    bool m_applySatMask {false};
+
+    float * m_calData {nullptr};
+
+    ///Mutex for locking access to memory
+    std::mutex m_rawMutex;
+
+    ///@}
+
+   /** \name Calibrated Pixel Access
+     * 
+     * Functions to manage which calibrations are applied and provide acccess to calibrated pixels.
      * 
      * Calibrations include dark subtraction, reference subtraction, flat field, mask, and low and high pass filtering.
      * Note: only dark subtraction and masking are currently implemented.
      * 
      * The pixelF function pointer is used so that only a single `if-else` tree needs to be evaluated before 
-     * iterating over all pixels.  The pixel() function returns a pointer to the static pixel_* function appropriate
+     * iterating over all pixels.  The rawPixel() function returns a pointer to the static pixel_* function appropriate
      * for the current calibration settings.
      * 
      * @{
      */ 
 public:
-   /// The fuction pointer type for accessing pixels with calibrations applied.
-   typedef float (*pixelF)(rtimvBase*, size_t);
+    /// The fuction pointer type for accessing pixels with calibrations applied.
+    typedef float (*pixelF)(rtimvBase*, size_t);
 
+    /// Returns a pointer to the static pixel value calculation function for the current calibration configuration
+    /** Calibration configuration includes the value of m_subtractDark, m_applyMask.
+      *
+      * \returns a pointer to one of pixel_noCal, pixel_subDark, pixel_applyMask, pixel_subDarkApplyMask.
+      */
+    pixelF rawPixel();
+  
+    /// Access pixels with no calibrations applied.
+    /** 
+      * \returns the value of pixel idx
+      */ 
+    static float pixel_noCal( rtimvBase * imv, ///< [in] the rtimvBase instance to access
+                              size_t idx      ///< [in] the linear pixel number to access
+                            );
    
-//protected:   
-   bool m_subtractDark {false};
+    /// Access pixels with dark subtraction applied.
+    /** 
+      * \returns the value of pixel idx after dark subtraction
+      */
+    static float pixel_subDark( rtimvBase * imv, ///< [in] the rtimvBase instance to access 
+                                size_t idx      ///< [in] the linear pixel number to access
+                              );
    
-   bool m_applyMask {false};
+    /// Access pixels with the mask applied.
+    /** 
+      * \returns the value of pixel idx after applying the mask
+      */
+    static float pixel_applyMask( rtimvBase * imv, ///< [in] the rtimvBase instance to access
+                                  size_t idx      ///< [in] the linear pixel number to access
+                                );
    
-   bool m_applySatMask {false};
+    /// Access pixels with dark subtraction and masking applied.
+    /** 
+      * \returns the value of pixel idx after subtracting the dark and applying the mask
+      */
+     static float pixel_subDarkApplyMask( rtimvBase * imv, ///< [in] the rtimvBase instance to access 
+                                          size_t idx      ///< [in] the linear pixel number to access
+                                        );
+   
+    float calPixel( uint32_t x,
+                    uint32_t y
+                  );
 
-public:
-   
-   /// Returns a pointer to the static pixel value calculation function for the current calibration configuration
-   /** Calibration configuration includes the value of m_subtractDark, m_applyMask.
-     *
-     * \returns a pointer to one of pixel_noCal, pixel_subDark, pixel_applyMask, pixel_subDarkApplyMask.
-     */
-   pixelF pixel();
-      
-   /// Access pixels with no calibrations applied.
-   /** 
-     * \returns the value of pixel idx
-     */ 
-   static float pixel_noCal( rtimvBase * imv, ///< [in] the rtimvBase instance to access
-                             size_t idx      ///< [in] the linear pixel number to access
-                           );
-   
-   /// Access pixels with dark subtraction applied.
-   /** 
-     * \returns the value of pixel idx after dark subtraction
-     */
-   static float pixel_subDark( rtimvBase * imv, ///< [in] the rtimvBase instance to access 
-                               size_t idx      ///< [in] the linear pixel number to access
-                             );
-   
-   /// Access pixels with the mask applied.
-   /** 
-     * \returns the value of pixel idx after applying the mask
-     */
-   static float pixel_applyMask( rtimvBase * imv, ///< [in] the rtimvBase instance to access
-                                 size_t idx      ///< [in] the linear pixel number to access
-                               );
-   
-   /// Access pixels with dark subtraction and masking applied.
-   /** 
-     * \returns the value of pixel idx after subtracting the dark and applying the mask
-     */
-   static float pixel_subDarkApplyMask( rtimvBase * imv, ///< [in] the rtimvBase instance to access 
-                                        size_t idx      ///< [in] the linear pixel number to access
-                                      );
-   
-   ///@}
+    ///@}
    
    /** @name Colorbar Selection
      * 
@@ -212,11 +270,11 @@ public:
 public:
    typedef int (*pixelIndexF)(float);
    
-   enum en_cbStretches{ stretchLinear,       ///< The pixel values are scaled linearly to between m_mindat and m_maxdat 
-                        stretchLog,          ///< The pixel values are scaled logarithmically between m_mindat and m_maxdat 
-                        stretchPow,          ///< the pixel values are scaled as \f$ 1000^p/1000 \f$ between m_mindat and m_maxdat
-                        stretchSqrt,         ///< the pixel values are scaled as \f$ \sqrt(p) \f$ between m_mindat and m_maxdat
-                        stretchSquare,       ///< the pixel values are scaled as \f$ p^2 \f$ between m_mindat and m_maxdat
+   enum en_cbStretches{ stretchLinear,  ///< The pixel values are scaled linearly to between m_mindat and m_maxdat 
+                        stretchLog,     ///< The pixel values are scaled logarithmically between m_mindat and m_maxdat 
+                        stretchPow,     ///< the pixel values are scaled as \f$ 1000^p/1000 \f$ between m_mindat and m_maxdat
+                        stretchSqrt,    ///< the pixel values are scaled as \f$ \sqrt(p) \f$ between m_mindat and m_maxdat
+                        stretchSquare,  ///< the pixel values are scaled as \f$ p^2 \f$ between m_mindat and m_maxdat
                         cbStretches_max
                       };
    
@@ -243,7 +301,11 @@ protected:
 public:
 
    enum colorbars{colorbarGrey, colorbarJet, colorbarHot, colorbarBone, colorbarRed, colorbarGreen, colorbarBlue, colorbarMax};
-   void load_colorbar(int);
+   
+   void load_colorbar( int cb,
+                       bool update = true
+                     );
+   
    int get_current_colorbar(){return current_colorbar;}
 
    enum colorbar_modes{minmaxglobal, minmaxview, minmaxbox, user, colorbar_modes_max};
@@ -423,23 +485,7 @@ public:
       virtual void updateAge();///<Called whenever the displayed image updates its Age.
       virtual void updateNC(); ///<Update the display while not connected.
 
-public:
-   static void st_handleSigSegv( int signum,
-                                 siginfo_t *siginf,
-                                 void *ucont
-                               );
-
-public slots:
-   void handleSigSegv();
-
-private:   
-   static int sigsegvFd[2];
-
-   QSocketNotifier *snSegv;
-   
-   
-   
-   
+      
    
 };
 

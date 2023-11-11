@@ -53,7 +53,7 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    m_cenLineHorz = 0;
    
    imStats = 0;
-   m_timer.start(m_timeout);
+   m_imageTimer.start(m_imageTimeout);
 
    m_northArrow = m_qgs->addLine(QLineF(512,400, 512, 624), QColor(RTIMV_DEF_GAGEFONTCOLOR));
    m_northArrowTip = m_qgs->addLine(QLineF(512,400, 536, 424), QColor(RTIMV_DEF_GAGEFONTCOLOR));
@@ -137,6 +137,7 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    }
    
    setWindowTitle(m_title.c_str());
+
 }
 
 rtimvMainWindow::~rtimvMainWindow()
@@ -264,153 +265,224 @@ void rtimvMainWindow::loadConfig()
 
 void rtimvMainWindow::onConnect()
 {
-   setWindowTitle(m_title.c_str());
-   
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::onConnect begin)
 
-   squareDown();
+    setWindowTitle(m_title.c_str());
+   
+    DEBUG_TRACE_CRUMB
+
+    squareDown();
+
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::onConnect end)
 }
 
 void rtimvMainWindow::postSetImsize()
-{      
-   ScreenZoom = std::min((float) ui.graphicsView->viewport()->width()/(float)m_nx,(float)ui.graphicsView->viewport()->height()/(float)m_ny);
-   zoomLevel(1.0);
-   set_viewcen(.5, .5);
-   post_zoomLevel();
-   
-   if(imcp)
-   {
-      QTransform transform;
-      float viewZoom = (float)imcp->ui.viewView->width()/(float)m_nx;
-      
-      transform.scale(viewZoom, viewZoom);
-      imcp->ui.viewView->setTransform(transform);
-   }
-   
-   //resize the boxes
-   float w;
-   if(m_nx < m_ny) w = m_nx/4;
-   else w = m_ny/4;
-   float xc = 0.5*(m_nx)-w/2;
-   float yc = 0.5*(m_ny)-w/2;
+{
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::postSetImsize begin)
 
-   std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
-   while(ubit != m_userBoxes.end())
-   {
-      StretchBox *sb = *ubit;
-      sb->setRect(sb->mapRectFromScene(xc, yc, w, w));
-      xc += (RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom)*10;
-      yc += (RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom)*10;
-      sb->setEdgeTol(RTIMV_EDGETOL_DEFAULT/ScreenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/ScreenZoom);
-      sb->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
-      ++ubit;
-   }
+    m_screenZoom = std::min( (float) ui.graphicsView->viewport()->width()/(float)m_nx,
+                             (float)ui.graphicsView->viewport()->height()/(float)m_ny );
+
+    DEBUG_TRACE_VAL(m_screenZoom)
+
+    if(m_qpmi)
+    {
+        DEBUG_TRACE_CRUMB
+        delete m_qpmi;
+        m_qpmi = nullptr;
+    }
+
+    DEBUG_TRACE_CRUMB
+    
+    if(imcp)
+    {
+        DEBUG_TRACE_CRUMB
+
+        QTransform transform;
+        float viewZoom = (float)imcp->ui.viewView->width()/(float)m_nx;
+      
+        transform.scale(viewZoom, viewZoom);
+        imcp->ui.viewView->setTransform(transform);
+    }
    
-   if(m_statsBox) statsBoxMoved(m_statsBox);
-   if(m_colorBox) colorBoxMoved(m_colorBox);
+    DEBUG_TRACE_CRUMB
+
+    //resize the boxes
+    float w;
+    if(m_nx < m_ny) w = m_nx/4;
+    else w = m_ny/4;
+    float xc = 0.5*(m_nx)-w/2;
+    float yc = 0.5*(m_ny)-w/2;
+
+    std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
+    while(ubit != m_userBoxes.end())
+    {
+        StretchBox *sb = *ubit;
+        sb->setRect(sb->mapRectFromScene(xc, yc, w, w));
+        xc += (RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom)*10;
+        yc += (RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom)*10;
+        sb->setEdgeTol(RTIMV_EDGETOL_DEFAULT/m_screenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom);
+        sb->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
+        ++ubit;
+    }
    
-   //resize the circles 
-   std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
-   while(ucit != m_userCircles.end())
-   {
-      StretchCircle *sc = *ucit;
-      sc->setRect(sc->mapRectFromScene(xc, yc, w, w));
-      xc += (RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom)*10;
-      yc += (RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom)*10;
-      sc->setEdgeTol(RTIMV_EDGETOL_DEFAULT/ScreenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/ScreenZoom);
-      sc->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
-      ++ucit;
-   }
+    if(m_statsBox) statsBoxMoved(m_statsBox);
+    if(m_colorBox) colorBoxMoved(m_colorBox);
+   
+    //resize the circles 
+    std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
+    while(ucit != m_userCircles.end())
+    {
+        StretchCircle *sc = *ucit;
+        sc->setRect(sc->mapRectFromScene(xc, yc, w, w));
+        xc += (RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom)*10;
+        yc += (RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom)*10;
+        sc->setEdgeTol(RTIMV_EDGETOL_DEFAULT/m_screenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom);
+        sc->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
+        ++ucit;
+    }
      
-   //resize the lines
-   std::unordered_set<StretchLine *>::iterator ulit = m_userLines.begin();
-   while(ulit != m_userLines.end())
-   {
-      StretchLine *sl = *ulit;
-      sl->setLine(0.5*(m_nx)-0.2*m_nx,0.5*(m_ny)-0.2*m_ny, 0.2*(m_nx),0.2*(m_ny));
-      sl->setEdgeTol(RTIMV_EDGETOL_DEFAULT/ScreenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/ScreenZoom);
-      sl->setPenWidth(2*RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
-      ++ulit;
-   }
+    //resize the lines
+    std::unordered_set<StretchLine *>::iterator ulit = m_userLines.begin();
+    while(ulit != m_userLines.end())
+    {
+        StretchLine *sl = *ulit;
+        sl->setLine(0.5*(m_nx)-0.2*m_nx,0.5*(m_ny)-0.2*m_ny, 0.2*(m_nx),0.2*(m_ny));
+        sl->setEdgeTol(RTIMV_EDGETOL_DEFAULT/m_screenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom);
+        sl->setPenWidth(2*RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
+        ++ulit;
+    }
    
-   
-   setTarget();
+    DEBUG_TRACE_CRUMB
+
+    setTarget();
+
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::postSetImsize end)
 }
 
 
 void rtimvMainWindow::post_zoomLevel()
 {
-   QTransform transform;
+    DEBUG_TRACE_ANCHOR(rtimvBase::post_zoomLevel begin)
+
+    QTransform transform;
    
-   ui.graphicsView->zoomLevel(m_zoomLevel);
-   ui.graphicsView->screenZoom(ScreenZoom);
+    DEBUG_TRACE_VAL(m_screenZoom)
+
+    ui.graphicsView->screenZoom(m_screenZoom);
    
-   transform.scale(m_zoomLevel*ScreenZoom, m_zoomLevel*ScreenZoom);
+    DEBUG_TRACE_VAL(m_screenZoom)
+
+    transform.scale(m_zoomLevel*m_screenZoom, m_zoomLevel*m_screenZoom);
    
-   ui.graphicsView->setTransform(transform);
-   transform.scale(pointerOverZoom, pointerOverZoom);
-   if(imcp) imcp->ui.pointerView->setTransform(transform);
-   change_center();
+    DEBUG_TRACE_VAL(transform.m11())
+
+    ui.graphicsView->setTransform(transform);
+      
+    DEBUG_TRACE_CRUMB
+
+    if(imcp) 
+    {
+        DEBUG_TRACE_CRUMB
+        transform.scale(pointerOverZoom, pointerOverZoom);
+        imcp->ui.pointerView->setTransform(transform);
+    }
    
-   char zlstr[16];
-   snprintf(zlstr,16, "%0.1fx", m_zoomLevel);
-   ui.graphicsView->zoomText(zlstr);
-   fontLuminance(ui.graphicsView->m_zoomText);
+    DEBUG_TRACE_CRUMB
+    change_center();
+   
+    DEBUG_TRACE_CRUMB
+    char zlstr[16];
+    snprintf(zlstr,16, "%0.1fx", m_zoomLevel);
+    ui.graphicsView->zoomText(zlstr);
+
+    DEBUG_TRACE_CRUMB
+    fontLuminance(ui.graphicsView->m_zoomText);
+
+    DEBUG_TRACE_ANCHOR(rtimvBase::post_zoomLevel end)
    
 }
 
 void rtimvMainWindow::postChangeImdata()
 {
-   //if(fps_ave > 1.0) ui.graphicsView->fpsGageText( fps_ave );
-  
-   if(saturated)
-   {
-      ui.graphicsView->warningText("Saturated!");
-   }
-   else
-   {
-      ui.graphicsView->warningText("");
-   }
-   
-   if(!m_qpmi) //This happens on first time through
-   {
-      m_qpmi = m_qgs->addPixmap(m_qpm);
-      //So we need to initialize the viewport center, etc.
-      set_viewcen(0.5,0.5);
-      post_zoomLevel();
-   }
-   else m_qpmi->setPixmap(m_qpm);
-        
-   if(m_colorBox) m_qpmi->stackBefore(m_colorBox);
-   if(m_statsBox) m_qpmi->stackBefore(m_statsBox);
-   if(m_objCenH) m_qpmi->stackBefore(m_objCenH);
-   if(m_objCenV) m_qpmi->stackBefore(m_objCenV);
-   if(m_lineHead) m_qpmi->stackBefore(m_lineHead);
-   if(m_northArrow) m_qpmi->stackBefore(m_northArrow);
-   if(m_northArrowTip) m_qpmi->stackBefore(m_northArrowTip);
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::postChangeImdata begin)
 
-   if(imcp)
-   {
-      if(imcp->ViewViewMode == ViewViewEnabled)
-      {
-         if(!imcp->qpmi_view) imcp->qpmi_view = imcp->qgs_view->addPixmap(m_qpm);
-         imcp->qpmi_view->setPixmap(m_qpm);
+    if(saturated)
+    {
+        ui.graphicsView->warningText("Saturated!");
+    }
+    else
+    {
+        ui.graphicsView->warningText("");
+    }
+   
+    DEBUG_TRACE_CRUMB
+
+    if(!m_qpmi) //This happens on first time through
+    {
+        DEBUG_TRACE_CRUMB
+        m_qpmi = m_qgs->addPixmap(m_qpm);
+
+        DEBUG_TRACE_VAL(m_qpmi)
+
+        //So we need to initialize the viewport center, etc.
+        DEBUG_TRACE_CRUMB
+        center();
+        DEBUG_TRACE_CRUMB
+    }
+    else 
+    {
+        DEBUG_TRACE_CRUMB
+        m_qpmi->setPixmap(m_qpm);
+        DEBUG_TRACE_CRUMB
+    }
+
+    DEBUG_TRACE_CRUMB
+
+    if(m_colorBox) m_qpmi->stackBefore(m_colorBox);
+    if(m_statsBox) m_qpmi->stackBefore(m_statsBox);
+    if(m_objCenH) m_qpmi->stackBefore(m_objCenH);
+    if(m_objCenV) m_qpmi->stackBefore(m_objCenV);
+    if(m_lineHead) m_qpmi->stackBefore(m_lineHead);
+    if(m_northArrow) m_qpmi->stackBefore(m_northArrow);
+    if(m_northArrowTip) m_qpmi->stackBefore(m_northArrowTip);
+
+    DEBUG_TRACE_CRUMB
+
+    if(imcp)
+    {
+        DEBUG_TRACE_CRUMB
+        if(imcp->ViewViewMode == ViewViewEnabled)
+        {
+            if(!imcp->qpmi_view) imcp->qpmi_view = imcp->qgs_view->addPixmap(m_qpm);
+            imcp->qpmi_view->setPixmap(m_qpm);
          
-         imcp->qpmi_view->stackBefore(imcp->viewLineVert);
-      }
-   }
-   updateMouseCoords(); //This is to update the pixel val box if set.
-   
-   if(imcp)
-   {
-      imcp->update_panel();
-   }
-   
-   if(imStats) 
-   {
-      imStats->setImdata();
-   }
+            imcp->qpmi_view->stackBefore(imcp->viewLineVert);
+        }
+    }
 
+    DEBUG_TRACE_CRUMB
+
+    updateMouseCoords(); //This is to update the pixel val box if set.
    
+    DEBUG_TRACE_CRUMB
+    
+    if(imcp)
+    {
+        DEBUG_TRACE_CRUMB
+        imcp->update_panel();
+    }
+   
+    DEBUG_TRACE_CRUMB
+
+    if(imStats) 
+    {
+        DEBUG_TRACE_CRUMB
+        imStats->setImdata();
+    }
+
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::postChangeImdata end)
+
 }
 
 void rtimvMainWindow::launchControlPanel()
@@ -429,36 +501,47 @@ void rtimvMainWindow::launchControlPanel()
 
 void rtimvMainWindow::centerNorthArrow()
 {
-   if(m_northArrow && m_northArrowTip)
-   {
-      m_northArrow->setLine(ui.graphicsView->xCen(), ui.graphicsView->yCen()-.1*m_ny/m_zoomLevel, ui.graphicsView->xCen(), ui.graphicsView->yCen()+.1*m_ny/m_zoomLevel);
-      
-      m_northArrow->setTransformOriginPoint ( QPointF(ui.graphicsView->xCen(),ui.graphicsView->yCen()) );
-         
-      m_northArrowTip->setLine(QLineF(ui.graphicsView->xCen(),ui.graphicsView->yCen()-.1*m_ny/m_zoomLevel, ui.graphicsView->xCen() + .02*m_nx/m_zoomLevel,ui.graphicsView->yCen()-.1*m_ny/m_zoomLevel + .012*m_ny/m_zoomLevel));
-      m_northArrowTip->setTransformOriginPoint (  QPointF(ui.graphicsView->xCen(),ui.graphicsView->yCen()) );
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::centerNorthArrow begin)
 
-      QPen qp = m_northArrow->pen();
-   
-      float wid = 5/(m_zoomLevel*ScreenZoom);
-      if(wid > 3) wid = 3;
-      qp.setWidth(wid);
+    if(m_northArrow && m_northArrowTip)
+    {
+        DEBUG_TRACE_CRUMB
+        m_northArrow->setLine(ui.graphicsView->xCen(), ui.graphicsView->yCen()-.1*m_ny/m_zoomLevel, ui.graphicsView->xCen(), ui.graphicsView->yCen()+.1*m_ny/m_zoomLevel);
 
-      m_northArrow->setPen(qp);
-      m_northArrowTip->setPen(qp);
-   }
+        m_northArrow->setTransformOriginPoint ( QPointF(ui.graphicsView->xCen(),ui.graphicsView->yCen()) );
 
-   updateNorthArrow();
+        m_northArrowTip->setLine(QLineF(ui.graphicsView->xCen(),ui.graphicsView->yCen()-.1*m_ny/m_zoomLevel, ui.graphicsView->xCen() + .02*m_nx/m_zoomLevel,ui.graphicsView->yCen()-.1*m_ny/m_zoomLevel + .012*m_ny/m_zoomLevel));
+        m_northArrowTip->setTransformOriginPoint (  QPointF(ui.graphicsView->xCen(),ui.graphicsView->yCen()) );
+
+        QPen qp = m_northArrow->pen();
+
+        float wid = 5/(m_zoomLevel*m_screenZoom);
+        if(wid > 3) wid = 3;
+        qp.setWidth(wid);
+
+        m_northArrow->setPen(qp);
+        m_northArrowTip->setPen(qp);
+    }
+
+    DEBUG_TRACE_CRUMB
+
+    updateNorthArrow();
+
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::centerNorthArrow end)
 }
 
 void rtimvMainWindow::updateNorthArrow()
 {
-   if(m_northArrow && m_northArrowTip)
-   {
-      float ang = northAngle();
-      m_northArrow->setRotation(ang);
-      m_northArrowTip->setRotation(ang);
-   }
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::updateNorthArrow begin)
+
+    if(m_northArrow && m_northArrowTip)
+    {
+        float ang = northAngle();
+        m_northArrow->setRotation(ang);
+        m_northArrowTip->setRotation(ang);
+    }
+
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::updateNorthArrow end)
 }
 
 float rtimvMainWindow::northAngle()
@@ -531,89 +614,152 @@ void rtimvMainWindow::setPointerOverZoom(float poz)
 
 void rtimvMainWindow::change_center(bool movezoombox)
 {   
-   ui.graphicsView->centerOn(ui.graphicsView->xCen(), ui.graphicsView->yCen());
-   
-   centerNorthArrow();
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::change_center begin)
 
-   if(imcp)
-   {
+    DEBUG_TRACE_VAL(ui.graphicsView->xCen());
+    DEBUG_TRACE_VAL(ui.graphicsView->yCen());
+
+    ui.graphicsView->centerOn((qreal) ui.graphicsView->xCen(), (qreal) ui.graphicsView->yCen());
+   
+    DEBUG_TRACE_CRUMB
+
+    centerNorthArrow();
+
+    DEBUG_TRACE_CRUMB
+
+    if(imcp)
+    {
+        DEBUG_TRACE_CRUMB
       
-      imcp->viewLineVert->setLine(ui.graphicsView->xCen(), 0, ui.graphicsView->xCen(), m_ny);
-      imcp->viewLineHorz->setLine(0, ui.graphicsView->yCen(), m_nx, ui.graphicsView->yCen());
+        imcp->viewLineVert->setLine(ui.graphicsView->xCen(), 0, ui.graphicsView->xCen(), m_ny);
+        imcp->viewLineHorz->setLine(0, ui.graphicsView->yCen(), m_nx, ui.graphicsView->yCen());
       
-      if(m_zoomLevel <= 1.0) imcp->viewBox->setVisible(false);
-      else
-      {
-         imcp->viewBox->setVisible(true);
-         if(movezoombox)
-         {
-            QPointF tmpp = imcp->viewBox->mapFromParent(ui.graphicsView->xCen() - .5*m_nx/m_zoomLevel, ui.graphicsView->yCen()-.5*m_ny/m_zoomLevel);
-            imcp->viewBox->setRect(tmpp.x(), tmpp.y(), m_nx/m_zoomLevel, m_ny/m_zoomLevel);
-         }
+        if(m_zoomLevel <= 1.0) imcp->viewBox->setVisible(false);
+        else
+        {
+            imcp->viewBox->setVisible(true);
+            if(movezoombox)
+            {
+                QPointF tmpp = imcp->viewBox->mapFromParent(ui.graphicsView->xCen() - .5*m_nx/m_zoomLevel, ui.graphicsView->yCen()-.5*m_ny/m_zoomLevel);
+                imcp->viewBox->setRect(tmpp.x(), tmpp.y(), m_nx/m_zoomLevel, m_ny/m_zoomLevel);
+            }
          
-      }
-      imcp->ui.viewView->centerOn(.5*m_nx, .5*m_ny);
-      imcp->update_panel();
-   }
+        }
+        imcp->ui.viewView->centerOn(.5*m_nx, .5*m_ny);
+        imcp->update_panel();
+    }
+
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::change_center end)
+
 }
 
 void rtimvMainWindow::set_viewcen(float x, float y, bool movezoombox)
 {
-   QPointF sp( x* m_qpmi->boundingRect().width(), y*m_qpmi->boundingRect().height() );
-   QPointF vp = ui.graphicsView->mapFromScene(sp);
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::set_viewcen begin)
+    
+    if(m_qpmi == nullptr) 
+    {
+        DEBUG_TRACE_ANCHOR(rtimvMainWindow::set_viewcen early-null)
+        return;
+    }
+
+    DEBUG_TRACE_CRUMB
+
+    DEBUG_TRACE_VAL(x)
+    DEBUG_TRACE_VAL(y)
+    DEBUG_TRACE_VAL(m_qpmi->boundingRect().width())
+    DEBUG_TRACE_VAL(m_qpmi->boundingRect().height())
+
+    QPointF sp( x* m_qpmi->boundingRect().width(), y*m_qpmi->boundingRect().height() );
+
+    DEBUG_TRACE_CRUMB
    
-   ui.graphicsView->mapCenterToScene(vp.x(), vp.y());
-   change_center(movezoombox);
+    QPointF vp = ui.graphicsView->mapFromScene(sp);
+   
+    DEBUG_TRACE_CRUMB
+
+    ui.graphicsView->mapCenterToScene(vp.x(), vp.y());
+   
+    DEBUG_TRACE_CRUMB
+
+    change_center(movezoombox);
+
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::set_viewcen end)
 }
 
 void rtimvMainWindow::squareDown()
 {
-   double imrat = ((double)nx())/ny();
-   double winrat = ((double) width())/height();
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::squareDown begin)
+
+    double imrat = ((double)nx())/ny();
+    double winrat = ((double) width())/height();
    
-   ///\todo make threshold responsive to current dimensions so we don't enter loops.
-   if( fabs( 1.0 - imrat/winrat) < 0.01) return;
-   
-   if(width() <= height())
-   {
-      resize(width(), width()/imrat);
-   }
-   else
-   {
-      resize(height()*imrat, height());
-   }
+    ///\todo make threshold responsive to current dimensions so we don't enter loops.
+    if( fabs( 1.0 - imrat/winrat) < 0.01) 
+    {
+        DEBUG_TRACE_ANCHOR(rtimvMainWindow::squareDown noop)
+        return;
+    }
+
+    if(width() <= height())
+    {
+        DEBUG_TRACE_CRUMB
+        resize(width(), width()/imrat);
+    }   
+    else
+    {
+        DEBUG_TRACE_CRUMB
+        resize(height()*imrat, height());
+    }
+
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::squareDown end)
 }
 
 void rtimvMainWindow::squareUp()
 {
-   double imrat = ((double)nx())/ny();
-   double winrat = ((double) width())/height();
+    double imrat = (1.0*nx())/ny();
+    double winrat = (1.0*width())/height();
    
-   ///\todo make threshold responsive to current dimensions so we don't enter loops.
-   if( fabs( 1.0 - imrat/winrat) < 0.01) return;
+    ///\todo make threshold responsive to current dimensions so we don't enter loops.
+    if( fabs( 1.0 - imrat/winrat) < 0.01) 
+    {
+        return;
+    }
    
-   if(width() <= height())
-   {
-      resize(height()*imrat, height());
-   }
-   else
-   {
-      resize(width(), width()/imrat);            
-   }
+    if(width() <= height())
+    {
+        resize(height()*imrat, height());
+    }
+    else
+    {
+        resize(width(), width()/imrat);            
+    }
 }
       
-void rtimvMainWindow::changeCenter()
-{
-   change_center();
-}
-
 void rtimvMainWindow::resizeEvent(QResizeEvent *)
 {
-   ScreenZoom = std::min((float)width()/(float)m_nx,(float)height()/(float)m_ny);
-   change_center();
-   ui.graphicsView->setGeometry(0,0,width(), height());
-   post_zoomLevel();
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::resizeEvent begin)
+
+    if(m_nx == 0 || m_ny == 0)
+    {
+        DEBUG_TRACE_ANCHOR(rtimvMainWindow::resizeEvent early)
+        ui.graphicsView->setGeometry(0,0,width(), height());
+        return;
+    }
    
+    m_screenZoom = std::min((float)width()/(float)m_nx,(float)height()/(float)m_ny);
+   
+    DEBUG_TRACE_VAL(m_screenZoom)
+
+    change_center();
+   
+    ui.graphicsView->setGeometry(0,0,width(), height());
+   
+    DEBUG_TRACE_CRUMB
+
+    post_zoomLevel();
+    
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::resizeEvent end)
 }
 
 void rtimvMainWindow::mouseMoveEvent(QMouseEvent *e)
@@ -643,83 +789,138 @@ void rtimvMainWindow::nullMouseCoords()
 
 void rtimvMainWindow::updateMouseCoords()
 {
-   int64_t idx_x, idx_y; //image size are uint32_t, so this allows signed comparison without overflow issues
-   
-   if(!m_qpmi) return;
-   
-   if(ui.graphicsView->mouseViewX() < 0 || ui.graphicsView->mouseViewY() < 0)
-   {
-      nullMouseCoords();
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::updateMouseCoords begin)
+
+    /*std::unique_lock<std::mutex> lock(m_accessMutex, std::try_to_lock);    
+    if(!lock.owns_lock())
+    {
+        DEBUG_TRACE_ANCHOR(rtimvMainWindow::updateMouseCoords no-lock)
+        return;
+    }*/
+
+    int64_t idx_x, idx_y; //image size are uint32_t, so this allows signed comparison without overflow issues
+    
+    if(!m_qpmi) return;
+    
+    DEBUG_TRACE_CRUMB
+
+    if(ui.graphicsView->mouseViewX() < 0 || ui.graphicsView->mouseViewY() < 0)
+    {
+       DEBUG_TRACE_CRUMB
+       nullMouseCoords();
+    }
+    
+    DEBUG_TRACE_CRUMB
+    
+    QPointF pt = ui.graphicsView->mapToScene(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY());
+    
+    DEBUG_TRACE_CRUMB
+    float mx = pt.x();
+    float my = pt.y();
+    
+    if( mx < 0 || mx > m_qpmi->boundingRect().width() || my < 0 || my > m_qpmi->boundingRect().height() ) 
+    {
+       DEBUG_TRACE_CRUMB
+       nullMouseCoords();
+    }
+    
+    if(m_userItemSelected)
+    {
+       DEBUG_TRACE_CRUMB
+       nullMouseCoords();
+       DEBUG_TRACE_CRUMB
+       userItemMouseCoords(m_userItemMouseViewX, m_userItemMouseViewY);
+    }    
+
+    DEBUG_TRACE_CRUMB
+
+    if(!m_nullMouseCoords)
+    {
+       DEBUG_TRACE_CRUMB
+
+       idx_x = ((int64_t)(mx-0));
+       if(idx_x < 0) idx_x = 0;
+       if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
+       
+       
+       idx_y = (int)(m_qpmi->boundingRect().height() - (my-0));
+       if(idx_y < 0) idx_y = 0;
+       if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;  
+
+       DEBUG_TRACE_CRUMB
+/*
+       //pixelF _pixel = nullptr;
+       float val = 0;    
+       
+       DEBUG_TRACE_CRUMB        
+       //_pixel = pixel();
+
+       DEBUG_TRACE_CRUMB
+
+       if(_pixel != nullptr) 
+       {
+        DEBUG_TRACE_CRUMB
+        DEBUG_TRACE_VAL(m_nx)
+        DEBUG_TRACE_VAL(m_images[0]->nx());
+        DEBUG_TRACE_VAL(m_ny)
+        DEBUG_TRACE_VAL(m_images[0]->ny());
+        DEBUG_TRACE_VAL(idx_x)
+        DEBUG_TRACE_VAL(idx_y)
+        val = _pixel(this,  (int)(idx_y*m_nx) + (int)(idx_x));
+       }
+*/
+       float val = calPixel(idx_x, idx_y);
+            
+       DEBUG_TRACE_CRUMB
+
+       if(m_showStaticCoords)
+       {
+          ui.graphicsView->textCoordX(mx-0.5);
+          ui.graphicsView->textCoordY(m_qpmi->boundingRect().height() - my-0.5);
+          ui.graphicsView->textPixelVal( val );
+       }
+
+       DEBUG_TRACE_CRUMB
+
+       if(m_showToolTipCoords)
+       {
+          DEBUG_TRACE_CRUMB
+
+          char valStr[32];
+          char posStr[32];
+          
+          if(fabs(val) < 1e-1)
+          {
+             snprintf(valStr, sizeof(valStr), "%0.04g", val);
+          }
+          else
+          {
+             snprintf(valStr, sizeof(valStr), "%0.02f", val);
+          }    
+          snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );    
+          ui.graphicsView->showMouseToolTip(valStr, posStr, QPoint(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY()));
+          DEBUG_TRACE_CRUMB
+          fontLuminance(ui.graphicsView->m_mouseCoords);
+          DEBUG_TRACE_CRUMB
+       }    
+
+       DEBUG_TRACE_CRUMB    
+       
+       if(imcp)
+       {
+          DEBUG_TRACE_CRUMB
+          imcp->updateMouseCoords(mx, my, val );
+       }
+
    }
    
-   QPointF pt = ui.graphicsView->mapToScene(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY());
-   
-   float mx = pt.x();
-   float my = pt.y();
-   
-   if( mx < 0 || mx > m_qpmi->boundingRect().width() || my < 0 || my > m_qpmi->boundingRect().height() ) 
-   {
-      nullMouseCoords();
-   }
-   
-   if(m_userItemSelected)
-   {
-      nullMouseCoords();
-      userItemMouseCoords(m_userItemMouseViewX, m_userItemMouseViewY);
-   }
-
-   if(!m_nullMouseCoords)
-   {
-      idx_x = ((int64_t)(mx-0));
-      if(idx_x < 0) idx_x = 0;
-      if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
-      
-      idx_y = (int)(m_qpmi->boundingRect().height() - (my-0));
-      if(idx_y < 0) idx_y = 0;
-      if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;
-
-      pixelF _pixel = pixel();
-      
-      float val = 0;
-      if(_pixel != nullptr) val = _pixel(this,  (int)(idx_y*m_nx) + (int)(idx_x));
-      
-      if(m_showStaticCoords)
-      {
-         ui.graphicsView->textCoordX(mx-0.5);
-         ui.graphicsView->textCoordY(m_qpmi->boundingRect().height() - my-0.5);
-         ui.graphicsView->textPixelVal( val );
-      }
-
-      if(m_showToolTipCoords)
-      {
-         char valStr[32];
-         char posStr[32];
-         
-         if(fabs(val) < 1e-1)
-         {
-            snprintf(valStr, sizeof(valStr), "%0.04g", val);
-         }
-         else
-         {
-            snprintf(valStr, sizeof(valStr), "%0.02f", val);
-         }
-
-         snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );
-
-         ui.graphicsView->showMouseToolTip(valStr, posStr, QPoint(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY()));
-         fontLuminance(ui.graphicsView->m_mouseCoords);
-      }
-
-      if(imcp)
-      {
-         if(_pixel != nullptr)
-         imcp->updateMouseCoords(mx, my, _pixel(this, idx_y*m_nx + idx_x) );
-      }
-   }
+   DEBUG_TRACE_CRUMB
    
    //Adjust bias and contrast
    if(rightClickDragging)
    {
+      DEBUG_TRACE_CRUMB
+
       float dx = ui.graphicsView->mouseViewX() - rightClickStart.x();
       float dy = ui.graphicsView->mouseViewY() - rightClickStart.y();
       
@@ -731,8 +932,8 @@ void rtimvMainWindow::updateMouseCoords()
       if(!amChangingimdata) changeImdata();
    }
    
-   
-}
+   DEBUG_TRACE_ANCHOR(rtimvMainWindow::updateMouseCoords end)
+} //rtimvMainWindow::updateMouseCoords
 
 bool rtimvMainWindow::showToolTipCoords()
 {
@@ -805,7 +1006,6 @@ void rtimvMainWindow::onWheelMoved(int delta)
    
 }
 
-
 void rtimvMainWindow::updateFPS()
 {
    updateAge();
@@ -813,8 +1013,11 @@ void rtimvMainWindow::updateFPS()
 
 void rtimvMainWindow::updateAge()
 {
-   //Check the font luminance to make sure it is visible
+   //Check the font luminance to make sure it is visibleDEBUG_TRACE_CRUMB
+   DEBUG_TRACE_CRUMB
    fontLuminance();
+   DEBUG_TRACE_CRUMB
+
 
    if(m_showFPSGage && m_images[0] != nullptr  )
    {      
@@ -881,7 +1084,9 @@ void rtimvMainWindow::userBoxItemSize(StretchBox * sb)
    ui.graphicsView->m_userItemSize->resize(textSize.width()+5,textSize.height()+5);
    ui.graphicsView->m_userItemSize->move(qr.x(), qr.y());
    
+   DEBUG_TRACE_CRUMB
    fontLuminance(ui.graphicsView->m_userItemSize);
+   DEBUG_TRACE_CRUMB
 }
 
 void rtimvMainWindow::userBoxItemCoords(StretchBox * sb)
@@ -917,7 +1122,9 @@ void rtimvMainWindow::userCircleItemSize(StretchCircle * sc)
    ui.graphicsView->m_userItemSize->resize(textSize.width()+5,textSize.height()+5);
    ui.graphicsView->m_userItemSize->move(qr.x(), qr.y());
 
+   DEBUG_TRACE_CRUMB
    fontLuminance(ui.graphicsView->m_userItemSize);
+   DEBUG_TRACE_CRUMB
 }
 
 void rtimvMainWindow::userCircleItemCoords(StretchCircle * sc)
@@ -939,6 +1146,8 @@ void rtimvMainWindow::userItemMouseCoords( float mx,
                                            float my
                                          )
 {
+   if(m_qpmi == nullptr) return;
+
    int idx_x = ((int64_t)(mx-0));
    if(idx_x < 0) idx_x = 0;
    if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
@@ -947,34 +1156,53 @@ void rtimvMainWindow::userItemMouseCoords( float mx,
    if(idx_y < 0) idx_y = 0;
    if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;
 
-   pixelF _pixel = pixel();
-      
+   /*pixelF _pixel = pixel();
    float val = 0;
-   if(_pixel != nullptr) val = _pixel(this,  (int)(idx_y*m_nx) + (int)(idx_x));
-      
-   char valStr[32];
-   char posStr[32];
-   
-   if(fabs(val) < 1e-1)
+
+   //Mutex scope
    {
-      snprintf(valStr, sizeof(valStr), "%0.04g", val);
+      std::unique_lock<std::mutex> lock(m_accessMutex, std::try_to_lock);
+
+      if(lock.owns_lock())
+      {        
+         _pixel = pixel();
+         if(_pixel != nullptr) val = _pixel(this,  (int)(idx_y*m_nx) + (int)(idx_x));
+      }
    }
-   else
-   {
-      snprintf(valStr, sizeof(valStr), "%0.02f", val);
-   }
+   //Here either _pixel is not null, and val is a good value
+   // or _pixel is null and we should ignore val
+   if(_pixel == nullptr) return;
+*/
 
+    float val = calPixel(idx_x, idx_y);
 
-   snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );
+    char valStr[32];
+    char posStr[32];
+    
+    if(fabs(val) < 1e-1)
+    {
+        snprintf(valStr, sizeof(valStr), "%0.04g", val);
+    }
+    else
+    {
+        snprintf(valStr, sizeof(valStr), "%0.02f", val);
+    }
+ 
+ 
+    snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );
+ 
+    std::string str = std::string(valStr) + "\n" + posStr;
+    ui.graphicsView->m_userItemMouseCoords->setPlainText(str.c_str());
+ 
+    QFontMetrics fm(ui.graphicsView->m_userItemMouseCoords->currentFont());
+    QSize textSize = fm.size(0, str.c_str());
+    ui.graphicsView->m_userItemMouseCoords->setGeometry(mx, my, textSize.width()+5,textSize.height()+5);
+ 
+    DEBUG_TRACE_CRUMB
 
-   std::string str = std::string(valStr) + "\n" + posStr;
-   ui.graphicsView->m_userItemMouseCoords->setPlainText(str.c_str());
+    fontLuminance(ui.graphicsView->m_userItemMouseCoords);
 
-   QFontMetrics fm(ui.graphicsView->m_userItemMouseCoords->currentFont());
-   QSize textSize = fm.size(0, str.c_str());
-   ui.graphicsView->m_userItemMouseCoords->setGeometry(mx, my, textSize.width()+5,textSize.height()+5);
-
-   fontLuminance(ui.graphicsView->m_userItemMouseCoords);
+    DEBUG_TRACE_CRUMB
 
 }
 
@@ -1012,8 +1240,8 @@ void rtimvMainWindow::addUserBox()
    StretchBox * sb = *it.first;
    
    sb->setPenColor("lime");
-   sb->setEdgeTol(RTIMV_EDGETOL_DEFAULT/ScreenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/ScreenZoom);
-   sb->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
+   sb->setEdgeTol(RTIMV_EDGETOL_DEFAULT/m_screenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom);
+   sb->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
   
    sb->setMaintainCenter(true);
    sb->setStretchable(true);
@@ -1046,8 +1274,8 @@ void rtimvMainWindow::addUserCircle()
    StretchCircle * sc = *it.first;
    
    sc->setPenColor("lime");
-   sc->setEdgeTol(RTIMV_EDGETOL_DEFAULT/ScreenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/ScreenZoom);
-   sc->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
+   sc->setEdgeTol(RTIMV_EDGETOL_DEFAULT/m_screenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom);
+   sc->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
    
    sc->setStretchable(true);
    sc->setVisible(true);
@@ -1079,8 +1307,8 @@ void rtimvMainWindow::addUserLine()
    StretchLine * sl = *it.first;
    
    sl->setPenColor("lime");
-   sl->setEdgeTol(RTIMV_EDGETOL_DEFAULT/ScreenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/ScreenZoom);
-   sl->setPenWidth(2*RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
+   sl->setEdgeTol(RTIMV_EDGETOL_DEFAULT/m_screenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom);
+   sl->setPenWidth(2*RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
    
    sl->setStretchable(true);
    sl->setVisible(true);
@@ -1147,12 +1375,16 @@ void rtimvMainWindow::targetVisible(bool tv)
       if(tv)
       {
          ui.graphicsView->zoomText("target on");
+         DEBUG_TRACE_CRUMB
          fontLuminance(ui.graphicsView->m_zoomText);
+         DEBUG_TRACE_CRUMB
       }
       else
       {
          ui.graphicsView->zoomText("target off");
+         DEBUG_TRACE_CRUMB
          fontLuminance(ui.graphicsView->m_zoomText);
+         DEBUG_TRACE_CRUMB
       }
    }
    m_targetVisible = tv;
@@ -1286,6 +1518,7 @@ void rtimvMainWindow::statsBoxMoved(StretchBox * sb)
    static_cast<void>(sb);
    
    if(!m_statsBox) return;
+   if(!m_qpmi) return;
 
    QPointF np = m_qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x(),m_statsBox->rect().y()));
    QPointF np2 = m_qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x()+m_statsBox->rect().width(),m_statsBox->rect().y()+m_statsBox->rect().height()));
@@ -1300,7 +1533,8 @@ void rtimvMainWindow::statsBoxMoved(StretchBox * sb)
 void rtimvMainWindow::colorBoxMoved(StretchBox * sb)
 {
    if(!m_colorBox) return;
-   
+   if(!m_qpmi) return;
+
    QRectF newr = sb->rect();
    
    QPointF np = m_qpmi->mapFromItem(m_colorBox, QPointF(newr.x(),newr.y()));
@@ -1516,12 +1750,14 @@ void rtimvMainWindow::userLineResized(StretchLine * sl)
 
 void rtimvMainWindow::userLineMoved(StretchLine * sl)
 {
+   if(!m_qpmi) return;
+
    QPointF np = m_qpmi->mapFromItem(sl, sl->line().p2());
    
    float x = np.x();
    float y = np.y();
    
-   ui.graphicsView->m_userItemSize->setGeometry(x*ScreenZoom, y*ScreenZoom-20., 200,40);
+   ui.graphicsView->m_userItemSize->setGeometry(x*m_screenZoom, y*m_screenZoom-20., 200,40);
  
    m_userItemXCen = sl->line().x1();
    m_userItemYCen = sl->line().y1();
@@ -1768,12 +2004,16 @@ void rtimvMainWindow::setAutoScale( bool as )
    if(m_autoScale) 
    {
       ui.graphicsView->zoomText("autoscale on");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
    else 
    {
       ui.graphicsView->zoomText("autoscale off");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
 }
 
@@ -1791,11 +2031,23 @@ void rtimvMainWindow::toggleAutoScale()
 
 void rtimvMainWindow::center()
 {
-   set_viewcen(.5, .5);
-   post_zoomLevel();
-      
-   ui.graphicsView->zoomText("centered");
-   fontLuminance(ui.graphicsView->m_zoomText);
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::center begin)
+
+    set_viewcen(.5, .5);
+    
+    DEBUG_TRACE_CRUMB
+
+    post_zoomLevel();
+
+    DEBUG_TRACE_CRUMB
+
+    ui.graphicsView->zoomText("centered");
+    
+    DEBUG_TRACE_CRUMB
+
+    fontLuminance(ui.graphicsView->m_zoomText);
+
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::center begin)
 }
 
 void rtimvMainWindow::toggleColorBox()
@@ -1814,7 +2066,7 @@ void rtimvMainWindow::toggleColorBox()
       m_colorBox = new StretchBox(colorBox_i0, colorBox_j0, w, w);
 
       m_colorBox->setPenColor("Yellow");
-      m_colorBox->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
+      m_colorBox->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
       m_colorBox->setVisible(false);
       m_colorBox->setStretchable(true);
       m_colorBox->setRemovable(false);
@@ -1836,7 +2088,9 @@ void rtimvMainWindow::toggleColorBox()
          setUserBoxActive(true);
       }
       ui.graphicsView->zoomText("color box scale");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
    else
    {
@@ -1850,7 +2104,9 @@ void rtimvMainWindow::toggleColorBox()
          setUserBoxActive(false);
       }
       ui.graphicsView->zoomText("global scale");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
 }
 
@@ -1864,7 +2120,7 @@ void rtimvMainWindow::toggleStatsBox()
    
       m_statsBox = new StretchBox(0.5*(m_nx)-w/2,0.5*(m_ny)-w/2, w, w);
       m_statsBox->setPenColor("#3DA5FF");
-      m_statsBox->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /ScreenZoom);
+      m_statsBox->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
       m_statsBox->setVisible(false);
       m_statsBox->setStretchable(true);
       m_statsBox->setRemovable(true);
@@ -1879,7 +2135,9 @@ void rtimvMainWindow::toggleStatsBox()
    {
       doHideStatsBox();
       ui.graphicsView->zoomText("stats off");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
       if(imcp)
       {
          imcp->statsBoxButtonState = false;
@@ -1890,7 +2148,9 @@ void rtimvMainWindow::toggleStatsBox()
    {
       doLaunchStatsBox();
       ui.graphicsView->zoomText("stats on");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
       if(imcp)
       {
          imcp->statsBoxButtonState = true;
@@ -1916,14 +2176,18 @@ void rtimvMainWindow::toggleNorthArrow()
       m_northArrow->setVisible(false);
       m_northArrowTip->setVisible(false);
       ui.graphicsView->zoomText("North Off");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
    else
    {
       m_northArrow->setVisible(true);
       m_northArrowTip->setVisible(true);
       ui.graphicsView->zoomText("North On");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
    
 }
@@ -1934,13 +2198,17 @@ void rtimvMainWindow::showFPSGage( bool sfg )
    if(m_showFPSGage)
    {
       ui.graphicsView->zoomText("fps gage on");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
    else
    {
       ui.graphicsView->fpsGageText("");
       ui.graphicsView->zoomText("fps gage off");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
 }
 
@@ -1962,12 +2230,16 @@ void rtimvMainWindow::setDarkSub( bool ds )
    if(m_subtractDark)
    {
       ui.graphicsView->zoomText("dark sub. on");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
    else
    {
       ui.graphicsView->zoomText("dark sub. off");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
    changeImdata(false);
 }
@@ -1990,12 +2262,16 @@ void rtimvMainWindow::setApplyMask( bool am )
    if(m_applyMask)
    {
       ui.graphicsView->zoomText("mask on");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
    else
    {
       ui.graphicsView->zoomText("mask off");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
    changeImdata(false);
 }
@@ -2018,12 +2294,16 @@ void rtimvMainWindow::setApplySatMask( bool as )
    if(m_applySatMask)
    {
       ui.graphicsView->zoomText("sat mask on");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
    else
    {
       ui.graphicsView->zoomText("sat mask off");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
    
    changeImdata(false);
@@ -2050,13 +2330,17 @@ void rtimvMainWindow::toggleLogLinear()
    {
       set_cbStretch(stretchLinear);
       ui.graphicsView->zoomText("linear stretch");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
    else
    {
       set_cbStretch(stretchLog);
       ui.graphicsView->zoomText("log stretch");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
 }
 
@@ -2065,20 +2349,18 @@ void rtimvMainWindow::toggleTarget()
    if(m_targetVisible)
    {
       targetVisible(false);
-/*      m_cenLineVert->setVisible(false);
-      m_cenLineHorz->setVisible(false);
-      m_targetVisible = false;*/
       ui.graphicsView->zoomText("target off");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
    else
    {
       targetVisible(true);
-      /*m_cenLineVert->setVisible(true);
-      m_cenLineHorz->setVisible(true);
-      m_targetVisible=true;*/
       ui.graphicsView->zoomText("target on");
+      DEBUG_TRACE_CRUMB
       fontLuminance(ui.graphicsView->m_zoomText);
+      DEBUG_TRACE_CRUMB
    }
 }
 
@@ -2243,6 +2525,40 @@ void rtimvMainWindow::toggleInfo()
    }
 }
 
+void rtimvMainWindow::borderWarningLevel(rtimv::warningLevel & lvl)
+{
+    m_borderWarningLevel = lvl;
+
+    if(lvl == rtimv::warningLevel::alert)
+    {
+        ui.graphicsView->setStyleSheet("#graphicsView {border: 2px solid magenta}");
+        int w=width();
+        resize(w+1, height());
+        resize(w,height());
+    }
+    else if(lvl == rtimv::warningLevel::warning)
+    {
+        ui.graphicsView->setStyleSheet("#graphicsView {border: 2px solid red}");
+        int w=width();
+        resize(w+1, height());
+        resize(w,height());
+    }
+    else if(lvl == rtimv::warningLevel::caution)
+    {
+        ui.graphicsView->setStyleSheet("#graphicsView {border: 2px solid yellow}");
+        int w=width();
+        resize(w+1, height());
+        resize(w,height());
+    }
+    else //(lvl == rtimv::warningLevel::normal)
+    {
+        ui.graphicsView->setStyleSheet("#graphicsView {border: 0px solid black}");
+        int w=width();
+        resize(w+1, height());
+        resize(w,height());
+    }
+}
+
 template<typename realT>
 realT sRGBtoLinRGB( int rgb )
 {
@@ -2278,87 +2594,101 @@ void rtimvMainWindow::fontLuminance( QTextEdit* qte,
                                      bool print
                                    )
 {
-   
-   QPointF ptul = ui.graphicsView->mapToScene(qte->x(),qte->y());
-   QPointF ptlr = ui.graphicsView->mapToScene(qte->x()+qte->width(),qte->y()+qte->height());
-   
-   unsigned myul = ptul.y();
-   if(myul > m_ny-1) myul = 0;
+    /*std::unique_lock<std::mutex> lock(m_accessMutex, std::try_to_lock);
+    if(!lock.owns_lock())
+    {        
+       DEBUG_TRACE_ANCHOR(rtimvMainWindow::fontLuminance early-no-lock) 
+       return;
+    }*/
 
-   unsigned mxul = ptul.x();
-   if(mxul > m_nx-1) mxul = 0;
-   
-   unsigned mylr = ptlr.y();
-   if(mylr > m_ny-1) mylr = m_ny-1;
-   
-   unsigned mxlr = ptlr.x();
-   if(mxlr > m_nx-1) mxlr = m_nx-1;
-   
-   if(mxul == 0 && myul == 0 && mxlr == 0 && mylr == 0) return;
-   if(mxul == mxlr || myul == mylr) return;
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::fontLuminance(QTextEdit *, bool) begin)
 
-   double avgLum = 0;
-   int N = 0;
-   for(unsigned x = mxul; x<= mxlr; ++x)
-   {
-      for(unsigned y=myul; y<=mylr; ++y)
-      {
-         avgLum += pow(m_lightness[ m_qim->pixelIndex(x,y) ],m_lumPwr); 
-         ++N;
-      }
-   }
-   avgLum /= N;
-   avgLum = pow(avgLum, 1.0/m_lumPwr);
+    QPointF ptul = ui.graphicsView->mapToScene(qte->x(),qte->y());
+    QPointF ptlr = ui.graphicsView->mapToScene(qte->x()+qte->width(),qte->y()+qte->height());
+    
+    unsigned myul = ptul.y();
+    if(myul > m_ny-1) myul = 0;
+ 
+    unsigned mxul = ptul.x();
+    if(mxul > m_nx-1) mxul = 0;
+    
+    unsigned mylr = ptlr.y();
+    if(mylr > m_ny-1) mylr = m_ny-1;
+    
+    unsigned mxlr = ptlr.x();
+    if(mxlr > m_nx-1) mxlr = m_nx-1;
+    
+    if(mxul == 0 && myul == 0 && mxlr == 0 && mylr == 0) return;
+    if(mxul == mxlr || myul == mylr) return;
+ 
+    double avgLum = 0;
+    int N = 0;
+    for(unsigned x = mxul; x<= mxlr; ++x)
+    {
+       for(unsigned y=myul; y<=mylr; ++y)
+       {
+           avgLum += pow(m_lightness[ m_qim->pixelIndex(x,y) ],m_lumPwr); 
+           ++N;
+       }
+    }
+    avgLum /= N;
+    avgLum = pow(avgLum, 1.0/m_lumPwr);
+ 
+    if(print) std::cerr << "avgLum: " << avgLum << "\n";
+ 
+    if(avgLum <= m_lumThresh)
+    {
+        qte->setTextBackgroundColor(QColor(0,0,0,0));
+    }
+    else if(avgLum < m_lumMax)
+    {
+        int op = (avgLum - m_lumThresh)/(m_lumMax - m_lumThresh) * m_opacityMax + 0.5;
+        qte->setTextBackgroundColor(QColor(0,0,0,op));
+    }
+    else
+    {
+        qte->setTextBackgroundColor(QColor(0,0,0,m_opacityMax));
+    }
+ 
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::fontLuminance(QTextEdit *, bool) end)
 
-   if(print) std::cerr << "avgLum: " << avgLum << "\n";
-
-   if(avgLum <= m_lumThresh)
-   {
-      qte->setTextBackgroundColor(QColor(0,0,0,0));
-   }
-   else if(avgLum < m_lumMax)
-   {
-      int op = (avgLum - m_lumThresh)/(m_lumMax - m_lumThresh) * m_opacityMax + 0.5;
-      qte->setTextBackgroundColor(QColor(0,0,0,op));
-   }
-   else
-   {
-      qte->setTextBackgroundColor(QColor(0,0,0,m_opacityMax));
-   }
-
-   return;
+    return;
 
 }
 
 void rtimvMainWindow::fontLuminance()
 {   
-   fontLuminance(ui.graphicsView->m_fpsGage);
-   
-   fontLuminance(ui.graphicsView->m_zoomText);
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::fontLuminance() begin)
 
-   if(!m_nullMouseCoords)
-   {
-      if(m_showStaticCoords)
-      {
-         fontLuminance(ui.graphicsView->m_textCoordX);
-         fontLuminance(ui.graphicsView->m_textCoordY);
-         fontLuminance(ui.graphicsView->m_textPixelVal);   
-      }
+    fontLuminance(ui.graphicsView->m_fpsGage);
+   
+    fontLuminance(ui.graphicsView->m_zoomText);
 
-      if(m_showToolTipCoords)
-      {
-         fontLuminance(ui.graphicsView->m_mouseCoords);
-      }
-   }
+    if(!m_nullMouseCoords)
+    {
+        if(m_showStaticCoords)
+        {
+            fontLuminance(ui.graphicsView->m_textCoordX);
+            fontLuminance(ui.graphicsView->m_textCoordY);
+            fontLuminance(ui.graphicsView->m_textPixelVal);   
+        }
+
+        if(m_showToolTipCoords)
+        {
+            fontLuminance(ui.graphicsView->m_mouseCoords);
+        }
+    }
    
-   for(size_t n=0; n< ui.graphicsView->m_statusText.size(); ++n)
-   {
-      if(ui.graphicsView->m_statusText[n]->toPlainText().size() > 0) fontLuminance(ui.graphicsView->m_statusText[n]);
-   }
+    for(size_t n=0; n< ui.graphicsView->m_statusText.size(); ++n)
+    {
+        if(ui.graphicsView->m_statusText[n]->toPlainText().size() > 0) fontLuminance(ui.graphicsView->m_statusText[n]);
+    }
    
-   fontLuminance(ui.graphicsView->m_saveBox);
+    fontLuminance(ui.graphicsView->m_saveBox);
    
-   return;
+    DEBUG_TRACE_ANCHOR(rtimvMainWindow::fontLuminance() end)
+
+    return;
    
 }
 

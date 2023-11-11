@@ -99,6 +99,7 @@ void rtimvStats::calcStats()
    std::unique_lock<std::mutex> lock(m_dataMutex, std::try_to_lock);
    if(!lock.owns_lock()) return;
 
+    /*
    float (*_pixel)(rtimvBase*, size_t) = m_imv->pixel();
 
    if(_pixel == nullptr)
@@ -106,19 +107,19 @@ void rtimvStats::calcStats()
       m_regionChanged = 0;
       return; //invalid data
    }
-
+    */
    //copy data so we can be safe from changes to image memory
    for(size_t i=m_x0; i<m_x1; ++i)
    {
       for(size_t j=m_y0; j<m_y1; ++j)
       {
-         size_t idx = j*m_nx + i;
+         /*size_t idx = j*m_nx + i;
          if(m_imv->imageValid(0) == false) //Check every time to be as robust as possible.
          {
             m_regionChanged = 0;
             return;
-         }
-         m_imdata(i-m_x0, j-m_y0) = _pixel(m_imv, idx);
+         }*/
+         m_imdata(i-m_x0, j-m_y0) = m_imv->calPixel(i,j);  //_pixel(m_imv, idx);
       }
    }
 

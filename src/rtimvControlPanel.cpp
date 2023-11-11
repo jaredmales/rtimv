@@ -161,6 +161,9 @@ void rtimvControlPanel::init_panel()
    targetXcChanged(imv->targetXc());
    targetYcChanged(imv->targetYc());
    targetVisibleChanged(imv->targetVisible());
+
+   ui.imtimerspinBox->setValue(imv->imageTimeout());
+
 }
 
 void rtimvControlPanel::update_panel()
@@ -865,7 +868,7 @@ void rtimvControlPanel::on_contrastEntry_editingFinished()
 
 void rtimvControlPanel::on_imtimerspinBox_valueChanged(int to)
 {
-   imv->timeout(to);
+   imv->imageTimeout(to);
 }
 
 void rtimvControlPanel::on_statsBoxButton_clicked()

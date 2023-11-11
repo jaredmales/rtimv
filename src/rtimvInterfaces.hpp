@@ -18,6 +18,25 @@
 
 #include <mx/app/application.hpp>
 
+/// The rtimv namespace
+/**
+  * \todo put everything in this namespace
+  *  
+  */
+namespace rtimv 
+{
+
+/// Warning levels used to change colors
+/**
+  * \todo put this in an rtimv.hpp file.  Or, maybe, rtimvInterfaces.hpp should be rtimv.hpp
+  */
+enum class warningLevel{ normal,  ///< No border, this is fine
+                         caution, ///< Caution: user should pay attention.  Default is yellow.
+                         warning, ///< Warning: user should fix something.  Default is red.
+                         alert    ///< Alert: user must take immediate action.  Default is magenta.
+                       };
+}
+
 ///\todo need a separate dictionary file(s)
 struct rtimvDictBlob
 {

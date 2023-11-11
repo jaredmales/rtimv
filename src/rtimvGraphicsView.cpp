@@ -9,6 +9,16 @@
 
 #include "rtimvGraphicsView.hpp"
 
+//#define DEBUG_TRACE
+
+#ifdef DEBUG_TRACE
+#define DEBUG_TRACE_CRUMB std::cerr << __FILE__ << " " << __LINE__ << std::endl;
+#define DEBUG_TRACE_VAL(val) std::cerr << __FILE__ << " " << __LINE__ << " " << #val << "=" << val << std::endl;
+#else
+#define DEBUG_TRACE_CRUMB 
+#define DEBUG_TRACE_VAL(val) 
+#endif
+
 #include <cmath>
 
 //Geometries of the various text boxes.
@@ -807,13 +817,16 @@ void rtimvGraphicsView::zoomTimerOut()
 }
       
 void rtimvGraphicsView::centerOn( qreal x, 
-                                  qreal y 
-                                )
+                                   qreal y 
+                                 )
 {
    m_xCen = x;
    m_yCen = y;
    
-   QGraphicsView::centerOn(x,y);
+   DEBUG_TRACE_VAL(m_xCen)
+   DEBUG_TRACE_VAL(m_yCen)
+
+   QGraphicsView::centerOn(m_xCen,m_yCen);
 }
       
 void rtimvGraphicsView::mapCenterToScene( float xc,
@@ -846,7 +859,7 @@ float rtimvGraphicsView::mouseViewY()
    return m_mouseViewY;
 }
 
-void rtimvGraphicsView::zoomLevel( float zl )
+/*void rtimvGraphicsView::zoomLevel( float zl )
 {
    m_zoomLevel = zl;
 }
@@ -854,7 +867,7 @@ void rtimvGraphicsView::zoomLevel( float zl )
 float rtimvGraphicsView::zoomLevel()
 {
    return m_zoomLevel;
-}
+}*/
       
 void rtimvGraphicsView::screenZoom( float sz )
 {

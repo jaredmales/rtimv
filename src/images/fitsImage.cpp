@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <sys/inotify.h>
 
-fitsImage::fitsImage()
+fitsImage::fitsImage(std::mutex * mut) : rtimvImage(mut)
 {
    connect(&m_timer, SIGNAL(timeout()), this, SLOT(imageTimerout()));
 

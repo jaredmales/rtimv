@@ -31,7 +31,7 @@ constexpr size_t imageOffset = headerSize;
 static_assert(endOfHeader <= imageOffset, "Header fields sum to larger than reserved headerSize");
 
 
-mzmqImage::mzmqImage()
+mzmqImage::mzmqImage(std::mutex * mut) : rtimvImage(mut)
 {
    m_ZMQ_context = new zmq::context_t(1);
    
@@ -314,7 +314,12 @@ void mzmqImage::imageThreadExec()
          
          if( nx != new_nx || ny != new_ny || atype != new_atype || !m_imageAttached)
          {
-            if(m_data)
+            DEBUG_TRACE_CRUMB
+            std::lock_guard<std::mutex> guard(*m_accessMutex);
+
+            DEBUG_TRACE_CRUMB
+
+            if(m_data) //This can't be a call to detach due to mutex
             {
                m_imageAttached = false;
                delete m_data;
@@ -370,6 +375,8 @@ void mzmqImage::imageThreadExec()
             xe = xrif_allocate(xrif);
             
             m_imageAttached = true;
+
+            DEBUG_TRACE_CRUMB
          }
          
          atype = new_atype;
@@ -423,12 +430,7 @@ void mzmqImage::imageThreadExec()
       
       subscriber.close(); //close so that unsent messages are dropped.
       
-      m_imageAttached = false;
-      if(m_data)
-      {
-         delete m_data;
-      }
-      m_data = nullptr;
+      detach();
       
       atype=0;
       nx =0;
@@ -446,12 +448,7 @@ void mzmqImage::imageThreadExec()
          
    }// outer loop (checking stale connections)
    
-   m_imageAttached = false;
-   if(m_data)
-   {
-      delete m_data;
-   }
-   m_data = nullptr;
+   detach();
    
    xrif_delete(xrif);
    
@@ -514,19 +511,34 @@ int mzmqImage::update()
 
 void mzmqImage::detach()
 {  
-   m_imageAttached = false;
-   if(m_data) delete m_data;
-   m_data = nullptr; 
-   
-   m_lastCnt0 = -1;
+    DEBUG_TRACE_ANCHOR(mzmqImage::detach begin)
 
+    std::lock_guard<std::mutex> guard(*m_accessMutex);
+
+    DEBUG_TRACE_CRUMB
+
+    m_imageAttached = false;
+    if(m_data) delete m_data;
+    m_data = nullptr; 
+   
+    m_lastCnt0 = -1;
+
+    DEBUG_TRACE_ANCHOR(mzmqImage::detach end)
 }
 
 bool mzmqImage::valid()
 {
-   if(m_data && m_imageAttached) return true;
-   
-   return false;
+    DEBUG_TRACE_ANCHOR(mzmqImage::valid begin)
+
+    if(m_data && m_imageAttached) 
+    {
+        DEBUG_TRACE_ANCHOR(mzmqImage::valid true)
+        return true;
+    }
+
+    DEBUG_TRACE_ANCHOR(mzmqImage::valid false)
+    return false;
+
 }
 
 float mzmqImage::pixel(size_t n)

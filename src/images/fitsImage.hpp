@@ -55,8 +55,10 @@ protected:
    
 public:
    
-   ///Default c'tor
-   fitsImage();
+   fitsImage() = delete;
+   
+   ///Only c'tor
+   fitsImage(std::mutex * mut);
 
    /// Set the image key to a path to a fits file.
    /**  

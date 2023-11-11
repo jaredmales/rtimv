@@ -8,10 +8,25 @@
 #ifndef rtimv_rtimvImage_hpp
 #define rtimv_rtimvImage_hpp
 
+#include <mutex>
+
 #include <QObject>
 #include <QTimer>
 
 #include <mx/sys/timeUtils.hpp>
+
+//#define DEBUG_TRACE
+
+#ifdef DEBUG_TRACE
+#define DEBUG_TRACE_CRUMB std::cerr << __FILE__ << " " << __LINE__ << std::endl;
+#define DEBUG_TRACE_ANCHOR(anchor) std::cerr << __FILE__ << " " << __LINE__ << " " << #anchor << std::endl;
+#define DEBUG_TRACE_VAL(val) std::cerr << __FILE__ << " " << __LINE__ << " " << #val << "=" << val << std::endl;
+#else
+#define DEBUG_TRACE_CRUMB 
+#define DEBUG_TRACE_ANCHOR(anchor)
+#define DEBUG_TRACE_VAL(val) 
+#endif
+
 
 #define RTIMVIMAGE_NOUPDATE (0)
 #define RTIMVIMAGE_AGEUPDATE (1)
@@ -26,6 +41,13 @@ struct rtimvImage : public QObject
 {
 
 public:
+
+    rtimvImage() = delete;
+
+    rtimvImage( std::mutex * mut ) : m_accessMutex{mut}
+    {}
+
+
     /// Set the image key
     /** This function sets the image key, and must begin the connection and reading process.
      *
@@ -93,6 +115,9 @@ public:
      * \returns `true` if this instance is attached to its source and has valid data.  `false` otherwise.
      */
     virtual bool valid() = 0;
+
+    ///Mutex for locking access to memory
+    std::mutex * m_accessMutex {nullptr};
 
     /// Get the value at pixel n as a float.
     /** The linear index n is determined by n = y * nx() + x where (x,y) is the pixel coordinate.

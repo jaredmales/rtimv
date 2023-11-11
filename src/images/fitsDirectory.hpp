@@ -59,8 +59,10 @@ protected:
    
 public:
    
-   ///Default c'tor
-   fitsDirectory();
+   fitsDirectory() = delete;
+   
+   ///Only c'tor
+   fitsDirectory(std::mutex * mut);
 
    /// Set the image key to the directory path
    /**  

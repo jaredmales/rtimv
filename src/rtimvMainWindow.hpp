@@ -58,14 +58,13 @@ public:
 
     ~rtimvMainWindow();
 
-public:
     virtual void setupConfig();
 
     virtual void loadConfig();
 
 protected:
     std::string m_title{"rtimv"};
-
+    
 public:
     /// Called on initial connection to the image stream, sets matching aspect ratio.
     virtual void onConnect();
@@ -104,7 +103,7 @@ protected:
     QGraphicsScene *m_qgs{nullptr};
     QGraphicsPixmapItem *m_qpmi{nullptr};
 
-    float ScreenZoom;
+    float m_screenZoom;
 
 public:
     QGraphicsScene *get_qgs();
@@ -168,8 +167,11 @@ public:
     /*** The Main View ***/
 public:
     void change_center(bool movezoombox = true);
+
     void set_viewcen(float x, float y, bool movezoombox = true);
+    
     float get_xcen() { return ui.graphicsView->xCen(); }
+    
     float get_ycen() { return ui.graphicsView->yCen(); }
 
     /// Matches the viewport to the same aspect ratio as the image data, by decreasing the area.
@@ -191,7 +193,10 @@ public:
     void squareUp();
 
 protected slots:
-    void changeCenter();
+    void changeCenter()
+    {
+        change_center();
+    }
 
     /// Calls changeCenter() so that the display stays centered when user resizes.
     void resizeEvent(QResizeEvent *);
@@ -398,7 +403,7 @@ protected slots:
     void addStretchCircle(StretchCircle *sc /**< [in] The new StretchCircle to add*/);
 
     /// Add a StretchLine to the user lines
-    /** This addes the StretchLine to the user boxes, and connects
+    /** This adds the StretchLine to the user boxes, and connects
      * its rejectMouse signal to the userLineRejectMouse slot so that
      * the mouse though management works.  The remove signal is connected to the
      * userLineRemove slog.  None of the other signals are connected.
@@ -497,6 +502,29 @@ public:
     std::string generateInfo();
 
     void toggleInfo();
+
+    /** \name Border Colors 
+      * @{
+      */
+
+protected:
+
+    rtimv::warningLevel m_borderWarningLevel {rtimv::warningLevel::normal};
+
+public slots:
+
+    /// Set the warning level for the border color
+    /** The levels are
+      * -0 no warning, uses default border color 
+      * -1 caution, uses caution color (yellow)
+      * -2 warning, uses warning color (red)
+      * -3 (or greater) alert, uses alert color (pink)
+      *  
+      */
+    void borderWarningLevel(rtimv::warningLevel & lvl);
+
+
+    ///@}
 
     /** \name Font Luminance
      *

@@ -8,6 +8,7 @@
 #ifndef rtimv_rtimvGraphicsView_hpp
 #define rtimv_rtimvGraphicsView_hpp
 
+
 #include <iostream>
 
 #include <QGraphicsView>
@@ -502,18 +503,10 @@ class rtimvGraphicsView : public QGraphicsView
       float mouseViewY();
     
    protected:
-      float m_zoomLevel; ///< The current zoom level
+
       float m_screenZoom; ///< The current screen zoom factor, the ratio of screen pixels to physical pixels when ZoomLevel==1.
       
    public:
-      ///Set the current zoom level
-      void zoomLevel( float zl /**< [in] the new zoom level*/ );
-      
-      ///Get the current zoom level
-      /**
-        * \returns the current zoom level.
-        */ 
-      float zoomLevel();
       
       ///Set the current screen zoom
       void screenZoom( float sz /**< [in] the new screen zoom*/ );
@@ -559,6 +552,13 @@ class rtimvGraphicsView : public QGraphicsView
       
    ///@}
     
+public:
+
+    void setStyleSheet(const QString & qss)
+    {
+       
+        QWidget::setStyleSheet(qss);
+    }
 };
 
 #endif //rtimv_rtimvGraphicsView_hpp
