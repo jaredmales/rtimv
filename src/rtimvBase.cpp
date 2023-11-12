@@ -4,17 +4,10 @@
 #ifdef RTIMV_MILK
 #include "images/shmimImage.hpp"
 #endif
+
 #include "images/fitsImage.hpp"
 #include "images/fitsDirectory.hpp"
 #include "images/mzmqImage.hpp"
-
-#if 0
-rtimvBase *globalIMV;
-
-int rtimvBase::sigsegvFd[2];
-
-#endif
-
 
 rtimvBase::rtimvBase( QWidget *Parent,
                       Qt::WindowFlags f) : QWidget(Parent, f)
@@ -123,9 +116,15 @@ void rtimvBase::startup(const std::vector<std::string> &shkeys)
 bool rtimvBase::imageValid(size_t n)
 {
     if(n >= m_images.size())
+    {
         return false;
+    }
+
     if(m_images[n] == nullptr)
+    {
         return false;
+    }
+
     return m_images[n]->valid();
 }
 
@@ -699,17 +698,12 @@ int calcPixIndex_square(float pixval, float mindat, float maxdat, int mincol, in
 
 void rtimvBase::changeImdata(bool newdata)
 {
-    if(m_amChangingimdata) //this means we're already in this function!
+    if(m_amChangingimdata && !newdata) //this means we're already in this function!
     {
         return;
     }
 
-    if(m_images[0] == nullptr)
-    {
-        return;
-    }
-
-    if(!m_images[0]->valid())
+    if(!imageValid(0))
     {
         return;
     }
@@ -762,6 +756,22 @@ void rtimvBase::changeImdata(bool newdata)
 
             //Fill in calibrated value
             m_calData[n] = _pixel(this, n);
+        }
+
+        //Now check the sat image itself
+        if(imageValid(3))
+        {
+            if(m_nx == m_images[3]->nx() && m_ny == m_images[3]->ny())
+            {
+                for(uint64_t n=0; n < m_nx*m_ny; ++n)
+                {
+                    if(m_images[3]->pixel(n) > 0)
+                    {
+                        m_satData[n] = 1;
+                    }
+                    //don't set 0 b/c it would override m_satLevel 
+                }
+            }
         }
     }
 
@@ -911,27 +921,8 @@ void rtimvBase::changeImdata(bool newdata)
         }
     }
     
-
-    
     if(m_applySatMask)
     {
-        //Leave this here so later we can clean this up and move up to an image connection logical block
-        if(m_images[3] != nullptr)
-        {
-            if(m_images[3]->nx() == m_images[0]->nx() || m_images[3]->ny() == m_images[0]->ny())
-            {
-                for(uint64_t n = 0; n < m_nx*m_ny; ++n)
-                {
-                    ///\todo yikes need safe way to get out the mask data here.  This isn't mutexed.
-
-                    if(m_images[3]->pixel(n) == 1) 
-                    {
-                        m_satData[n] = 1;
-                    }
-                }
-            }
-        }
-
         for(uint32_t j = 0; j < m_ny; ++j)
         {
             for(uint32_t i = 0; i < m_nx; ++i)
@@ -940,7 +931,6 @@ void rtimvBase::changeImdata(bool newdata)
                 {
                     m_qim->setPixel(i, m_ny - j - 1, m_satColor);
                 }
-                
             }
         }
     }
