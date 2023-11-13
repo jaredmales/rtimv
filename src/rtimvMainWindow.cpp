@@ -389,6 +389,12 @@ void rtimvMainWindow::postChangeImdata()
 
         //So we need to initialize the viewport center, etc.
         center();
+
+        //and update stats box
+        if(m_statsBox)
+        {
+            statsBoxMoved(m_statsBox);
+        }
     }
     else 
     {
@@ -691,72 +697,80 @@ void rtimvMainWindow::updateMouseCoords()
     
     if( mx < 0 || mx > m_qpmi->boundingRect().width() || my < 0 || my > m_qpmi->boundingRect().height() ) 
     {
-       nullMouseCoords();
+        nullMouseCoords();
     }
     
     if(m_userItemSelected)
     {
-       nullMouseCoords();
-       userItemMouseCoords(m_userItemMouseViewX, m_userItemMouseViewY);
+        nullMouseCoords();
+        userItemMouseCoords(m_userItemMouseViewX, m_userItemMouseViewY);
     }    
 
     if(!m_nullMouseCoords)
     {
-       idx_x = ((int64_t)(mx-0));
-       if(idx_x < 0) idx_x = 0;
-       if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
-       
-       
-       idx_y = (int)(m_qpmi->boundingRect().height() - (my-0));
-       if(idx_y < 0) idx_y = 0;
-       if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;  
+        idx_x = ((int64_t)(mx-0));
+        if(idx_x < 0) idx_x = 0;
+        if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
+        
+        idx_y = (int)(m_qpmi->boundingRect().height() - (my-0));
+        if(idx_y < 0) idx_y = 0;
+        if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;  
+    
+        float val;
+        //mutex scope
+        {
+            std::unique_lock<std::mutex> lock(m_calMutex, std::try_to_lock);
+            if(!lock.owns_lock())
+            {
+                return;
+            }
+            val = calPixel(idx_x, idx_y);
+        }
 
-       float val = calPixel(idx_x, idx_y);
-            
-       if(m_showStaticCoords)
-       {
-          ui.graphicsView->textCoordX(mx-0.5);
-          ui.graphicsView->textCoordY(m_qpmi->boundingRect().height() - my-0.5);
-          ui.graphicsView->textPixelVal( val );
-       }
+        if(m_showStaticCoords)
+        {
+            ui.graphicsView->textCoordX(mx-0.5);
+            ui.graphicsView->textCoordY(m_qpmi->boundingRect().height() - my-0.5);
+            ui.graphicsView->textPixelVal( val );
+        }
+    
+        if(m_showToolTipCoords)
+        {
+            char valStr[32];
+            char posStr[32];
 
-       if(m_showToolTipCoords)
-       {
-          char valStr[32];
-          char posStr[32];
-          
-          if(fabs(val) < 1e-1)
-          {
-             snprintf(valStr, sizeof(valStr), "%0.04g", val);
-          }
-          else
-          {
-             snprintf(valStr, sizeof(valStr), "%0.02f", val);
-          }    
-          snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );    
-          ui.graphicsView->showMouseToolTip(valStr, posStr, QPoint(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY()));
-          fontLuminance(ui.graphicsView->m_mouseCoords);
-       }    
+            if(fabs(val) < 1e-1)
+            {
+                snprintf(valStr, sizeof(valStr), "%0.04g", val);
+            }
+            else
+            {
+                snprintf(valStr, sizeof(valStr), "%0.02f", val);
+            }    
+            snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );    
+            ui.graphicsView->showMouseToolTip(valStr, posStr, QPoint(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY()));
+            fontLuminance(ui.graphicsView->m_mouseCoords);
+        }    
+ 
+        if(imcp)
+        {
+            imcp->updateMouseCoords(mx, my, val );
+        }
 
-       if(imcp)
-       {
-          imcp->updateMouseCoords(mx, my, val );
-       }
-
-   }
+    }
    
    //Adjust bias and contrast
    if(rightClickDragging)
    {
-      float dx = ui.graphicsView->mouseViewX() - rightClickStart.x();
-      float dy = ui.graphicsView->mouseViewY() - rightClickStart.y();
-      
-      float dbias = dx/ui.graphicsView->viewport()->width();
-      float dcontrast = -1.*dy/ui.graphicsView->viewport()->height();
-      
-      bias(biasStart + dbias*.5*(imdat_max+imdat_min));
-      contrast(contrastStart + dcontrast*(imdat_max-imdat_min));
-      if(!m_amChangingimdata) changeImdata();
+       float dx = ui.graphicsView->mouseViewX() - rightClickStart.x();
+       float dy = ui.graphicsView->mouseViewY() - rightClickStart.y();
+       
+       float dbias = dx/ui.graphicsView->viewport()->width();
+       float dcontrast = -1.*dy/ui.graphicsView->viewport()->height();
+       
+       bias(biasStart + dbias*.5*(imdat_max+imdat_min));
+       contrast(contrastStart + dcontrast*(imdat_max-imdat_min));
+       if(!m_amChangingimdata) changeImdata();
    }
    
 } //rtimvMainWindow::updateMouseCoords
@@ -966,35 +980,26 @@ void rtimvMainWindow::userItemMouseCoords( float mx,
                                            float my
                                          )
 {
-   if(m_qpmi == nullptr) return;
+    if(m_qpmi == nullptr) return;
 
-   int idx_x = ((int64_t)(mx-0));
-   if(idx_x < 0) idx_x = 0;
-   if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
+    int idx_x = ((int64_t)(mx-0));
+    if(idx_x < 0) idx_x = 0;
+    if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
       
-   int idx_y = (int)(m_qpmi->boundingRect().height() - (my-0));
-   if(idx_y < 0) idx_y = 0;
-   if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;
+    int idx_y = (int)(m_qpmi->boundingRect().height() - (my-0));
+    if(idx_y < 0) idx_y = 0;
+    if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;
 
-   /*pixelF _pixel = pixel();
-   float val = 0;
-
-   //Mutex scope
-   {
-      std::unique_lock<std::mutex> lock(m_accessMutex, std::try_to_lock);
-
-      if(lock.owns_lock())
-      {        
-         _pixel = pixel();
-         if(_pixel != nullptr) val = _pixel(this,  (int)(idx_y*m_nx) + (int)(idx_x));
-      }
-   }
-   //Here either _pixel is not null, and val is a good value
-   // or _pixel is null and we should ignore val
-   if(_pixel == nullptr) return;
-*/
-
-    float val = calPixel(idx_x, idx_y);
+    float val;
+    //mutex scope
+    {
+        std::unique_lock<std::mutex> lock(m_calMutex, std::try_to_lock);
+        if(!lock.owns_lock())
+        {
+            return;
+        }
+        val = calPixel(idx_x, idx_y);
+    }
 
     char valStr[32];
     char posStr[32];
@@ -1283,7 +1288,7 @@ void rtimvMainWindow::doLaunchStatsBox()
    
    if(!imStats)
    {
-      imStats = new rtimvStats(this, this, Qt::WindowFlags());
+      imStats = new rtimvStats(this, &m_calMutex,  this, Qt::WindowFlags());
       imStats->setAttribute(Qt::WA_DeleteOnClose); //Qt will delete imstats when it closes.
       connect(imStats, SIGNAL(finished(int )), this, SLOT(imStatsClosed(int )));
    }
@@ -1327,18 +1332,19 @@ void rtimvMainWindow::imStatsClosed(int result)
 
 void rtimvMainWindow::statsBoxMoved(StretchBox * sb)
 {
-   static_cast<void>(sb);
+    static_cast<void>(sb);
    
-   if(!m_statsBox) return;
-   if(!m_qpmi) return;
+    if(!m_statsBox) return;
 
-   QPointF np = m_qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x(),m_statsBox->rect().y()));
-   QPointF np2 = m_qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x()+m_statsBox->rect().width(),m_statsBox->rect().y()+m_statsBox->rect().height()));
+    if(!m_qpmi) return;
 
-   if(imStats) 
-   {
-      imStats->setImdata(m_nx, m_ny, np.x(), np2.x(), m_ny-np2.y(), m_ny-np.y());
-   }
+    QPointF np = m_qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x(),m_statsBox->rect().y()));
+    QPointF np2 = m_qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x()+m_statsBox->rect().width(),m_statsBox->rect().y()+m_statsBox->rect().height()));
+
+    if(imStats) 
+    {
+        imStats->setImdata(m_nx, m_ny, np.x(), np2.x(), m_ny-np2.y(), m_ny-np.y());
+    }
 }
 
 
@@ -1796,9 +1802,8 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
             break;
          case Qt::Key_BracketRight:
             return squareUp();
-         case Qt::Key_Up:
-            std::cerr << "up arrow\n";
-            return;
+         /*case Qt::Key_Up:
+            return;*/
          default:
             break;
       }

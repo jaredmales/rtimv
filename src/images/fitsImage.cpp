@@ -86,18 +86,26 @@ void fitsImage::imageTimerout()
 
 int fitsImage::readImage()
 {
-   ///The cfitsio data structure
-   fitsfile * fptr {nullptr};
+    ///The cfitsio data structure
+    fitsfile * fptr {nullptr};
    
-   int fstatus = 0;
+    int fstatus = 0;
 
-   fits_open_file(&fptr, m_imagePath.c_str(), READONLY, &fstatus);
+    fits_open_file(&fptr, m_imagePath.c_str(), READONLY, &fstatus);
 
-   if (fstatus)
-   {
-      if(!m_reported) std::cerr << "rtimv: " << m_imagePath << " not found.\n";
-      m_reported = true;
-      return -1;
+    if (fstatus)
+    {
+        //we try again 100 ms later in case this was a rewrite of the existing file
+        mx::sys::milliSleep(100);
+        fstatus = 0;
+        fits_open_file(&fptr, m_imagePath.c_str(), READONLY, &fstatus);
+      
+        if(fstatus)
+        {
+            if(!m_reported) std::cerr << "rtimv: " << m_imagePath << " not found.\n";
+            m_reported = true;
+            return -1;
+        }
    }
    m_reported = false;
 

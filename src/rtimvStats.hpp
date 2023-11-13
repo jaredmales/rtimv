@@ -42,6 +42,7 @@ class rtimvStats : public QDialog
 
       /// Constructor
       rtimvStats( rtimvBase * imv,                      ///< [in] The rtimv instance this is connected to
+                  std::mutex *calMutex,
                   QWidget * Parent = nullptr,           ///< [in] [optional] Qt parent widget
                   Qt::WindowFlags f = Qt::WindowFlags() ///< [in] [optional] Qt flags for this widget
                 );
@@ -54,6 +55,8 @@ class rtimvStats : public QDialog
       
       rtimvBase * m_imv {nullptr}; ///< The rtimv instance this is connected to
       
+      std::mutex * m_calMutex {nullptr};
+
       int m_statsPause {20}; ///< Pause between checks if the stats thread needs to calculate, milliseconds.
 
       QTimer m_updateTimer; ///< When this times out the GUI is updated if needed.

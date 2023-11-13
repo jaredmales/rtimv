@@ -197,9 +197,16 @@ protected:
     float * m_calData {nullptr};
     uint8_t * m_satData {nullptr};
 
-    ///Mutex for locking access to memory
+    ///Mutex for locking access to raw pixels
+    /** This is used by rtimvImage derived classes to protect
+      * deletion and recreation of the m_data array they manage.
+      * 
+      */
     std::mutex m_rawMutex;
 
+    ///Mutex for locking access to calibrated pixels
+    std::mutex m_calMutex;
+    
     ///@}
 
    /** \name Calibrated Pixel Access

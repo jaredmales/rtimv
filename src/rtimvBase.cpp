@@ -715,13 +715,14 @@ void rtimvBase::changeImdata(bool newdata)
     //Here we realize we need to resize
     if(m_images[0]->nx() != m_nx || m_images[0]->ny() != m_ny || !m_qim)
     {
-        //Need to lock a mutex here
+        std::unique_lock<std::mutex> lock(m_calMutex);
         setImsize(m_images[0]->nx(), m_images[0]->ny());
 
         resized = true;
     }
 
-    if(resized || newdata) //need to copy new data to m_calData
+    //If it's new data we copy it to m_calData
+    if(resized || newdata)
     {
         std::unique_lock<std::mutex> lock(m_rawMutex);
         

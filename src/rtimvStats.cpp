@@ -17,12 +17,14 @@ void StatsThread::run()
 //float (*global_pixget)(void *, size_t);
 
 rtimvStats::rtimvStats( rtimvBase * imv,
+                        std::mutex * calMutex,
                         QWidget * Parent, 
                         Qt::WindowFlags f) : QDialog(Parent, f)
 {
    ui.setupUi(this);
    
    m_imv = imv;
+   m_calMutex = calMutex;
 
    m_statsPause = 20;
    m_updateTimerTimeout = 50;
@@ -47,8 +49,7 @@ void rtimvStats::setImdata()
 }
 
 void rtimvStats::setImdata(size_t nx, size_t ny, size_t x0, size_t x1, size_t y0, size_t y1)
-{
-
+{   
    if(x1 <= x0 || x0 > nx || x1 > nx || y1 <= y0 || y0 > ny || y1 > ny ) 
    {
       m_regionChanged = 0;
@@ -87,64 +88,64 @@ void rtimvStats::statsThread()
 void rtimvStats::calcStats()
 {
  
-   if(!m_regionChanged) return;
+    if(!m_regionChanged) 
+    {
+        return;
+    }
 
-   if(m_imv == nullptr)
-   {
-      m_regionChanged = 0;
-      return; //no data.
-   }
+    if(m_imv == nullptr)
+    {
+        m_regionChanged = 0;
+        return; //no data.
+    }
 
-   //mutex lock here (trylock, exit and wait if can't get it)
-   std::unique_lock<std::mutex> lock(m_dataMutex, std::try_to_lock);
-   if(!lock.owns_lock()) return;
+    if(m_calMutex == nullptr)
+    {
+        m_regionChanged = 0;
+        return; //no data.
+    }
 
-    /*
-   float (*_pixel)(rtimvBase*, size_t) = m_imv->pixel();
+    //Try to get the cal data mutex
+    std::unique_lock<std::mutex> lockCal(*m_calMutex, std::try_to_lock);
+    if(!lockCal.owns_lock()) return;
 
-   if(_pixel == nullptr)
-   {
-      m_regionChanged = 0;
-      return; //invalid data
-   }
-    */
-   //copy data so we can be safe from changes to image memory
-   for(size_t i=m_x0; i<m_x1; ++i)
-   {
-      for(size_t j=m_y0; j<m_y1; ++j)
-      {
-         /*size_t idx = j*m_nx + i;
-         if(m_imv->imageValid(0) == false) //Check every time to be as robust as possible.
-         {
-            m_regionChanged = 0;
-            return;
-         }*/
-         m_imdata(i-m_x0, j-m_y0) = m_imv->calPixel(i,j);  //_pixel(m_imv, idx);
-      }
-   }
+    //mutex lock here (trylock, exit and wait if can't get it)
+    std::unique_lock<std::mutex> lockData(m_dataMutex, std::try_to_lock);
+    if(!lockData.owns_lock()) return;
 
-   float tmp_min = m_imdata(0,0);
-   float tmp_max = tmp_min;
-   float tmp_mean = 0;
+    //copy data so we can be safe from changes to image memory
+    for(size_t i=m_x0; i<m_x1; ++i)
+    {
+        for(size_t j=m_y0; j<m_y1; ++j)
+        {
+            m_imdata(i-m_x0, j-m_y0) = m_imv->calPixel(i,j);  //_pixel(m_imv, idx);
+        }
+    }
+
+    lockCal.unlock();
+
+    float tmp_min = m_imdata(0,0);
+    float tmp_max = tmp_min;
+    float tmp_mean = 0;
          
-   for(int c = 0; c < m_imdata.cols(); ++c)
-   {
-      for(int r = 0; r < m_imdata.rows(); ++r)
-      {
-         float imval = m_imdata(r,c);
+    for(int c = 0; c < m_imdata.cols(); ++c)
+    {
+        for(int r = 0; r < m_imdata.rows(); ++r)
+        {
+            float imval = m_imdata(r,c);
    
-         tmp_mean += imval;
-         if(imval < tmp_min) tmp_min = imval;
-         if(imval > tmp_max) tmp_max = imval;
-      }
-   }
+            tmp_mean += imval;
+            if(imval < tmp_min) tmp_min = imval;
+            if(imval > tmp_max) tmp_max = imval;
+        }
+    }
    
-   m_dataMin = tmp_min;
-   m_dataMax = tmp_max;
-   m_dataMean = tmp_mean / (m_imdata.rows()*m_imdata.cols());
+    m_dataMin = tmp_min;
+    m_dataMax = tmp_max;
+    m_dataMean = tmp_mean / (m_imdata.rows()*m_imdata.cols());
    
-   m_statsChanged = 1;
-   m_regionChanged = 0;
+    m_statsChanged = 1;
+    m_regionChanged = 0;
    
 }
 
