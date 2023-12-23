@@ -59,43 +59,75 @@ public:
 
 protected:
    
+    /** @name Connection - Data 
+      * 
+      * @{
+      */
+
+    /// The images to be displayed
+    /** By index:
+      * - 0 is the main image.
+      * - 1 is the dark image which is (optionally) subtracted from the main image.
+      * - 2 is the mask image which is (optionally) multiplied by the dark-subtracted image.  Normally a 1/0 image.
+      * - 3 is the saturation mask which (optionally) denotes which pixels to turn the saturation color.
+      */
+    std::vector<rtimvImage *> m_images; 
+
+    /// Flag to indicate that the milkzmq protocol should be used for all ImageStremIO images
     bool m_mzmqAlways {false};
+
+    /// Default milkzmq server to use, if set this overrides default "localhost" in \ref mzmqImage
     std::string m_mzmqServer;
+    
+    /// Default milkzmq server to use, if set this overrides default "5556" in \ref mzmqImage
     int m_mzmqPort {0};
-   
+
+    ///@}
+
 public:
    
-    
-    /** @name The Images - Data
+    /** @name Connection 
+      * 
+      * @{
+      */
+
+    /// Configure the image sources and start checking for updates.
+    /** 
+      */
+    void startup( const std::vector<std::string> & shkeys /**< [in] The keys used to access the images (see \ref m_images)*/);
+
+    /// Function called on connection
+    virtual void onConnect() {}
+
+    /// Check if an image is currently valid.
+    /** An image is valid if it was supplied on command line, and if the image itself returns true from valid().
+      * 
+      * \returns true if valid
+      * \returns false otherwise 
+      */
+    bool imageValid( size_t n /**< [in] the image number */);
+
+    ///@}
+
+
+    /** @name Image Size - Data
       *    
       * @{
       */ 
 protected:
 
     uint32_t m_nx {0}; ///< The number of pixels in the x (horizontal) direction
+
     uint32_t m_ny {0}; ///< The number of pixels in the y (vertical) direction
 
-    std::vector<rtimvImage *> m_images;
-      
     ///@}
 
 public: 
 
-    /** @name The Images
+    /** @name Image Size
       *    
       * @{
       */ 
-
-    /// Configure the image sources and start checking for updates.
-    /** 
-      */
-    void startup( const std::vector<std::string> & shkeys /**< [in] The shmim keys used ot access the images.*/);
-
-    /// Check if an image is currently valid.
-    /** \returns true if valid
-      * \returns false otherwise 
-      */
-    bool imageValid( size_t n /**< [in] the image number */);
 
     /// Changes the image size, but only if necessary.
     /** The reallocates m_calData and m_qim
@@ -122,11 +154,8 @@ public:
    
     /// @}
 
-protected:
-    
-    virtual void onConnect() {}
 
-    /** @name Image Update Data
+    /** @name Image Update - Data
       *    
       * @{
       */       
@@ -139,7 +168,7 @@ protected:
 
     ///@}
 
-    /** @name Image Update Slots
+    /** @name Image Update - Slots
       *    
       * @{
       */
@@ -189,7 +218,7 @@ protected:
     bool m_applyMask {false};
    
     /// Whether or not the saturation mask is applied, default is false.  
-    /** Note this only controls whether the pixles are colored m_satColor.  It does
+    /** Note this only controls whether the pixels are colored m_satColor.  It does
       * not change the values returned by rawPixel().
       */  
     bool m_applySatMask {false};
@@ -275,12 +304,13 @@ public:
 
     ///@}
    
-   /** @name Colorbar Selection
-     * 
-     * @{
-     */
+    /** @name Colorbar Selection
+      * 
+      * @{
+      */
+
 public:
-   typedef int (*pixelIndexF)(float);
+    typedef int (*pixelIndexF)(float);
    
    enum en_cbStretches{ stretchLinear,  ///< The pixel values are scaled linearly to between m_mindat and m_maxdat 
                         stretchLog,     ///< The pixel values are scaled logarithmically between m_mindat and m_maxdat 

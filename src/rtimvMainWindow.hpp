@@ -357,8 +357,10 @@ public:
      * @{
      */
 
-    void userItemMouseCoords( float mx,
-                              float my
+    void userItemMouseCoords( float mx,      ///< [in] the pixel x-coordinate of the center
+                              float my,      ///< [in] the pixel y-coordinate of the center
+                              float dx,  ///< [in] the display coordinates of the center
+                              float dy
                             );
 
     void userBoxItemSize(StretchBox *sb);
@@ -369,8 +371,12 @@ public:
 
     float m_userItemXCen{0};       ///< Center of active user item in scene coordinates
     float m_userItemYCen{0};       ///< Center of active user item in scene coordinates
+
     float m_userItemMouseViewX{0}; ///< Center of active user item in viewport coordinates
     float m_userItemMouseViewY{0}; ///< Center of active user item in viewport coordinates
+    
+    bool m_offsetItemMouseCoordsX {false}; ///< Flag to indicate that the x mouse coordinates should be offset to avoid the item.
+    bool m_offsetItemMouseCoordsY {false}; ///< Flag to indicate that the y mouse coordinates should be offset to avoid the item.
 
     void userBoxItemMouseCoords(StretchBox *sb);
 

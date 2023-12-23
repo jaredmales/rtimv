@@ -703,7 +703,7 @@ void rtimvMainWindow::updateMouseCoords()
     if(m_userItemSelected)
     {
         nullMouseCoords();
-        userItemMouseCoords(m_userItemMouseViewX, m_userItemMouseViewY);
+        userItemMouseCoords( m_userItemMouseViewX, m_userItemMouseViewY, m_userItemXCen, m_userItemYCen);
     }    
 
     if(!m_nullMouseCoords)
@@ -949,7 +949,10 @@ void rtimvMainWindow::userCircleItemSize(StretchCircle * sc)
    QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
    QSize textSize = fm.size(0, tmp);
    
-   ui.graphicsView->m_userItemSize->setGeometry(sc->rect().x() + sc->pos().x() + sc->rect().width()*0.5 - sc->radius()*0.707, sc->rect().y() + sc->pos().y()+ sc->rect().height()*0.5 - sc->radius()*0.707, textSize.width()+5,textSize.height()+5);
+   float posx = sc->rect().x() + sc->pos().x() + sc->rect().width()*0.5 - sc->radius()*0.707;
+   float posy = sc->rect().y() + sc->pos().y()+ sc->rect().height()*0.5 - sc->radius()*0.707;
+
+   ui.graphicsView->m_userItemSize->setGeometry( posx, posy, textSize.width()+5,textSize.height()+5);
 
    //Take scene coordinates to viewport coordinates.
    QRectF sbr = sc->sceneBoundingRect();
@@ -977,7 +980,9 @@ void rtimvMainWindow::userCircleItemCoords(StretchCircle * sc)
 }
 
 void rtimvMainWindow::userItemMouseCoords( float mx,
-                                           float my
+                                           float my,
+                                           float dx,
+                                           float dy
                                          )
 {
     if(m_qpmi == nullptr) return;
@@ -1021,8 +1026,25 @@ void rtimvMainWindow::userItemMouseCoords( float mx,
  
     QFontMetrics fm(ui.graphicsView->m_userItemMouseCoords->currentFont());
     QSize textSize = fm.size(0, str.c_str());
-    ui.graphicsView->m_userItemMouseCoords->setGeometry(mx, my, textSize.width()+5,textSize.height()+5);
+
+    float offsetx = 0;
+    float offsety = 0;
+    if(m_offsetItemMouseCoordsX)
+    {
+        offsetx = textSize.width()+5;
+    }
+
+    if(m_offsetItemMouseCoordsY)
+    {
+        offsety = textSize.height()+5;
+    }
+
+    //Take scene coordinates to viewport coordinates.
+    QPoint qr = ui.graphicsView->mapFromScene(QPointF(dx, dy));
  
+    ui.graphicsView->m_userItemMouseCoords->resize(textSize.width()+5,textSize.height()+5);
+    ui.graphicsView->m_userItemMouseCoords->move(qr.x() - offsetx, qr.y() - offsety);
+
     fontLuminance(ui.graphicsView->m_userItemMouseCoords);
 
 }
@@ -1034,17 +1056,22 @@ void rtimvMainWindow::userBoxItemMouseCoords(StretchBox * sb)
 
    m_userItemMouseViewX = qr.x();
    m_userItemMouseViewY = qr.y();
-   userItemMouseCoords(qr.x(), qr.y());
+
+   m_userItemXCen = sb->rect().x() + sb->pos().x() + sb->rect().width()*0.5;
+   m_userItemYCen = sb->rect().y() + sb->pos().y() + sb->rect().height()*0.5;
+
+   userItemMouseCoords( m_userItemMouseViewX, m_userItemMouseViewY, m_userItemXCen, m_userItemYCen);
 }
 
 void rtimvMainWindow::userCircleItemMouseCoords(StretchCircle * sc)
 {
    QRectF sbr = sc->sceneBoundingRect();
-   QPointF qr = QPointF(sbr.x()+0.5*sbr.width(),sbr.y()+0.5*sbr.height());
+   QPointF qr = QPointF(sbr.x()+0.5*sbr.width(), sbr.y()+0.5*sbr.height());
 
    m_userItemMouseViewX = qr.x();
    m_userItemMouseViewY = qr.y();
-   userItemMouseCoords(qr.x(), qr.y());
+
+   userItemMouseCoords( m_userItemMouseViewX, m_userItemMouseViewY, m_userItemXCen, m_userItemYCen);
 }
 
 void rtimvMainWindow::addUserBox()
@@ -1463,15 +1490,15 @@ void rtimvMainWindow::userBoxDeSelected(StretchBox * sb)
 void rtimvMainWindow::userCircleResized(StretchCircle * sc)
 {
    userCircleItemSize(sc);
-   userCircleItemMouseCoords(sc);
    userCircleItemCoords(sc);
+   userCircleItemMouseCoords(sc);
 }
 
 void rtimvMainWindow::userCircleMoved(StretchCircle * sc)
 {
    userCircleItemSize(sc);
-   userCircleItemMouseCoords(sc);
    userCircleItemCoords(sc);
+   userCircleItemMouseCoords(sc);
 }
 
 void rtimvMainWindow::userCircleMouseIn(StretchCircle * sc)
@@ -1545,52 +1572,88 @@ void rtimvMainWindow::userCircleDeSelected(StretchCircle * sb)
 
 void rtimvMainWindow::userLineResized(StretchLine * sl)
 {
-   userLineMoved(sl); //Move the text along with us.
-   
-   float ang = fmod(sl->angle() -90 + northAngle(), 360.0);
-
-   if(ang < 0) ang += 360.0;
-   
-   char tmp[256];
-   snprintf(tmp, 256, "%0.1f @ %0.1f", sl->length(), ang);
-   
-   ui.graphicsView->m_userItemSize->setText(tmp);
-
-   m_userItemXCen = sl->line().x1();
-   m_userItemYCen = sl->line().y1();
-
-   QPointF qr = QPointF(sl->line().x1(), sl->line().y1());
-
-   m_userItemMouseViewX = qr.x();
-   m_userItemMouseViewY = qr.y();
-   userItemMouseCoords(qr.x(), qr.y());
+    userLineMoved(sl); //Move the text along with us.
+    
+    float ang = fmod(sl->angle() -90 + northAngle(), 360.0);
+ 
+    if(ang < 0) ang += 360.0;
+    
+    char tmp[256];
+    snprintf(tmp, 256, "%0.1f @ %0.1f", sl->length(), ang);
+    
+    ui.graphicsView->m_userItemSize->setText(tmp);
+ 
+    m_userItemXCen = sl->line().x1();
+    m_userItemYCen = sl->line().y1();
+ 
+    if(sl->angle() > 270) 
+    {
+        m_offsetItemMouseCoordsX = true;
+        m_offsetItemMouseCoordsY = true;
+    }
+    else
+    {
+        m_offsetItemMouseCoordsX = false;
+        m_offsetItemMouseCoordsY = false;
+    }
+ 
+    QPointF qr = QPointF(sl->line().x1(), sl->line().y1());
+ 
+    m_userItemMouseViewX = qr.x();
+    m_userItemMouseViewY = qr.y();
+ 
+    userItemMouseCoords( m_userItemMouseViewX, m_userItemMouseViewY, m_userItemXCen, m_userItemYCen);
 }
 
 void rtimvMainWindow::userLineMoved(StretchLine * sl)
 {
-   if(!m_qpmi) return;
-
-   QPointF np = m_qpmi->mapFromItem(sl, sl->line().p2());
-   
-   float x = np.x();
-   float y = np.y();
-   
-   ui.graphicsView->m_userItemSize->setGeometry(x*m_screenZoom, y*m_screenZoom-20., 200,40);
+    if(!m_qpmi) return;
  
-   m_userItemXCen = sl->line().x1();
-   m_userItemYCen = sl->line().y1();
+    QPointF np = m_qpmi->mapFromItem(sl, sl->line().p2());
+    
+    float x = np.x();
+    float y = np.y();
+    
+    float offsetX = 0;
+    float offsetY = 10;
 
-   QPointF qr = QPointF(sl->line().x1(), sl->line().y1()); 
+    if(sl->angle() > 90 && sl->angle() < 270)
+    {
+        QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
+        QSize fntsz = fm.size(0, ui.graphicsView->m_userItemSize->toPlainText());
 
-   m_userItemMouseViewX = qr.x();
-   m_userItemMouseViewY = qr.y();
-   userItemMouseCoords(qr.x(), qr.y());
+        offsetX = fntsz.width() + 20;
+        offsetY = 0;
+    }
 
-   float w = sl->penWidth();
-   if(w < 1) w = 1;
-   float lhx = sl->line().x1() - w*1.5;
-   float lhy = sl->line().y1() - w*1.5;
-   m_lineHead->setRect(lhx, lhy, 3*w, 3*w);
+    ui.graphicsView->m_userItemSize->setGeometry(x*m_screenZoom - offsetX, y*m_screenZoom - offsetY, 200,40);
+  
+    m_userItemXCen = sl->line().x1();
+    m_userItemYCen = sl->line().y1();
+ 
+    QPointF qr = QPointF(sl->line().x1(), sl->line().y1()); 
+ 
+    m_userItemMouseViewX = qr.x();
+    m_userItemMouseViewY = qr.y();
+    
+    if(sl->angle() > 270) 
+    {
+        m_offsetItemMouseCoordsX = true;
+        m_offsetItemMouseCoordsY = true;
+    }
+    else
+    {
+        m_offsetItemMouseCoordsX = false;
+        m_offsetItemMouseCoordsY = false;
+    }
+ 
+    userItemMouseCoords( m_userItemMouseViewX, m_userItemMouseViewY, m_userItemXCen, m_userItemYCen);
+ 
+    float w = sl->penWidth();
+    if(w < 1) w = 1;
+    float lhx = sl->line().x1() - w*1.5;
+    float lhy = sl->line().y1() - w*1.5;
+    m_lineHead->setRect(lhx, lhy, 3*w, 3*w);
 }
 
 void rtimvMainWindow::userLineMouseIn(StretchLine * sl)
@@ -1608,7 +1671,6 @@ void rtimvMainWindow::userLineMouseIn(StretchLine * sl)
    m_lineHead->setRect(lhx, lhy, 3*w, 3*w);
 
    userLineResized(sl);
-   userLineMoved(sl);
 }
 
 void rtimvMainWindow::userLineMouseOut(StretchLine * sl)

@@ -70,11 +70,15 @@ void rtimvBase::startup(const std::vector<std::string> &shkeys)
                     mzmqImage *mi = new mzmqImage(&m_rawMutex);
 
                     // change defaults
-                    std::cerr << m_mzmqServer << "\n";
                     if(m_mzmqServer != "")
+                    {
                         mi->imageServer(m_mzmqServer);
+                    }
+
                     if(m_mzmqPort != 0)
+                    {
                         mi->imagePort(m_mzmqPort);
+                    }
 
                     m_images[i] = (rtimvImage *)mi;
                 }
@@ -208,6 +212,7 @@ void rtimvBase::updateImages()
         }
     }
 
+    ///\todo onConnect should maybe only be called upon connection to main image, and may need to wait a sec to let things settle.
     if(doupdate >= RTIMVIMAGE_IMUPDATE || supportUpdate >= RTIMVIMAGE_IMUPDATE)
     {
         changeImdata(true);
