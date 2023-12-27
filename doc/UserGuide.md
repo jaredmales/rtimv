@@ -56,6 +56,7 @@ In general, if you see the "resize arrows" cursor when your mouse hovers over th
 | `c`     | add a circle                | draw a circle overlay and show its radius |
 | `f`     | toggle the FPS gauge               | |
 | `h`     | toggle help screen               | |
+| `i`     | toggle info screan               | |
 | `l`     | add a line               | draw a line overlay and show its length and angle relative to North |
 | `n`     | toggle display of the North arrow | |
 | `p`     | open control panel                | |
