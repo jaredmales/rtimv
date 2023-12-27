@@ -17,6 +17,7 @@ StretchLine::StretchLine(qreal xs, qreal ys, qreal xe, qreal ye, QGraphicsItem *
 void StretchLine::initStretchLine()
 {   
    connect(&m_cursorTimer, SIGNAL(timeout()), this, SLOT(cursorTimerOut()));
+   connect(&m_selectionTimer, SIGNAL(timeout()), this, SLOT(selectionTimerOut()));
 }
 
 float StretchLine::length()
@@ -59,6 +60,11 @@ void StretchLine::keyPressEvent(QKeyEvent * ke)
    handleKeyPressEvent(ke);
 }
 
+void StretchLine::focusOutEvent(QFocusEvent * e)
+{
+    handleFocusOutEvent(e);
+}
+
 void StretchLine::passKeyPressEvent(QKeyEvent * ke)
 {
    QGraphicsLineItem::keyPressEvent(ke);
@@ -67,6 +73,11 @@ void StretchLine::passKeyPressEvent(QKeyEvent * ke)
 void StretchLine::cursorTimerOut()
 {
    slotCursorTimerOut();
+}
+
+void StretchLine::selectionTimerOut()
+{
+   slotSelectionTimerOut();
 }
 
 bool StretchLine::onHoverComputeSizing(QGraphicsSceneHoverEvent * e)

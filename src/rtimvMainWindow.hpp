@@ -265,34 +265,18 @@ public slots:
     void onWheelMoved(int delta);
 
 public:
-    StretchBox *m_colorBox;
 
-    StretchBox *m_statsBox{nullptr};
-
-    std::unordered_set<StretchBox *> m_userBoxes;
-    std::unordered_set<StretchCircle *> m_userCircles;
-    std::unordered_set<StretchLine *> m_userLines;
-
-    rtimvStats *imStats;
-
-    void launchImStats();
+    
 
 protected:
     QGraphicsEllipseItem *m_lineHead;
     QGraphicsLineItem *m_objCenV;
     QGraphicsLineItem *m_objCenH;
 
-    bool m_userItemSelected{false};
+    
 
 public:
-    /// Add a user box
-    void addUserBox();
-
-    /// Add a user circle
-    void addUserCircle();
-
-    /// Add a user line
-    void addUserLine();
+    
 
     /*---- Target Cross ----*/
 protected:
@@ -354,20 +338,14 @@ public:
     void setTarget();
 
     /** \name User Shapes
-     * @{
-     */
+      * @{
+      */
+protected:
 
-    void userItemMouseCoords( float mx,      ///< [in] the pixel x-coordinate of the center
-                              float my,      ///< [in] the pixel y-coordinate of the center
-                              float dx,  ///< [in] the display coordinates of the center
-                              float dy
-                            );
-
-    void userBoxItemSize(StretchBox *sb);
-    void userBoxItemCoords(StretchBox *sb);
-
-    void userCircleItemSize(StretchCircle *sb);
-    void userCircleItemCoords(StretchCircle *sc);
+    /// Flag indicating that one of the user items is selected
+    /** This causes its stats to be updated with the image
+      */
+    bool m_userItemSelected{false};
 
     float m_userItemXCen{0};       ///< Center of active user item in scene coordinates
     float m_userItemYCen{0};       ///< Center of active user item in scene coordinates
@@ -378,17 +356,92 @@ public:
     bool m_offsetItemMouseCoordsX {false}; ///< Flag to indicate that the x mouse coordinates should be offset to avoid the item.
     bool m_offsetItemMouseCoordsY {false}; ///< Flag to indicate that the y mouse coordinates should be offset to avoid the item.
 
-    void userBoxItemMouseCoords(StretchBox *sb);
 
-    void userCircleItemMouseCoords(StretchCircle *sc);
+public:
+    
+    /// Update the mouse coordinates at the center of the active user item
+    void userItemMouseCoords( float mx, ///< [in] the scene x-coordinate of the center
+                              float my, ///< [in] the scene y-coordinate of the center
+                              float dx, ///< [in] the viewport x-coordinate of the center
+                              float dy  ///< [in] the viewport y-coordinate of the center
+                            );
 
-protected slots:
+    /// Initialize a user item upon being selected
+    /** Clears the size and coordinate text fields and sets their color and visibility.  Does
+      * the same for the center cross.
+      */
+    void userItemSelected( const QColor & color, ///< [in] the color of this user item
+                           bool sizeVis,         ///< [in] whether or not the size text is visible
+                           bool coordsVis,       ///< [in] whether or not the coordinate text is visible
+                           bool cenVis           ///< [in] whether or not the center cross is visible
+                         );
+
+    /*---- Color Box ----*/
+
+public:
+
+    StretchBox *m_colorBox; ///\todo make this protected, fix imcp
+
+public slots:
+
+    void colorBoxMoved(StretchBox *sb);
+
+    void colorBoxSelected(StretchBox *sb);
+    
+    void colorBoxDeselected(StretchBox *sb);
+
+    /// Called when the color box is deleted
+    void colorBoxRemove(StretchBox *sb);
+
+    /*---- Stats Box and Display----*/
+
+protected:
+
+    StretchBox *m_statsBox{nullptr};
+
+    rtimvStats *imStats;
+
+public slots:
+
+    void doLaunchStatsBox();
+
+    void doHideStatsBox();
+    
+    void imStatsClosed(int);
+
+    void statsBoxMoved(StretchBox *);
+
+    void statsBoxSelected(StretchBox *);
+
+    void statsBoxRemove(StretchBox *);
+
+    /*---- user boxes ----*/
+
+protected:
+
+    std::unordered_set<StretchBox *> m_userBoxes;
+    
+public:
+
+    /// Add a user box  
+    void addUserBox();
+
+    /// Update the size display for the active user box
+    void userBoxSize(StretchBox *sb);
+
+    /// Update the cross marking the center of the active user box
+    void userBoxCross(StretchBox *sb);
+
+    /// Update the mouse coordinates at the center of the active user box
+    void userBoxMouseCoords(StretchBox *sb);
+
+public slots:
 
     /// Add a StretchBox to user boxes
     /** This adds the StretchBox to the user boxes, and connects
      * its rejectMouse signal to the userBoxRejectMouse slot so that
      * the mouse though management works.  The remove signal is connected to the
-     * userBoxRemove slog.  None of the other signals are connected.
+     * userBoxRemove slot.  None of the other signals are connected.
      *
      * This can be connected to a signal from a plugin to register a new
      * StretchBox for mouse management.
@@ -396,11 +449,47 @@ protected slots:
      */
     void addStretchBox(StretchBox *sb /**< [in] The new StretchBox to add*/);
 
+    /// Called whenever the user box display shuold be updated
+    /** This includes when moved, resized, and when the mouse enters the box.
+      */
+    void userBoxMoved(StretchBox *sb);
+
+    /// Called when the user clicks through the user box
+    void userBoxRejectMouse(StretchBox *);
+
+    /// Called when a user box is deleted
+    void userBoxRemove(StretchBox *sc);
+
+    /// Called when a user box is selected
+    void userBoxSelected(StretchBox *sc);
+    
+    /// Called when a user box is deselected
+    void userBoxDeSelected(StretchBox *sc);
+
+    /*---- user circles ----*/
+
+protected:
+    std::unordered_set<StretchCircle *> m_userCircles;
+    
+public:
+    /// Add a user circle
+    void addUserCircle();
+
+    /// Update the size display for the active user box
+    void userCircleSize(StretchCircle *sb);
+
+    /// Update the cross marking the center of the circle
+    void userCircleCross(StretchCircle *sc);
+
+    /// Update he mouse coordinates of the user circle
+    void userCircleMouseCoords(StretchCircle *sc);
+    
+public slots:
     /// Add a StretchCircle to the user circle
     /** This addes the StretchCircle to the user boxes, and connects
      * its rejectMouse signal to the userCircleRejectMouse slot so that
      * the mouse though management works.  The remove signal is connected to the
-     * userCircleRemove slog.  None of the other signals are connected.
+     * userCircleRemove slot.  None of the other signals are connected.
      *
      * This can be connected to a signal from a plugin to register a new
      * StretchCircle for mouse management.
@@ -408,52 +497,79 @@ protected slots:
      */
     void addStretchCircle(StretchCircle *sc /**< [in] The new StretchCircle to add*/);
 
+    /// Called whenever the user circle display shuold be updated
+    /** This includes when moved, resized, and when the mouse enters the circle.
+      */
+    void userCircleMoved(StretchCircle *sc);
+
+    /// Called when the user clicks through the user circle
+    void userCircleRejectMouse(StretchCircle *sc);
+
+    /// Called when a user circle is deleted
+    void userCircleRemove(StretchCircle *sc);
+
+    /// Called when a user circle is selected
+    void userCircleSelected(StretchCircle *sc);
+
+    /// Called when a user circle is deselected
+    void userCircleDeSelected(StretchCircle *sc);
+
+
+    /*---- user lines ----*/
+
+protected:
+
+    std::unordered_set<StretchLine *> m_userLines;
+
+public:
+
+    /// Add a user line
+    void addUserLine();
+
+    /// Update the size display for the active user line
+    void userLineSize(StretchLine *sl /**< [in] The StretchLine to update*/);
+
+    /// Update the circle marking the head of the line
+    void userLineHead(StretchLine *sl /**< [in] The StretchLine to update*/);
+
+    /// Update the mouse coordinates of the user line
+    void userLineMouseCoords(StretchLine *sl /**< [in] The StretchLine to update*/);
+
+
+public slots:
+
     /// Add a StretchLine to the user lines
-    /** This adds the StretchLine to the user boxes, and connects
+    /** This adds the StretchLine to the user lines, and connects
      * its rejectMouse signal to the userLineRejectMouse slot so that
      * the mouse though management works.  The remove signal is connected to the
-     * userLineRemove slog.  None of the other signals are connected.
+     * userLineRemove slot.  None of the other signals are connected.
      *
      * This can be connected to a signal from a plugin to register a new
      * StretchLine for mouse management.
      *
      */
-    void addStretchLine(StretchLine *sl) /**< [in] The new StretchLine to add*/;
+    void addStretchLine(StretchLine *sl /**< [in] The new StretchLine to add*/);
 
-    void doLaunchStatsBox();
-    void doHideStatsBox();
-    void imStatsClosed(int);
+    /// Called whenever the user line display shuold be updated
+    /** This includes when moved, resized, and when the mouse enters the circle.
+      */
+    void userLineMoved(StretchLine *sl /**< [in] The StretchLine to update*/);
 
-    void statsBoxMoved(StretchBox *);
+    /// Called when the user clicks through the user line
+    void userLineRejectMouse(StretchLine *sl /**< [in] The StretchLine to update*/);
 
-    void colorBoxMoved(StretchBox *);
+    /// Called when a user line is deleted
+    void userLineRemove(StretchLine *sl /**< [in] The StretchLine to update*/);
 
-    void userBoxResized(StretchBox *sb);
-    void userBoxMoved(StretchBox *sb);
-    void userBoxMouseIn(StretchBox *sb);
-    void userBoxMouseOut(StretchBox *sb);
-    void userBoxRejectMouse(StretchBox *);
-    void userBoxRemove(StretchBox *sc);
-    void userBoxSelected(StretchBox *sc);
-    void userBoxDeSelected(StretchBox *sc);
+    /// Called when a user line is selected
+    void userLineSelected(StretchLine *sl /**< [in] The StretchLine to update*/);
 
-    void userCircleResized(StretchCircle *sc);
-    void userCircleMoved(StretchCircle *sc);
-    void userCircleMouseIn(StretchCircle *sc);
-    void userCircleMouseOut(StretchCircle *sc);
-    void userCircleRejectMouse(StretchCircle *sc);
-    void userCircleRemove(StretchCircle *sc);
-    void userCircleSelected(StretchCircle *sc);
-    void userCircleDeSelected(StretchCircle *sc);
+    /// Called when a user line is selected
+    void userLineDeSelected(StretchLine *sl /**< [in] The StretchLine to update*/);
 
-    void userLineResized(StretchLine *sl);
-    void userLineMoved(StretchLine *sl);
-    void userLineMouseIn(StretchLine *sl);
-    void userLineMouseOut(StretchLine *sl);
-    void userLineRejectMouse(StretchLine *sl);
-    void userLineRemove(StretchLine *sl);
-    void userLineSelected(StretchLine *sl);
-    void userLineDeSelected(StretchLine *sl);
+
+    
+
 
     void savingState(bool ss);
 

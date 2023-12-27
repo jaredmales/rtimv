@@ -24,6 +24,7 @@ StretchBox::StretchBox(qreal x, qreal y, qreal width, qreal height, QGraphicsIte
 void StretchBox::initStretchBox()
 {   
    connect(&m_cursorTimer, SIGNAL(timeout()), this, SLOT(cursorTimerOut()));
+   connect(&m_selectionTimer, SIGNAL(timeout()), this, SLOT(selectionTimerOut()));
 }
 
 bool StretchBox::maintainCenter()
@@ -66,6 +67,11 @@ void StretchBox::keyPressEvent(QKeyEvent * ke)
    handleKeyPressEvent(ke);
 }
 
+void StretchBox::focusOutEvent(QFocusEvent * e)
+{
+    handleFocusOutEvent(e);
+}
+
 void StretchBox::passKeyPressEvent(QKeyEvent * ke)
 {
    QGraphicsRectItem::keyPressEvent(ke);
@@ -74,6 +80,11 @@ void StretchBox::passKeyPressEvent(QKeyEvent * ke)
 void StretchBox::cursorTimerOut()
 {
    slotCursorTimerOut();
+}
+
+void StretchBox::selectionTimerOut()
+{
+   slotSelectionTimerOut();
 }
 
 bool StretchBox::onHoverComputeSizing(QGraphicsSceneHoverEvent * e)

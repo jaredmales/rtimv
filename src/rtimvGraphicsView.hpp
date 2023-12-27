@@ -48,6 +48,15 @@
 #define RTIMV_DEF_STATUSTEXTFONTCOLOR "#3DA5FF" /**"skyblue"*/
 #define RTIMV_DEF_STATUSTEXTFONTSIZE (14*1.4)
 
+#define RTIMV_DEF_USERITEMCOLOR "lime"
+#define RTIMV_DEF_USERITEMFONTFAMILY "LKLUG" 
+
+#define RTIMV_DEF_COLORBOXCOLOR "yellow"
+#define RTIMV_DEF_COLORBOXFONTFAMILY "LKLUG"
+
+#define RTIMV_DEF_STATSBOXCOLOR "#3DA5FF"
+#define RTIMV_DEF_STATSBOXFONTFAMILY "LKLUG"
+
 ///The rtimv Graphics View
 class rtimvGraphicsView : public QGraphicsView
 {

@@ -23,6 +23,7 @@ StretchCircle::StretchCircle(qreal x, qreal y, qreal width, qreal height, QGraph
 void StretchCircle::initStretchCircle()
 {   
    connect(&m_cursorTimer, SIGNAL(timeout()), this, SLOT(cursorTimerOut()));
+   connect(&m_selectionTimer, SIGNAL(timeout()), this, SLOT(selectionTimerOut()));
 }
 
 float StretchCircle::radius()
@@ -60,6 +61,11 @@ void StretchCircle::keyPressEvent(QKeyEvent * ke)
    handleKeyPressEvent(ke);
 }
 
+void StretchCircle::focusOutEvent(QFocusEvent * e)
+{
+    handleFocusOutEvent(e);
+}
+
 void StretchCircle::passKeyPressEvent(QKeyEvent * ke)
 {
    QGraphicsEllipseItem::keyPressEvent(ke);
@@ -68,6 +74,11 @@ void StretchCircle::passKeyPressEvent(QKeyEvent * ke)
 void StretchCircle::cursorTimerOut()
 {
    slotCursorTimerOut();
+}
+
+void StretchCircle::selectionTimerOut()
+{
+   slotSelectionTimerOut();
 }
 
 bool StretchCircle::onHoverComputeSizing(QGraphicsSceneHoverEvent * e)

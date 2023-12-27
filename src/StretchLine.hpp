@@ -79,6 +79,8 @@ protected:
 
    void keyPressEvent(QKeyEvent * ke);
 
+   void focusOutEvent(QFocusEvent * e);
+
    ///@}
 
    /** \name StretchGraphicsItem Interface
@@ -100,11 +102,16 @@ protected:
 
    void passKeyPressEvent(QKeyEvent * ke);
 
+   
+
 protected slots:
 
    /// When the cursor timer times-out, the cursor is changed to the double-arrow
    virtual void cursorTimerOut();
    
+   /// When the selection timer times-out, the item is selected without clicking
+   virtual void selectionTimerOut();
+
    ///@}
    
    /** \name Signals
