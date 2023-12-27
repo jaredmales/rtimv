@@ -33,14 +33,18 @@ Once make completes, `sudo make install` will install the executable to `/usr/lo
 
 ## User's Guide
 
-A user's guide is located in [doc/UserGuide.md](doc/UserGuide.md).
+A user's guide is located in [doc/UserGuide.md](doc/UserGuide.md) or in the [rtimv documentation pages](https://jaredmales.github.io/rtimv-doc/index.html).
 
 
 ## Contributors
 
 Creator: Jared R. Males (jaredmales at gmail)
 
+Contributors: Joseph Long has added many improvements to support portability.
+
 Users: Many improvements have been made based on inputs from users of MagAO+VisAO, especially Kate Follette.
+
+Code contributions welcome.  Online documentation is [here](https://jaredmales.github.io/rtimv-doc/index.html).
 
 ## License
 
