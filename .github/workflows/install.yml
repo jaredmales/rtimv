@@ -2,7 +2,7 @@ name: Compile rtimv
 on:
   push:
   schedule:
-      - cron: '8 2 * * *'
+      - cron: '8 2 * * 1'
 jobs:
   install-ubuntu:
     runs-on: ubuntu-latest
