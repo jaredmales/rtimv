@@ -1,7 +1,10 @@
 #include "rtimvMainWindow.hpp"
 
-#define RTIMV_EDGETOL_DEFAULT (7.5)
-#define RTIMV_TOOLLINEWIDTH_DEFAULT (0.75)
+#define RTIMV_EDGETOL_DEFAULT (15)
+
+#define RTIMV_EDGETOL (RTIMV_EDGETOL_DEFAULT/m_screenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom)
+
+#define RTIMV_TOOLLINEWIDTH_DEFAULT (0)
 
 rtimvMainWindow::rtimvMainWindow( int argc,
                                   char ** argv,
@@ -309,10 +312,10 @@ void rtimvMainWindow::postSetImsize()
     {
         StretchBox *sb = *ubit;
         sb->setRect(sb->mapRectFromScene(xc, yc, w, w));
-        xc += (RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom)*10;
-        yc += (RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom)*10;
-        sb->setEdgeTol(RTIMV_EDGETOL_DEFAULT/m_screenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom);
-        sb->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
+        xc += (RTIMV_TOOLLINEWIDTH_DEFAULT )*10;
+        yc += (RTIMV_TOOLLINEWIDTH_DEFAULT )*10;
+        sb->setEdgeTol(RTIMV_EDGETOL);
+        sb->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT );
         ++ubit;
     }
    
@@ -325,10 +328,10 @@ void rtimvMainWindow::postSetImsize()
     {
         StretchCircle *sc = *ucit;
         sc->setRect(sc->mapRectFromScene(xc, yc, w, w));
-        xc += (RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom)*10;
-        yc += (RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom)*10;
-        sc->setEdgeTol(RTIMV_EDGETOL_DEFAULT/m_screenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom);
-        sc->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
+        xc += (RTIMV_TOOLLINEWIDTH_DEFAULT )*10;
+        yc += (RTIMV_TOOLLINEWIDTH_DEFAULT )*10;
+        sc->setEdgeTol(RTIMV_EDGETOL);
+        sc->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT );
         ++ucit;
     }
      
@@ -338,8 +341,8 @@ void rtimvMainWindow::postSetImsize()
     {
         StretchLine *sl = *ulit;
         sl->setLine(0.5*(m_nx)-0.2*m_nx,0.5*(m_ny)-0.2*m_ny, 0.2*(m_nx),0.2*(m_ny));
-        sl->setEdgeTol(RTIMV_EDGETOL_DEFAULT/m_screenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom);
-        sl->setPenWidth(2*RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
+        sl->setEdgeTol(RTIMV_EDGETOL);
+        sl->setPenWidth(2*RTIMV_TOOLLINEWIDTH_DEFAULT );
         ++ulit;
     }
 
@@ -1022,37 +1025,66 @@ void rtimvMainWindow::userItemSelected( const QColor & color,
 
 void rtimvMainWindow::colorBoxMoved(StretchBox * sb)
 {
-   if(!m_colorBox) return;
-   if(!m_qpmi) return;
-
-   if(!colorBoxActive) return;
-
-   QRectF newr = sb->rect();
-   
-   QPointF np = m_qpmi->mapFromItem(m_colorBox, QPointF(newr.x(),newr.y()));
-   QPointF np2 = m_qpmi->mapFromItem(m_colorBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
-
-   colorBox_i1 = (int) (np2.x() + .5);
-   colorBox_i0 = (int) np.x();
-   colorBox_j0 = m_ny-(int) (np2.y() + .5);
-   colorBox_j1 = m_ny-(int) np.y();
-   
-   char tmp[256];
-   snprintf(tmp, 256, "min: %0.1f\nmax: %0.1f", colorBox_min, colorBox_max);
-   ui.graphicsView->m_userItemSize->setText(tmp);
-   
-   QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
-   QSize textSize = fm.size(0, tmp);
-
-   QRectF sbr = sb->sceneBoundingRect();
-   QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x(), sbr.y()));
+    if(!m_colorBox) return;
+    if(!m_qpmi) return;
  
-   ui.graphicsView->m_userItemSize->resize(textSize.width()+5,textSize.height()+5);
-   ui.graphicsView->m_userItemSize->move(qr.x(), qr.y());
-   
-   fontLuminance(ui.graphicsView->m_userItemSize);
-   
-   setUserBoxActive(true); //recalcs and recolors.
+    if(!colorBoxActive) return;
+ 
+    QRectF newr = sb->rect();
+    
+    QPointF np = m_qpmi->mapFromItem(m_colorBox, QPointF(newr.x(),newr.y()));
+    QPointF np2 = m_qpmi->mapFromItem(m_colorBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
+ 
+    colorBox_i1 = (int) (np2.x() + .5);
+    colorBox_i0 = (int) np.x();
+    colorBox_j0 = m_ny-(int) (np2.y() + .5);
+    colorBox_j1 = m_ny-(int) np.y();
+    
+ 
+ 
+    char tmp[256];
+    char valMin[64];
+    char valMax[64];
+    if(fabs(colorBox_min) < 1e-1)
+    {
+        snprintf(valMin, sizeof(valMin), "%0.04g", colorBox_min);
+    }
+    else
+    {
+        snprintf(valMin, sizeof(valMin), "%0.02f", colorBox_min);
+    }
+
+    if(fabs(colorBox_max) < 1e-1)
+    {
+        snprintf(valMax, sizeof(valMax), "%0.04g", colorBox_max);
+    }
+    else
+    {
+        snprintf(valMax, sizeof(valMax), "%0.02f", colorBox_max);
+    }
+
+
+    snprintf(tmp, 256, "min: %s\nmax: %s", valMin, valMax);
+    
+    
+    
+    ui.graphicsView->m_userItemSize->setText(tmp);
+    
+ 
+ 
+ 
+    QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
+    QSize textSize = fm.size(0, tmp);
+ 
+    QRectF sbr = sb->sceneBoundingRect();
+    QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x(), sbr.y()));
+  
+    ui.graphicsView->m_userItemSize->resize(textSize.width()+5,textSize.height()+5);
+    ui.graphicsView->m_userItemSize->move(qr.x(), qr.y());
+    
+    fontLuminance(ui.graphicsView->m_userItemSize);
+    
+    setUserBoxActive(true); //recalcs and recolors.
 }
 
 void rtimvMainWindow::colorBoxSelected(StretchBox * sb)
@@ -1200,8 +1232,8 @@ void rtimvMainWindow::addUserBox()
    StretchBox * sb = *it.first;
    
    sb->setPenColor("lime");
-   sb->setEdgeTol(RTIMV_EDGETOL_DEFAULT/m_screenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom);
-   sb->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
+   sb->setEdgeTol(RTIMV_EDGETOL);
+   sb->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT );
   
    sb->setMaintainCenter(true);
    sb->setStretchable(true);
@@ -1363,8 +1395,8 @@ void rtimvMainWindow::addUserCircle()
    StretchCircle * sc = *it.first;
    
    sc->setPenColor("lime");
-   sc->setEdgeTol(RTIMV_EDGETOL_DEFAULT/m_screenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom);
-   sc->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
+   sc->setEdgeTol(RTIMV_EDGETOL);
+   sc->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT );
    
    sc->setStretchable(true);
    sc->setVisible(true);
@@ -1525,8 +1557,8 @@ void rtimvMainWindow::addUserLine()
    StretchLine * sl = *it.first;
    
    sl->setPenColor("lime");
-   sl->setEdgeTol(RTIMV_EDGETOL_DEFAULT/m_screenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom);
-   sl->setPenWidth(2*RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
+   sl->setEdgeTol(RTIMV_EDGETOL);
+   sl->setPenWidth(2*RTIMV_TOOLLINEWIDTH_DEFAULT );
    
    sl->setStretchable(true);
    sl->setVisible(true);
@@ -1975,8 +2007,8 @@ void rtimvMainWindow::toggleColorBox()
     if(m_colorBox == nullptr)
     {
         float w;
-        if(m_nx < m_ny) w = m_nx/4;
-        else w = m_ny/4;
+        if(m_nx < m_ny) w = (m_nx/m_zoomLevel)/4; 
+        else w = (m_ny/m_zoomLevel)/4;
 
         colorBox_i0 = 0.5*(m_nx)-w/2;
         colorBox_i1 = colorBox_i0 + w;
@@ -1986,7 +2018,7 @@ void rtimvMainWindow::toggleColorBox()
         m_colorBox = new StretchBox(colorBox_i0, colorBox_j0, w, w);
 
         m_colorBox->setPenColor(RTIMV_DEF_COLORBOXCOLOR);
-        m_colorBox->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
+        m_colorBox->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT);
         m_colorBox->setVisible(false);
         m_colorBox->setStretchable(true);
         m_colorBox->setRemovable(true);
@@ -2030,6 +2062,9 @@ void rtimvMainWindow::toggleColorBox()
 
             m_colorBox->setVisible(false);
             setUserBoxActive(false);
+
+            m_colorBox->deleteLater();
+            m_colorBox = nullptr;
         }
         ui.graphicsView->zoomText("global scale");
         fontLuminance(ui.graphicsView->m_zoomText);
@@ -2046,7 +2081,7 @@ void rtimvMainWindow::toggleStatsBox()
    
       m_statsBox = new StretchBox(0.5*(m_nx)-w/2,0.5*(m_ny)-w/2, w, w);
       m_statsBox->setPenColor(RTIMV_DEF_STATSBOXCOLOR);
-      m_statsBox->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT /m_screenZoom);
+      m_statsBox->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT );
       m_statsBox->setVisible(false);
       m_statsBox->setStretchable(true);
       m_statsBox->setRemovable(true);
@@ -2062,7 +2097,6 @@ void rtimvMainWindow::toggleStatsBox()
 
    if(m_statsBox->isVisible())
    {
-      
       doHideStatsBox();
       ui.graphicsView->zoomText("stats off");
       fontLuminance(ui.graphicsView->m_zoomText);
@@ -2071,6 +2105,7 @@ void rtimvMainWindow::toggleStatsBox()
          imcp->statsBoxButtonState = false;
          imcp->ui.statsBoxButton->setText("Show Stats Box");
       }
+
    }
    else
    {

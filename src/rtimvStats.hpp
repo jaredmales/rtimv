@@ -74,6 +74,9 @@ class rtimvStats : public QDialog
       float m_dataMin {0};    ///< The minimum value in the data
       float m_dataMax {0};    ///< The maximum value in the data
       float m_dataMean {0};   ///< The mean value in the data
+
+      std::vector<float> m_medWork; ///< Working memory for median calculation
+      
       float m_dataMedian {0}; ///< The median value in the data
 
       int m_regionChanged {0}; ///< Flag indicating that the region has changed, either size, location, or the data itself

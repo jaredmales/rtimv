@@ -128,6 +128,8 @@ void rtimvStats::calcStats()
     float tmp_max = tmp_min;
     float tmp_mean = 0;
          
+    m_medWork.resize(m_imdata.cols()*m_imdata.rows()); //Should be a no-op most of the time
+    size_t nn = 0;
     for(int c = 0; c < m_imdata.cols(); ++c)
     {
         for(int r = 0; r < m_imdata.rows(); ++r)
@@ -137,13 +139,17 @@ void rtimvStats::calcStats()
             tmp_mean += imval;
             if(imval < tmp_min) tmp_min = imval;
             if(imval > tmp_max) tmp_max = imval;
+
+            m_medWork[nn] = imval;
+            ++nn;
         }
     }
    
     m_dataMin = tmp_min;
     m_dataMax = tmp_max;
     m_dataMean = tmp_mean / (m_imdata.rows()*m_imdata.cols());
-   
+    m_dataMedian = mx::math::vectorMedianInPlace(m_medWork);
+
     m_statsChanged = 1;
     m_regionChanged = 0;
    
@@ -153,25 +159,50 @@ void rtimvStats::calcStats()
    
 void rtimvStats::updateGUI()
 {
-   char txt[50];
+    char txt[50];    
+    if(m_statsChanged)
+    {
+        if(fabs(m_dataMin) < 1e-1)
+        {
+            snprintf(txt, sizeof(txt), "%0.04g", (float) m_dataMin);
+        }
+        else
+        {
+            snprintf(txt, sizeof(txt), "%0.02f", (float) m_dataMin);
+        }
+        ui.dataMin->setText(txt);    
+       
+        if(fabs(m_dataMax) < 1e-1)
+        {
+            snprintf(txt, sizeof(txt), "%0.04g", (float) m_dataMax);
+        }
+        else
+        {
+            snprintf(txt, sizeof(txt), "%0.02f", (float) m_dataMax);
+        }
+        ui.dataMax->setText(txt);  
 
-   if(m_statsChanged)
-   {
-      snprintf(txt, 50, "%0.1f", (float) m_dataMin);
-      ui.dataMin->setText(txt);
+        if(fabs(m_dataMean) < 1e-1)
+        {
+            snprintf(txt, sizeof(txt), "%0.04g", (float) m_dataMean);
+        }
+        else
+        {
+            snprintf(txt, sizeof(txt), "%0.02f", (float) m_dataMean);
+        }
+        ui.dataMean->setText(txt);    
 
-      snprintf(txt, 50, "%0.1f", (float) m_dataMax);
-      ui.dataMax->setText(txt);
-
-      snprintf(txt, 50, "%0.1f", (float) m_dataMean);
-      ui.dataMean->setText(txt);
-
-//       snprintf(txt, 50, "%0.1f", (float) m_datamedian);
-//       ui.dataMedian->setText(txt);
-      
-      m_statsChanged = 0;
-   }
-
-
+        if(fabs(m_dataMedian) < 1e-1)
+        {
+            snprintf(txt, sizeof(txt), "%0.04g", (float) m_dataMedian);
+        }
+        else
+        {
+            snprintf(txt, sizeof(txt), "%0.02f", (float) m_dataMedian);
+        }
+        ui.dataMedian->setText(txt);    
+       
+        m_statsChanged = 0;
+    }    
 }   
 

@@ -175,7 +175,7 @@ public:
       *@{
       */
     
-    int m_edgeTol {5}; ///< Tolerance in pixels for selection, within this distance this object accepts the mouse.
+    int m_edgeTol {10}; ///< Tolerance in pixels for selection, within this distance this object accepts the mouse.
     
     ///Possible cursor status values.
     enum cursorStatus{cursorOff, cursorGrabbing, cursorSizing, cursorGrabbed};
