@@ -643,7 +643,7 @@ public slots:
       * -3 (or greater) alert, uses alert color (pink)
       *  
       */
-    void borderWarningLevel(rtimv::warningLevel & lvl);
+    void borderWarningLevel(rtimv::warningLevel lvl);
 
 
     ///@}

@@ -2458,7 +2458,7 @@ void rtimvMainWindow::toggleInfo()
    }
 }
 
-void rtimvMainWindow::borderWarningLevel(rtimv::warningLevel & lvl)
+void rtimvMainWindow::borderWarningLevel(rtimv::warningLevel lvl)
 {
     m_borderWarningLevel = lvl;
 
