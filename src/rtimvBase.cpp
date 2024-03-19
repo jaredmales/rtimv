@@ -781,7 +781,7 @@ void rtimvBase::changeImdata(bool newdata)
         }
     }
 
-    if(resized || newdata || m_autoScale)
+    if(resized || (newdata && m_autoScale))
     {
         imdat_min = std::numeric_limits<float>::max();
         imdat_max = -std::numeric_limits<float>::max();
