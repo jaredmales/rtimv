@@ -945,9 +945,9 @@ void rtimvBase::changeImdata(bool newdata)
         }
     }
 
-    }//mutex scope. - at this point we're done with calData
-
     m_qpm.convertFromImage(*m_qim, Qt::AutoColor | Qt::ThresholdDither);
+
+    }//mutex scope. - at this point we're done with calData
 
     if(resized)
     {
