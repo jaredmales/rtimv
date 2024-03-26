@@ -708,6 +708,11 @@ void rtimvBase::changeImdata(bool newdata)
         return;
     }
 
+    bool resized = false;
+
+    { //mutex scope
+    std::unique_lock<std::mutex> lock(m_calMutex);
+
     if(!imageValid(0))
     {
         return;
@@ -715,12 +720,9 @@ void rtimvBase::changeImdata(bool newdata)
 
     m_amChangingimdata = true;
 
-    bool resized = false;
-
     //Here we realize we need to resize
     if(m_images[0]->nx() != m_nx || m_images[0]->ny() != m_ny || !m_qim)
     {
-        std::unique_lock<std::mutex> lock(m_calMutex);
         setImsize(m_images[0]->nx(), m_images[0]->ny());
 
         resized = true;
@@ -729,8 +731,6 @@ void rtimvBase::changeImdata(bool newdata)
     //If it's new data we copy it to m_calData
     if(resized || newdata)
     {
-        std::unique_lock<std::mutex> lock(m_rawMutex);
-        
         // Get the pixel calculating function
         float (*_pixel)(rtimvBase *, size_t) = rawPixel();
 
@@ -781,7 +781,11 @@ void rtimvBase::changeImdata(bool newdata)
         }
     }
 
-    if(resized || newdata || m_autoScale)
+    //At this point the raw data has been copied out to calData.  
+    //But we keep the mutex to make sure a subsequent call from a different thread doesn't delete m_calData.  
+    //This could be forced by newdata
+
+    if(resized || (newdata && m_autoScale))
     {
         imdat_min = std::numeric_limits<float>::max();
         imdat_max = -std::numeric_limits<float>::max();
@@ -940,6 +944,8 @@ void rtimvBase::changeImdata(bool newdata)
             }
         }
     }
+
+    }//mutex scope. - at this point we're done with calData
 
     m_qpm.convertFromImage(*m_qim, Qt::AutoColor | Qt::ThresholdDither);
 

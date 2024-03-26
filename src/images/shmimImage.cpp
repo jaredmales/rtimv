@@ -92,10 +92,7 @@ void shmimImage::imConnect()
    m_notFoundLogged = false;
    close(SM_fd);
 
-   if(m_accessMutex)
-   {
-      std::lock_guard<std::mutex> guard(*m_accessMutex);
-   }
+   std::lock_guard<std::mutex> guard(*m_accessMutex);
 
    if( ImageStreamIO_openIm(&m_image, m_shmimName.c_str()) != 0)
    {
@@ -201,10 +198,7 @@ int shmimImage::update()
    
    if(m_image.md->sem <= 0 || m_image.md == NULL) //Indicates that the server has cleaned up.
    {
-      if(m_accessMutex)
-      {
-          std::lock_guard<std::mutex> guard(*m_accessMutex);
-      }
+      std::lock_guard<std::mutex> guard(*m_accessMutex);
 
       m_data = nullptr;
       ImageStreamIO_closeIm(&m_image);
@@ -229,10 +223,7 @@ int shmimImage::update()
    
    if( snx != m_nx || sny != m_ny ) //Something else changed!
    {
-      if(m_accessMutex)
-      {
-          std::lock_guard<std::mutex> guard(*m_accessMutex);
-      }
+      std::lock_guard<std::mutex> guard(*m_accessMutex);
 
       m_data = nullptr;
       ImageStreamIO_closeIm(&m_image);
@@ -246,10 +237,7 @@ int shmimImage::update()
    
    if(cnt0 != m_lastCnt0) //Only redraw if it's actually a new image.
    {
-      if(m_accessMutex)
-      {
-          std::lock_guard<std::mutex> guard(*m_accessMutex);
-      }
+      std::lock_guard<std::mutex> guard(*m_accessMutex);
 
       m_data = ((char *) (m_image.array.raw)) + curr_image*snx*sny*m_typeSize;
       m_imageTime = m_image.md->writetime.tv_sec + ((double) m_image.md->writetime.tv_nsec)/1e9;
@@ -319,10 +307,7 @@ void shmimImage::detach()
 {  
    if(m_shmimAttached == 0) return;
          
-   if(m_accessMutex)
-   {
-      std::lock_guard<std::mutex> guard(*m_accessMutex);
-   }
+   std::lock_guard<std::mutex> guard(*m_accessMutex);
 
    m_data = nullptr; 
    ImageStreamIO_closeIm(&m_image);

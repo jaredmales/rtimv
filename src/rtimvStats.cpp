@@ -14,8 +14,6 @@ void StatsThread::run()
    m_imvs->statsThread();
 }
 
-//float (*global_pixget)(void *, size_t);
-
 rtimvStats::rtimvStats( rtimvBase * imv,
                         std::mutex * calMutex,
                         QWidget * Parent, 
@@ -155,8 +153,6 @@ void rtimvStats::calcStats()
    
 }
 
-
-   
 void rtimvStats::updateGUI()
 {
     char txt[50];    

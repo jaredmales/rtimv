@@ -32,7 +32,12 @@ public:
     rtimvImage() = delete;
 
     rtimvImage( std::mutex * mut ) : m_accessMutex{mut}
-    {}
+    {
+        if(m_accessMutex == nullptr)
+        {
+            throw std::invalid_argument("m_accessMutex can't be null");
+        }
+    }
 
 
     /// Set the image key
