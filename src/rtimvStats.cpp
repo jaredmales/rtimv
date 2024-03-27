@@ -46,15 +46,24 @@ void rtimvStats::setImdata()
    m_regionChanged = 1;
 }
 
-void rtimvStats::setImdata(size_t nx, size_t ny, size_t x0, size_t x1, size_t y0, size_t y1)
+void rtimvStats::mtxL_setImdata( size_t nx, 
+                                 size_t ny, 
+                                 size_t x0, 
+                                 size_t x1, 
+                                 size_t y0, 
+                                 size_t y1,
+                                 std::unique_lock<std::mutex> & lock
+                               )
 {   
+   assert(lock.owns_lock());
+
    if(x1 <= x0 || x0 > nx || x1 > nx || y1 <= y0 || y0 > ny || y1 > ny ) 
    {
       m_regionChanged = 0;
       return; //Bad data.
    }
 
-   std::unique_lock<std::mutex> lock(m_dataMutex);
+   std::unique_lock<std::mutex> lockData(m_dataMutex);
 
    m_nx = nx;
    m_ny = ny;
@@ -79,11 +88,11 @@ void rtimvStats::statsThread()
    while(!m_dieNow)
    {
       usleep(m_statsPause*1000);
-      calcStats();
+      mtxUL_calcStats();
    }
 }
 
-void rtimvStats::calcStats()
+void rtimvStats::mtxUL_calcStats()
 {
  
     if(!m_regionChanged) 
@@ -111,12 +120,18 @@ void rtimvStats::calcStats()
     std::unique_lock<std::mutex> lockData(m_dataMutex, std::try_to_lock);
     if(!lockData.owns_lock()) return;
 
+    //After locking, verify that this is still the same size.
+    if(m_imv->nx() != m_nx || m_imv->ny() != m_ny)
+    {
+        return;
+    }
+
     //copy data so we can be safe from changes to image memory
     for(size_t i=m_x0; i<m_x1; ++i)
     {
         for(size_t j=m_y0; j<m_y1; ++j)
         {
-            m_imdata(i-m_x0, j-m_y0) = m_imv->calPixel(i,j);  //_pixel(m_imv, idx);
+            m_imdata(i-m_x0, j-m_y0) = m_imv->calPixel(i,j); 
         }
     }
 

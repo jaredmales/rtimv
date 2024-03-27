@@ -9,6 +9,9 @@
 #include "images/fitsDirectory.hpp"
 #include "images/mzmqImage.hpp"
 
+//#define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
+#define RTIMV_DEBUG_BREADCRUMB 
+
 rtimvBase::rtimvBase( QWidget *Parent,
                       Qt::WindowFlags f) : QWidget(Parent, f)
 {
@@ -132,8 +135,13 @@ bool rtimvBase::imageValid(size_t n)
     return m_images[n]->valid();
 }
 
-void rtimvBase::setImsize(uint32_t x, uint32_t y)
+void rtimvBase::mtxL_setImsize( uint32_t x,  
+                                uint32_t y,
+                                std::unique_lock<std::mutex> & lock
+                              )
 {
+    assert(lock.owns_lock());
+
     //Always have at least one pixel
     if(x == 0) x = 1;
     if(y == 0) y = 1;
@@ -166,15 +174,19 @@ void rtimvBase::setImsize(uint32_t x, uint32_t y)
 
         m_qim = new QImage(m_nx, m_ny, QImage::Format_Indexed8);
 
-        load_colorbar(current_colorbar, false); //have to load into newly create image
+        mtxL_load_colorbar(current_colorbar, false, lock); //have to load into newly create image
 
-        postSetImsize();
+        mtxL_postSetImsize(lock);
 
     }
 }
 
-void rtimvBase::postSetImsize()
+void rtimvBase::mtxL_postSetImsize(std::unique_lock<std::mutex> & lock)
 {
+    assert(lock.owns_lock());
+    
+    RTIMV_DEBUG_BREADCRUMB
+
     return;
 }
 
@@ -416,10 +428,13 @@ realT pLightness(realT lum)
     return pow(lum, static_cast<realT>(1) / static_cast<realT>(3)) * 116 - 16;
 }
 
-void rtimvBase::load_colorbar( int cb,
-                               bool update 
-                             )
+void rtimvBase::mtxL_load_colorbar( int cb,
+                                    bool update,
+                                    const std::unique_lock<std::mutex> & lock
+                                  )
 {
+    assert(lock.owns_lock());
+
     if(!m_qim)
     {
         return;
@@ -703,6 +718,8 @@ int calcPixIndex_square(float pixval, float mindat, float maxdat, int mincol, in
 
 void rtimvBase::changeImdata(bool newdata)
 {
+    RTIMV_DEBUG_BREADCRUMB
+
     if(m_amChangingimdata && !newdata) //this means we're already in this function!
     {
         return;
@@ -712,6 +729,9 @@ void rtimvBase::changeImdata(bool newdata)
 
     { //mutex scope
     std::unique_lock<std::mutex> lock(m_calMutex);
+    
+    //Also lock the raw data for the size checks to make sure it doesn't change out from under us
+    std::unique_lock<std::mutex> rawlock(m_rawMutex);
 
     if(!imageValid(0))
     {
@@ -723,14 +743,22 @@ void rtimvBase::changeImdata(bool newdata)
     //Here we realize we need to resize
     if(m_images[0]->nx() != m_nx || m_images[0]->ny() != m_ny || !m_qim)
     {
-        setImsize(m_images[0]->nx(), m_images[0]->ny());
+        RTIMV_DEBUG_BREADCRUMB
+
+        mtxL_setImsize(m_images[0]->nx(), m_images[0]->ny(), lock);
+
+        RTIMV_DEBUG_BREADCRUMB
 
         resized = true;
     }
 
+    RTIMV_DEBUG_BREADCRUMB
+
     //If it's new data we copy it to m_calData
     if(resized || newdata)
     {
+        RTIMV_DEBUG_BREADCRUMB
+
         // Get the pixel calculating function
         float (*_pixel)(rtimvBase *, size_t) = rawPixel();
 
@@ -741,11 +769,15 @@ void rtimvBase::changeImdata(bool newdata)
             return;
         }
 
+        RTIMV_DEBUG_BREADCRUMB
+
         if(m_nx != m_images[0]->nx() || m_ny != m_images[0]->ny())
         {
             m_amChangingimdata = false;
             return;
         }
+
+        RTIMV_DEBUG_BREADCRUMB
 
         for(uint64_t n=0; n < m_nx*m_ny; ++n)
         {
@@ -764,6 +796,8 @@ void rtimvBase::changeImdata(bool newdata)
             m_calData[n] = _pixel(this, n);
         }
 
+        RTIMV_DEBUG_BREADCRUMB
+
         //Now check the sat image itself
         if(imageValid(3))
         {
@@ -780,6 +814,9 @@ void rtimvBase::changeImdata(bool newdata)
             }
         }
     }
+    rawlock.unlock();
+
+    RTIMV_DEBUG_BREADCRUMB
 
     //At this point the raw data has been copied out to calData.  
     //But we keep the mutex to make sure a subsequent call from a different thread doesn't delete m_calData.  
@@ -787,6 +824,8 @@ void rtimvBase::changeImdata(bool newdata)
 
     if(resized || (newdata && m_autoScale))
     {
+        RTIMV_DEBUG_BREADCRUMB
+
         imdat_min = std::numeric_limits<float>::max();
         imdat_max = -std::numeric_limits<float>::max();
 
@@ -836,6 +875,8 @@ void rtimvBase::changeImdata(bool newdata)
             }
         }
 
+        RTIMV_DEBUG_BREADCRUMB
+
         if(!std::isfinite(imdat_max) || !std::isfinite(imdat_min))
         {
             // It should be impossible for them to be infinite by themselves unless it's all NaNs.
@@ -862,14 +903,41 @@ void rtimvBase::changeImdata(bool newdata)
         }
     }
 
+    RTIMV_DEBUG_BREADCRUMB
+
     if(!m_qim) 
     {
         m_amChangingimdata = false;
         return;
     }
 
-    
+    RTIMV_DEBUG_BREADCRUMB
 
+    mtxL_recolor(lock);
+
+    mtxL_postChangeImdata(lock);
+
+    if(resized)
+    {
+        //Always switch to zoom 1 after a resize occurs
+        zoomLevel(1);
+    }
+
+    RTIMV_DEBUG_BREADCRUMB
+
+    
+    }//mutex scope. - at this point we're done with calData
+
+    RTIMV_DEBUG_BREADCRUMB
+
+    m_amChangingimdata = false;
+
+} //void rtimvBase::changeImdata(bool newdata)
+
+void rtimvBase::mtxL_recolor(std::unique_lock<std::mutex> & lock)
+{
+    assert(lock.owns_lock());
+    
     /* Here is where we color the pixmap*/
 
     // Get the color index calculating function
@@ -931,6 +999,8 @@ void rtimvBase::changeImdata(bool newdata)
         }
     }
     
+    RTIMV_DEBUG_BREADCRUMB
+
     if(m_applySatMask)
     {
         for(uint32_t j = 0; j < m_ny; ++j)
@@ -945,24 +1015,24 @@ void rtimvBase::changeImdata(bool newdata)
         }
     }
 
+    RTIMV_DEBUG_BREADCRUMB
+
     m_qpm.convertFromImage(*m_qim, Qt::AutoColor | Qt::ThresholdDither);
 
-    }//mutex scope. - at this point we're done with calData
+    mtxL_postRecolor(lock);
+}
 
-    if(resized)
-    {
-        //Always switch to zoom 1 after a resize occurs
-        zoomLevel(1);
-    }
-
-    postChangeImdata();
-
-    m_amChangingimdata = false;
-
-} //void rtimvBase::changeImdata(bool newdata)
-
-void rtimvBase::postChangeImdata()
+void rtimvBase::mtxL_postRecolor( std::unique_lock<std::mutex> & lock )
 {
+    RTIMV_DEBUG_BREADCRUMB
+    assert(lock.owns_lock());
+    return;
+}
+
+void rtimvBase::mtxL_postChangeImdata( std::unique_lock<std::mutex> & lock )
+{
+    RTIMV_DEBUG_BREADCRUMB
+    assert(lock.owns_lock());
     return;
 }
 
@@ -980,7 +1050,11 @@ void rtimvBase::zoomLevel(float zl)
 
     m_zoomLevel = zl;
 
+    RTIMV_DEBUG_BREADCRUMB
+
     post_zoomLevel();
+
+    RTIMV_DEBUG_BREADCRUMB
 }
 
 void rtimvBase::post_zoomLevel()
@@ -988,7 +1062,7 @@ void rtimvBase::post_zoomLevel()
     return;
 }
 
-void rtimvBase::setUserBoxActive(bool usba)
+void rtimvBase::mtxUL_setUserBoxActive(bool usba)
 {
     if(usba)
     {

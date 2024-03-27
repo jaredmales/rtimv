@@ -69,11 +69,13 @@ public:
     /// Called on initial connection to the image stream, sets matching aspect ratio.
     virtual void onConnect();
 
-    virtual void postSetImsize();
+    virtual void mtxL_postSetImsize( std::unique_lock<std::mutex> & lock );
 
     virtual void post_zoomLevel();
 
-    virtual void postChangeImdata();
+    virtual void mtxL_postRecolor( std::unique_lock<std::mutex> & lock );
+
+    virtual void mtxL_postChangeImdata( std::unique_lock<std::mutex> & lock );
 
     virtual void updateFPS();
 
@@ -168,7 +170,7 @@ public:
 public:
     void change_center(bool movezoombox = true);
 
-    void set_viewcen(float x, float y, bool movezoombox = true);
+    void mtxL_setViewCen(float x, float y,  std::unique_lock<std::mutex> & lock, bool movezoombox = true);
     
     float get_xcen() { return ui.graphicsView->xCen(); }
     
@@ -224,7 +226,7 @@ protected:
      * - If it is, updates the mouse coord text boxes
      * - If the mouse is right-clicked and dragging, updates the strech bias and contrast.
      */
-    void updateMouseCoords();
+    void mtxL_updateMouseCoords( std::unique_lock<std::mutex> & lock );
 
 public:
     /// Get the value of the flag controlling whether tool tip coordinates are shown
@@ -360,11 +362,11 @@ protected:
 public:
     
     /// Update the mouse coordinates at the center of the active user item
-    void userItemMouseCoords( float mx, ///< [in] the scene x-coordinate of the center
-                              float my, ///< [in] the scene y-coordinate of the center
-                              float dx, ///< [in] the viewport x-coordinate of the center
-                              float dy  ///< [in] the viewport y-coordinate of the center
-                            );
+    void mtxTry_userItemMouseCoords( float mx, ///< [in] the scene x-coordinate of the center
+                                     float my, ///< [in] the scene y-coordinate of the center
+                                     float dx, ///< [in] the viewport x-coordinate of the center
+                                     float dy  ///< [in] the viewport y-coordinate of the center
+                                   );
 
     /// Initialize a user item upon being selected
     /** Clears the size and coordinate text fields and sets their color and visibility.  Does
@@ -384,9 +386,9 @@ public:
 
 public slots:
 
-    void colorBoxMoved(StretchBox *sb);
+    void mtxTry_colorBoxMoved(StretchBox *sb);
 
-    void colorBoxSelected(StretchBox *sb);
+    void mtxTry_colorBoxSelected(StretchBox *sb);
     
     void colorBoxDeselected(StretchBox *sb);
 
@@ -409,9 +411,9 @@ public slots:
     
     void imStatsClosed(int);
 
-    void statsBoxMoved(StretchBox *);
+    void mtxTry_statsBoxMoved(StretchBox *);
 
-    void statsBoxSelected(StretchBox *);
+    void mtxTry_statsBoxSelected(StretchBox *);
 
     void statsBoxRemove(StretchBox *);
 
@@ -427,13 +429,13 @@ public:
     void addUserBox();
 
     /// Update the size display for the active user box
-    void userBoxSize(StretchBox *sb);
+    void mtxTry_userBoxSize(StretchBox *sb);
 
     /// Update the cross marking the center of the active user box
     void userBoxCross(StretchBox *sb);
 
     /// Update the mouse coordinates at the center of the active user box
-    void userBoxMouseCoords(StretchBox *sb);
+    void mtxTry_userBoxMouseCoords(StretchBox *sb);
 
 public slots:
 
@@ -452,7 +454,7 @@ public slots:
     /// Called whenever the user box display shuold be updated
     /** This includes when moved, resized, and when the mouse enters the box.
       */
-    void userBoxMoved(StretchBox *sb);
+    void mtxTry_userBoxMoved(StretchBox *sb);
 
     /// Called when the user clicks through the user box
     void userBoxRejectMouse(StretchBox *);
@@ -461,7 +463,7 @@ public slots:
     void userBoxRemove(StretchBox *sc);
 
     /// Called when a user box is selected
-    void userBoxSelected(StretchBox *sc);
+    void mtxTry_userBoxSelected(StretchBox *sc);
     
     /// Called when a user box is deselected
     void userBoxDeSelected(StretchBox *sc);
@@ -482,7 +484,7 @@ public:
     void userCircleCross(StretchCircle *sc);
 
     /// Update he mouse coordinates of the user circle
-    void userCircleMouseCoords(StretchCircle *sc);
+    void mtxTry_userCircleMouseCoords(StretchCircle *sc);
     
 public slots:
     /// Add a StretchCircle to the user circle
@@ -527,13 +529,13 @@ public:
     void addUserLine();
 
     /// Update the size display for the active user line
-    void userLineSize(StretchLine *sl /**< [in] The StretchLine to update*/);
+    void mtxTry_userLineSize(StretchLine *sl /**< [in] The StretchLine to update*/);
 
     /// Update the circle marking the head of the line
     void userLineHead(StretchLine *sl /**< [in] The StretchLine to update*/);
 
     /// Update the mouse coordinates of the user line
-    void userLineMouseCoords(StretchLine *sl /**< [in] The StretchLine to update*/);
+    void mtxTry_userLineMouseCoords(StretchLine *sl /**< [in] The StretchLine to update*/);
 
 
 public slots:
@@ -553,7 +555,7 @@ public slots:
     /// Called whenever the user line display shuold be updated
     /** This includes when moved, resized, and when the mouse enters the circle.
       */
-    void userLineMoved(StretchLine *sl /**< [in] The StretchLine to update*/);
+    void mtxTry_userLineMoved(StretchLine *sl /**< [in] The StretchLine to update*/);
 
     /// Called when the user clicks through the user line
     void userLineRejectMouse(StretchLine *sl /**< [in] The StretchLine to update*/);
@@ -562,14 +564,10 @@ public slots:
     void userLineRemove(StretchLine *sl /**< [in] The StretchLine to update*/);
 
     /// Called when a user line is selected
-    void userLineSelected(StretchLine *sl /**< [in] The StretchLine to update*/);
+    void mtxTry_userLineSelected(StretchLine *sl /**< [in] The StretchLine to update*/);
 
     /// Called when a user line is selected
     void userLineDeSelected(StretchLine *sl /**< [in] The StretchLine to update*/);
-
-
-    
-
 
     void savingState(bool ss);
 
@@ -586,7 +584,7 @@ public:
 
     void toggleAutoScale();
 
-    void center();
+    void mtxUL_center();
 
     void showFPSGage(bool sfg);
 
@@ -685,16 +683,35 @@ protected:
     double m_opacityMax{150};
 
 public:
+
     /// Sets the background transparency of a QTextEdit based on the average luminance of the background pixels.
     /** Uses a power-quadrature average (see m_lumPwr) and sets the background opacity based on interpolation with
-     * the values of m_lumThresh, m_lumMax, and m_opacityMax.
-     */
-    void fontLuminance(QTextEdit *qte,    ///< [in/out] the QTextEdit to modify
-                       bool print = false ///< [in] [out] if true the average luminance is printed.  Used for debugging.
-    );
+      *  the values of m_lumThresh, m_lumMax, and m_opacityMax.
+      *
+      * \note Call this version with the mutex already locked 
+      */
+    void mtxL_fontLuminance( QTextEdit *qte,     ///< [in/out] the QTextEdit to modify
+                             std::unique_lock<std::mutex> & lock, 
+                             bool print = false ///< [in] [out] if true the average luminance is printed.  Used for debugging.
+                           );
+
+    /// Sets the background transparency of a QTextEdit based on the average luminance of the background pixels.
+    /** Uses a power-quadrature average (see m_lumPwr) and sets the background opacity based on interpolation with
+      * the values of m_lumThresh, m_lumMax, and m_opacityMax.
+      *
+      * \note Call this version with the mutex unlocked
+      *
+      */
+    void mtxTry_fontLuminance( QTextEdit *qte,    ///< [in/out] the QTextEdit to modify
+                               bool print = false ///< [in] [out] if true the average luminance is printed.  Used for debugging.
+                             );
 
     /// Update the background opacity for all the text fields.  Called periodically.
-    void fontLuminance();
+    /**
+      * \note Call this version with the mutex unlocked
+      *
+      */
+    void mtxTry_fontLuminance();
 
     ///@}
 

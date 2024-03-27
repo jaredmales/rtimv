@@ -93,13 +93,17 @@ class rtimvStats : public QDialog
       void setImdata();
 
       /// Called by rtimvMainWindow to indicate that the region has changed.
-      void setImdata( size_t nx, ///< [in] the new image x size
-                      size_t ny, ///< [in] the new image y size
-                      size_t x0, ///< The x coordinate of the starting corner of the region.
-                      size_t x1, ///< The x coordinate of the ending corner of the region.
-                      size_t y0, ///< The y coordinate of the starting corner of the region.
-                      size_t y1  ///< The y coordinate of the ending corner of the region.
-                    );
+      /**
+        * The calibration data mutex must be locked when this is called.
+        */
+      void mtxL_setImdata( size_t nx, ///< [in] the new image x size
+                           size_t ny, ///< [in] the new image y size
+                           size_t x0, ///< The x coordinate of the starting corner of the region.
+                           size_t x1, ///< The x coordinate of the ending corner of the region.
+                           size_t y0, ///< The y coordinate of the starting corner of the region.
+                           size_t y1, ///< The y coordinate of the ending corner of the region.
+                           std::unique_lock<std::mutex> & lock ///< The locked mutex.  
+                         );
 
       /// Run funciton for the statistics thread.  
       /** Pauses for m_statsPause then calls calcStats, until m_dieNow is called.
@@ -107,7 +111,10 @@ class rtimvStats : public QDialog
       void statsThread();
 
       /// Calculate the statistics.
-      void calcStats();
+      /**
+        * Both the rtimv cal mutex and the local data mutex will be try-locked.
+        */
+      void mtxUL_calcStats();
 
       
    protected slots:

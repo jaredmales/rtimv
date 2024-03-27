@@ -133,12 +133,13 @@ public:
     /** The reallocates m_calData and m_qim
       * 
       */
-    void setImsize( uint32_t x, ///< [in] the new x size
-                    uint32_t y  ///< [in] the new y size
-                  ); 
+    void mtxL_setImsize( uint32_t x, ///< [in] the new x size
+                         uint32_t y,  ///< [in] the new y size
+                         std::unique_lock<std::mutex> & lock
+                      ); 
    
     /// Called after set_imsize to handle allocations for derived classes
-    virtual void postSetImsize(); 
+    virtual void mtxL_postSetImsize( std::unique_lock<std::mutex> & lock ); 
       
     ///Get the number of x pixels
     /**
@@ -344,9 +345,10 @@ public:
 
    enum colorbars{colorbarGrey, colorbarJet, colorbarHot, colorbarBone, colorbarRed, colorbarGreen, colorbarBlue, colorbarMax};
    
-   void load_colorbar( int cb,
-                       bool update = true
-                     );
+   void mtxL_load_colorbar( int cb,
+                            bool update,
+                            const std::unique_lock<std::mutex> & lock
+                          );
    
    int get_current_colorbar(){return current_colorbar;}
 
@@ -387,7 +389,6 @@ protected:
 
 public:
 
-   
    void mindat(float md);
       
    float mindat();
@@ -451,12 +452,15 @@ public:
       */
     void changeImdata(bool newdata = false);
 
-    virtual void postChangeImdata(); ///<to call after change imdata does its work.
+    void mtxL_recolor(std::unique_lock<std::mutex> & lock);
+
+    virtual void mtxL_postRecolor( std::unique_lock<std::mutex> & lock ); ///<to call after changing colors.
+
+    virtual void mtxL_postChangeImdata( std::unique_lock<std::mutex> & lock ); ///<to call after change imdata does its work.
 
 protected:
     float m_satLevel {1e30};
     uint32_t m_saturated {0};
-
 
    /* Image Stats */
    protected:
@@ -507,7 +511,7 @@ protected:
 public:
    int getUserBoxActive(){ return colorBoxActive; }
    
-   void setUserBoxActive(bool usba);
+   void mtxUL_setUserBoxActive(bool usba);
    
    ///@}
 
