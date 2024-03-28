@@ -282,7 +282,7 @@ void rtimvMainWindow::onConnect()
     squareDown();
 }
 
-void rtimvMainWindow::mtxL_postSetImsize( std::unique_lock<std::mutex> & lock )
+void rtimvMainWindow::mtxL_postSetImsize( const std::unique_lock<std::mutex> & lock )
 {
     assert(lock.owns_lock());
 
@@ -396,7 +396,7 @@ void rtimvMainWindow::post_zoomLevel()
     RTIMV_DEBUG_BREADCRUMB
 }
 
-void rtimvMainWindow::mtxL_postRecolor( std::unique_lock<std::mutex> & lock )
+void rtimvMainWindow::mtxL_postRecolor( const std::unique_lock<std::mutex> & lock )
 {
     assert(lock.owns_lock());
 
@@ -431,7 +431,7 @@ void rtimvMainWindow::mtxL_postRecolor( std::unique_lock<std::mutex> & lock )
 
 }
 
-void rtimvMainWindow::mtxL_postChangeImdata( std::unique_lock<std::mutex> & lock )
+void rtimvMainWindow::mtxL_postChangeImdata( const std::unique_lock<std::mutex> & lock )
 {
     assert(lock.owns_lock());
 
@@ -636,7 +636,11 @@ void rtimvMainWindow::change_center(bool movezoombox)
 
 }
 
-void rtimvMainWindow::mtxL_setViewCen(float x, float y, std::unique_lock<std::mutex> & lock, bool movezoombox)
+void rtimvMainWindow::mtxL_setViewCen( float x, 
+                                       float y, 
+                                       const std::unique_lock<std::mutex> & lock, 
+                                       bool movezoombox
+                                     )
 {
     assert(lock.owns_lock());
 
@@ -739,7 +743,7 @@ void rtimvMainWindow::nullMouseCoords()
    }
 }
 
-void rtimvMainWindow::mtxL_updateMouseCoords( std::unique_lock<std::mutex> & lock )
+void rtimvMainWindow::mtxL_updateMouseCoords( const std::unique_lock<std::mutex> & lock )
 {
     assert(lock.owns_lock());
 
@@ -1080,8 +1084,6 @@ void rtimvMainWindow::userItemSelected( const QColor & color,
 
 void rtimvMainWindow::mtxTry_colorBoxMoved(StretchBox * sb)
 {
-    {//mutex scope
-
     std::unique_lock<std::mutex> lock(m_calMutex, std::try_to_lock);
     if(!lock.owns_lock())
     {
@@ -1138,10 +1140,8 @@ void rtimvMainWindow::mtxTry_colorBoxMoved(StretchBox * sb)
     ui.graphicsView->m_userItemSize->move(qr.x(), qr.y());
     
     mtxL_fontLuminance(ui.graphicsView->m_userItemSize, lock);
-    
-    }
 
-    mtxUL_setUserBoxActive(true); //recalcs and recolors.
+    mtxL_setUserBoxActive(true, lock); //recalcs and recolors.
 }
 
 void rtimvMainWindow::mtxTry_colorBoxSelected(StretchBox * sb)
@@ -1895,11 +1895,15 @@ void rtimvMainWindow::savingState(bool ss)
    }
 }
 
-void rtimvMainWindow::post_setUserBoxActive(bool usba)
+void rtimvMainWindow::mtxL_postSetUserBoxActive( bool usba,
+                                                 const std::unique_lock<std::mutex> & lock
+                                               )
 {
-   if(!m_colorBox) return;
+    assert(lock.owns_lock());
 
-   m_colorBox->setVisible(usba);
+    if(!m_colorBox) return;
+
+    m_colorBox->setVisible(usba);
 }
 
 
@@ -2102,7 +2106,10 @@ void rtimvMainWindow::toggleColorBox()
         else
         {
             m_colorBox->setVisible(true);
-            mtxUL_setUserBoxActive(true);
+
+            std::unique_lock<std::mutex> lock(m_calMutex);
+            mtxL_setUserBoxActive(true, lock);
+            lock.unlock();
         }
         ui.graphicsView->zoomText("color box scale");
         mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
@@ -2121,7 +2128,10 @@ void rtimvMainWindow::toggleColorBox()
             }
 
             m_colorBox->setVisible(false);
-            mtxUL_setUserBoxActive(false);
+
+            std::unique_lock<std::mutex> lock(m_calMutex);
+            mtxL_setUserBoxActive(false, lock);
+            lock.unlock();
 
             m_colorBox->deleteLater();
             m_colorBox = nullptr;
@@ -2585,7 +2595,7 @@ realT pLightness( realT lum )
 }
 
 void rtimvMainWindow::mtxL_fontLuminance( QTextEdit* qte, 
-                                          std::unique_lock<std::mutex> & lock,
+                                          const std::unique_lock<std::mutex> & lock,
                                           bool print
                                         )
 {

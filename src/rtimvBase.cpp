@@ -137,7 +137,7 @@ bool rtimvBase::imageValid(size_t n)
 
 void rtimvBase::mtxL_setImsize( uint32_t x,  
                                 uint32_t y,
-                                std::unique_lock<std::mutex> & lock
+                                const std::unique_lock<std::mutex> & lock
                               )
 {
     assert(lock.owns_lock());
@@ -181,7 +181,7 @@ void rtimvBase::mtxL_setImsize( uint32_t x,
     }
 }
 
-void rtimvBase::mtxL_postSetImsize(std::unique_lock<std::mutex> & lock)
+void rtimvBase::mtxL_postSetImsize(const std::unique_lock<std::mutex> & lock)
 {
     assert(lock.owns_lock());
     
@@ -539,7 +539,8 @@ void rtimvBase::mtxL_load_colorbar( int cb,
 
     if(update) 
     {
-        changeImdata();
+        //changeImdata();
+        mtxL_recolor(lock);
     }
 }
 
@@ -934,7 +935,7 @@ void rtimvBase::changeImdata(bool newdata)
 
 } //void rtimvBase::changeImdata(bool newdata)
 
-void rtimvBase::mtxL_recolor(std::unique_lock<std::mutex> & lock)
+void rtimvBase::mtxL_recolor(const std::unique_lock<std::mutex> & lock)
 {
     assert(lock.owns_lock());
     
@@ -1022,14 +1023,14 @@ void rtimvBase::mtxL_recolor(std::unique_lock<std::mutex> & lock)
     mtxL_postRecolor(lock);
 }
 
-void rtimvBase::mtxL_postRecolor( std::unique_lock<std::mutex> & lock )
+void rtimvBase::mtxL_postRecolor( const std::unique_lock<std::mutex> & lock )
 {
     RTIMV_DEBUG_BREADCRUMB
     assert(lock.owns_lock());
     return;
 }
 
-void rtimvBase::mtxL_postChangeImdata( std::unique_lock<std::mutex> & lock )
+void rtimvBase::mtxL_postChangeImdata( const std::unique_lock<std::mutex> & lock )
 {
     RTIMV_DEBUG_BREADCRUMB
     assert(lock.owns_lock());
@@ -1062,8 +1063,12 @@ void rtimvBase::post_zoomLevel()
     return;
 }
 
-void rtimvBase::mtxUL_setUserBoxActive(bool usba)
+void rtimvBase::mtxL_setUserBoxActive( bool usba,
+                                       const std::unique_lock<std::mutex> & lock
+                                     )
 {
+    assert(lock.owns_lock());
+
     if(usba)
     {
         int idx;
@@ -1154,14 +1159,14 @@ void rtimvBase::mtxUL_setUserBoxActive(bool usba)
         colorBoxActive = usba;
         
         set_colorbar_mode(minmaxbox);
-        
-        changeImdata(false);
-        
-        return;
+
     }
 
-    colorBoxActive = usba;
+    mtxL_recolor(lock);
+
+    mtxL_postSetUserBoxActive(usba, lock);
 }
+
 
 void rtimvBase::set_RealTimeEnabled(int rte)
 {

@@ -135,11 +135,11 @@ public:
       */
     void mtxL_setImsize( uint32_t x, ///< [in] the new x size
                          uint32_t y,  ///< [in] the new y size
-                         std::unique_lock<std::mutex> & lock
+                         const std::unique_lock<std::mutex> & lock
                       ); 
    
     /// Called after set_imsize to handle allocations for derived classes
-    virtual void mtxL_postSetImsize( std::unique_lock<std::mutex> & lock ); 
+    virtual void mtxL_postSetImsize( const std::unique_lock<std::mutex> & lock ); 
       
     ///Get the number of x pixels
     /**
@@ -452,11 +452,11 @@ public:
       */
     void changeImdata(bool newdata = false);
 
-    void mtxL_recolor(std::unique_lock<std::mutex> & lock);
+    void mtxL_recolor(const std::unique_lock<std::mutex> & lock);
 
-    virtual void mtxL_postRecolor( std::unique_lock<std::mutex> & lock ); ///<to call after changing colors.
+    virtual void mtxL_postRecolor( const std::unique_lock<std::mutex> & lock ); ///<to call after changing colors.
 
-    virtual void mtxL_postChangeImdata( std::unique_lock<std::mutex> & lock ); ///<to call after change imdata does its work.
+    virtual void mtxL_postChangeImdata( const std::unique_lock<std::mutex> & lock ); ///<to call after change imdata does its work.
 
 protected:
     float m_satLevel {1e30};
@@ -511,8 +511,14 @@ protected:
 public:
    int getUserBoxActive(){ return colorBoxActive; }
    
-   void mtxUL_setUserBoxActive(bool usba);
+   void mtxL_setUserBoxActive( bool usba,
+                               const std::unique_lock<std::mutex> & lock
+                             );
    
+   virtual void mtxL_postSetUserBoxActive( bool usba,
+                                           const std::unique_lock<std::mutex> & lock
+                                         ) = 0;
+
    ///@}
 
 

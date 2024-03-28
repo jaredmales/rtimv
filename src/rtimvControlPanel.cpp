@@ -578,7 +578,8 @@ void rtimvControlPanel::on_scaleTypeCombo_activated(int ct)
    imv->set_cbStretch(ct);
    
    
-   imv->changeImdata();
+   std::unique_lock<std::mutex> lock(*m_calMutex);
+   imv->mtxL_recolor(lock);
 }
 
 void rtimvControlPanel::on_colorbarCombo_activated(int cb)
@@ -715,11 +716,19 @@ void rtimvControlPanel::on_scaleModeCombo_activated(int index)
 
    if(index == rtimvBase::minmaxglobal)
    {
-      imv->mtxUL_setUserBoxActive(false);
+      std::unique_lock<std::mutex> lock(*m_calMutex);
+
+      std::cerr << "yippee!\n";
+
+      imv->mtxL_setUserBoxActive(false, lock);      
+      
       imv->set_colorbar_mode(rtimvBase::minmaxglobal);
+      
       imv->maxdat(imv->get_imdat_max());
       imv->mindat(imv->get_imdat_min());
-      imv->changeImdata();
+
+      imv->mtxL_recolor(lock);
+
       update_mindatEntry();
       update_maxdatEntry();
       update_biasEntry();
@@ -730,17 +739,20 @@ void rtimvControlPanel::on_scaleModeCombo_activated(int index)
       update_contrastRelEntry();
       
    }
+   else if(index == rtimvBase::user)
+   {
+      std::unique_lock<std::mutex> lock(*m_calMutex);
+      imv->mtxL_setUserBoxActive(false, lock);
 
-   if(index == rtimvBase::user)
-   {
-      imv->mtxUL_setUserBoxActive(false);
       imv->set_colorbar_mode(rtimvBase::user);
+      
+      imv->mtxL_recolor(lock);
    }
-   
-   if(index == rtimvBase::minmaxbox)
+   else if(index == rtimvBase::minmaxbox)
    {
-      imv->m_colorBox->setVisible(true);
-      imv->mtxUL_setUserBoxActive(true);
+      std::unique_lock<std::mutex> lock(*m_calMutex);
+      imv->mtxL_setUserBoxActive(false, lock);
+
       update_mindatEntry();
       update_maxdatEntry();
       update_biasEntry();
@@ -752,8 +764,8 @@ void rtimvControlPanel::on_scaleModeCombo_activated(int index)
    }
    else
    {
-      imv->m_colorBox->setVisible(false);
-      imv->mtxUL_setUserBoxActive(false);
+      std::unique_lock<std::mutex> lock(*m_calMutex);
+      imv->mtxL_setUserBoxActive(false, lock);
    }
 }
 
@@ -763,9 +775,13 @@ void rtimvControlPanel::on_mindatSlider_valueChanged(int value)
    {
       double sc = ((double)(value - ui.mindatSlider->minimum()))/((double)(ui.mindatSlider->maximum()-ui.mindatSlider->minimum()));
       imv->mindat(imv->get_imdat_min() + (imv->get_imdat_max()-imv->get_imdat_min())*sc);
-      imv->changeImdata();
-      imv->mtxUL_setUserBoxActive(false);
+      
+      std::unique_lock<std::mutex> lock(*m_calMutex);
       imv->set_colorbar_mode(rtimvBase::user);
+      imv->mtxL_setUserBoxActive(false, lock);      
+      lock.unlock();
+
+      
       ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
 
       update_mindatEntry();
@@ -783,9 +799,13 @@ void rtimvControlPanel::on_mindatEntry_editingFinished()
    update_mindatSlider();
    update_biasSlider();
    update_contrastSlider();
-   imv->changeImdata();
-   imv->mtxUL_setUserBoxActive(false);
+
+   std::unique_lock<std::mutex> lock(*m_calMutex);
    imv->set_colorbar_mode(rtimvBase::user);
+   imv->mtxL_setUserBoxActive(false, lock);
+   lock.unlock();
+
+   
    ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
 }
 
@@ -795,9 +815,13 @@ void rtimvControlPanel::on_maxdatSlider_valueChanged(int value)
    {
       double sc = ((double)(value - ui.maxdatSlider->minimum()))/((double)(ui.maxdatSlider->maximum()-ui.maxdatSlider->minimum()));
       imv->maxdat(imv->get_imdat_min() + (imv->get_imdat_max()-imv->get_imdat_min())*sc);
-      imv->changeImdata();
-      imv->mtxUL_setUserBoxActive(false);
+
+      std::unique_lock<std::mutex> lock(*m_calMutex);
       imv->set_colorbar_mode(rtimvBase::user);
+      imv->mtxL_setUserBoxActive(false, lock);
+
+      lock.unlock();
+
       ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
 
       update_maxdatEntry();
@@ -814,9 +838,12 @@ void rtimvControlPanel::on_maxdatEntry_editingFinished()
    update_biasEntry();
    update_maxdatSlider();
    update_biasSlider();
-   imv->changeImdata();
-   imv->mtxUL_setUserBoxActive(false);
+   
+   std::unique_lock<std::mutex> lock(*m_calMutex);
    imv->set_colorbar_mode(rtimvBase::user);
+   imv->mtxL_setUserBoxActive(false, lock);
+   lock.unlock();
+
    ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
 }
 
@@ -826,9 +853,14 @@ void rtimvControlPanel::on_biasSlider_valueChanged(int value)
    {
       double bias = ((double)(value - ui.biasSlider->minimum()))/((double)(ui.biasSlider->maximum()-ui.biasSlider->minimum()));
       imv->bias_rel(bias);
-      imv->changeImdata();
-      imv->mtxUL_setUserBoxActive(false);
+      
+      std::unique_lock<std::mutex> lock(*m_calMutex);
       imv->set_colorbar_mode(rtimvBase::user);
+      imv->mtxL_setUserBoxActive(false, lock);
+
+      lock.unlock();
+
+      
       ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
 
       update_mindatEntry();
@@ -841,10 +873,13 @@ void rtimvControlPanel::on_biasSlider_valueChanged(int value)
 void rtimvControlPanel::on_biasEntry_editingFinished()
 {
    imv->bias(ui.biasEntry->text().toDouble());
-   imv->mtxUL_setUserBoxActive(false);
+
+   std::unique_lock<std::mutex> lock(*m_calMutex);
    imv->set_colorbar_mode(rtimvBase::user);
+   imv->mtxL_setUserBoxActive(false, lock);
+   lock.unlock();
+
    ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
-   imv->changeImdata();
    
    update_mindatEntry();
    update_maxdatEntry();
@@ -860,9 +895,12 @@ void rtimvControlPanel::on_contrastSlider_valueChanged(int value)
       double cont = ((double)(value - ui.contrastSlider->minimum()))/((double)(ui.contrastSlider->maximum()-ui.contrastSlider->minimum()));
       cont = cont * (imv->get_imdat_max() - imv->get_imdat_min());
       imv->contrast(cont);
-      imv->changeImdata();
-      imv->mtxUL_setUserBoxActive(false);
+      
+      std::unique_lock<std::mutex> lock(*m_calMutex);
       imv->set_colorbar_mode(rtimvBase::user);
+      imv->mtxL_setUserBoxActive(false, lock);
+      lock.unlock();
+
       ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
 
       update_mindatEntry();
@@ -876,11 +914,14 @@ void rtimvControlPanel::on_contrastSlider_valueChanged(int value)
 void rtimvControlPanel::on_contrastEntry_editingFinished()
 {
    imv->contrast(ui.contrastEntry->text().toDouble());
-   imv->mtxUL_setUserBoxActive(false);
+
+   std::unique_lock<std::mutex> lock(*m_calMutex);
    imv->set_colorbar_mode(rtimvBase::user);
+   imv->mtxL_setUserBoxActive(false, lock);
+   lock.unlock();
+
    ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
-   imv->changeImdata();
-   
+      
    update_mindatEntry();
    update_maxdatEntry();
    update_biasEntry();
