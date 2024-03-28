@@ -1121,7 +1121,7 @@ void rtimvBase::mtxL_setUserBoxActive( bool usba,
             colorBox_j1 = 0 + (colorBox_j1 - colorBox_j0);
         }
 
-        if(colorBox_j1 > (int64_t) m_ny)
+        if(colorBox_j1 >= (int64_t) m_ny)
         {
             colorBox_j1 = (int64_t) m_ny - 1;
         }
@@ -1156,11 +1156,11 @@ void rtimvBase::mtxL_setUserBoxActive( bool usba,
         mindat(colorBox_min);
         maxdat(colorBox_max);
 
-        colorBoxActive = usba;
-        
         set_colorbar_mode(minmaxbox);
 
     }
+
+    colorBoxActive = usba;
 
     mtxL_recolor(lock);
 

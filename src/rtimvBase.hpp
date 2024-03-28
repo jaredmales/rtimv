@@ -352,7 +352,7 @@ public:
    
    int get_current_colorbar(){return current_colorbar;}
 
-   enum colorbar_modes{minmaxglobal, minmaxview, minmaxbox, user, colorbar_modes_max};
+   enum colorbar_modes{minmaxglobal, minmaxbox, user, colorbar_modes_max};
    void set_colorbar_mode(int mode){ colorbar_mode = mode;}
    int get_colorbar_mode(){return colorbar_mode;}
 

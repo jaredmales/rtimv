@@ -83,7 +83,6 @@ void rtimvControlPanel::setupCombos()
    //First we insert a bunch of blanks so inserting by enum works correctly.
    for(int i=0;i<rtimvBase::colorbar_modes_max;i++) ui.scaleModeCombo->insertItem(i,"");
    ui.scaleModeCombo->insertItem(rtimvBase::minmaxglobal, "Min/Max Global");
-   ui.scaleModeCombo->insertItem(rtimvBase::minmaxview, "Min/Max View");
    ui.scaleModeCombo->insertItem(rtimvBase::minmaxbox, "Min/Max Box");
    ui.scaleModeCombo->insertItem(rtimvBase::user, "User");
    ui.scaleModeCombo->setCurrentIndex(rtimvBase::user);
@@ -718,17 +717,12 @@ void rtimvControlPanel::on_scaleModeCombo_activated(int index)
    {
       std::unique_lock<std::mutex> lock(*m_calMutex);
 
-      std::cerr << "yippee!\n";
-
-      imv->mtxL_setUserBoxActive(false, lock);      
-      
       imv->set_colorbar_mode(rtimvBase::minmaxglobal);
-      
       imv->maxdat(imv->get_imdat_max());
       imv->mindat(imv->get_imdat_min());
 
-      imv->mtxL_recolor(lock);
-
+      imv->mtxL_setUserBoxActive(false, lock);      
+      
       update_mindatEntry();
       update_maxdatEntry();
       update_biasEntry();
@@ -742,16 +736,12 @@ void rtimvControlPanel::on_scaleModeCombo_activated(int index)
    else if(index == rtimvBase::user)
    {
       std::unique_lock<std::mutex> lock(*m_calMutex);
-      imv->mtxL_setUserBoxActive(false, lock);
-
       imv->set_colorbar_mode(rtimvBase::user);
-      
-      imv->mtxL_recolor(lock);
+      imv->mtxL_setUserBoxActive(false, lock);
    }
    else if(index == rtimvBase::minmaxbox)
    {
-      std::unique_lock<std::mutex> lock(*m_calMutex);
-      imv->mtxL_setUserBoxActive(false, lock);
+      imv->toggleColorBox();
 
       update_mindatEntry();
       update_maxdatEntry();
