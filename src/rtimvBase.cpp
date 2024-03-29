@@ -1,5 +1,6 @@
-
 #include "rtimvBase.hpp"
+
+#include <utility>
 
 #ifdef RTIMV_MILK
 #include "images/shmimImage.hpp"
@@ -181,15 +182,6 @@ void rtimvBase::mtxL_setImsize( uint32_t x,
     }
 }
 
-void rtimvBase::mtxL_postSetImsize(const std::unique_lock<std::mutex> & lock)
-{
-    assert(lock.owns_lock());
-    
-    RTIMV_DEBUG_BREADCRUMB
-
-    return;
-}
-
 uint32_t rtimvBase::nx()
 {
     return m_nx;
@@ -227,7 +219,7 @@ void rtimvBase::updateImages()
     ///\todo onConnect should maybe only be called upon connection to main image, and may need to wait a sec to let things settle.
     if(doupdate >= RTIMVIMAGE_IMUPDATE || supportUpdate >= RTIMVIMAGE_IMUPDATE)
     {
-        changeImdata(true);
+        mtxUL_changeImdata(true);
 
         if(!connected)
         {
@@ -539,7 +531,6 @@ void rtimvBase::mtxL_load_colorbar( int cb,
 
     if(update) 
     {
-        //changeImdata();
         mtxL_recolor(lock);
     }
 }
@@ -717,7 +708,7 @@ int calcPixIndex_square(float pixval, float mindat, float maxdat, int mincol, in
     return pixval * (maxcol - mincol) + 0.5;
 }
 
-void rtimvBase::changeImdata(bool newdata)
+void rtimvBase::mtxUL_changeImdata(bool newdata)
 {
     RTIMV_DEBUG_BREADCRUMB
 
@@ -820,27 +811,66 @@ void rtimvBase::changeImdata(bool newdata)
     RTIMV_DEBUG_BREADCRUMB
 
     //At this point the raw data has been copied out to calData.  
-    //But we keep the mutex to make sure a subsequent call from a different thread doesn't delete m_calData.  
+    //We have released the raw data mutex (rawlock). We keep the caldata mutex to make sure a subsequent call 
+    //from a different thread doesn't delete m_calData.  
     //This could be forced by newdata
 
-    if(resized || (newdata && m_autoScale))
+    RTIMV_DEBUG_BREADCRUMB
+
+    imdat_min = std::numeric_limits<float>::max();
+    imdat_max = -std::numeric_limits<float>::max();
+
+    float imval;
+
+    for(uint32_t j = 0; j < m_ny; ++j)
     {
-        RTIMV_DEBUG_BREADCRUMB
-
-        imdat_min = std::numeric_limits<float>::max();
-        imdat_max = -std::numeric_limits<float>::max();
-
-        if(colorBoxActive)
+        for(uint32_t i = 0; i < m_nx; ++i)
         {
-            colorBox_min = std::numeric_limits<float>::max();
-            colorBox_max = -std::numeric_limits<float>::max();
-        }
+            imval = calPixel(i,j);  
 
+             if(!std::isfinite(imval))
+             {
+                 continue;
+             }
+
+             if(imval > imdat_max)
+             {
+                imdat_max = imval;
+             }
+
+            if(imval < imdat_min)
+            {
+                imdat_min = imval;
+            }
+        }
+    }
+
+    RTIMV_DEBUG_BREADCRUMB
+
+    if(!std::isfinite(imdat_max) || !std::isfinite(imdat_min))
+    {
+        // It should be impossible for them to be infinite by themselves unless it's all NaNs.
+        imdat_max = 0;
+        imdat_min = 0;
+    }
+
+    if( (resized || (newdata && m_autoScale)) && !colorBoxActive)
+    {
+         mindat(imdat_min);
+         maxdat(imdat_max);
+    }
+    else if(colorBoxActive)
+    {
+        normalizeColorBox();
+
+        m_colorBox_min = std::numeric_limits<float>::max();
+        m_colorBox_max = -std::numeric_limits<float>::max();
+    
         float imval;
 
-        for(uint32_t j = 0; j < m_ny; ++j)
+        for(uint32_t j = m_colorBox_j0; j <= m_colorBox_j1; ++j)
         {
-            for(uint32_t i = 0; i < m_nx; ++i)
+            for(uint32_t i = m_colorBox_i0; i <= m_colorBox_i1; ++i)
             {
                 imval = calPixel(i,j);  
 
@@ -848,61 +878,34 @@ void rtimvBase::changeImdata(bool newdata)
                 {
                     continue;
                 }
-
-                if(imval > imdat_max)
+                
+                if(imval < m_colorBox_min)
                 {
-                    imdat_max = imval;
+                    m_colorBox_min = imval;
                 }
-
-                if(imval < imdat_min)
+                if(imval > m_colorBox_max)
                 {
-                    imdat_min = imval;
+                    m_colorBox_max = imval;
                 }
-
-                if(colorBoxActive)
-                {
-                    if(i >= colorBox_i0 && i < colorBox_i1 && j >= colorBox_j0 && j < colorBox_j1)
-                    {
-                        if(imval < colorBox_min)
-                        {
-                            colorBox_min = imval;
-                        }
-                        if(imval > colorBox_max)
-                        {
-                            colorBox_max = imval;
-                        }
-                    }
-                }
+                
             }
         }
 
-        RTIMV_DEBUG_BREADCRUMB
-
-        if(!std::isfinite(imdat_max) || !std::isfinite(imdat_min))
+        if(!std::isfinite(m_colorBox_max) || !std::isfinite(m_colorBox_min))
         {
-            // It should be impossible for them to be infinite by themselves unless it's all NaNs.
-            imdat_max = 0;
-            imdat_min = 0;
+            // It should be impossible for them to be infinite by themselves unless it's all NaNs in the box.
+            m_colorBox_max = 0;
+            m_colorBox_min = 0;
         }
 
-        if(colorBoxActive)
+        if(resized || (newdata && m_autoScale))
         {
-            if(!std::isfinite(colorBox_max) || !std::isfinite(colorBox_min))
-            {
-                // It should be impossible for them to be infinite by themselves unless it's all NaNs in the box.
-                colorBox_max = 0;
-                colorBox_min = 0;
-            }
+            mindat(m_colorBox_min);
+            maxdat(m_colorBox_max);
+        }
 
-            mindat(colorBox_min);
-            maxdat(colorBox_max);
-        }
-        else
-        {
-            mindat(imdat_min);
-            maxdat(imdat_max);
-        }
     }
+
 
     RTIMV_DEBUG_BREADCRUMB
 
@@ -933,7 +936,7 @@ void rtimvBase::changeImdata(bool newdata)
 
     m_amChangingimdata = false;
 
-} //void rtimvBase::changeImdata(bool newdata)
+} //void rtimvBase::mtxUL_changeImdata(bool newdata)
 
 void rtimvBase::mtxL_recolor(const std::unique_lock<std::mutex> & lock)
 {
@@ -1023,20 +1026,6 @@ void rtimvBase::mtxL_recolor(const std::unique_lock<std::mutex> & lock)
     mtxL_postRecolor(lock);
 }
 
-void rtimvBase::mtxL_postRecolor( const std::unique_lock<std::mutex> & lock )
-{
-    RTIMV_DEBUG_BREADCRUMB
-    assert(lock.owns_lock());
-    return;
-}
-
-void rtimvBase::mtxL_postChangeImdata( const std::unique_lock<std::mutex> & lock )
-{
-    RTIMV_DEBUG_BREADCRUMB
-    assert(lock.owns_lock());
-    return;
-}
-
 void rtimvBase::zoomLevel(float zl)
 {
     if(zl < m_zoomLevelMin)
@@ -1058,80 +1047,113 @@ void rtimvBase::zoomLevel(float zl)
     RTIMV_DEBUG_BREADCRUMB
 }
 
-void rtimvBase::post_zoomLevel()
+void rtimvBase::normalizeColorBox()
 {
-    return;
+    if(m_colorBox_i0 < 0)
+    {
+        m_colorBox_i0 = 0;
+    }
+    else if(m_colorBox_i0 >= (int64_t) m_nx-1)
+    {
+        m_colorBox_i0 = (int64_t) m_nx - 2;
+    }
+
+    if(m_colorBox_i1 < 0)
+    {
+        m_colorBox_i1 = 0;
+    }
+    else if(m_colorBox_i1 >= (int64_t )m_nx-1)
+    {
+        m_colorBox_i1 = m_nx-2;
+    }
+
+    if(m_colorBox_i0 > m_colorBox_i1)
+    {
+        std::swap(m_colorBox_i0, m_colorBox_i1);
+    }
+
+    if(m_colorBox_j0 < 0)
+    {
+        m_colorBox_j0 = 0;
+    }
+    else if(m_colorBox_j0 >= (int64_t) m_ny-1)
+    {
+        m_colorBox_j0 = (int64_t) m_ny - 2;
+    }
+
+    if(m_colorBox_j1 <= 0)  
+    {
+        m_colorBox_j1 = 0;
+    }
+    else if(m_colorBox_j1 >= (int64_t) m_ny-1)
+    {
+        m_colorBox_j1 = (int64_t) m_ny - 2;
+    }
+
+    if(m_colorBox_j0 > m_colorBox_j1)
+    {
+        std::swap(m_colorBox_j0, m_colorBox_j1);
+    }
 }
 
-void rtimvBase::mtxL_setUserBoxActive( bool usba,
-                                       const std::unique_lock<std::mutex> & lock
-                                     )
+void rtimvBase::colorBox_i0( int64_t i0 )
+{
+    m_colorBox_i0 = i0;
+}
+
+int64_t rtimvBase::colorBox_i0()
+{   
+    return m_colorBox_i0;
+}
+
+void rtimvBase::colorBox_i1( int64_t i1 )
+{
+    m_colorBox_i1 = i1;
+}
+
+int64_t rtimvBase::colorBox_i1()
+{   
+    return m_colorBox_i1;
+}
+
+void rtimvBase::colorBox_j0( int64_t j0 )
+{
+    m_colorBox_j0 = j0;
+}
+
+int64_t rtimvBase::colorBox_j0()
+{   
+    return m_colorBox_j0;
+}
+
+void rtimvBase::colorBox_j1( int64_t j1 )
+{
+    m_colorBox_j1 = j1;
+}
+
+int64_t rtimvBase::colorBox_j1()
+{   
+    return m_colorBox_j1;
+}
+
+void rtimvBase::mtxL_setColorBoxActive( bool usba,
+                                        const std::unique_lock<std::mutex> & lock
+                                      )
 {
     assert(lock.owns_lock());
 
     if(usba)
     {
-        int idx;
         float imval;
 
-        if(colorBox_i0 > colorBox_i1)
-        {
-            idx = colorBox_i0;
-            colorBox_i0 = colorBox_i1;
-            colorBox_i1 = idx;
-        }
+        normalizeColorBox();
 
-        if(colorBox_i0 < 0)
-        {
-            colorBox_i0 = 0;
-        }
-        else if(colorBox_i0 >= (int64_t) m_nx)
-        {
-            colorBox_i0 = (int64_t)m_nx - (colorBox_i1 - colorBox_i0);
-        }
-
-        if(colorBox_i1 <= 0)
-        {
-            colorBox_i1 = 0 + (colorBox_i1 - colorBox_i0);
-        }
+        m_colorBox_min = std::numeric_limits<float>::max();
+        m_colorBox_max = -std::numeric_limits<float>::max();
         
-        if(colorBox_i1 > (int64_t )m_nx)
+        for(int i = m_colorBox_i0; i <= m_colorBox_i1; i++)
         {
-            colorBox_i1 = (int64_t)m_nx - 1;
-        }
-
-        if(colorBox_j0 > colorBox_j1)
-        {
-            idx = colorBox_j0;
-            colorBox_j0 = colorBox_j1;
-            colorBox_j1 = idx;
-        }
-
-        if(colorBox_j0 < 0)
-        {
-            colorBox_j0 = 0;
-        }
-        else if(colorBox_j0 >= (int64_t) m_nx)
-        {
-            colorBox_j0 = (int64_t) m_ny - (colorBox_j1 - colorBox_j0);
-        }
-
-        if(colorBox_j1 <= 0)
-        {
-            colorBox_j1 = 0 + (colorBox_j1 - colorBox_j0);
-        }
-
-        if(colorBox_j1 >= (int64_t) m_ny)
-        {
-            colorBox_j1 = (int64_t) m_ny - 1;
-        }
-
-        colorBox_min = std::numeric_limits<float>::max();
-        colorBox_max = -std::numeric_limits<float>::max();
-        
-        for(int i = colorBox_i0; i < colorBox_i1; i++)
-        {
-            for(int j = colorBox_j0; j < colorBox_j1; j++)
+            for(int j = m_colorBox_j0; j <= m_colorBox_j1; j++)
             {
                 imval = calPixel(i,j);
 
@@ -1140,31 +1162,34 @@ void rtimvBase::mtxL_setUserBoxActive( bool usba,
                     continue;
                 }
 
-                if(imval < colorBox_min)
-                    colorBox_min = imval;
-                if(imval > colorBox_max)
-                    colorBox_max = imval;
+                if(imval < m_colorBox_min)
+                    m_colorBox_min = imval;
+                if(imval > m_colorBox_max)
+                    m_colorBox_max = imval;
             }
         }
 
-        if(colorBox_min == std::numeric_limits<float>::max() && colorBox_max == -std::numeric_limits<float>::max()) // If all nans
+        if(m_colorBox_min == std::numeric_limits<float>::max() && m_colorBox_max == -std::numeric_limits<float>::max()) // If all nans
         {
-            colorBox_min = 0;
-            colorBox_max = 0;
+            m_colorBox_min = 0;
+            m_colorBox_max = 0;
         }
 
-        mindat(colorBox_min);
-        maxdat(colorBox_max);
+        mindat(m_colorBox_min);
+        maxdat(m_colorBox_max);
 
         set_colorbar_mode(minmaxbox);
-
+    }
+    else 
+    {
+        set_colorbar_mode(minmaxglobal);
     }
 
     colorBoxActive = usba;
 
     mtxL_recolor(lock);
 
-    mtxL_postSetUserBoxActive(usba, lock);
+    mtxL_postSetColorBoxActive(usba, lock);
 }
 
 

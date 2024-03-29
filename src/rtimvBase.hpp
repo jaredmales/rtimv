@@ -12,8 +12,8 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
-#include <sys/time.h>
-#include <sys/socket.h>
+//#include <sys/time.h>
+//#include <sys/socket.h>
 
 #include <QImage>
 #include <QPixmap>
@@ -30,7 +30,7 @@
 #include <sys/mman.h>
 #include <sys/file.h>
 
-#include <signal.h>
+//#include <signal.h>
 
 #include "colorMaps.hpp"
 
@@ -139,7 +139,7 @@ public:
                       ); 
    
     /// Called after set_imsize to handle allocations for derived classes
-    virtual void mtxL_postSetImsize( const std::unique_lock<std::mutex> & lock ); 
+    virtual void mtxL_postSetImsize( const std::unique_lock<std::mutex> & lock ) = 0; 
       
     ///Get the number of x pixels
     /**
@@ -450,13 +450,13 @@ public:
     ///Updates the QImage and basic statistics after a new image.
     /** \param newdata determines whether statistics are calculated (true) or not (false).
       */
-    void changeImdata(bool newdata = false);
+    void mtxUL_changeImdata(bool newdata = false);
 
     void mtxL_recolor(const std::unique_lock<std::mutex> & lock);
 
-    virtual void mtxL_postRecolor( const std::unique_lock<std::mutex> & lock ); ///<to call after changing colors.
+    virtual void mtxL_postRecolor( const std::unique_lock<std::mutex> & lock ) = 0; ///<to call after changing colors.
 
-    virtual void mtxL_postChangeImdata( const std::unique_lock<std::mutex> & lock ); ///<to call after change imdata does its work.
+    virtual void mtxL_postChangeImdata( const std::unique_lock<std::mutex> & lock ) = 0; ///<to call after change imdata does its work.
 
 protected:
     float m_satLevel {1e30};
@@ -484,7 +484,7 @@ protected:
 
       //void set_ZoomLevel(int zlint);
       void zoomLevel(float zl);
-      virtual void post_zoomLevel();
+      virtual void post_zoomLevel() = 0;
 
   
    /** @name A User Defined Region
@@ -492,32 +492,44 @@ protected:
      * @{
      */
 protected:
-   int colorBoxActive {0};
+    int colorBoxActive {0};
 
-   //ImageStreamIO images are sized in uint32_t, so we need these big enough for signed comparisons without wraparound
-   int64_t colorBox_i0;
-   int64_t colorBox_i1;
-   int64_t colorBox_j0;
-   int64_t colorBox_j1;
+private:
+    //ImageStreamIO images are sized in uint32_t, so we need these big enough for signed comparisons without wraparound
+    int64_t m_colorBox_i0;
+    int64_t m_colorBox_i1;
+    int64_t m_colorBox_j0;
+    int64_t m_colorBox_j1;
 
-   int64_t guideBox_i0;
-   int64_t guideBox_i1;
-   int64_t guideBox_j0;
-   int64_t guideBox_j1;
-
-   float colorBox_max;
-   float colorBox_min;
+    void normalizeColorBox();
+    
+protected:
+    float m_colorBox_max;
+    float m_colorBox_min;
 
 public:
-   int getUserBoxActive(){ return colorBoxActive; }
+
+    void colorBox_i0( int64_t i0 );
+    int64_t colorBox_i0();
+
+    void colorBox_i1( int64_t i1 );
+    int64_t colorBox_i1();
+
+    void colorBox_j0( int64_t j0 );
+    int64_t colorBox_j0();
+
+    void colorBox_j1( int64_t j1 );
+    int64_t colorBox_j1();
+
+   int getcolorBoxActive(){ return colorBoxActive; }
    
-   void mtxL_setUserBoxActive( bool usba,
-                               const std::unique_lock<std::mutex> & lock
-                             );
+   void mtxL_setColorBoxActive( bool usba,
+                                const std::unique_lock<std::mutex> & lock
+                              );
    
-   virtual void mtxL_postSetUserBoxActive( bool usba,
-                                           const std::unique_lock<std::mutex> & lock
-                                         ) = 0;
+   virtual void mtxL_postSetColorBoxActive( bool usba,
+                                            const std::unique_lock<std::mutex> & lock
+                                          ) = 0;
 
    ///@}
 

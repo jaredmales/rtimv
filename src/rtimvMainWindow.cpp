@@ -305,6 +305,13 @@ void rtimvMainWindow::mtxL_postSetImsize( const std::unique_lock<std::mutex> & l
         imcp->ui.viewView->setTransform(transform);
     }
 
+    statsBoxRemove(m_statsBox);
+
+    if(m_colorBox)
+    {
+        colorBoxRemove(m_colorBox);
+    }
+
     std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
     while(ubit != m_userBoxes.end())
     {
@@ -555,20 +562,19 @@ void rtimvMainWindow::reStretch()
    {
       set_colorbar_mode(minmaxglobal);
    }
-   
-   if(get_colorbar_mode() == minmaxglobal)
+   else if(get_colorbar_mode() == minmaxglobal)
    {
       mindat(get_imdat_min());
       maxdat(get_imdat_max());
-      changeImdata(false);
+   }
+   else if(get_colorbar_mode() == minmaxbox)
+   {
+      mindat(m_colorBox_min);
+      maxdat(m_colorBox_max);
    }
 
-   if(get_colorbar_mode() == minmaxbox)
-   {
-      mindat(colorBox_min);
-      maxdat(colorBox_max);
-      changeImdata(false);
-   }
+   std::unique_lock<std::mutex> lock(m_calMutex);
+   mtxL_recolor(lock);
 }
 
 
@@ -1073,30 +1079,30 @@ void rtimvMainWindow::mtxTry_colorBoxMoved(StretchBox * sb)
     QPointF np = m_qpmi->mapFromItem(m_colorBox, QPointF(newr.x(),newr.y()));
     QPointF np2 = m_qpmi->mapFromItem(m_colorBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
  
-    colorBox_i1 = (int) (np2.x() + .5);
-    colorBox_i0 = (int) np.x();
-    colorBox_j0 = m_ny-(int) (np2.y() + .5);
-    colorBox_j1 = m_ny-(int) np.y();
-    
+    colorBox_i0((int64_t) (np2.x() + .5));
+    colorBox_i1((int64_t) np.x());
+    colorBox_j0((int64_t) m_ny - (int64_t) (np2.y() + .5));
+    colorBox_j1((int64_t) m_ny - (int64_t) np.y());
+
     char tmp[256];
     char valMin[64];
     char valMax[64];
-    if(fabs(colorBox_min) < 1e-1)
+    if(fabs(m_colorBox_min) < 1e-1)
     {
-        snprintf(valMin, sizeof(valMin), "%0.04g", colorBox_min);
+        snprintf(valMin, sizeof(valMin), "%0.04g", m_colorBox_min);
     }
     else
     {
-        snprintf(valMin, sizeof(valMin), "%0.02f", colorBox_min);
+        snprintf(valMin, sizeof(valMin), "%0.02f", m_colorBox_min);
     }
 
-    if(fabs(colorBox_max) < 1e-1)
+    if(fabs(m_colorBox_max) < 1e-1)
     {
-        snprintf(valMax, sizeof(valMax), "%0.04g", colorBox_max);
+        snprintf(valMax, sizeof(valMax), "%0.04g", m_colorBox_max);
     }
     else
     {
-        snprintf(valMax, sizeof(valMax), "%0.02f", colorBox_max);
+        snprintf(valMax, sizeof(valMax), "%0.02f", m_colorBox_max);
     }
 
     snprintf(tmp, 256, "min: %s\nmax: %s", valMin, valMax);
@@ -1114,7 +1120,7 @@ void rtimvMainWindow::mtxTry_colorBoxMoved(StretchBox * sb)
     
     mtxL_fontLuminance(ui.graphicsView->m_userItemSize, lock);
 
-    mtxL_setUserBoxActive(true, lock); //recalcs and recolors.
+    mtxL_setColorBoxActive(true, lock); //recalcs and recolors.
 }
 
 void rtimvMainWindow::mtxTry_colorBoxSelected(StretchBox * sb)
@@ -1137,6 +1143,20 @@ void rtimvMainWindow::colorBoxRemove(StretchBox * sb)
 {
     static_cast<void>(sb);
     
+    std::cerr << "colorBoxRemove\n";
+    if(sb == nullptr || m_colorBox == nullptr)
+    {
+        return;
+    }
+
+    colorBoxActive = false;
+    set_colorbar_mode(minmaxglobal);
+
+    m_colorBox->disconnect();
+    disconnect(m_colorBox);
+    m_colorBox->deleteLater();
+    m_colorBox = nullptr;
+
     ui.graphicsView->m_userItemSize->setVisible(false);
     ui.graphicsView->m_userItemMouseCoords->setVisible(false);
     m_objCenH->setVisible(false);
@@ -1144,7 +1164,6 @@ void rtimvMainWindow::colorBoxRemove(StretchBox * sb)
     m_nullMouseCoords=false;
     m_userItemSelected = false;
 
-    toggleColorBox();
 }
 
 /*---- Stats Box and Display ----*/
@@ -1174,6 +1193,11 @@ void rtimvMainWindow::doHideStatsBox()
 {
     std::cerr << "doHideStatsBox()\n";
 
+    if(imStats)
+    {
+        delete imStats;
+        imStats = 0; //imStats is set to delete on close
+    }
 
     if(m_statsBox) 
     {   
@@ -1185,11 +1209,7 @@ void rtimvMainWindow::doHideStatsBox()
         m_statsBox->setVisible(false);
     }
 
-    if(imStats)
-    {
-        delete imStats;
-        imStats = 0; //imStats is set to delete on close
-    }
+    
 }
 
 void rtimvMainWindow::imStatsClosed(int result)
@@ -1245,7 +1265,19 @@ void rtimvMainWindow::mtxTry_statsBoxSelected(StretchBox * sb)
 void rtimvMainWindow::statsBoxRemove(StretchBox * sb)
 {
     static_cast<void>(sb);
-    
+
+    if(sb == nullptr || m_statsBox == nullptr)
+    {
+        return;
+    }
+
+    doHideStatsBox();
+    m_statsBox->disconnect();
+    disconnect(m_statsBox);
+    m_statsBox->deleteLater();
+
+    m_statsBox = nullptr;
+
     ui.graphicsView->m_userItemSize->setVisible(false);
     ui.graphicsView->m_userItemMouseCoords->setVisible(false);
     m_objCenH->setVisible(false);
@@ -1253,7 +1285,6 @@ void rtimvMainWindow::statsBoxRemove(StretchBox * sb)
     m_nullMouseCoords=false;
     m_userItemSelected = false;
 
-    toggleStatsBox();
     
 }
 
@@ -1341,7 +1372,7 @@ void rtimvMainWindow::addStretchBox(StretchBox * sb)
 {
    if(sb == nullptr) return;
    
-   m_userBoxes.insert(sb);
+   //m_userBoxes.insert(sb);
    
    connect(sb, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
    connect(sb, SIGNAL(remove(StretchBox*)), this, SLOT(userBoxRemove(StretchBox*)));
@@ -1382,9 +1413,8 @@ void rtimvMainWindow::userBoxRejectMouse(StretchBox * sb)
 
 void rtimvMainWindow::userBoxRemove(StretchBox * sb)
 {
-   if(sb == m_statsBox)
+   if(sb == m_statsBox || sb == m_colorBox)
    {
-      doHideStatsBox();
       return;
    }
    
@@ -1399,11 +1429,6 @@ void rtimvMainWindow::userBoxRemove(StretchBox * sb)
    m_nullMouseCoords=false;
    m_userItemSelected = false;
 
-   if(sb == m_statsBox)
-   {
-      m_statsBox = nullptr;
-      return;
-   }
 }
 
 void rtimvMainWindow::mtxTry_userBoxSelected(StretchBox * sb)
@@ -1879,15 +1904,16 @@ void rtimvMainWindow::savingState(bool ss)
    }
 }
 
-void rtimvMainWindow::mtxL_postSetUserBoxActive( bool usba,
-                                                 const std::unique_lock<std::mutex> & lock
-                                               )
+void rtimvMainWindow::mtxL_postSetColorBoxActive( bool usba,
+                                                  const std::unique_lock<std::mutex> & lock
+                                                )
 {
     assert(lock.owns_lock());
 
-    if(!m_colorBox) return;
-
-    m_colorBox->setVisible(usba);
+    if(m_colorBox)
+    {
+        m_colorBox->setVisible(usba);
+    }
 }
 
 
@@ -2052,25 +2078,37 @@ void rtimvMainWindow::mtxUL_center()
 
 void rtimvMainWindow::toggleColorBox()
 {
+    if(!colorBoxActive || !m_colorBox)
+    {
+        toggleColorBoxOn();
+    }
+    else
+    {
+        toggleColorBoxOff();
+    }
+}
+
+void rtimvMainWindow::toggleColorBoxOn()
+{
     if(m_colorBox == nullptr)
     {
         float w;
         if(m_nx < m_ny) w = (m_nx/m_zoomLevel)/4; 
         else w = (m_ny/m_zoomLevel)/4;
 
-        colorBox_i0 = 0.5*(m_nx)-w/2;
-        colorBox_i1 = colorBox_i0 + w;
-        colorBox_j0 = 0.5*(m_ny)-w/2;
-        colorBox_j1 = colorBox_j0 + w;
+        colorBox_i0(0.5*(m_nx)-w/2);
+        colorBox_i1(colorBox_i0() + w);
+        colorBox_j0(0.5*(m_ny)-w/2);
+        colorBox_j1(colorBox_j0() + w);
 
-        m_colorBox = new StretchBox(colorBox_i0, colorBox_j0, w, w);
+        m_colorBox = new StretchBox(colorBox_i0(), colorBox_j0(), w, w);
 
         m_colorBox->setPenColor(RTIMV_DEF_COLORBOXCOLOR);
         m_colorBox->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT);
         m_colorBox->setVisible(false);
         m_colorBox->setStretchable(true);
         m_colorBox->setRemovable(true);
-        m_userBoxes.insert(m_colorBox);
+        //m_userBoxes.insert(m_colorBox);
 
         connect(m_colorBox, SIGNAL(resized(StretchBox *)), this, SLOT(mtxTry_colorBoxMoved(StretchBox * )));
         connect(m_colorBox, SIGNAL(moved(StretchBox *)), this, SLOT(mtxTry_colorBoxMoved(StretchBox * )));
@@ -2081,38 +2119,35 @@ void rtimvMainWindow::toggleColorBox()
         m_qgs->addItem(m_colorBox);
     }
 
-    if(!colorBoxActive)
-    {
-        m_colorBox->setVisible(true);
+    m_colorBox->setVisible(true);
 
-        std::unique_lock<std::mutex> lock(m_calMutex);
-        mtxL_setUserBoxActive(true, lock);
-        lock.unlock();
+    std::unique_lock<std::mutex> lock(m_calMutex);
+    mtxL_setColorBoxActive(true, lock);
+    lock.unlock();
         
-        ui.graphicsView->zoomText("color box scale");
-        mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
-    }
-    else
-    {
-        if(m_colorBox->isSelected())
-        {
-            colorBoxDeselected(m_colorBox);
-        }
+    ui.graphicsView->zoomText("color box scale");
+    mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
 
-        m_colorBox->setVisible(false);
-
-        std::unique_lock<std::mutex> lock(m_calMutex);
-        mtxL_setUserBoxActive(false, lock);
-        lock.unlock();
-
-        m_colorBox->deleteLater();
-        m_colorBox = nullptr;
-        
-
-        ui.graphicsView->zoomText("global scale");
-        mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
-    }
 }
+
+void rtimvMainWindow::toggleColorBoxOff()
+{
+    if(m_colorBox->isSelected())
+    {
+        colorBoxDeselected(m_colorBox);
+    }
+
+    m_colorBox->setVisible(false);
+
+    std::unique_lock<std::mutex> lock(m_calMutex);
+    mtxL_setColorBoxActive(false, lock);
+    lock.unlock();
+
+    ui.graphicsView->zoomText("global scale");
+    mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+    
+}
+
 
 void rtimvMainWindow::toggleStatsBox()
 {
@@ -2234,7 +2269,8 @@ void rtimvMainWindow::setDarkSub( bool ds )
       ui.graphicsView->zoomText("dark sub. off");
       mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
    }
-   changeImdata(false);
+
+   mtxUL_changeImdata(false);
 }
 
 void rtimvMainWindow::toggleDarkSub()
@@ -2262,7 +2298,8 @@ void rtimvMainWindow::setApplyMask( bool am )
       ui.graphicsView->zoomText("mask off");
       mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
    }
-   changeImdata(false);
+
+   mtxUL_changeImdata(false);
 }
 
 void rtimvMainWindow::toggleApplyMask()
@@ -2291,7 +2328,7 @@ void rtimvMainWindow::setApplySatMask( bool as )
       mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
    }
    
-   changeImdata(false);
+   mtxUL_changeImdata(false);
    
 }
 

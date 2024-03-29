@@ -105,6 +105,7 @@ protected slots:
 
    ///@}
    
+public:
    /** \name Signals
      * The emitXXXX are required by StretchGraphicsItem, and each
      * emits the associated signal.

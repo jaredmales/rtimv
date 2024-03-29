@@ -577,9 +577,9 @@ public slots:
 
 public:
     
-    virtual void mtxL_postSetUserBoxActive( bool usba,
-                                            const std::unique_lock<std::mutex> & lock
-                                          );
+    virtual void mtxL_postSetColorBoxActive( bool usba,
+                                             const std::unique_lock<std::mutex> & lock
+                                           );
 
 protected:
     bool m_showLoopStat{false};
@@ -598,6 +598,8 @@ public:
     void toggleFPSGage();
 
     void toggleColorBox();
+    void toggleColorBoxOn();
+    void toggleColorBoxOff();
 
     void toggleStatsBox();
 

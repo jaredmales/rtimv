@@ -119,6 +119,12 @@ class rtimvControlPanel : public QWidget
       void viewBoxMoved ( const QRectF & newcen);
       
    /*** Color Controls ***/
+      void setScaleMode(int sm)
+      {
+           std::cerr << "seeting scale mode\n";
+           ui.scaleModeCombo->setCurrentIndex(sm);
+      }
+     
    protected slots:
       void on_scaleTypeCombo_activated(int);
       void on_colorbarCombo_activated(int);

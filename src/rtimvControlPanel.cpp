@@ -712,7 +712,7 @@ void rtimvControlPanel::update_contrastRelEntry()
 
 void rtimvControlPanel::on_scaleModeCombo_activated(int index)
 {
-
+   std::cerr << "activated\n";
    if(index == rtimvBase::minmaxglobal)
    {
       std::unique_lock<std::mutex> lock(*m_calMutex);
@@ -721,7 +721,7 @@ void rtimvControlPanel::on_scaleModeCombo_activated(int index)
       imv->maxdat(imv->get_imdat_max());
       imv->mindat(imv->get_imdat_min());
 
-      imv->mtxL_setUserBoxActive(false, lock);      
+      imv->mtxL_setColorBoxActive(false, lock);      
       
       update_mindatEntry();
       update_maxdatEntry();
@@ -737,11 +737,11 @@ void rtimvControlPanel::on_scaleModeCombo_activated(int index)
    {
       std::unique_lock<std::mutex> lock(*m_calMutex);
       imv->set_colorbar_mode(rtimvBase::user);
-      imv->mtxL_setUserBoxActive(false, lock);
+      imv->mtxL_setColorBoxActive(false, lock);
    }
    else if(index == rtimvBase::minmaxbox)
    {
-      imv->toggleColorBox();
+      imv->toggleColorBoxOn();
 
       update_mindatEntry();
       update_maxdatEntry();
@@ -755,7 +755,7 @@ void rtimvControlPanel::on_scaleModeCombo_activated(int index)
    else
    {
       std::unique_lock<std::mutex> lock(*m_calMutex);
-      imv->mtxL_setUserBoxActive(false, lock);
+      imv->mtxL_setColorBoxActive(false, lock);
    }
 }
 
@@ -768,7 +768,7 @@ void rtimvControlPanel::on_mindatSlider_valueChanged(int value)
       
       std::unique_lock<std::mutex> lock(*m_calMutex);
       imv->set_colorbar_mode(rtimvBase::user);
-      imv->mtxL_setUserBoxActive(false, lock);      
+      imv->mtxL_setColorBoxActive(false, lock);      
       lock.unlock();
 
       
@@ -792,7 +792,7 @@ void rtimvControlPanel::on_mindatEntry_editingFinished()
 
    std::unique_lock<std::mutex> lock(*m_calMutex);
    imv->set_colorbar_mode(rtimvBase::user);
-   imv->mtxL_setUserBoxActive(false, lock);
+   imv->mtxL_setColorBoxActive(false, lock);
    lock.unlock();
 
    
@@ -808,7 +808,7 @@ void rtimvControlPanel::on_maxdatSlider_valueChanged(int value)
 
       std::unique_lock<std::mutex> lock(*m_calMutex);
       imv->set_colorbar_mode(rtimvBase::user);
-      imv->mtxL_setUserBoxActive(false, lock);
+      imv->mtxL_setColorBoxActive(false, lock);
 
       lock.unlock();
 
@@ -831,7 +831,7 @@ void rtimvControlPanel::on_maxdatEntry_editingFinished()
    
    std::unique_lock<std::mutex> lock(*m_calMutex);
    imv->set_colorbar_mode(rtimvBase::user);
-   imv->mtxL_setUserBoxActive(false, lock);
+   imv->mtxL_setColorBoxActive(false, lock);
    lock.unlock();
 
    ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
@@ -846,7 +846,7 @@ void rtimvControlPanel::on_biasSlider_valueChanged(int value)
       
       std::unique_lock<std::mutex> lock(*m_calMutex);
       imv->set_colorbar_mode(rtimvBase::user);
-      imv->mtxL_setUserBoxActive(false, lock);
+      imv->mtxL_setColorBoxActive(false, lock);
 
       lock.unlock();
 
@@ -866,7 +866,7 @@ void rtimvControlPanel::on_biasEntry_editingFinished()
 
    std::unique_lock<std::mutex> lock(*m_calMutex);
    imv->set_colorbar_mode(rtimvBase::user);
-   imv->mtxL_setUserBoxActive(false, lock);
+   imv->mtxL_setColorBoxActive(false, lock);
    lock.unlock();
 
    ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
@@ -888,7 +888,7 @@ void rtimvControlPanel::on_contrastSlider_valueChanged(int value)
       
       std::unique_lock<std::mutex> lock(*m_calMutex);
       imv->set_colorbar_mode(rtimvBase::user);
-      imv->mtxL_setUserBoxActive(false, lock);
+      imv->mtxL_setColorBoxActive(false, lock);
       lock.unlock();
 
       ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
@@ -907,7 +907,7 @@ void rtimvControlPanel::on_contrastEntry_editingFinished()
 
    std::unique_lock<std::mutex> lock(*m_calMutex);
    imv->set_colorbar_mode(rtimvBase::user);
-   imv->mtxL_setUserBoxActive(false, lock);
+   imv->mtxL_setColorBoxActive(false, lock);
    lock.unlock();
 
    ui.scaleModeCombo->setCurrentIndex(SCALEMODE_USER);
