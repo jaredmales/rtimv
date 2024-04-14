@@ -282,7 +282,7 @@ void rtimvMainWindow::onConnect()
     squareDown();
 }
 
-void rtimvMainWindow::mtxL_postSetImsize( const std::unique_lock<std::mutex> & lock )
+void rtimvMainWindow::mtxL_postSetImsize( const uniqueLockT & lock )
 {
     assert(lock.owns_lock());
 
@@ -376,7 +376,7 @@ void rtimvMainWindow::post_zoomLevel()
     RTIMV_DEBUG_BREADCRUMB
 }
 
-void rtimvMainWindow::mtxL_postRecolor( const std::unique_lock<std::mutex> & lock )
+void rtimvMainWindow::mtxL_postRecolor( const uniqueLockT & lock )
 {
     assert(lock.owns_lock());
 
@@ -411,7 +411,43 @@ void rtimvMainWindow::mtxL_postRecolor( const std::unique_lock<std::mutex> & loc
 
 }
 
-void rtimvMainWindow::mtxL_postChangeImdata( const std::unique_lock<std::mutex> & lock )
+
+void rtimvMainWindow::mtxL_postRecolor( const sharedLockT & lock )
+{
+    assert(lock.owns_lock());
+
+    RTIMV_DEBUG_BREADCRUMB
+
+    if(!m_qpmi) //This happens on first time through
+    {
+        RTIMV_DEBUG_BREADCRUMB
+
+        m_qpmi = m_qgs->addPixmap(m_qpm);
+
+        //So we need to initialize the viewport center, etc.
+        //center();
+        mtxL_setViewCen(.5, .5, lock);
+        post_zoomLevel();
+
+        //and update stats box
+        if(m_statsBox)
+        {
+            mtxTry_statsBoxMoved(m_statsBox);
+        }
+
+        RTIMV_DEBUG_BREADCRUMB
+    }
+    else 
+    {
+        m_qpmi->setPixmap(m_qpm);
+        RTIMV_DEBUG_BREADCRUMB
+    }
+
+    RTIMV_DEBUG_BREADCRUMB
+
+}
+
+void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT & lock )
 {
     assert(lock.owns_lock());
 
@@ -573,7 +609,7 @@ void rtimvMainWindow::reStretch()
       maxdat(m_colorBox_max);
    }
 
-   std::unique_lock<std::mutex> lock(m_calMutex);
+   sharedLockT lock(m_calMutex);
    mtxL_recolor(lock);
 }
 
@@ -615,14 +651,11 @@ void rtimvMainWindow::change_center(bool movezoombox)
 
 }
 
-void rtimvMainWindow::mtxL_setViewCen( float x, 
-                                       float y, 
-                                       const std::unique_lock<std::mutex> & lock, 
-                                       bool movezoombox
-                                     )
+void rtimvMainWindow::mtxL_setViewCen_impl( float x, 
+                                            float y, 
+                                            bool movezoombox
+                                          )
 {
-    assert(lock.owns_lock());
-
     if(m_qpmi == nullptr) 
     {
         return;
@@ -635,6 +668,30 @@ void rtimvMainWindow::mtxL_setViewCen( float x,
     ui.graphicsView->mapCenterToScene(vp.x(), vp.y());
 
     change_center(movezoombox);
+}
+
+void rtimvMainWindow::mtxL_setViewCen( float x, 
+                                       float y, 
+                                       const uniqueLockT & lock, 
+                                       bool movezoombox
+                                     )
+{
+    assert(lock.owns_lock());
+
+    mtxL_setViewCen_impl(x, y, movezoombox);
+}
+
+
+void rtimvMainWindow::mtxL_setViewCen( float x, 
+                                       float y, 
+                                       const sharedLockT & lock, 
+                                       bool movezoombox
+                                     )
+{
+    assert(lock.owns_lock());
+
+    mtxL_setViewCen_impl(x, y, movezoombox);
+
 }
 
 void rtimvMainWindow::squareDown()
@@ -722,7 +779,7 @@ void rtimvMainWindow::nullMouseCoords()
    }
 }
 
-void rtimvMainWindow::mtxL_updateMouseCoords( const std::unique_lock<std::mutex> & lock )
+void rtimvMainWindow::mtxL_updateMouseCoords( const sharedLockT & lock )
 {
     assert(lock.owns_lock());
 
@@ -842,7 +899,7 @@ void rtimvMainWindow::changeMouseCoords()
 {
    m_nullMouseCoords = false;
 
-   std::unique_lock<std::mutex> lock(m_calMutex);
+   sharedLockT lock(m_calMutex);
    mtxL_updateMouseCoords(lock);
 }
 
@@ -958,11 +1015,7 @@ void rtimvMainWindow::mtxTry_userItemMouseCoords( float mx,
                                                   float dy
                                                 )
 {
-    std::unique_lock<std::mutex> lock(m_calMutex, std::try_to_lock);
-    if(!lock.owns_lock())
-    {
-         return;
-    }
+    sharedLockT lock(m_calMutex);
 
     if(m_qpmi == nullptr) return;
 
@@ -1063,11 +1116,7 @@ void rtimvMainWindow::userItemSelected( const QColor & color,
 
 void rtimvMainWindow::mtxTry_colorBoxMoved(StretchBox * sb)
 {
-    std::unique_lock<std::mutex> lock(m_calMutex, std::try_to_lock);
-    if(!lock.owns_lock())
-    {
-         return;
-    }
+    sharedLockT lock(m_calMutex);
 
     if(!m_colorBox) return;
     if(!m_qpmi) return;
@@ -1143,7 +1192,6 @@ void rtimvMainWindow::colorBoxRemove(StretchBox * sb)
 {
     static_cast<void>(sb);
     
-    std::cerr << "colorBoxRemove\n";
     if(sb == nullptr || m_colorBox == nullptr)
     {
         return;
@@ -1191,8 +1239,6 @@ void rtimvMainWindow::doLaunchStatsBox()
 
 void rtimvMainWindow::doHideStatsBox()
 {
-    std::cerr << "doHideStatsBox()\n";
-
     if(imStats)
     {
         delete imStats;
@@ -1216,8 +1262,6 @@ void rtimvMainWindow::imStatsClosed(int result)
 {
    static_cast<void>(result);
 
-   std::cerr << "imStatsClosed()\n";
-
    if(!m_statsBox) return;
 
    m_statsBox->setVisible(false);
@@ -1234,11 +1278,7 @@ void rtimvMainWindow::imStatsClosed(int result)
 
 void rtimvMainWindow::mtxTry_statsBoxMoved(StretchBox * sb)
 {
-    std::unique_lock<std::mutex> lock(m_calMutex, std::try_to_lock);
-    if(!lock.owns_lock())
-    {
-         return;
-    }
+    sharedLockT lock(m_calMutex);
 
     if(!m_statsBox) return;
 
@@ -1650,11 +1690,7 @@ void rtimvMainWindow::addUserLine()
 
 void rtimvMainWindow::mtxTry_userLineSize(StretchLine * sl)
 {
-    std::unique_lock<std::mutex> lock(m_calMutex, std::try_to_lock);
-    if(!lock.owns_lock())
-    {
-         return;
-    }
+    sharedLockT lock(m_calMutex);
 
     if(!m_qpmi) return;
  
@@ -1905,7 +1941,7 @@ void rtimvMainWindow::savingState(bool ss)
 }
 
 void rtimvMainWindow::mtxL_postSetColorBoxActive( bool usba,
-                                                  const std::unique_lock<std::mutex> & lock
+                                                  const sharedLockT & lock
                                                 )
 {
     assert(lock.owns_lock());
@@ -2065,7 +2101,7 @@ void rtimvMainWindow::toggleAutoScale()
 
 void rtimvMainWindow::mtxUL_center()
 {
-    std::unique_lock<std::mutex> lock(m_calMutex);
+    sharedLockT lock(m_calMutex);
 
     mtxL_setViewCen(.5, .5, lock);
     
@@ -2121,7 +2157,7 @@ void rtimvMainWindow::toggleColorBoxOn()
 
     m_colorBox->setVisible(true);
 
-    std::unique_lock<std::mutex> lock(m_calMutex);
+    sharedLockT lock(m_calMutex);
     mtxL_setColorBoxActive(true, lock);
     lock.unlock();
         
@@ -2139,7 +2175,7 @@ void rtimvMainWindow::toggleColorBoxOff()
 
     m_colorBox->setVisible(false);
 
-    std::unique_lock<std::mutex> lock(m_calMutex);
+    sharedLockT lock(m_calMutex);
     mtxL_setColorBoxActive(false, lock);
     lock.unlock();
 
@@ -2153,7 +2189,6 @@ void rtimvMainWindow::toggleStatsBox()
 {
    if(m_statsBox == nullptr)
    {
-      std::cerr << "new stats box" << "\n";
       float w;
       if(m_nx < m_ny) w = m_nx/4;
       else w = m_ny/4;
@@ -2605,7 +2640,7 @@ realT pLightness( realT lum )
 }
 
 void rtimvMainWindow::mtxL_fontLuminance( QTextEdit* qte, 
-                                          const std::unique_lock<std::mutex> & lock,
+                                          const sharedLockT & lock,
                                           bool print
                                         )
 {
@@ -2666,22 +2701,14 @@ void rtimvMainWindow::mtxTry_fontLuminance( QTextEdit* qte,
                                             bool print
                                           )
 {
-    std::unique_lock<std::mutex> lock(m_calMutex, std::try_to_lock);
-    if(!lock.owns_lock())
-    {
-         return;
-    }
+    sharedLockT lock(m_calMutex);
 
     return mtxL_fontLuminance(qte, lock, print);
 }
 
 void rtimvMainWindow::mtxTry_fontLuminance()
 {   
-    std::unique_lock<std::mutex> lock(m_calMutex, std::try_to_lock);
-    if(!lock.owns_lock())
-    {
-         return;
-    }
+    sharedLockT lock(m_calMutex);
 
     mtxL_fontLuminance(ui.graphicsView->m_fpsGage, lock);
    

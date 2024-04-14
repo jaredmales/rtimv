@@ -69,13 +69,15 @@ public:
     /// Called on initial connection to the image stream, sets matching aspect ratio.
     virtual void onConnect();
 
-    virtual void mtxL_postSetImsize( const std::unique_lock<std::mutex> & lock );
+    virtual void mtxL_postSetImsize( const uniqueLockT & lock );
 
     virtual void post_zoomLevel();
 
-    virtual void mtxL_postRecolor( const std::unique_lock<std::mutex> & lock );
+    virtual void mtxL_postRecolor( const uniqueLockT & lock );
 
-    virtual void mtxL_postChangeImdata( const std::unique_lock<std::mutex> & lock );
+    virtual void mtxL_postRecolor( const sharedLockT & lock );
+
+    virtual void mtxL_postChangeImdata( const sharedLockT & lock );
 
     virtual void updateFPS();
 
@@ -170,9 +172,23 @@ public:
 public:
     void change_center(bool movezoombox = true);
 
+private:
+
+    void mtxL_setViewCen_impl( float x, 
+                               float y,  
+                               bool movezoombox
+                             );
+
+public:
     void mtxL_setViewCen( float x, 
                           float y,  
-                          const std::unique_lock<std::mutex> & lock, 
+                          const uniqueLockT & lock, 
+                          bool movezoombox = true
+                        );
+
+    void mtxL_setViewCen( float x, 
+                          float y,  
+                          const sharedLockT & lock, 
                           bool movezoombox = true
                         );
     
@@ -230,7 +246,7 @@ protected:
      * - If it is, updates the mouse coord text boxes
      * - If the mouse is right-clicked and dragging, updates the strech bias and contrast.
      */
-    void mtxL_updateMouseCoords( const std::unique_lock<std::mutex> & lock );
+    void mtxL_updateMouseCoords( const sharedLockT & lock );
 
 public:
     /// Get the value of the flag controlling whether tool tip coordinates are shown
@@ -578,7 +594,7 @@ public slots:
 public:
     
     virtual void mtxL_postSetColorBoxActive( bool usba,
-                                             const std::unique_lock<std::mutex> & lock
+                                             const sharedLockT & lock
                                            );
 
 protected:
@@ -700,7 +716,7 @@ public:
       * \note Call this version with the mutex already locked 
       */
     void mtxL_fontLuminance( QTextEdit *qte,     ///< [in/out] the QTextEdit to modify
-                             const std::unique_lock<std::mutex> & lock, 
+                             const sharedLockT & lock, 
                              bool print = false ///< [in] [out] if true the average luminance is printed.  Used for debugging.
                            );
 

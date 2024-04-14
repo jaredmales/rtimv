@@ -42,7 +42,7 @@ class rtimvStats : public QDialog
 
       /// Constructor
       rtimvStats( rtimvBase * imv,                      ///< [in] The rtimv instance this is connected to
-                  std::mutex *calMutex,
+                  std::shared_mutex *calMutex,
                   QWidget * Parent = nullptr,           ///< [in] [optional] Qt parent widget
                   Qt::WindowFlags f = Qt::WindowFlags() ///< [in] [optional] Qt flags for this widget
                 );
@@ -55,7 +55,7 @@ class rtimvStats : public QDialog
       
       rtimvBase * m_imv {nullptr}; ///< The rtimv instance this is connected to
       
-      std::mutex * m_calMutex {nullptr};
+      std::shared_mutex * m_calMutex {nullptr};
 
       int m_statsPause {20}; ///< Pause between checks if the stats thread needs to calculate, milliseconds.
 
@@ -102,7 +102,7 @@ class rtimvStats : public QDialog
                            size_t x1, ///< The x coordinate of the ending corner of the region.
                            size_t y0, ///< The y coordinate of the starting corner of the region.
                            size_t y1, ///< The y coordinate of the ending corner of the region.
-                           std::unique_lock<std::mutex> & lock ///< The locked mutex.  
+                           std::shared_lock<std::shared_mutex> & lock ///< The locked mutex.  
                          );
 
       /// Run funciton for the statistics thread.  

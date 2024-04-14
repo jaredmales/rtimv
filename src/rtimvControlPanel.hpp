@@ -19,14 +19,14 @@ class rtimvControlPanel : public QWidget
 
    public:
       rtimvControlPanel( rtimvMainWindow *imv, 
-                         std::mutex * calMutex,
+                         std::shared_mutex * calMutex,
                          Qt::WindowFlags f = Qt::WindowFlags()
                        );
    
    protected:
       rtimvMainWindow * imv;
       
-      std::mutex * m_calMutex {nullptr};
+      std::shared_mutex * m_calMutex {nullptr};
 
       void setupMode();
       void setupCombos();

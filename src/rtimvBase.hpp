@@ -12,8 +12,8 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
-//#include <sys/time.h>
-//#include <sys/socket.h>
+#include <mutex>
+#include <shared_mutex>
 
 #include <QImage>
 #include <QPixmap>
@@ -34,11 +34,15 @@
 
 #include "colorMaps.hpp"
 
-
-
 class rtimvBase : public QWidget
 {
     Q_OBJECT
+
+public:
+
+    typedef std::unique_lock<std::shared_mutex> uniqueLockT;
+
+    typedef std::shared_lock<std::shared_mutex> sharedLockT;
 
 public:
 
@@ -135,11 +139,11 @@ public:
       */
     void mtxL_setImsize( uint32_t x, ///< [in] the new x size
                          uint32_t y,  ///< [in] the new y size
-                         const std::unique_lock<std::mutex> & lock
+                         const uniqueLockT & lock
                       ); 
    
     /// Called after set_imsize to handle allocations for derived classes
-    virtual void mtxL_postSetImsize( const std::unique_lock<std::mutex> & lock ) = 0; 
+    virtual void mtxL_postSetImsize( const uniqueLockT & lock ) = 0; 
       
     ///Get the number of x pixels
     /**
@@ -234,9 +238,12 @@ protected:
       */
     std::mutex m_rawMutex;
 
-    ///Mutex for locking access to calibrated pixels
-    std::mutex m_calMutex;
+    /// Mutex for locking access to calibrated pixels
+    /** Most uses require non-exclusive shared-locking for readings
+      */
+    std::shared_mutex m_calMutex;
     
+
     ///@}
 
    /** \name Calibrated Pixel Access
@@ -345,9 +352,11 @@ public:
 
    enum colorbars{colorbarGrey, colorbarJet, colorbarHot, colorbarBone, colorbarRed, colorbarGreen, colorbarBlue, colorbarMax};
    
+
+   template<typename lockT>
    void mtxL_load_colorbar( int cb,
                             bool update,
-                            const std::unique_lock<std::mutex> & lock
+                            const lockT & lock
                           );
    
    int get_current_colorbar(){return current_colorbar;}
@@ -452,11 +461,19 @@ public:
       */
     void mtxUL_changeImdata(bool newdata = false);
 
-    void mtxL_recolor(const std::unique_lock<std::mutex> & lock);
+private:
+    void mtxL_recolor();
 
-    virtual void mtxL_postRecolor( const std::unique_lock<std::mutex> & lock ) = 0; ///<to call after changing colors.
+public:
+    void mtxL_recolor(const uniqueLockT & lock);
 
-    virtual void mtxL_postChangeImdata( const std::unique_lock<std::mutex> & lock ) = 0; ///<to call after change imdata does its work.
+    void mtxL_recolor(const sharedLockT & lock);
+
+    virtual void mtxL_postRecolor( const uniqueLockT & lock ) = 0; ///<to call after changing colors.
+
+    virtual void mtxL_postRecolor( const sharedLockT & lock ) = 0; ///<to call after changing colors.
+
+    virtual void mtxL_postChangeImdata( const sharedLockT & lock ) = 0; ///<to call after change imdata does its work.
 
 protected:
     float m_satLevel {1e30};
@@ -524,11 +541,11 @@ public:
    int getcolorBoxActive(){ return colorBoxActive; }
    
    void mtxL_setColorBoxActive( bool usba,
-                                const std::unique_lock<std::mutex> & lock
+                                const sharedLockT & lock
                               );
    
    virtual void mtxL_postSetColorBoxActive( bool usba,
-                                            const std::unique_lock<std::mutex> & lock
+                                            const sharedLockT & lock
                                           ) = 0;
 
    ///@}
@@ -550,5 +567,121 @@ public:
       
    
 };
+
+template<typename lockT>
+void rtimvBase::mtxL_load_colorbar( int cb,
+                                    bool update,
+                                    const lockT & lock
+                                  )
+{
+    assert(lock.owns_lock());
+
+    if(!m_qim)
+    {
+        return;
+    }
+
+    current_colorbar = cb;
+    switch (cb)
+    {
+    case colorbarJet:
+        m_minColor = 0;
+        m_maxColor = load_colorbar_jet(m_qim);
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        warning_color = QColor("white");
+        break;
+    case colorbarHot:
+        m_minColor = 0;
+        m_maxColor = load_colorbar_hot(m_qim);
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        warning_color = QColor("cyan");
+        break;
+    case colorbarBone:
+        m_minColor = 0;
+        m_maxColor = load_colorbar_bone(m_qim);
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        warning_color = QColor("red");
+        break;
+    case colorbarRed:
+        m_minColor = 0;
+        m_maxColor = 253;
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        for(int i = m_minColor; i <= m_maxColor; i++)
+        {
+            int c = (((float)i) / 253. * 255.) + 0.5;
+            m_qim->setColor(i, qRgb(c, 0, 0));
+        }
+        m_qim->setColor(254, qRgb(0, 0, 0));
+        m_qim->setColor(255, qRgb(0, 255, 0));
+        warning_color = QColor("red");
+        break;
+    case colorbarGreen:
+        m_minColor = 0;
+        m_maxColor = 253;
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        for(int i = m_minColor; i <= m_maxColor; i++)
+        {
+            int c = (((float)i) / 253. * 255.) + 0.5;
+            m_qim->setColor(i, qRgb(0, c, 0));
+        }
+        m_qim->setColor(254, qRgb(0, 0, 0));
+        m_qim->setColor(255, qRgb(255, 0, 0));
+        warning_color = QColor("red"); 
+        break;
+    case colorbarBlue:
+        m_minColor = 0;
+        m_maxColor = 253;
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        for(int i = m_minColor; i <= m_maxColor; i++)
+        {
+            int c = (((float)i) / 253. * 255.) + 0.5;
+            m_qim->setColor(i, qRgb(0, 0, c));
+        }
+        m_qim->setColor(254, qRgb(0, 0, 0));
+        m_qim->setColor(255, qRgb(255, 0, 0));
+        warning_color = QColor("red"); 
+        break;
+    default:
+        m_minColor = 0;
+        m_maxColor = 253;
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        for(int i = m_minColor; i <= m_maxColor; i++)
+        {
+            int c = (((float)i) / 253. * 255.) + 0.5;
+            m_qim->setColor(i, qRgb(c, c, c));
+        }
+        m_qim->setColor(254, qRgb(0, 0, 0));
+        m_qim->setColor(255, qRgb(255, 0, 0));
+
+        warning_color = QColor("red");
+        break;
+    }
+
+    m_lightness.resize(256);
+
+    for(int n = 0; n < 256; ++n)
+    {
+        m_lightness[n] = QColor(m_qim->color(n)).lightness();
+    }
+
+    if(update) 
+    {
+        mtxL_recolor(lock);
+    }
+}
 
 #endif //rtimv_rtimvBase_hpp

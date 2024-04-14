@@ -138,7 +138,7 @@ bool rtimvBase::imageValid(size_t n)
 
 void rtimvBase::mtxL_setImsize( uint32_t x,  
                                 uint32_t y,
-                                const std::unique_lock<std::mutex> & lock
+                                const uniqueLockT & lock
                               )
 {
     assert(lock.owns_lock());
@@ -175,7 +175,7 @@ void rtimvBase::mtxL_setImsize( uint32_t x,
 
         m_qim = new QImage(m_nx, m_ny, QImage::Format_Indexed8);
 
-        mtxL_load_colorbar(current_colorbar, false, lock); //have to load into newly create image
+        mtxL_load_colorbar(current_colorbar, false, lock); //have to load into newly created image
 
         mtxL_postSetImsize(lock);
 
@@ -420,120 +420,7 @@ realT pLightness(realT lum)
     return pow(lum, static_cast<realT>(1) / static_cast<realT>(3)) * 116 - 16;
 }
 
-void rtimvBase::mtxL_load_colorbar( int cb,
-                                    bool update,
-                                    const std::unique_lock<std::mutex> & lock
-                                  )
-{
-    assert(lock.owns_lock());
 
-    if(!m_qim)
-    {
-        return;
-    }
-
-    current_colorbar = cb;
-    switch (cb)
-    {
-    case colorbarJet:
-        m_minColor = 0;
-        m_maxColor = load_colorbar_jet(m_qim);
-        m_maskColor = m_maxColor + 1;
-        m_satColor = m_maxColor + 2;
-        m_nanColor = m_maskColor;
-        warning_color = QColor("white");
-        break;
-    case colorbarHot:
-        m_minColor = 0;
-        m_maxColor = load_colorbar_hot(m_qim);
-        m_maskColor = m_maxColor + 1;
-        m_satColor = m_maxColor + 2;
-        m_nanColor = m_maskColor;
-        warning_color = QColor("cyan");
-        break;
-    case colorbarBone:
-        m_minColor = 0;
-        m_maxColor = load_colorbar_bone(m_qim);
-        m_maskColor = m_maxColor + 1;
-        m_satColor = m_maxColor + 2;
-        m_nanColor = m_maskColor;
-        warning_color = QColor("red");
-        break;
-    case colorbarRed:
-        m_minColor = 0;
-        m_maxColor = 253;
-        m_maskColor = m_maxColor + 1;
-        m_satColor = m_maxColor + 2;
-        m_nanColor = m_maskColor;
-        for(int i = m_minColor; i <= m_maxColor; i++)
-        {
-            int c = (((float)i) / 253. * 255.) + 0.5;
-            m_qim->setColor(i, qRgb(c, 0, 0));
-        }
-        m_qim->setColor(254, qRgb(0, 0, 0));
-        m_qim->setColor(255, qRgb(0, 255, 0));
-        warning_color = QColor("red");
-        break;
-    case colorbarGreen:
-        m_minColor = 0;
-        m_maxColor = 253;
-        m_maskColor = m_maxColor + 1;
-        m_satColor = m_maxColor + 2;
-        m_nanColor = m_maskColor;
-        for(int i = m_minColor; i <= m_maxColor; i++)
-        {
-            int c = (((float)i) / 253. * 255.) + 0.5;
-            m_qim->setColor(i, qRgb(0, c, 0));
-        }
-        m_qim->setColor(254, qRgb(0, 0, 0));
-        m_qim->setColor(255, qRgb(255, 0, 0));
-        warning_color = QColor("red"); 
-        break;
-    case colorbarBlue:
-        m_minColor = 0;
-        m_maxColor = 253;
-        m_maskColor = m_maxColor + 1;
-        m_satColor = m_maxColor + 2;
-        m_nanColor = m_maskColor;
-        for(int i = m_minColor; i <= m_maxColor; i++)
-        {
-            int c = (((float)i) / 253. * 255.) + 0.5;
-            m_qim->setColor(i, qRgb(0, 0, c));
-        }
-        m_qim->setColor(254, qRgb(0, 0, 0));
-        m_qim->setColor(255, qRgb(255, 0, 0));
-        warning_color = QColor("red"); 
-        break;
-    default:
-        m_minColor = 0;
-        m_maxColor = 253;
-        m_maskColor = m_maxColor + 1;
-        m_satColor = m_maxColor + 2;
-        m_nanColor = m_maskColor;
-        for(int i = m_minColor; i <= m_maxColor; i++)
-        {
-            int c = (((float)i) / 253. * 255.) + 0.5;
-            m_qim->setColor(i, qRgb(c, c, c));
-        }
-        m_qim->setColor(254, qRgb(0, 0, 0));
-        m_qim->setColor(255, qRgb(255, 0, 0));
-
-        warning_color = QColor("red");
-        break;
-    }
-
-    m_lightness.resize(256);
-
-    for(int n = 0; n < 256; ++n)
-    {
-        m_lightness[n] = QColor(m_qim->color(n)).lightness();
-    }
-
-    if(update) 
-    {
-        mtxL_recolor(lock);
-    }
-}
 
 void rtimvBase::set_cbStretch(int ct)
 {
@@ -720,12 +607,14 @@ void rtimvBase::mtxUL_changeImdata(bool newdata)
     bool resized = false;
 
     { //mutex scope
-    std::unique_lock<std::mutex> lock(m_calMutex);
+
+    //Get a unique lock on the cal data to allow us to delete it and overwrite it
+    std::unique_lock<std::shared_mutex> lock(m_calMutex);
     
     //Also lock the raw data for the size checks to make sure it doesn't change out from under us
     std::unique_lock<std::mutex> rawlock(m_rawMutex);
 
-    if(!imageValid(0))
+    if(!imageValid(0) || (m_amChangingimdata && !newdata)) //Check again in case it changed while we were waiting on the lock
     {
         return;
     }
@@ -806,12 +695,16 @@ void rtimvBase::mtxUL_changeImdata(bool newdata)
             }
         }
     }
-    rawlock.unlock();
+    
+    } //mutex scope -- lock and rawlock release
+    { //mutex scope
 
+    sharedLockT lock(m_calMutex);
     RTIMV_DEBUG_BREADCRUMB
 
     //At this point the raw data has been copied out to calData.  
-    //We have released the raw data mutex (rawlock). We keep the caldata mutex to make sure a subsequent call 
+    //We have released the raw data mutex (rawlock). 
+    //We shared_lock the caldata mutex to make sure a subsequent call 
     //from a different thread doesn't delete m_calData.  
     //This could be forced by newdata
 
@@ -938,10 +831,8 @@ void rtimvBase::mtxUL_changeImdata(bool newdata)
 
 } //void rtimvBase::mtxUL_changeImdata(bool newdata)
 
-void rtimvBase::mtxL_recolor(const std::unique_lock<std::mutex> & lock)
+void rtimvBase::mtxL_recolor()
 {
-    assert(lock.owns_lock());
-    
     /* Here is where we color the pixmap*/
 
     // Get the color index calculating function
@@ -1022,6 +913,23 @@ void rtimvBase::mtxL_recolor(const std::unique_lock<std::mutex> & lock)
     RTIMV_DEBUG_BREADCRUMB
 
     m_qpm.convertFromImage(*m_qim, Qt::AutoColor | Qt::ThresholdDither);
+
+}
+
+void rtimvBase::mtxL_recolor(const uniqueLockT & lock)
+{
+    assert(lock.owns_lock());
+
+    mtxL_recolor();
+
+    mtxL_postRecolor(lock);
+}
+
+void rtimvBase::mtxL_recolor(const sharedLockT & lock)
+{
+    assert(lock.owns_lock());
+
+    mtxL_recolor();
 
     mtxL_postRecolor(lock);
 }
@@ -1137,7 +1045,7 @@ int64_t rtimvBase::colorBox_j1()
 }
 
 void rtimvBase::mtxL_setColorBoxActive( bool usba,
-                                        const std::unique_lock<std::mutex> & lock
+                                        const sharedLockT & lock
                                       )
 {
     assert(lock.owns_lock());

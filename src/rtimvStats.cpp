@@ -15,7 +15,7 @@ void StatsThread::run()
 }
 
 rtimvStats::rtimvStats( rtimvBase * imv,
-                        std::mutex * calMutex,
+                        std::shared_mutex * calMutex,
                         QWidget * Parent, 
                         Qt::WindowFlags f) : QDialog(Parent, f)
 {
@@ -52,7 +52,7 @@ void rtimvStats::mtxL_setImdata( size_t nx,
                                  size_t x1, 
                                  size_t y0, 
                                  size_t y1,
-                                 std::unique_lock<std::mutex> & lock
+                                 std::shared_lock<std::shared_mutex> & lock
                                )
 {   
    assert(lock.owns_lock());
@@ -112,9 +112,8 @@ void rtimvStats::mtxUL_calcStats()
         return; //no data.
     }
 
-    //Try to get the cal data mutex
-    std::unique_lock<std::mutex> lockCal(*m_calMutex, std::try_to_lock);
-    if(!lockCal.owns_lock()) return;
+    //Get the cal data mutex
+    std::shared_lock<std::shared_mutex> lockCal(*m_calMutex);
 
     //mutex lock here (trylock, exit and wait if can't get it)
     std::unique_lock<std::mutex> lockData(m_dataMutex, std::try_to_lock);

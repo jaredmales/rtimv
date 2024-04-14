@@ -1,7 +1,7 @@
 #include "rtimvControlPanel.hpp"
 
 rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, 
-                                      std::mutex * calMutex,
+                                      std::shared_mutex * calMutex,
                                       Qt::WindowFlags f): QWidget(0, f)
 {
    m_calMutex = calMutex;
@@ -375,13 +375,13 @@ void rtimvControlPanel::enableViewViewMode(int state)
 
 void rtimvControlPanel::on_xcenEntry_editingFinished()
 {
-    std::unique_lock<std::mutex> lock(*m_calMutex);
+    std::shared_lock<std::shared_mutex> lock(*m_calMutex);
 	imv->mtxL_setViewCen(ui.xcenEntry->text().toDouble()/imv->nx(), imv->get_ycen(), lock);;
 }
 
 void rtimvControlPanel::on_ycenEntry_editingFinished()
 {
-    std::unique_lock<std::mutex> lock(*m_calMutex);
+    std::shared_lock<std::shared_mutex> lock(*m_calMutex);
 	imv->mtxL_setViewCen(imv->get_xcen(), ui.ycenEntry->text().toDouble()/imv->ny(), lock);
 }
 
@@ -403,55 +403,55 @@ void rtimvControlPanel::on_heightEntry_editingFinished()
 
 void rtimvControlPanel::on_view_center_clicked()
 {
-    std::unique_lock<std::mutex> lock(*m_calMutex);
+    std::shared_lock<std::shared_mutex> lock(*m_calMutex);
 	imv->mtxL_setViewCen(.5, .5, lock);
 }
 
 void rtimvControlPanel::on_view_ul_clicked()
 {
-    std::unique_lock<std::mutex> lock(*m_calMutex);
+    std::shared_lock<std::shared_mutex> lock(*m_calMutex);
 	imv->mtxL_setViewCen(imv->get_xcen()/imv->nx() - 1./imv->zoomLevel(), imv->get_ycen()/imv->ny()-1./imv->zoomLevel(), lock);
 }
 
 void rtimvControlPanel::on_view_up_clicked()
 {
-    std::unique_lock<std::mutex> lock(*m_calMutex);
+    std::shared_lock<std::shared_mutex> lock(*m_calMutex);
 	imv->mtxL_setViewCen(imv->get_xcen()/imv->nx(), imv->get_ycen()/imv->ny()-1./imv->zoomLevel(), lock);
 }
 
 void rtimvControlPanel::on_view_ur_clicked()
 {
-    std::unique_lock<std::mutex> lock(*m_calMutex);
+    std::shared_lock<std::shared_mutex> lock(*m_calMutex);
 	imv->mtxL_setViewCen(imv->get_xcen()/imv->nx() + 1./imv->zoomLevel(), imv->get_ycen()/imv->ny() - 1./imv->zoomLevel(), lock);
 }
 
 void rtimvControlPanel::on_view_right_clicked()
 {
-    std::unique_lock<std::mutex> lock(*m_calMutex);
+    std::shared_lock<std::shared_mutex> lock(*m_calMutex);
 	imv->mtxL_setViewCen(imv->get_xcen()/imv->nx() + 1./imv->zoomLevel(), imv->get_ycen()/imv->ny(), lock);
 }
 
 void rtimvControlPanel::on_view_dr_clicked()
 {
-    std::unique_lock<std::mutex> lock(*m_calMutex);
+    std::shared_lock<std::shared_mutex> lock(*m_calMutex);
 	imv->mtxL_setViewCen(imv->get_xcen()/imv->nx() + 1./imv->zoomLevel(), imv->get_ycen()/imv->ny()+1./imv->zoomLevel(), lock);
 }
 
 void rtimvControlPanel::on_view_down_clicked()
 {
-    std::unique_lock<std::mutex> lock(*m_calMutex);
+    std::shared_lock<std::shared_mutex> lock(*m_calMutex);
 	imv->mtxL_setViewCen(imv->get_xcen()/imv->nx(), imv->get_ycen()/imv->ny()+1./imv->zoomLevel(), lock);
 }
 
 void rtimvControlPanel::on_view_dl_clicked()
 {
-    std::unique_lock<std::mutex> lock(*m_calMutex);
+    std::shared_lock<std::shared_mutex> lock(*m_calMutex);
 	imv->mtxL_setViewCen(imv->get_xcen()/imv->nx() - 1./imv->zoomLevel(), imv->get_ycen()/imv->ny()+1./imv->zoomLevel(), lock);
 }
 
 void rtimvControlPanel::on_view_left_clicked()
 {
-    std::unique_lock<std::mutex> lock(*m_calMutex);
+    std::shared_lock<std::shared_mutex> lock(*m_calMutex);
 	imv->mtxL_setViewCen(imv->get_xcen()/imv->nx() - 1./imv->zoomLevel(), imv->get_ycen()/imv->ny(), lock);
 }
 
@@ -577,13 +577,13 @@ void rtimvControlPanel::on_scaleTypeCombo_activated(int ct)
    imv->set_cbStretch(ct);
    
    
-   std::unique_lock<std::mutex> lock(*m_calMutex);
+   std::shared_lock<std::shared_mutex> lock(*m_calMutex);
    imv->mtxL_recolor(lock);
 }
 
 void rtimvControlPanel::on_colorbarCombo_activated(int cb)
 {
-    std::unique_lock<std::mutex> lock(*m_calMutex);
+    std::shared_lock<std::shared_mutex> lock(*m_calMutex);
     imv->mtxL_load_colorbar(cb, true, lock);
 }
 
@@ -712,10 +712,9 @@ void rtimvControlPanel::update_contrastRelEntry()
 
 void rtimvControlPanel::on_scaleModeCombo_activated(int index)
 {
-   std::cerr << "activated\n";
    if(index == rtimvBase::minmaxglobal)
    {
-      std::unique_lock<std::mutex> lock(*m_calMutex);
+      std::shared_lock<std::shared_mutex> lock(*m_calMutex);
 
       imv->set_colorbar_mode(rtimvBase::minmaxglobal);
       imv->maxdat(imv->get_imdat_max());
@@ -735,7 +734,7 @@ void rtimvControlPanel::on_scaleModeCombo_activated(int index)
    }
    else if(index == rtimvBase::user)
    {
-      std::unique_lock<std::mutex> lock(*m_calMutex);
+      std::shared_lock<std::shared_mutex> lock(*m_calMutex);
       imv->set_colorbar_mode(rtimvBase::user);
       imv->mtxL_setColorBoxActive(false, lock);
    }
@@ -754,7 +753,7 @@ void rtimvControlPanel::on_scaleModeCombo_activated(int index)
    }
    else
    {
-      std::unique_lock<std::mutex> lock(*m_calMutex);
+      std::shared_lock<std::shared_mutex> lock(*m_calMutex);
       imv->mtxL_setColorBoxActive(false, lock);
    }
 }
@@ -766,7 +765,7 @@ void rtimvControlPanel::on_mindatSlider_valueChanged(int value)
       double sc = ((double)(value - ui.mindatSlider->minimum()))/((double)(ui.mindatSlider->maximum()-ui.mindatSlider->minimum()));
       imv->mindat(imv->get_imdat_min() + (imv->get_imdat_max()-imv->get_imdat_min())*sc);
       
-      std::unique_lock<std::mutex> lock(*m_calMutex);
+      std::shared_lock<std::shared_mutex> lock(*m_calMutex);
       imv->set_colorbar_mode(rtimvBase::user);
       imv->mtxL_setColorBoxActive(false, lock);      
       lock.unlock();
@@ -790,7 +789,7 @@ void rtimvControlPanel::on_mindatEntry_editingFinished()
    update_biasSlider();
    update_contrastSlider();
 
-   std::unique_lock<std::mutex> lock(*m_calMutex);
+   std::shared_lock<std::shared_mutex> lock(*m_calMutex);
    imv->set_colorbar_mode(rtimvBase::user);
    imv->mtxL_setColorBoxActive(false, lock);
    lock.unlock();
@@ -806,7 +805,7 @@ void rtimvControlPanel::on_maxdatSlider_valueChanged(int value)
       double sc = ((double)(value - ui.maxdatSlider->minimum()))/((double)(ui.maxdatSlider->maximum()-ui.maxdatSlider->minimum()));
       imv->maxdat(imv->get_imdat_min() + (imv->get_imdat_max()-imv->get_imdat_min())*sc);
 
-      std::unique_lock<std::mutex> lock(*m_calMutex);
+      std::shared_lock<std::shared_mutex> lock(*m_calMutex);
       imv->set_colorbar_mode(rtimvBase::user);
       imv->mtxL_setColorBoxActive(false, lock);
 
@@ -829,7 +828,7 @@ void rtimvControlPanel::on_maxdatEntry_editingFinished()
    update_maxdatSlider();
    update_biasSlider();
    
-   std::unique_lock<std::mutex> lock(*m_calMutex);
+   std::shared_lock<std::shared_mutex> lock(*m_calMutex);
    imv->set_colorbar_mode(rtimvBase::user);
    imv->mtxL_setColorBoxActive(false, lock);
    lock.unlock();
@@ -844,7 +843,7 @@ void rtimvControlPanel::on_biasSlider_valueChanged(int value)
       double bias = ((double)(value - ui.biasSlider->minimum()))/((double)(ui.biasSlider->maximum()-ui.biasSlider->minimum()));
       imv->bias_rel(bias);
       
-      std::unique_lock<std::mutex> lock(*m_calMutex);
+      std::shared_lock<std::shared_mutex> lock(*m_calMutex);
       imv->set_colorbar_mode(rtimvBase::user);
       imv->mtxL_setColorBoxActive(false, lock);
 
@@ -864,7 +863,7 @@ void rtimvControlPanel::on_biasEntry_editingFinished()
 {
    imv->bias(ui.biasEntry->text().toDouble());
 
-   std::unique_lock<std::mutex> lock(*m_calMutex);
+   std::shared_lock<std::shared_mutex> lock(*m_calMutex);
    imv->set_colorbar_mode(rtimvBase::user);
    imv->mtxL_setColorBoxActive(false, lock);
    lock.unlock();
@@ -886,7 +885,7 @@ void rtimvControlPanel::on_contrastSlider_valueChanged(int value)
       cont = cont * (imv->get_imdat_max() - imv->get_imdat_min());
       imv->contrast(cont);
       
-      std::unique_lock<std::mutex> lock(*m_calMutex);
+      std::shared_lock<std::shared_mutex> lock(*m_calMutex);
       imv->set_colorbar_mode(rtimvBase::user);
       imv->mtxL_setColorBoxActive(false, lock);
       lock.unlock();
@@ -905,7 +904,7 @@ void rtimvControlPanel::on_contrastEntry_editingFinished()
 {
    imv->contrast(ui.contrastEntry->text().toDouble());
 
-   std::unique_lock<std::mutex> lock(*m_calMutex);
+   std::shared_lock<std::shared_mutex> lock(*m_calMutex);
    imv->set_colorbar_mode(rtimvBase::user);
    imv->mtxL_setColorBoxActive(false, lock);
    lock.unlock();
@@ -960,7 +959,7 @@ void rtimvControlPanel::viewBoxMoved ( const QRectF & vbr)
    double nycen = np.y() + .5*(np2.y()-np.y());
    //std::cout << nxcen/1024. << " " << nycen/1024. << " " << ui.viewView->width() << " " << ui.viewView->height() << "\n";
    
-   std::unique_lock<std::mutex> lock(*m_calMutex);
+   std::shared_lock<std::shared_mutex> lock(*m_calMutex);
    imv->mtxL_setViewCen(nxcen/(double)imv->nx(), nycen/(double)imv->nx(), lock, true);
    
 
