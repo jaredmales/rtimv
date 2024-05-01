@@ -5,7 +5,6 @@ set -e
 #########################################################################
 # A script to provision an Ubuntu 22.04 machine to run rtimv
 #
-# Assumes milk is already installed and symlinked from /usr/local/milk
 #
 #
 # Creates a directory called ~Source TODO: make this configurable
