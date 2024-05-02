@@ -1926,11 +1926,16 @@ void rtimvMainWindow::setTarget()
    }
 }
 
-void rtimvMainWindow::savingState(bool ss)
+void rtimvMainWindow::savingState(rtimv::savingState ss)
 {
-   if(ss)
+   if(ss == rtimv::savingState::on)
    {
       ui.graphicsView->saveBoxFontColor("lightgreen");
+      ui.graphicsView->m_saveBox->setText("S");
+   }
+   else if(ss == rtimv::savingState::waiting)
+   {
+      ui.graphicsView->saveBoxFontColor("yellow");
       ui.graphicsView->m_saveBox->setText("S");
    }
    else
@@ -2603,6 +2608,7 @@ void rtimvMainWindow::borderWarningLevel(rtimv::warningLevel lvl)
     {
         ui.graphicsView->setStyleSheet("#graphicsView {border: 0px solid black}");
         int w=width();
+        //std::cerr << "width: " << w << "\n";
         resize(w+1, height());
         resize(w,height());
     }

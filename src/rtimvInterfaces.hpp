@@ -26,6 +26,13 @@
 namespace rtimv 
 {
 
+/// States to indicated whether or not data are being saved
+enum class savingState{ on, ///< images are not being saved
+                        waiting, ///< the next image will be saved
+                        off ///< images are being saved
+                      };
+
+
 /// Warning levels used to change colors
 /**
   * \todo put this in an rtimv.hpp file.  Or, maybe, rtimvInterfaces.hpp should be rtimv.hpp

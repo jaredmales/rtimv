@@ -44,6 +44,10 @@ using namespace mx::app;
 #define ViewViewNoImage 1
 #define ViewViewModeMax 2
 
+
+     
+
+
 class rtimvControlPanel;
 
 class rtimvMainWindow : public rtimvBase, public application
@@ -589,7 +593,13 @@ public slots:
     /// Called when a user line is selected
     void userLineDeSelected(StretchLine *sl /**< [in] The StretchLine to update*/);
 
-    void savingState(bool ss);
+    /** Set the saving indicator
+      * Possible stats are:
+      * - rtimv::savingState::off     images are not being saved
+      * - rtimv::savingState::waiting the next image will be saved
+      * - rtimv::savingState::on      images are being saved
+      */
+    void savingState(rtimv::savingState ss);
 
 public:
     
