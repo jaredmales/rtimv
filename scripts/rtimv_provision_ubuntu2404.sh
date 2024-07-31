@@ -3,9 +3,9 @@ set -o pipefail
 # since we care about almost every exit status, check them all. use `|| true` to bypass.
 set -e
 #########################################################################
-# A script to provision an Ubuntu 22.04 machine to run rtimv
-#
-# This doesn't work for 24.04 due to zeromq version vs gcc.
+# A script to provision an Ubuntu 24.04 machine to run rtimv
+# 
+# Probably also works on 22.04 . . .
 #
 # Creates a directory called ~Source TODO: make this configurable
 # Switches some repos to dev TODO: make this configurable
@@ -76,10 +76,10 @@ sudo make install
 ## zeromq drafts API
 cd ~/Source
 if [[ ! -d zeromq-4.3.4 ]]; then
-    wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz
-    tar -xvzf zeromq-4.3.4.tar.gz
+    wget https://github.com/zeromq/libzmq/releases/download/v4.3.5/zeromq-4.3.5.tar.gz
+    tar -xvzf zeromq-4.3.5.tar.gz
 fi
-cd zeromq-4.3.4
+cd zeromq-4.3.5
 ./configure --enable-drafts
 make
 sudo make install
