@@ -6,57 +6,57 @@
 
 #define RTIMV_TOOLLINEWIDTH_DEFAULT (0)
 
-#define RTIMV_DEBUG_BREADCRUMB 
+#define RTIMV_DEBUG_BREADCRUMB
 
 rtimvMainWindow::rtimvMainWindow( int argc,
                                   char ** argv,
-                                  QWidget * Parent, 
+                                  QWidget * Parent,
                                   Qt::WindowFlags f
                                 ) : rtimvBase(Parent, f)
 {
    m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; //Tells mx::application to look for this env var.
-   
+
    setup(argc,argv);
-   
+
    if(doHelp)
    {
       help();
       exit(0);
    }
-   
+
    ui.setupUi(this);
-   
+
    m_northArrow =0;
-   
+
    imcp = 0;
    pointerOverZoom = 4.;
-   
+
    resize(height(), height()); //make square.
-   
-   
+
+
    //This will come up at some minimal size.
    ui.graphicsView->setGeometry(0,0, width(), height());
-   
+
    m_qgs = new QGraphicsScene();
    m_qgs->installEventFilter(this);
 
    ui.graphicsView->setScene(m_qgs);
-   
+
    m_colorBox = 0;
-   
+
    rightClickDragging = false;
 
    m_nullMouseCoords = true;
-   
+
    mindat(400);
-   
+
    maxdat(600);
-   
+
    m_targetVisible = false;
-   
+
    m_cenLineVert = 0;
    m_cenLineHorz = 0;
-   
+
    imStats = 0;
    m_imageTimer.start(m_imageTimeout);
 
@@ -66,38 +66,38 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    m_northArrowTip->setTransformOriginPoint ( QPointF(512,512) );
    m_northArrow->setVisible(false);
    m_northArrowTip->setVisible(false);
-   
+
    QPen qp = m_northArrow->pen();
    qp.setWidth(5);
 
    m_northArrow->setPen(qp);
    m_northArrowTip->setPen(qp);
-   
+
    m_lineHead = new QGraphicsEllipseItem;
    m_lineHead->setVisible(false);
    m_qgs->addItem(m_lineHead);
-   
+
    m_objCenV = new QGraphicsLineItem;
    m_objCenV->setVisible(false);
    m_qgs->addItem(m_objCenV);
-   
+
    m_objCenH = new QGraphicsLineItem;
    m_objCenH->setVisible(false);
    m_qgs->addItem(m_objCenH);
-   
+
    /* ========================================= */
    /* now load plugins                          */
    /* ========================================= */
-   
+
    /* -- static plugins -- */
    const auto staticInstances = QPluginLoader::staticInstances();
-   
+
    for (QObject *plugin : staticInstances)
    {
       static_cast<void>(plugin);
       std::cerr << "loaded static plugins\n";
    }
-   
+
    QDir pluginsDir = QDir(QCoreApplication::applicationDirPath());
 
    #if defined(Q_OS_WIN)
@@ -106,23 +106,23 @@ rtimvMainWindow::rtimvMainWindow( int argc,
       pluginsDir.cdUp();
    }
    #elif defined(Q_OS_MAC)
-   if(pluginsDir.dirName() == "MacOS") 
+   if(pluginsDir.dirName() == "MacOS")
    {
       pluginsDir.cdUp();
       pluginsDir.cdUp();
       pluginsDir.cdUp();
    }
    #endif
-   
-   if(pluginsDir.cd("plugins"))   
+
+   if(pluginsDir.cd("plugins"))
    {
       const auto entryList = pluginsDir.entryList(QDir::Files);
-   
-      for (const QString &fileName : entryList) 
+
+      for (const QString &fileName : entryList)
       {
          QPluginLoader loader(pluginsDir.absoluteFilePath(fileName));
          QObject *plugin = loader.instance();
-         if(plugin) 
+         if(plugin)
          {
             int arv = loadPlugin(plugin);
             if( arv != 0 )
@@ -140,7 +140,7 @@ rtimvMainWindow::rtimvMainWindow( int argc,
          }
       }
    }
-   
+
    setWindowTitle(m_title.c_str());
 
 }
@@ -153,13 +153,13 @@ rtimvMainWindow::~rtimvMainWindow()
 void rtimvMainWindow::setupConfig()
 {
    config.add("image.key", "", "image.key", argType::Required, "image", "key", false, "string", "The main image key. Specifies the protocol, location, and name of the main image.");
-   
-   config.add("dark.key", "", "dark.key", argType::Required, "dark", "key", false, "string", "The dark image key. Specifies the protocol, location, and name of the dark image.");   
-   
-   config.add("mask.key", "", "mask.key", argType::Required, "mask", "key", false, "string", "The mask image key. Specifies the protocol, location, and name of the mask image.");   
-   
+
+   config.add("dark.key", "", "dark.key", argType::Required, "dark", "key", false, "string", "The dark image key. Specifies the protocol, location, and name of the dark image.");
+
+   config.add("mask.key", "", "mask.key", argType::Required, "mask", "key", false, "string", "The mask image key. Specifies the protocol, location, and name of the mask image.");
+
    config.add("satMask.key", "", "satMask.key", argType::Required, "satMask", "key", false, "string", "The saturation mask image key. Specifies the protocol, location, and name of the saturation mask image.");
-   
+
    config.add("autoscale", "", "autoscale", argType::True, "", "autoscale", false, "bool", "Set to turn autoscaling on at startup");
    config.add("nofpsgage", "", "nofpsgage", argType::True, "", "nofpsgage", false, "bool", "Set to turn the fps gage off at startup");
    config.add("darksub", "", "darksub", argType::True, "", "darksub", false, "bool", "Set to false to turn off dark subtraction at startup.  If a dark is supplied, darksub is otherwise on.");
@@ -174,7 +174,7 @@ void rtimvMainWindow::setupConfig()
    config.add("mzmq.always", "Z", "mzmq.always", argType::True, "mzmq", "always", false, "bool", "Set to make milkzmq the protocol for bare image names.  Note that local shmims can not be used if this is set.");
    config.add("mzmq.server", "s", "mzmq.server", argType::Required, "mzmq", "server", false, "string", "The default server for milkzmq.  The default default is localhost.  This will be overridden by an image specific server specified in a key.");
    config.add("mzmq.port", "p", "mzmq.port", argType::Required, "mzmq", "port", false, "int", "The default port for milkzmq.  The default default is 5556.  This will be overridden by an image specific port specified in a key.");
-   
+
    config.add("north.enabled", "", "north.enabled", argType::Required, "north", "enabled", false, "bool", "Whether or not to enable the north arrow. Default is true.");
    config.add("north.offset", "", "north.offset", argType::Required, "north", "offset", false, "float", "Offset in degrees c.c.w. to apply to the north angle. Default is 0.");
    config.add("north.scale", "", "north.scale", argType::Required, "north", "scale", false, "float", "Scaling factor to apply to north angle to convert to degrees c.c.w. on the image.  Default is -1.");
@@ -184,46 +184,46 @@ void rtimvMainWindow::loadConfig()
 {
    std::string imKey;
    std::string darkKey;
-   
+
    std::string flatKey;
-   
+
    std::string maskKey;
-  
+
    std::string satMaskKey;
-   
+
    std::vector<std::string> keys;
-   
+
    //Set up milkzmq
    config(m_mzmqAlways, "mzmq.always");
    config(m_mzmqServer, "mzmq.server");
    config(m_mzmqPort, "mzmq.port");
 
-   
+
    //Check for use of deprecated shmim_name keyword by itself, but use key if available
    config(imKey, "image.key");
-   
+
    config(darkKey, "dark.key");
-      
+
    config(maskKey, "mask.key");
-   
+
    config(satMaskKey, "satMask.key");
-   
+
    //Populate the key vector, a "" means no image specified
    keys.resize(4);
-      
+
    if(imKey != "") keys[0] = imKey;
    if(darkKey != "") keys[1] = darkKey;
    if(maskKey != "") keys[2] = maskKey;
    if(satMaskKey != "") keys[3] = satMaskKey;
-   
+
    //The command line always overrides the config
    if(config.nonOptions.size() > 0) keys[0] = config.nonOptions[0];
    if(config.nonOptions.size() > 1) keys[1] = config.nonOptions[1];
    if(config.nonOptions.size() > 2) keys[2] = config.nonOptions[2];
    if(config.nonOptions.size() > 3) keys[3] = config.nonOptions[3];
-   
+
    startup(keys);
-   
+
    if(m_images[0] == nullptr)
    {
       if(doHelp)
@@ -234,14 +234,14 @@ void rtimvMainWindow::loadConfig()
       {
          std::cerr << "rtimv: No valid image specified so cowardly refusing to start.  Use -h for help.\n";
       }
-      
+
       exit(0);
    }
    else
    {
       m_title = m_images[0]->imageName();
    }
-   
+
    //Now load remaining options, respecting coded defaults.
    config(m_autoScale, "autoscale");
    config(m_subtractDark, "darksub");
@@ -252,7 +252,7 @@ void rtimvMainWindow::loadConfig()
 
    config(m_targetXc, "targetXc");
    config(m_targetYc, "targetYc");
-   
+
    float satLevelDefault = m_satLevel;
    config(m_satLevel, "satLevel");
 
@@ -278,7 +278,7 @@ void rtimvMainWindow::loadConfig()
 void rtimvMainWindow::onConnect()
 {
     setWindowTitle(m_title.c_str());
-   
+
     squareDown();
 }
 
@@ -288,7 +288,7 @@ void rtimvMainWindow::mtxL_postSetImsize( const uniqueLockT & lock )
 
     m_screenZoom = std::min( (float) ui.graphicsView->viewport()->width()/(float)m_nx,
                              (float)ui.graphicsView->viewport()->height()/(float)m_ny );
-                             
+
     //We're mutexed when we get here
     if(m_qpmi)
     {
@@ -300,7 +300,7 @@ void rtimvMainWindow::mtxL_postSetImsize( const uniqueLockT & lock )
     {
         QTransform transform;
         float viewZoom = (float)imcp->ui.viewView->width()/(float)m_nx;
-      
+
         transform.scale(viewZoom, viewZoom);
         imcp->ui.viewView->setTransform(transform);
     }
@@ -319,8 +319,8 @@ void rtimvMainWindow::mtxL_postSetImsize( const uniqueLockT & lock )
         userBoxRemove(sb);
         ubit = m_userBoxes.begin();
     }
-      
-    //resize the circles 
+
+    //resize the circles
     std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
     while(ucit != m_userCircles.end())
     {
@@ -328,7 +328,7 @@ void rtimvMainWindow::mtxL_postSetImsize( const uniqueLockT & lock )
         userCircleRemove(sc);
         ucit = m_userCircles.begin();
     }
-     
+
     //resize the lines
     std::unordered_set<StretchLine *>::iterator ulit = m_userLines.begin();
     while(ulit != m_userLines.end())
@@ -346,23 +346,23 @@ void rtimvMainWindow::post_zoomLevel()
 {
     RTIMV_DEBUG_BREADCRUMB
     QTransform transform;
-   
+
     ui.graphicsView->screenZoom(m_screenZoom);
-   
+
     transform.scale(m_zoomLevel*m_screenZoom, m_zoomLevel*m_screenZoom);
-   
+
     ui.graphicsView->setTransform(transform);
-      
-    if(imcp) 
+
+    if(imcp)
     {
         transform.scale(pointerOverZoom, pointerOverZoom);
         imcp->ui.pointerView->setTransform(transform);
     }
 
     RTIMV_DEBUG_BREADCRUMB
-   
+
     change_center();
-   
+
     RTIMV_DEBUG_BREADCRUMB
 
     char zlstr[16];
@@ -401,7 +401,7 @@ void rtimvMainWindow::mtxL_postRecolor( const uniqueLockT & lock )
 
         RTIMV_DEBUG_BREADCRUMB
     }
-    else 
+    else
     {
         m_qpmi->setPixmap(m_qpm);
         RTIMV_DEBUG_BREADCRUMB
@@ -437,7 +437,7 @@ void rtimvMainWindow::mtxL_postRecolor( const sharedLockT & lock )
 
         RTIMV_DEBUG_BREADCRUMB
     }
-    else 
+    else
     {
         m_qpmi->setPixmap(m_qpm);
         RTIMV_DEBUG_BREADCRUMB
@@ -462,7 +462,7 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT & lock )
     {
         ui.graphicsView->warningText("");
     }
-   
+
     RTIMV_DEBUG_BREADCRUMB
 
 
@@ -482,7 +482,7 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT & lock )
         {
             if(!imcp->qpmi_view) imcp->qpmi_view = imcp->qgs_view->addPixmap(m_qpm);
             imcp->qpmi_view->setPixmap(m_qpm);
-         
+
             imcp->qpmi_view->stackBefore(imcp->viewLineVert);
         }
     }
@@ -490,17 +490,17 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT & lock )
     RTIMV_DEBUG_BREADCRUMB
 
     mtxL_updateMouseCoords(lock); //This is to update the pixel val box if set.
-   
+
     RTIMV_DEBUG_BREADCRUMB
 
     if(imcp)
     {
         imcp->update_panel();
     }
-   
+
     RTIMV_DEBUG_BREADCRUMB
 
-    if(imStats) 
+    if(imStats)
     {
         imStats->setImdata();
     }
@@ -516,9 +516,9 @@ void rtimvMainWindow::launchControlPanel()
       connect(imcp, SIGNAL(launchStatsBox()), this, SLOT(doLaunchStatsBox()));
       connect(imcp, SIGNAL(hideStatsBox()), this, SLOT(doHideStatsBox()));
    }
-   
+
    imcp->show();
-   
+
    imcp->activateWindow();
 }
 
@@ -562,12 +562,12 @@ float rtimvMainWindow::northAngle()
    if(m_dictionary.count("rtimv.north.angle") > 0)
    {
       m_dictionary["rtimv.north.angle"].getBlob((char *) &north, sizeof(float));
-      
+
       north = -1*(m_northAngleOffset + m_northAngleScale*north); //negative because QT is c.w.
    }
 
    return north;
-} 
+}
 
 void rtimvMainWindow::northAngleRaw(float north)
 {
@@ -624,16 +624,16 @@ void rtimvMainWindow::setPointerOverZoom(float poz)
 
 
 void rtimvMainWindow::change_center(bool movezoombox)
-{   
+{
     ui.graphicsView->centerOn((qreal) ui.graphicsView->xCen(), (qreal) ui.graphicsView->yCen());
-   
+
     centerNorthArrow();
 
     if(imcp)
     {
         imcp->viewLineVert->setLine(ui.graphicsView->xCen(), 0, ui.graphicsView->xCen(), m_ny);
         imcp->viewLineHorz->setLine(0, ui.graphicsView->yCen(), m_nx, ui.graphicsView->yCen());
-      
+
         if(m_zoomLevel <= 1.0) imcp->viewBox->setVisible(false);
         else
         {
@@ -643,7 +643,7 @@ void rtimvMainWindow::change_center(bool movezoombox)
                 QPointF tmpp = imcp->viewBox->mapFromParent(ui.graphicsView->xCen() - .5*m_nx/m_zoomLevel, ui.graphicsView->yCen()-.5*m_ny/m_zoomLevel);
                 imcp->viewBox->setRect(tmpp.x(), tmpp.y(), m_nx/m_zoomLevel, m_ny/m_zoomLevel);
             }
-         
+
         }
         imcp->ui.viewView->centerOn(.5*m_nx, .5*m_ny);
         imcp->update_panel();
@@ -651,12 +651,12 @@ void rtimvMainWindow::change_center(bool movezoombox)
 
 }
 
-void rtimvMainWindow::mtxL_setViewCen_impl( float x, 
-                                            float y, 
+void rtimvMainWindow::mtxL_setViewCen_impl( float x,
+                                            float y,
                                             bool movezoombox
                                           )
 {
-    if(m_qpmi == nullptr) 
+    if(m_qpmi == nullptr)
     {
         return;
     }
@@ -670,9 +670,9 @@ void rtimvMainWindow::mtxL_setViewCen_impl( float x,
     change_center(movezoombox);
 }
 
-void rtimvMainWindow::mtxL_setViewCen( float x, 
-                                       float y, 
-                                       const uniqueLockT & lock, 
+void rtimvMainWindow::mtxL_setViewCen( float x,
+                                       float y,
+                                       const uniqueLockT & lock,
                                        bool movezoombox
                                      )
 {
@@ -682,9 +682,9 @@ void rtimvMainWindow::mtxL_setViewCen( float x,
 }
 
 
-void rtimvMainWindow::mtxL_setViewCen( float x, 
-                                       float y, 
-                                       const sharedLockT & lock, 
+void rtimvMainWindow::mtxL_setViewCen( float x,
+                                       float y,
+                                       const sharedLockT & lock,
                                        bool movezoombox
                                      )
 {
@@ -698,9 +698,9 @@ void rtimvMainWindow::squareDown()
 {
     double imrat = ((double)nx())/ny();
     double winrat = ((double) width())/height();
-   
+
     ///\todo make threshold responsive to current dimensions so we don't enter loops.
-    if( fabs( 1.0 - imrat/winrat) < 0.01) 
+    if( fabs( 1.0 - imrat/winrat) < 0.01)
     {
         return;
     }
@@ -708,7 +708,7 @@ void rtimvMainWindow::squareDown()
     if(width() <= height())
     {
         resize(width(), width()/imrat);
-    }   
+    }
     else
     {
         resize(height()*imrat, height());
@@ -719,23 +719,23 @@ void rtimvMainWindow::squareUp()
 {
     double imrat = (1.0*nx())/ny();
     double winrat = (1.0*width())/height();
-   
+
     ///\todo make threshold responsive to current dimensions so we don't enter loops.
-    if( fabs( 1.0 - imrat/winrat) < 0.01) 
+    if( fabs( 1.0 - imrat/winrat) < 0.01)
     {
         return;
     }
-   
+
     if(width() <= height())
     {
         resize(height()*imrat, height());
     }
     else
     {
-        resize(width(), width()/imrat);            
+        resize(width(), width()/imrat);
     }
 }
-      
+
 void rtimvMainWindow::resizeEvent(QResizeEvent *)
 {
     if(m_nx == 0 || m_ny == 0)
@@ -743,15 +743,15 @@ void rtimvMainWindow::resizeEvent(QResizeEvent *)
         ui.graphicsView->setGeometry(0,0,width(), height());
         return;
     }
-   
+
     m_screenZoom = std::min((float)width()/(float)m_nx,(float)height()/(float)m_ny);
-   
+
     change_center();
-   
+
     ui.graphicsView->setGeometry(0,0,width(), height());
-   
+
     post_zoomLevel();
-    
+
 }
 
 void rtimvMainWindow::mouseMoveEvent(QMouseEvent *e)
@@ -768,9 +768,9 @@ void rtimvMainWindow::nullMouseCoords()
       {
          imcp->nullMouseCoords();
       }
-      
+
       m_nullMouseCoords = true;
-      
+
       ui.graphicsView->textCoordX("");
       ui.graphicsView->textCoordY("");
       ui.graphicsView->textPixelVal("");
@@ -784,42 +784,42 @@ void rtimvMainWindow::mtxL_updateMouseCoords( const sharedLockT & lock )
     assert(lock.owns_lock());
 
     int64_t idx_x, idx_y; //image size are uint32_t, so this allows signed comparison without overflow issues
-    
+
     if(!m_qpmi) return;
-    
+
     if(ui.graphicsView->mouseViewX() < 0 || ui.graphicsView->mouseViewY() < 0)
     {
        nullMouseCoords();
     }
-    
+
     QPointF pt = ui.graphicsView->mapToScene(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY());
-    
+
     float mx = pt.x();
     float my = pt.y();
-    
-    if( mx < 0 || mx > m_qpmi->boundingRect().width() || my < 0 || my > m_qpmi->boundingRect().height() ) 
+
+    if( mx < 0 || mx > m_qpmi->boundingRect().width() || my < 0 || my > m_qpmi->boundingRect().height() )
     {
         nullMouseCoords();
     }
-    
+
     if(m_userItemSelected)
     {
         nullMouseCoords();
         mtxTry_userItemMouseCoords( m_userItemMouseViewX, m_userItemMouseViewY, m_userItemXCen, m_userItemYCen);
-    }    
+    }
 
     if(!m_nullMouseCoords)
     {
         idx_x = ((int64_t)(mx-0));
         if(idx_x < 0) idx_x = 0;
         if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
-        
+
         idx_y = (int)(m_qpmi->boundingRect().height() - (my-0));
         if(idx_y < 0) idx_y = 0;
-        if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;  
-    
+        if(idx_y > (int64_t) m_ny-1) idx_y = m_ny-1;
+
         float val;
-        
+
         val = calPixel(idx_x, idx_y);
 
         if(m_showStaticCoords)
@@ -828,7 +828,7 @@ void rtimvMainWindow::mtxL_updateMouseCoords( const sharedLockT & lock )
             ui.graphicsView->textCoordY(m_qpmi->boundingRect().height() - my-0.5);
             ui.graphicsView->textPixelVal( val );
         }
-    
+
         if(m_showToolTipCoords)
         {
             char valStr[32];
@@ -841,12 +841,12 @@ void rtimvMainWindow::mtxL_updateMouseCoords( const sharedLockT & lock )
             else
             {
                 snprintf(valStr, sizeof(valStr), "%0.02f", val);
-            }    
-            snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );    
+            }
+            snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );
             ui.graphicsView->showMouseToolTip(valStr, posStr, QPoint(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY()));
             mtxTry_fontLuminance(ui.graphicsView->m_mouseCoords);
-        }    
- 
+        }
+
 
         if(imcp)
         {
@@ -854,22 +854,22 @@ void rtimvMainWindow::mtxL_updateMouseCoords( const sharedLockT & lock )
         }
 
     }
-   
+
    //Adjust bias and contrast
    if(rightClickDragging)
    {
        float dx = ui.graphicsView->mouseViewX() - rightClickStart.x();
        float dy = ui.graphicsView->mouseViewY() - rightClickStart.y();
-       
+
        float dbias = dx/ui.graphicsView->viewport()->width();
        float dcontrast = -1.*dy/ui.graphicsView->viewport()->height();
-       
+
        bias(biasStart + dbias*.5*(imdat_max+imdat_min));
        contrast(contrastStart + dcontrast*(imdat_max-imdat_min));
        if(!m_amChangingimdata) mtxL_recolor(lock);
 
    }
-   
+
 } //rtimvMainWindow::mtxL_updateMouseCoords
 
 bool rtimvMainWindow::showToolTipCoords()
@@ -922,16 +922,16 @@ void rtimvMainWindow::viewLeftClicked(QPointF mp)
 void rtimvMainWindow::viewRightPressed(QPointF mp)
 {
    rightClickDragging = true;
-   
+
    rightClickStart = mp;//ui.graphicsView->mapToScene(mp.x(),mp.y());
    biasStart = bias();
    contrastStart = contrast();
-   
+
 }
 
 void rtimvMainWindow::viewRightClicked(QPointF mp)
 {
-   rightClickDragging = false;  
+   rightClickDragging = false;
    (void)(mp);
 }
 
@@ -940,9 +940,9 @@ void rtimvMainWindow::onWheelMoved(int delta)
    float dz;
    if(delta > 0)   dz = 1.02;//1.41421;
    else dz = 0.98;//0.70711;
-   
+
    zoomLevel(dz*zoomLevel());
-   
+
 }
 
 void rtimvMainWindow::updateFPS()
@@ -957,18 +957,18 @@ void rtimvMainWindow::updateAge()
 
 
    if(m_showFPSGage && m_images[0] != nullptr  )
-   {      
+   {
       struct timespec tstmp;
-         
+
       clock_gettime(CLOCK_REALTIME, &tstmp);
-            
+
       double timetmp = (double)tstmp.tv_sec + ((double)tstmp.tv_nsec)/1e9;
-         
+
       double fpsTime = m_images[0]->imageTime();
-         
+
       double age = timetmp - fpsTime;
-            
-      if(m_images[0]->fpsEst() > 1.0 && age < 2.0) 
+
+      if(m_images[0]->fpsEst() > 1.0 && age < 2.0)
       {
          ui.graphicsView->fpsGageText(m_images[0]->fpsEst());
       }
@@ -976,7 +976,7 @@ void rtimvMainWindow::updateAge()
       {
          ui.graphicsView->fpsGageText(age, true);
       }
-      else  
+      else
       {
          ui.graphicsView->fpsGageText("");
       }
@@ -986,7 +986,7 @@ void rtimvMainWindow::updateAge()
    {
       m_overlays[n]->updateOverlay();
    }
-   
+
    if(m_showLoopStat)
    {
       ui.graphicsView->loopText("Loop OPEN", "red");
@@ -1022,7 +1022,7 @@ void rtimvMainWindow::mtxTry_userItemMouseCoords( float mx,
     int idx_x = ((int64_t)(mx-0));
     if(idx_x < 0) idx_x = 0;
     if(idx_x > (int64_t) m_nx-1) idx_x = m_nx-1;
-      
+
     int idx_y = (int)(m_qpmi->boundingRect().height() - (my-0));
 
     if(idx_y < 0) idx_y = 0;
@@ -1033,7 +1033,7 @@ void rtimvMainWindow::mtxTry_userItemMouseCoords( float mx,
 
     char valStr[32];
     char posStr[32];
-    
+
     if(fabs(val) < 1e-1)
     {
         snprintf(valStr, sizeof(valStr), "%0.04g", val);
@@ -1042,13 +1042,13 @@ void rtimvMainWindow::mtxTry_userItemMouseCoords( float mx,
     {
         snprintf(valStr, sizeof(valStr), "%0.02f", val);
     }
- 
- 
+
+
     snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );
- 
+
     std::string str = std::string(valStr) + "\n" + posStr;
     ui.graphicsView->m_userItemMouseCoords->setPlainText(str.c_str());
- 
+
     QFontMetrics fm(ui.graphicsView->m_userItemMouseCoords->currentFont());
     QSize textSize = fm.size(0, str.c_str());
 
@@ -1066,7 +1066,7 @@ void rtimvMainWindow::mtxTry_userItemMouseCoords( float mx,
 
     //Take scene coordinates to viewport coordinates.
     QPoint qr = ui.graphicsView->mapFromScene(QPointF(dx, dy));
- 
+
     ui.graphicsView->m_userItemMouseCoords->resize(textSize.width()+5,textSize.height()+5);
     ui.graphicsView->m_userItemMouseCoords->move(qr.x() - offsetx, qr.y() - offsety);
 
@@ -1083,11 +1083,11 @@ void rtimvMainWindow::userItemSelected( const QColor & color,
     ui.graphicsView->m_userItemSize->setText(" ");
     ui.graphicsView->m_userItemSize->setTextColor(color);
     ui.graphicsView->m_userItemSize->setVisible(sizeVis);
-   
+
     ui.graphicsView->m_userItemMouseCoords->setText(" ");
     ui.graphicsView->m_userItemMouseCoords->setTextColor(color);
     ui.graphicsView->m_userItemMouseCoords->setVisible(coordsVis);
-   
+
     if(cenVis)
     {
         QPen pH = m_objCenH->pen();
@@ -1107,7 +1107,7 @@ void rtimvMainWindow::userItemSelected( const QColor & color,
     }
 
     nullMouseCoords();
-    
+
     m_userItemSelected = true;
 
 }
@@ -1120,14 +1120,14 @@ void rtimvMainWindow::mtxTry_colorBoxMoved(StretchBox * sb)
 
     if(!m_colorBox) return;
     if(!m_qpmi) return;
- 
+
     if(!colorBoxActive) return;
- 
+
     QRectF newr = sb->rect();
-    
+
     QPointF np = m_qpmi->mapFromItem(m_colorBox, QPointF(newr.x(),newr.y()));
     QPointF np2 = m_qpmi->mapFromItem(m_colorBox, QPointF(newr.x()+newr.width(),newr.y()+newr.height()));
- 
+
     colorBox_i0((int64_t) (np2.x() + .5));
     colorBox_i1((int64_t) np.x());
     colorBox_j0((int64_t) m_ny - (int64_t) (np2.y() + .5));
@@ -1155,25 +1155,25 @@ void rtimvMainWindow::mtxTry_colorBoxMoved(StretchBox * sb)
     }
 
     snprintf(tmp, 256, "min: %s\nmax: %s", valMin, valMax);
-    
+
     ui.graphicsView->m_userItemSize->setText(tmp);
-    
+
     QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
     QSize textSize = fm.size(0, tmp);
- 
+
     QRectF sbr = sb->sceneBoundingRect();
     QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x(), sbr.y()));
-  
+
     ui.graphicsView->m_userItemSize->resize(textSize.width()+5,textSize.height()+5);
     ui.graphicsView->m_userItemSize->move(qr.x(), qr.y());
-    
+
     mtxL_fontLuminance(ui.graphicsView->m_userItemSize, lock);
 
     mtxL_setColorBoxActive(true, lock); //recalcs and recolors.
 }
 
 void rtimvMainWindow::mtxTry_colorBoxSelected(StretchBox * sb)
-{   
+{
     userItemSelected(RTIMV_DEF_COLORBOXCOLOR, true, false, false);
 
     mtxTry_colorBoxMoved(sb);
@@ -1191,7 +1191,7 @@ void rtimvMainWindow::colorBoxDeselected(StretchBox * sb)
 void rtimvMainWindow::colorBoxRemove(StretchBox * sb)
 {
     static_cast<void>(sb);
-    
+
     if(sb == nullptr || m_colorBox == nullptr)
     {
         return;
@@ -1221,7 +1221,7 @@ void rtimvMainWindow::doLaunchStatsBox()
    if(!m_statsBox) return;
 
    m_statsBox->setVisible(true);
-   
+
    if(!imStats)
    {
       imStats = new rtimvStats(this, &m_calMutex,  this, Qt::WindowFlags());
@@ -1232,9 +1232,9 @@ void rtimvMainWindow::doLaunchStatsBox()
    mtxTry_statsBoxMoved(m_statsBox);
 
    imStats->show();
-    
+
    imStats->activateWindow();
-   
+
 }
 
 void rtimvMainWindow::doHideStatsBox()
@@ -1245,8 +1245,8 @@ void rtimvMainWindow::doHideStatsBox()
         imStats = 0; //imStats is set to delete on close
     }
 
-    if(m_statsBox) 
-    {   
+    if(m_statsBox)
+    {
         if(m_statsBox->isSelected())
         {
             m_statsBox->setSelected(false);
@@ -1255,7 +1255,7 @@ void rtimvMainWindow::doHideStatsBox()
         m_statsBox->setVisible(false);
     }
 
-    
+
 }
 
 void rtimvMainWindow::imStatsClosed(int result)
@@ -1287,7 +1287,7 @@ void rtimvMainWindow::mtxTry_statsBoxMoved(StretchBox * sb)
     QPointF np = m_qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x(),m_statsBox->rect().y()));
     QPointF np2 = m_qpmi->mapFromItem(m_statsBox, QPointF(m_statsBox->rect().x()+m_statsBox->rect().width(),m_statsBox->rect().y()+m_statsBox->rect().height()));
 
-    if(imStats) 
+    if(imStats)
     {
         imStats->mtxL_setImdata(m_nx, m_ny, np.x(), np2.x(), m_ny-np2.y(), m_ny-np.y(), lock);
     }
@@ -1325,7 +1325,7 @@ void rtimvMainWindow::statsBoxRemove(StretchBox * sb)
     m_nullMouseCoords=false;
     m_userItemSelected = false;
 
-    
+
 }
 
 /*---- User Boxes ----*/
@@ -1338,28 +1338,28 @@ void rtimvMainWindow::addUserBox()
    float zny = m_ny/m_zoomLevel;
    if(znx < zny) w = znx/4;
    else w = zny/4;
-   
+
    std::pair<std::unordered_set<StretchBox *>::iterator,bool> it = m_userBoxes.insert(new StretchBox(ui.graphicsView->xCen()-w/2, ui.graphicsView->yCen()-w/2, w, w));
-   
+
    StretchBox * sb = *it.first;
-   
+
    sb->setPenColor("lime");
    sb->setEdgeTol(RTIMV_EDGETOL);
    sb->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT );
-  
+
    sb->setMaintainCenter(true);
    sb->setStretchable(true);
    sb->setVisible(true);
-   
+
    connect(sb, SIGNAL(resized(StretchBox *)), this, SLOT(mtxTry_userBoxMoved(StretchBox *)));
    connect(sb, SIGNAL(moved(StretchBox *)), this, SLOT(mtxTry_userBoxMoved(StretchBox *)));
    connect(sb, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
    connect(sb, SIGNAL(remove(StretchBox*)), this, SLOT(userBoxRemove(StretchBox*)));
    connect(sb, SIGNAL(selected(StretchBox*)), this, SLOT(mtxTry_userBoxSelected(StretchBox*)));
    connect(sb, SIGNAL(deSelected(StretchBox*)), this, SLOT(userBoxDeSelected(StretchBox*)));
-   
+
    m_qgs->addItem(sb);
-      
+
 }
 
 void rtimvMainWindow::mtxTry_userBoxSize(StretchBox * sb)
@@ -1367,16 +1367,16 @@ void rtimvMainWindow::mtxTry_userBoxSize(StretchBox * sb)
    char tmp[256];
    snprintf(tmp, 256, "%0.1f x %0.1f", sb->rect().width(), sb->rect().height());
    ui.graphicsView->m_userItemSize->setText(tmp);
-   
+
    QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
    QSize textSize = fm.size(0, tmp);
 
    QRectF sbr = sb->sceneBoundingRect();
    QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x(), sbr.y()));
- 
+
    ui.graphicsView->m_userItemSize->resize(textSize.width()+5,textSize.height()+5);
    ui.graphicsView->m_userItemSize->move(qr.x(), qr.y());
-   
+
    mtxTry_fontLuminance(ui.graphicsView->m_userItemSize);
 }
 
@@ -1394,7 +1394,7 @@ void rtimvMainWindow::userBoxCross(StretchBox * sb)
 void rtimvMainWindow::mtxTry_userBoxMouseCoords(StretchBox * sb)
 {
    QRectF sbr = sb->sceneBoundingRect();
-   QPointF qr = QPointF(sbr.x()+0.5*sbr.width(),sbr.y()+0.5*sbr.height()); 
+   QPointF qr = QPointF(sbr.x()+0.5*sbr.width(),sbr.y()+0.5*sbr.height());
 
    m_userItemMouseViewX = qr.x();
    m_userItemMouseViewY = qr.y();
@@ -1411,12 +1411,12 @@ void rtimvMainWindow::mtxTry_userBoxMouseCoords(StretchBox * sb)
 void rtimvMainWindow::addStretchBox(StretchBox * sb)
 {
    if(sb == nullptr) return;
-   
+
    //m_userBoxes.insert(sb);
-   
+
    connect(sb, SIGNAL(rejectMouse(StretchBox *)), this, SLOT(userBoxRejectMouse(StretchBox *)));
    connect(sb, SIGNAL(remove(StretchBox*)), this, SLOT(userBoxRemove(StretchBox*)));
-      
+
    m_qgs->addItem(sb);
 }
 
@@ -1435,14 +1435,14 @@ void rtimvMainWindow::userBoxRejectMouse(StretchBox * sb)
       if(sb != *ubit) sb->stackBefore(*ubit);
       ++ubit;
    }
-   
+
    std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
    while(ucit != m_userCircles.end())
    {
       sb->stackBefore(*ucit);
       ++ucit;
    }
-   
+
    std::unordered_set<StretchLine *>::iterator ulit = m_userLines.begin();
    while(ulit != m_userLines.end())
    {
@@ -1457,7 +1457,7 @@ void rtimvMainWindow::userBoxRemove(StretchBox * sb)
    {
       return;
    }
-   
+
    m_userBoxes.erase(sb); //Remove it from our list
    m_qgs->removeItem(sb); //Remove it from the scene
    sb->deleteLater(); //clean it up after we're no longer in an asynch function
@@ -1501,18 +1501,18 @@ void rtimvMainWindow::addUserCircle()
    float zny = m_ny/m_zoomLevel;
    if(znx < zny) w = znx/4;
    else w = zny/4;
-   
+
    std::pair<std::unordered_set<StretchCircle *>::iterator,bool> it = m_userCircles.insert(new StretchCircle(ui.graphicsView->xCen()-w/2, ui.graphicsView->yCen()-w/2, w, w));
-   
+
    StretchCircle * sc = *it.first;
-   
+
    sc->setPenColor("lime");
    sc->setEdgeTol(RTIMV_EDGETOL);
    sc->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT );
-   
+
    sc->setStretchable(true);
    sc->setVisible(true);
-   
+
    connect(sc, SIGNAL(resized(StretchCircle *)), this, SLOT(userCircleMoved(StretchCircle *)));
    connect(sc, SIGNAL(moved(StretchCircle *)), this, SLOT(userCircleMoved(StretchCircle *)));
    connect(sc, SIGNAL(mouseIn(StretchCircle *)), this, SLOT(userCircleMoved(StretchCircle *)));
@@ -1520,9 +1520,9 @@ void rtimvMainWindow::addUserCircle()
    connect(sc, SIGNAL(remove(StretchCircle*)), this, SLOT(userCircleRemove(StretchCircle*)));
    connect(sc, SIGNAL(selected(StretchCircle *)), this, SLOT(userCircleSelected(StretchCircle *)));
    connect(sc, SIGNAL(deSelected(StretchCircle*)), this, SLOT(userCircleDeSelected(StretchCircle*)));
-   
+
    m_qgs->addItem(sc);
-      
+
 }
 
 void rtimvMainWindow::userCircleSize(StretchCircle * sc)
@@ -1531,10 +1531,10 @@ void rtimvMainWindow::userCircleSize(StretchCircle * sc)
    snprintf(tmp, sizeof(tmp), "r=%0.1f", sc->radius());
 
    ui.graphicsView->m_userItemSize->setText(tmp);
-   
+
    QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
    QSize textSize = fm.size(0, tmp);
-   
+
    float posx = sc->rect().x() + sc->pos().x() + sc->rect().width()*0.5 - sc->radius()*0.707;
    float posy = sc->rect().y() + sc->pos().y()+ sc->rect().height()*0.5 - sc->radius()*0.707;
 
@@ -1543,7 +1543,7 @@ void rtimvMainWindow::userCircleSize(StretchCircle * sc)
    //Take scene coordinates to viewport coordinates.
    QRectF sbr = sc->sceneBoundingRect();
    QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x()+sc->rect().width()*0.5 - sc->radius()*0.707, sbr.y()+ sc->rect().height()*0.5 - sc->radius()*0.707));
- 
+
    ui.graphicsView->m_userItemSize->resize(textSize.width()+5,textSize.height()+5);
    ui.graphicsView->m_userItemSize->move(qr.x(), qr.y());
 
@@ -1582,12 +1582,12 @@ void rtimvMainWindow::mtxTry_userCircleMouseCoords(StretchCircle * sc)
 void rtimvMainWindow::addStretchCircle(StretchCircle * sc)
 {
    if(sc == nullptr) return;
-   
+
    m_userCircles.insert(sc);
-   
+
    connect(sc, SIGNAL(rejectMouse(StretchCircle *)), this, SLOT(userCircleRejectMouse(StretchCircle *)));
    connect(sc, SIGNAL(remove(StretchCircle*)), this, SLOT(userCircleRemove(StretchCircle*)));
-      
+
    m_qgs->addItem(sc);
 }
 
@@ -1599,21 +1599,21 @@ void rtimvMainWindow::userCircleMoved(StretchCircle * sc)
 }
 
 void rtimvMainWindow::userCircleRejectMouse(StretchCircle * sc)
-{  
+{
    std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
    while(ubit != m_userBoxes.end())
    {
       sc->stackBefore(*ubit);
       ++ubit;
    }
-   
+
    std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
    while(ucit != m_userCircles.end())
    {
       if(sc != *ucit) sc->stackBefore(*ucit);
       ++ucit;
-   }   
-   
+   }
+
    std::unordered_set<StretchLine *>::iterator ulit = m_userLines.begin();
    while(ulit != m_userLines.end())
    {
@@ -1663,18 +1663,18 @@ void rtimvMainWindow::addUserLine()
    float zny = m_ny/m_zoomLevel;
    if(znx < zny) w = znx/4;
    else w = zny/4;
-   
+
    std::pair<std::unordered_set<StretchLine *>::iterator,bool> it = m_userLines.insert(new StretchLine(ui.graphicsView->xCen()-w/2, ui.graphicsView->yCen()-w/2, ui.graphicsView->xCen()+w/2, ui.graphicsView->yCen()+w/2));
-   
+
    StretchLine * sl = *it.first;
-   
+
    sl->setPenColor("lime");
    sl->setEdgeTol(RTIMV_EDGETOL);
    sl->setPenWidth(2*RTIMV_TOOLLINEWIDTH_DEFAULT );
-   
+
    sl->setStretchable(true);
    sl->setVisible(true);
-   
+
    connect(sl, SIGNAL(resized(StretchLine *)), this, SLOT(mtxTry_userLineMoved(StretchLine *)));
    connect(sl, SIGNAL(moved(StretchLine *)), this, SLOT(mtxTry_userLineMoved(StretchLine *)));
    connect(sl, SIGNAL(mouseIn(StretchLine *)), this, SLOT(mtxTry_userLineMoved(StretchLine *)));
@@ -1683,9 +1683,9 @@ void rtimvMainWindow::addUserLine()
    connect(sl, SIGNAL(selected(StretchLine *)), this, SLOT(mtxTry_userLineSelected(StretchLine *)));
    connect(sl, SIGNAL(deSelected(StretchLine*)), this, SLOT(userLineDeSelected(StretchLine*)));
 
-   
+
    m_qgs->addItem(sl);
-      
+
 }
 
 void rtimvMainWindow::mtxTry_userLineSize(StretchLine * sl)
@@ -1693,19 +1693,19 @@ void rtimvMainWindow::mtxTry_userLineSize(StretchLine * sl)
     sharedLockT lock(m_calMutex);
 
     if(!m_qpmi) return;
- 
+
     float ang = fmod(sl->angle() -90 + northAngle(), 360.0);
- 
+
     if(ang < 0) ang += 360.0;
-    
+
     char tmp[256];
     snprintf(tmp, 256, "%0.1f @ %0.1f", sl->length(), ang);
-    
+
     ui.graphicsView->m_userItemSize->setText(tmp);
 
-    
+
     QPointF np = m_qpmi->mapFromItem(sl, sl->line().p2());
-    
+
     float offsetX = 0;
     float offsetY = 10;
 
@@ -1719,7 +1719,7 @@ void rtimvMainWindow::mtxTry_userLineSize(StretchLine * sl)
     }
 
     ui.graphicsView->m_userItemSize->setGeometry(np.x()*m_screenZoom - offsetX, np.y()*m_screenZoom - offsetY, 200,40);
-    
+
     mtxTry_fontLuminance(ui.graphicsView->m_userItemSize);
 }
 
@@ -1738,7 +1738,7 @@ void rtimvMainWindow::userLineHead(StretchLine * sl)
 
 void rtimvMainWindow::mtxTry_userLineMouseCoords(StretchLine * sl)
 {
-    if(sl->angle() > 270) 
+    if(sl->angle() > 270)
     {
         m_offsetItemMouseCoordsX = true;
         m_offsetItemMouseCoordsY = true;
@@ -1748,24 +1748,24 @@ void rtimvMainWindow::mtxTry_userLineMouseCoords(StretchLine * sl)
         m_offsetItemMouseCoordsX = false;
         m_offsetItemMouseCoordsY = false;
     }
- 
+
     QPointF qr = QPointF(sl->line().x1(), sl->line().y1());
- 
+
     m_userItemMouseViewX = qr.x();
     m_userItemMouseViewY = qr.y();
- 
+
     mtxTry_userItemMouseCoords( m_userItemMouseViewX, m_userItemMouseViewY, m_userItemXCen, m_userItemYCen);
 }
 
 void rtimvMainWindow::addStretchLine(StretchLine * sl)
 {
    if(sl == nullptr) return;
-   
+
    m_userLines.insert(sl);
-   
+
    connect(sl, SIGNAL(rejectMouse(StretchLine *)), this, SLOT(userLineRejectMouse(StretchLine *)));
    connect(sl, SIGNAL(remove(StretchLine*)), this, SLOT(userLineRemove(StretchLine*)));
-   
+
    m_qgs->addItem(sl);
 }
 
@@ -1777,21 +1777,21 @@ void rtimvMainWindow::mtxTry_userLineMoved(StretchLine * sl)
 }
 
 void rtimvMainWindow::userLineRejectMouse(StretchLine * sl)
-{  
+{
    std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
    while(ubit != m_userBoxes.end())
    {
       sl->stackBefore(*ubit);
       ++ubit;
    }
-   
+
    std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
    while(ucit != m_userCircles.end())
    {
       sl->stackBefore(*ucit);
       ++ucit;
    }
-   
+
    std::unordered_set<StretchLine *>::iterator ulit = m_userLines.begin();
    while(ulit != m_userLines.end())
    {
@@ -1850,28 +1850,28 @@ void rtimvMainWindow::targetXc( float txc )
 {
    if(txc < 0) txc = 0;
    if(txc > 1) txc = 1;
-   
+
    m_targetXc = txc;
-   
+
    setTarget();
-   
+
    emit targetXcChanged(m_targetXc);
 
 }
-     
+
 void rtimvMainWindow::targetYc( float tyc )
 {
    if(tyc < 0) tyc = 0;
    if(tyc > 1) tyc = 1;
-   
+
    m_targetYc = tyc;
-   
+
    setTarget();
-   
+
    emit targetYcChanged(m_targetYc);
 
 }
-     
+
 void rtimvMainWindow::targetVisible(bool tv)
 {
    if(m_targetVisible != tv)
@@ -1907,7 +1907,7 @@ void rtimvMainWindow::setTarget()
       {
          m_cenLineVert->setVisible(false);
          m_cenLineHorz->setVisible(false);
-      } 
+      }
    }
    else
    {
@@ -1918,7 +1918,7 @@ void rtimvMainWindow::setTarget()
          m_cenLineVert->setVisible(true);
          m_cenLineHorz->setVisible(true);
       }
-      else   
+      else
       {
          m_cenLineVert->setVisible(false);
          m_cenLineHorz->setVisible(false);
@@ -1961,7 +1961,7 @@ void rtimvMainWindow::mtxL_postSetColorBoxActive( bool usba,
 void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
 {
    //First deal with the control sequences
-   if(ke->modifiers() & Qt::ControlModifier) 
+   if(ke->modifiers() & Qt::ControlModifier)
    {
       switch(ke->key())
       {
@@ -2031,7 +2031,7 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
             break;
          case Qt::Key_Z:
             if(key == 'z') return toggleColorBox();
-            break;            
+            break;
          case Qt::Key_1:
             return zoomLevel(1.0);
             break;
@@ -2070,7 +2070,7 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
             break;
       }
    }
-  
+
    for(size_t n=0;n<m_overlays.size(); ++n)
    {
       m_overlays[n]->keyPressEvent(ke);
@@ -2080,12 +2080,12 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
 void rtimvMainWindow::setAutoScale( bool as )
 {
    m_autoScale = as;
-   if(m_autoScale) 
+   if(m_autoScale)
    {
       ui.graphicsView->zoomText("autoscale on");
       mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
    }
-   else 
+   else
    {
       ui.graphicsView->zoomText("autoscale off");
       mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
@@ -2094,14 +2094,14 @@ void rtimvMainWindow::setAutoScale( bool as )
 
 void rtimvMainWindow::toggleAutoScale()
 {
-   if(m_autoScale) 
+   if(m_autoScale)
    {
       setAutoScale(false);
    }
-   else 
+   else
    {
       setAutoScale(true);
-   }      
+   }
 }
 
 void rtimvMainWindow::mtxUL_center()
@@ -2109,11 +2109,11 @@ void rtimvMainWindow::mtxUL_center()
     sharedLockT lock(m_calMutex);
 
     mtxL_setViewCen(.5, .5, lock);
-    
+
     post_zoomLevel();
 
     ui.graphicsView->zoomText("centered");
-    
+
     mtxL_fontLuminance(ui.graphicsView->m_zoomText, lock);
 }
 
@@ -2134,7 +2134,7 @@ void rtimvMainWindow::toggleColorBoxOn()
     if(m_colorBox == nullptr)
     {
         float w;
-        if(m_nx < m_ny) w = (m_nx/m_zoomLevel)/4; 
+        if(m_nx < m_ny) w = (m_nx/m_zoomLevel)/4;
         else w = (m_ny/m_zoomLevel)/4;
 
         colorBox_i0(0.5*(m_nx)-w/2);
@@ -2165,7 +2165,7 @@ void rtimvMainWindow::toggleColorBoxOn()
     sharedLockT lock(m_calMutex);
     mtxL_setColorBoxActive(true, lock);
     lock.unlock();
-        
+
     ui.graphicsView->zoomText("color box scale");
     mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
 
@@ -2186,7 +2186,7 @@ void rtimvMainWindow::toggleColorBoxOff()
 
     ui.graphicsView->zoomText("global scale");
     mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
-    
+
 }
 
 
@@ -2197,7 +2197,7 @@ void rtimvMainWindow::toggleStatsBox()
       float w;
       if(m_nx < m_ny) w = m_nx/4;
       else w = m_ny/4;
-   
+
       m_statsBox = new StretchBox(0.5*(m_nx)-w/2,0.5*(m_ny)-w/2, w, w);
       m_statsBox->setPenColor(RTIMV_DEF_STATSBOXCOLOR);
       m_statsBox->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT );
@@ -2243,7 +2243,7 @@ void rtimvMainWindow::toggleStatsBox()
 void rtimvMainWindow::toggleNorthArrow()
 {
    if(!m_northArrow) return;
-   
+
    if(!m_northArrowEnabled)
    {
       m_northArrow->setVisible(false);
@@ -2265,7 +2265,7 @@ void rtimvMainWindow::toggleNorthArrow()
       ui.graphicsView->zoomText("North On");
       mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
    }
-   
+
 }
 
 void rtimvMainWindow::showFPSGage( bool sfg )
@@ -2367,9 +2367,9 @@ void rtimvMainWindow::setApplySatMask( bool as )
       ui.graphicsView->zoomText("sat mask off");
       mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
    }
-   
+
    mtxUL_changeImdata(false);
-   
+
 }
 
 void rtimvMainWindow::toggleApplySatMask()
@@ -2387,7 +2387,7 @@ void rtimvMainWindow::toggleApplySatMask()
 void rtimvMainWindow::toggleLogLinear()
 {
    int s = get_cbStretch();
-   
+
    if(s == stretchLog)
    {
       set_cbStretch(stretchLinear);
@@ -2434,11 +2434,11 @@ std::string rtimvMainWindow::generateHelp()
    help += "r: re-stretch color table     s: toggle statistics box       \n";
    help += "t: toggle target cross        x: freeze real-time            \n";
    help += "z: toggle color box\n";
-   
+
    help += "\n";
    help += "D: toggle dark subtraction    L: toggle log scale            \n";
    help += "M: toggle mask                S: toggle saturation mask      \n";
-   
+
    help += "\n";
    help += "1-9: change zoom level        ctrl +: zoom in\n";
    help += "                              ctrl -: zoom out\n";
@@ -2446,7 +2446,7 @@ std::string rtimvMainWindow::generateHelp()
    help += "[: fit horizontal             ]: fit vertical\n";
    help += "\n";
    help += "ctrl c: center image          delete: remove selected object \n";
-   
+
    return help;
 }
 
@@ -2558,7 +2558,7 @@ std::string rtimvMainWindow::generateInfo()
         }
     }
     info += "\n";
-   
+
     return info;
 }
 
@@ -2618,9 +2618,9 @@ template<typename realT>
 realT sRGBtoLinRGB( int rgb )
 {
    realT V = ((realT) rgb)/255.0;
-   
+
    if( V <= 0.0405 ) return V/12.92;
-   
+
    return pow( (V+0.055)/1.055, 2.4);
 }
 
@@ -2640,12 +2640,12 @@ realT pLightness( realT lum )
    {
       return lum*static_cast<realT>(24389)/static_cast<realT>(27);
    }
-   
+
    return pow(lum, static_cast<realT>(1)/static_cast<realT>(3))*116 - 16;
-      
+
 }
 
-void rtimvMainWindow::mtxL_fontLuminance( QTextEdit* qte, 
+void rtimvMainWindow::mtxL_fontLuminance( QTextEdit* qte,
                                           const sharedLockT & lock,
                                           bool print
                                         )
@@ -2654,37 +2654,37 @@ void rtimvMainWindow::mtxL_fontLuminance( QTextEdit* qte,
 
     QPointF ptul = ui.graphicsView->mapToScene(qte->x(),qte->y());
     QPointF ptlr = ui.graphicsView->mapToScene(qte->x()+qte->width(),qte->y()+qte->height());
-    
+
     unsigned myul = ptul.y();
     if(myul > m_ny-1) myul = 0;
- 
+
     unsigned mxul = ptul.x();
     if(mxul > m_nx-1) mxul = 0;
-    
+
     unsigned mylr = ptlr.y();
     if(mylr > m_ny-1) mylr = m_ny-1;
-    
+
     unsigned mxlr = ptlr.x();
     if(mxlr > m_nx-1) mxlr = m_nx-1;
-    
+
     if(mxul == 0 && myul == 0 && mxlr == 0 && mylr == 0) return;
     if(mxul == mxlr || myul == mylr) return;
- 
+
     double avgLum = 0;
     int N = 0;
     for(unsigned x = mxul; x<= mxlr; ++x)
     {
        for(unsigned y=myul; y<=mylr; ++y)
        {
-           avgLum += pow(m_lightness[ m_qim->pixelIndex(x,y) ],m_lumPwr); 
+           avgLum += pow(m_lightness[ m_qim->pixelIndex(x,y) ],m_lumPwr);
            ++N;
        }
     }
     avgLum /= N;
     avgLum = pow(avgLum, 1.0/m_lumPwr);
- 
+
     if(print) std::cerr << "avgLum: " << avgLum << "\n";
- 
+
     if(avgLum <= m_lumThresh)
     {
         qte->setTextBackgroundColor(QColor(0,0,0,0));
@@ -2698,12 +2698,12 @@ void rtimvMainWindow::mtxL_fontLuminance( QTextEdit* qte,
     {
         qte->setTextBackgroundColor(QColor(0,0,0,m_opacityMax));
     }
- 
+
     return;
 
 }
 
-void rtimvMainWindow::mtxTry_fontLuminance( QTextEdit* qte, 
+void rtimvMainWindow::mtxTry_fontLuminance( QTextEdit* qte,
                                             bool print
                                           )
 {
@@ -2713,11 +2713,11 @@ void rtimvMainWindow::mtxTry_fontLuminance( QTextEdit* qte,
 }
 
 void rtimvMainWindow::mtxTry_fontLuminance()
-{   
+{
     sharedLockT lock(m_calMutex);
 
     mtxL_fontLuminance(ui.graphicsView->m_fpsGage, lock);
-   
+
     mtxL_fontLuminance(ui.graphicsView->m_zoomText, lock);
 
     if(!m_nullMouseCoords)
@@ -2726,7 +2726,7 @@ void rtimvMainWindow::mtxTry_fontLuminance()
         {
             mtxL_fontLuminance(ui.graphicsView->m_textCoordX, lock);
             mtxL_fontLuminance(ui.graphicsView->m_textCoordY, lock);
-            mtxL_fontLuminance(ui.graphicsView->m_textPixelVal, lock);   
+            mtxL_fontLuminance(ui.graphicsView->m_textPixelVal, lock);
         }
 
         if(m_showToolTipCoords)
@@ -2734,19 +2734,19 @@ void rtimvMainWindow::mtxTry_fontLuminance()
             mtxL_fontLuminance(ui.graphicsView->m_mouseCoords, lock);
         }
     }
-   
+
     for(size_t n=0; n< ui.graphicsView->m_statusText.size(); ++n)
     {
-        if(ui.graphicsView->m_statusText[n]->toPlainText().size() > 0) 
+        if(ui.graphicsView->m_statusText[n]->toPlainText().size() > 0)
         {
             mtxL_fontLuminance(ui.graphicsView->m_statusText[n], lock);
         }
     }
-   
+
     mtxL_fontLuminance(ui.graphicsView->m_saveBox, lock);
-   
+
     return;
-   
+
 }
 
 
@@ -2758,7 +2758,7 @@ int rtimvMainWindow::loadPlugin(QObject *plugin)
    if(rdi)
    {
       int arv = rdi->attachDictionary(&m_dictionary, config);
-      
+
       if(arv < 0)
       {
          std::cerr << "Error from attachDictionary: " << arv << "\n";
@@ -2768,12 +2768,12 @@ int rtimvMainWindow::loadPlugin(QObject *plugin)
       {
          return arv;
       }
-      else 
+      else
       {
          ri = rdi;
       }
    }
-   
+
    auto roi = qobject_cast<rtimvOverlayInterface *>(plugin);
    if(roi)
    {
@@ -2786,9 +2786,9 @@ int rtimvMainWindow::loadPlugin(QObject *plugin)
       roa.m_userLines = &m_userLines;
       roa.m_graphicsView = ui.graphicsView;
       roa.m_dictionary = &m_dictionary;
-      
+
       int arv = roi->attachOverlay(roa, config);
-      
+
       if(arv < 0)
       {
          std::cerr << "Error from attachOverlay: " << arv << "\n";
@@ -2806,7 +2806,7 @@ int rtimvMainWindow::loadPlugin(QObject *plugin)
    }
 
     //If ri is not null, we store it.  Note this could be many types of interfaces at once.
-    if(ri) 
+    if(ri)
     {
         m_plugins.push_back(ri);
         return 0;
@@ -2817,17 +2817,17 @@ int rtimvMainWindow::loadPlugin(QObject *plugin)
     }
 }
 
-bool rtimvMainWindow::eventFilter( QObject *obj, 
+bool rtimvMainWindow::eventFilter( QObject *obj,
                                    QEvent *event
                                  )
 {
     //Events from the QGraphiscScene
-    if(obj == m_qgs) 
+    if(obj == m_qgs)
     {
-        if(event->type() == QEvent::KeyPress) 
+        if(event->type() == QEvent::KeyPress)
         {
             QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
-            if(keyEvent->key() == Qt::Key_Left || keyEvent->key() == Qt::Key_Right 
+            if(keyEvent->key() == Qt::Key_Left || keyEvent->key() == Qt::Key_Right
                    || keyEvent->key() == Qt::Key_Up || keyEvent->key() == Qt::Key_Down
                        || keyEvent->key() == Qt::Key_PageUp || keyEvent->key() == Qt::Key_PageDown)
             {
@@ -2835,7 +2835,7 @@ bool rtimvMainWindow::eventFilter( QObject *obj,
                 keyPressEvent(keyEvent);
                 return true;
             }
-        } 
-    } 
+        }
+    }
     return false;
 }

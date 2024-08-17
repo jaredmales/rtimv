@@ -9,6 +9,8 @@ set -e
 #
 # Creates a directory called ~Source TODO: make this configurable
 # Switches some repos to dev TODO: make this configurable
+#
+# TODO: this doesn't yet make /milk/shm, and doesn't update profile with MILK env vars
 #########################################################################
 
 # from https://github.com/milk-org/milk/blob/dev/Dockerfile

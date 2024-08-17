@@ -10,6 +10,7 @@
 #define rtimv_fitsDirectory_hpp
 
 #include <fitsio.h>
+#include <filesystem>
 
 #include "../rtimvImage.hpp"
 
@@ -33,11 +34,7 @@ protected:
 
    bool m_reported {false}; ///< Switch to provide reporting errors only once.
 
-   int m_notifyfd {0}; ///< The file descriptor for inotify
-
-   int m_notifywd {0}; ///< The watch descriptor for inotify
-
-   char m_notify_buf[4096]; ///< Buffer for reading inotify
+   std::filesystem::file_time_type m_lastWriteTime; ///< The last write time of the directory.  Used for tracking changes.
 
    int m_imageTimeout {1000}; ///<The timeout for checking for shared memory file existence.
    

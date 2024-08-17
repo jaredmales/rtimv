@@ -89,7 +89,7 @@ void rtimvBase::startup(const std::vector<std::string> &shkeys)
                 else
                 {
                     #ifdef RTIMV_MILK
-                    //If we get here we try to interpret as a ImageStreamIO image
+                    //If we get here we try to interpret as an ImageStreamIO image
                     shmimImage *si = new shmimImage(&m_rawMutex);
                     m_images[i] = (rtimvImage *)si;
                     #else

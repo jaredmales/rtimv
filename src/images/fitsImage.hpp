@@ -10,6 +10,7 @@
 #define rtimv_fitsImage_hpp
 
 #include <fitsio.h>
+#include <filesystem>
 
 #include "../rtimvImage.hpp"
 
@@ -29,12 +30,8 @@ protected:
    
    bool m_reported {false}; ///< Switch to provide reporting errors only once.
 
-   int m_notifyfd {0}; ///< The file descriptor for inotify
-
-   int m_notifywd {0}; ///< The watch descriptor for inotify
-
-   char m_notify_buf[4096]; ///< Buffer for reading inotify
-
+   std::filesystem::file_time_type m_lastWriteTime; ///< The last write time of the file.  Used for tracking changes.
+   
    int m_imageTimeout {1000}; ///<The timeout for checking for shared memory file existence.
    
    int m_timeout {100}; ///< The image display timeout, should be set from the managing process.  Only used for F.P.S. calculations.

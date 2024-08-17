@@ -3,18 +3,11 @@
 #include <iostream>
 #include <mx/ioutils/fileUtils.hpp>
 #include <unistd.h>
-#include <sys/inotify.h>
 
 fitsImage::fitsImage(std::mutex * mut) : rtimvImage(mut)
 {
    connect(&m_timer, SIGNAL(timeout()), this, SLOT(imageTimerout()));
 
-   m_notifyfd = inotify_init1(IN_NONBLOCK);
-   if(m_notifyfd < 0)
-   {
-      perror("rtimv: fitsImage: error intializing inotify");
-      std::cerr << "Will not be able to watch file for changes\n";
-   }
 }
 
 int fitsImage::imageKey( const std::string & sn )
@@ -136,7 +129,7 @@ int fitsImage::readImage()
       fstatus = 0;
       fits_close_file(fptr, &fstatus);
 
-      delete naxes;
+      delete[] naxes;
       return -1;
    }
    m_reported = false;
@@ -169,7 +162,7 @@ int fitsImage::readImage()
    inc[1] = 1;
    inc[2] = 1;
 
-   delete naxes;
+   delete[] naxes;
 
    int anynul;
    
@@ -218,19 +211,8 @@ void fitsImage::imConnect()
    }
 
    m_imageFound = 1;
-   
-   if(m_notifyfd < 0) 
-   {
-      emit connected();
-      return;
-   }
-   
-   m_notifywd = inotify_add_watch(m_notifyfd, m_imagePath.c_str(), IN_CLOSE_WRITE);
 
-   if(m_notifywd < 0)
-   {
-      perror("rtimv: fitsImage: error adding inotify watch");
-   }
+   m_lastWriteTime = std::filesystem::last_write_time(m_imagePath);
 
    emit connected();
 }
@@ -247,25 +229,7 @@ int fitsImage::update()
       return RTIMVIMAGE_IMUPDATE;
    }
 
-   //Read inotify to see if it changed.
-   
-   ssize_t len;
-   
-   if(m_notifyfd < 0 ) return RTIMVIMAGE_NOUPDATE;
-
-   len = read(m_notifyfd, m_notify_buf, sizeof(m_notify_buf));
-   if (len == -1 && errno != EAGAIN) 
-   {
-      perror("rtimv: fitsImage: error reading inotify");
-      detach();
-      return RTIMVIMAGE_NOUPDATE;
-   }
-
-   if (len <= 0)
-   {
-      return RTIMVIMAGE_NOUPDATE;
-   }
-   else
+   if(m_lastWriteTime != std::filesystem::last_write_time(m_imagePath))
    {
       if(readImage() < 0)
       {
@@ -273,10 +237,11 @@ int fitsImage::update()
          return RTIMVIMAGE_NOUPDATE;
       };
 
-      m_notifywd = inotify_add_watch(m_notifyfd, m_imagePath.c_str(), IN_CLOSE_WRITE);
-
+      m_lastWriteTime = std::filesystem::last_write_time(m_imagePath);
       return RTIMVIMAGE_IMUPDATE;
    }
+
+   return RTIMVIMAGE_NOUPDATE;
 }
 
 void fitsImage::detach()

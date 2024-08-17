@@ -3,18 +3,10 @@
 #include <iostream>
 #include <mx/ioutils/fileUtils.hpp>
 #include <unistd.h>
-#include <sys/inotify.h>
 
 fitsDirectory::fitsDirectory(std::mutex * mut) : rtimvImage(mut)
 {
    connect(&m_timer, SIGNAL(timeout()), this, SLOT(imageTimerout()));
-
-   m_notifyfd = inotify_init1(IN_NONBLOCK);
-   if(m_notifyfd < 0)
-   {
-      perror("rtimv: fitsDirectory: error intializing inotify");
-      std::cerr << "Will not be able to watch file for changes\n";
-   }
 }
 
 int fitsDirectory::imageKey( const std::string & sn )
@@ -128,7 +120,7 @@ int fitsDirectory::readImage(size_t imno)
       fstatus = 0;
       fits_close_file(fptr, &fstatus);
 
-      delete naxes;
+      delete[] naxes;
       return -1;
    }
    m_reported = false;
@@ -161,7 +153,7 @@ int fitsDirectory::readImage(size_t imno)
    inc[1] = 1;
    inc[2] = 1;
 
-   delete naxes;
+   delete[] naxes;
 
    int anynul;
    
@@ -215,19 +207,8 @@ void fitsDirectory::imConnect()
 
    m_imageFound = 1;
    
-   if(m_notifyfd < 0) 
-   {
-      emit connected();
-      return;
-   }
+   m_lastWriteTime = std::filesystem::last_write_time(m_dirPath);
    
-   m_notifywd = inotify_add_watch(m_notifyfd, m_dirPath.c_str(), IN_CREATE | IN_DELETE );
-
-   if(m_notifywd < 0)
-   {
-      perror("rtimv: fitsDirectory: error adding inotify watch");
-   }
-
    emit connected();
 }
 
@@ -235,29 +216,14 @@ int fitsDirectory::update()
 {   
    if(!m_imageFound) return RTIMVIMAGE_NOUPDATE;
 
-
-   //Read inotify to see if it changed.
-
-   ssize_t len;
-
-   if(m_notifyfd >= 0 )
+   //Check file time to see if it changed.
+   if(m_lastWriteTime != std::filesystem::last_write_time(m_dirPath))
    {
-      //Check if the directory changed
-      len = read(m_notifyfd, m_notify_buf, sizeof(m_notify_buf));
-      if (len == -1 && errno != EAGAIN)
-      {
-         perror("rtimv: fitsDirectory: error reading inotify");
-         detach();
-         return RTIMVIMAGE_NOUPDATE;
-      }
-
-      if (len > 0)
-      {
-         //Handle change in directory, but this could be a lot smarter than just starting over
-         detach();
-         return RTIMVIMAGE_NOUPDATE;
-      }
+      //Handle change in directory, but this could be a lot smarter than just starting over
+      detach();
+      return RTIMVIMAGE_NOUPDATE;
    }
+
    //No change in directory, just keep playing.
 
    if(m_fileList.size() == 1) return RTIMVIMAGE_NOUPDATE;
