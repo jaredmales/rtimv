@@ -6,6 +6,8 @@
 
 #define RTIMV_TOOLLINEWIDTH_DEFAULT (0)
 
+#define RTIMV_BORDERLINEWIDTH_DEFAULT (0.02)
+
 #define RTIMV_DEBUG_BREADCRUMB
 
 rtimvMainWindow::rtimvMainWindow( int argc,
@@ -41,8 +43,6 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    m_qgs->installEventFilter(this);
 
    ui.graphicsView->setScene(m_qgs);
-
-   m_colorBox = 0;
 
    rightClickDragging = false;
 
@@ -365,6 +365,10 @@ void rtimvMainWindow::post_zoomLevel()
 
     RTIMV_DEBUG_BREADCRUMB
 
+    setBorderBox();
+
+    RTIMV_DEBUG_BREADCRUMB
+
     char zlstr[16];
     snprintf(zlstr,16, "%0.1fx", m_zoomLevel);
     ui.graphicsView->zoomText(zlstr);
@@ -465,7 +469,7 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT & lock )
 
     RTIMV_DEBUG_BREADCRUMB
 
-
+    if(m_borderBox) m_qpmi->stackBefore(m_borderBox);
     if(m_colorBox) m_qpmi->stackBefore(m_colorBox);
     if(m_statsBox) m_qpmi->stackBefore(m_statsBox);
     if(m_objCenH) m_qpmi->stackBefore(m_objCenH);
@@ -1974,6 +1978,24 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
          case Qt::Key_Minus:
             zoomLevel(zoomLevel() - 0.1);
             break;
+         /*case Qt::Key_W: //For testing the border
+            if(m_borderWarningLevel == rtimv::warningLevel::normal)
+            {
+                borderWarningLevel(rtimv::warningLevel::alert);
+            }
+            else if(m_borderWarningLevel == rtimv::warningLevel::alert)
+            {
+                borderWarningLevel(rtimv::warningLevel::warning);
+            }
+            else if(m_borderWarningLevel == rtimv::warningLevel::warning)
+            {
+                borderWarningLevel(rtimv::warningLevel::caution);
+            }
+            else
+            {
+                borderWarningLevel(rtimv::warningLevel::normal);
+            }
+            break;*/
       }
    }
    else //Finally deal with unmodified keys
@@ -2583,35 +2605,64 @@ void rtimvMainWindow::borderWarningLevel(rtimv::warningLevel lvl)
 {
     m_borderWarningLevel = lvl;
 
+    if(m_borderBox == nullptr)
+    {
+        m_borderBox = new StretchBox();
+
+        m_borderBox->setVisible(false);
+        m_borderBox->setStretchable(false);
+        m_borderBox->setRemovable(false);
+        m_qgs->addItem(m_borderBox);
+    }
+
     if(lvl == rtimv::warningLevel::alert)
     {
-        ui.graphicsView->setStyleSheet("#graphicsView {border: 2px solid magenta}");
-        int w=width();
-        resize(w+1, height());
-        resize(w,height());
+        m_borderBox->setPenColor("magenta");
+        m_borderBox->setVisible(true);
     }
     else if(lvl == rtimv::warningLevel::warning)
     {
-        ui.graphicsView->setStyleSheet("#graphicsView {border: 2px solid red}");
-        int w=width();
-        resize(w+1, height());
-        resize(w,height());
+        m_borderBox->setPenColor("red");
+        m_borderBox->setVisible(true);
     }
     else if(lvl == rtimv::warningLevel::caution)
     {
-        ui.graphicsView->setStyleSheet("#graphicsView {border: 2px solid yellow}");
-        int w=width();
-        resize(w+1, height());
-        resize(w,height());
+        m_borderBox->setPenColor("yellow");
+        m_borderBox->setVisible(true);
     }
     else //(lvl == rtimv::warningLevel::normal)
     {
-        ui.graphicsView->setStyleSheet("#graphicsView {border: 0px solid black}");
-        int w=width();
-        //std::cerr << "width: " << w << "\n";
-        resize(w+1, height());
-        resize(w,height());
+        m_borderBox->setVisible(false);
     }
+
+    setBorderBox();
+}
+
+void rtimvMainWindow::setBorderBox()
+{
+    if(!m_borderBox) return;
+    if(!m_borderBox->isVisible()) return;
+
+    float w, h;
+    w = m_nx/m_zoomLevel;
+    h = m_ny/m_zoomLevel;
+
+    //Change pen so it looks right relative to size of pixels
+    float pw;
+    if(m_nx < m_ny)
+    {
+        pw = RTIMV_BORDERLINEWIDTH_DEFAULT*m_nx;
+    }
+    else
+    {
+        pw = RTIMV_BORDERLINEWIDTH_DEFAULT*m_ny;
+    }
+
+    m_borderBox->setPenWidth(pw);
+
+    //The must offset slightly to make sure it is displayed
+    m_borderBox->setRect(ui.graphicsView->xCen()-w/2+0.25*pw, ui.graphicsView->yCen()-w/2+0.25*pw, w-0.5*pw, h-0.5*pw);
+
 }
 
 template<typename realT>

@@ -34,7 +34,7 @@ using namespace mx::app;
 #include <cstdio>
 
 #define SCALEMODE_USER 3
-	
+
 #define PointerViewEnabled 0
 #define PointerViewOnPress 1
 #define PointerViewDisabled 2
@@ -45,7 +45,7 @@ using namespace mx::app;
 #define ViewViewModeMax 2
 
 
-     
+
 
 
 class rtimvControlPanel;
@@ -68,7 +68,7 @@ public:
 
 protected:
     std::string m_title{"rtimv"};
-    
+
 public:
     /// Called on initial connection to the image stream, sets matching aspect ratio.
     virtual void onConnect();
@@ -178,26 +178,26 @@ public:
 
 private:
 
-    void mtxL_setViewCen_impl( float x, 
-                               float y,  
+    void mtxL_setViewCen_impl( float x,
+                               float y,
                                bool movezoombox
                              );
 
 public:
-    void mtxL_setViewCen( float x, 
-                          float y,  
-                          const uniqueLockT & lock, 
+    void mtxL_setViewCen( float x,
+                          float y,
+                          const uniqueLockT & lock,
                           bool movezoombox = true
                         );
 
-    void mtxL_setViewCen( float x, 
-                          float y,  
-                          const sharedLockT & lock, 
+    void mtxL_setViewCen( float x,
+                          float y,
+                          const sharedLockT & lock,
                           bool movezoombox = true
                         );
-    
+
     float get_xcen() { return ui.graphicsView->xCen(); }
-    
+
     float get_ycen() { return ui.graphicsView->yCen(); }
 
     /// Matches the viewport to the same aspect ratio as the image data, by decreasing the area.
@@ -292,17 +292,17 @@ public slots:
 
 public:
 
-    
+
 
 protected:
     QGraphicsEllipseItem *m_lineHead;
     QGraphicsLineItem *m_objCenV;
     QGraphicsLineItem *m_objCenH;
 
-    
+
 
 public:
-    
+
 
     /*---- Target Cross ----*/
 protected:
@@ -378,13 +378,13 @@ protected:
 
     float m_userItemMouseViewX{0}; ///< Center of active user item in viewport coordinates
     float m_userItemMouseViewY{0}; ///< Center of active user item in viewport coordinates
-    
+
     bool m_offsetItemMouseCoordsX {false}; ///< Flag to indicate that the x mouse coordinates should be offset to avoid the item.
     bool m_offsetItemMouseCoordsY {false}; ///< Flag to indicate that the y mouse coordinates should be offset to avoid the item.
 
 
 public:
-    
+
     /// Update the mouse coordinates at the center of the active user item
     void mtxTry_userItemMouseCoords( float mx, ///< [in] the scene x-coordinate of the center
                                      float my, ///< [in] the scene y-coordinate of the center
@@ -406,14 +406,14 @@ public:
 
 public:
 
-    StretchBox *m_colorBox; ///\todo make this protected, fix imcp
+    StretchBox *m_colorBox {nullptr}; ///\todo make this protected, fix imcp
 
 public slots:
 
     void mtxTry_colorBoxMoved(StretchBox *sb);
 
     void mtxTry_colorBoxSelected(StretchBox *sb);
-    
+
     void colorBoxDeselected(StretchBox *sb);
 
     /// Called when the color box is deleted
@@ -432,7 +432,7 @@ public slots:
     void doLaunchStatsBox();
 
     void doHideStatsBox();
-    
+
     void imStatsClosed(int);
 
     void mtxTry_statsBoxMoved(StretchBox *);
@@ -446,10 +446,10 @@ public slots:
 protected:
 
     std::unordered_set<StretchBox *> m_userBoxes;
-    
+
 public:
 
-    /// Add a user box  
+    /// Add a user box
     void addUserBox();
 
     /// Update the size display for the active user box
@@ -488,7 +488,7 @@ public slots:
 
     /// Called when a user box is selected
     void mtxTry_userBoxSelected(StretchBox *sc);
-    
+
     /// Called when a user box is deselected
     void userBoxDeSelected(StretchBox *sc);
 
@@ -496,7 +496,7 @@ public slots:
 
 protected:
     std::unordered_set<StretchCircle *> m_userCircles;
-    
+
 public:
     /// Add a user circle
     void addUserCircle();
@@ -509,7 +509,7 @@ public:
 
     /// Update he mouse coordinates of the user circle
     void mtxTry_userCircleMouseCoords(StretchCircle *sc);
-    
+
 public slots:
     /// Add a StretchCircle to the user circle
     /** This addes the StretchCircle to the user boxes, and connects
@@ -602,7 +602,7 @@ public slots:
     void savingState(rtimv::savingState ss);
 
 public:
-    
+
     virtual void mtxL_postSetColorBoxActive( bool usba,
                                              const sharedLockT & lock
                                            );
@@ -658,26 +658,30 @@ public:
 
     void toggleInfo();
 
-    /** \name Border Colors 
+    /** \name Border Colors
       * @{
       */
 
 protected:
 
+    /// The current warning level for border colors.
     rtimv::warningLevel m_borderWarningLevel {rtimv::warningLevel::normal};
+
+    StretchBox *m_borderBox {nullptr}; ///< The border overlay
 
 public slots:
 
     /// Set the warning level for the border color
-    /** The levels are
-      * -0 no warning, uses default border color 
-      * -1 caution, uses caution color (yellow)
-      * -2 warning, uses warning color (red)
-      * -3 (or greater) alert, uses alert color (pink)
-      *  
+    /** The levels are defined in the enum rtimv::warningLevel
+      *
       */
     void borderWarningLevel(rtimv::warningLevel lvl);
 
+    /// Set the border box geometry based on current view and zoom
+    /** Called every zoom change and if border is toggled
+      *
+      */
+    void setBorderBox();
 
     ///@}
 
@@ -723,10 +727,10 @@ public:
     /** Uses a power-quadrature average (see m_lumPwr) and sets the background opacity based on interpolation with
       *  the values of m_lumThresh, m_lumMax, and m_opacityMax.
       *
-      * \note Call this version with the mutex already locked 
+      * \note Call this version with the mutex already locked
       */
     void mtxL_fontLuminance( QTextEdit *qte,     ///< [in/out] the QTextEdit to modify
-                             const sharedLockT & lock, 
+                             const sharedLockT & lock,
                              bool print = false ///< [in] [out] if true the average luminance is printed.  Used for debugging.
                            );
 
@@ -772,7 +776,7 @@ protected:
     int loadPlugin(QObject *plugin);
 
     std::vector<rtimvInterface *> m_plugins;
-    
+
     std::vector<rtimvOverlayInterface *> m_overlays;
 
     ///@}
@@ -785,12 +789,12 @@ public:
     /// Filter events for various members
     /** The following events are filtered:
      *  - QGraphicsScene * m_qgs KeyPress is stopped if it's an arrow or page key.  This is instead passed directly to keyPressEvent.
-     * 
+     *
      * This filter is registered with objects upon their construction.
      * :
      * \returns true if processing of the event should stop
      * \returns false otherwise
-     * 
+     *
      */
     bool eventFilter( QObject *obj,  ///< [in] the object processing the event
                       QEvent *event  ///< [in] the event
