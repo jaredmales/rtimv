@@ -25,7 +25,7 @@
   </property>
   <property name="windowIcon">
    <iconset resource="../res/imviewer.qrc">
-    <normaloff>:/icons/scamper_cutout_sq_64.jpeg</normaloff>:/icons/scamper_cutout_sq_64.jpeg</iconset>
+    <normaloff>:/icons/scamper_cutout_sq_64.png</normaloff>:/icons/scamper_cutout_sq_64.png</iconset>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="20">
    <item>

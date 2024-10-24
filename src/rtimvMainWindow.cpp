@@ -1539,10 +1539,10 @@ void rtimvMainWindow::userCircleSize(StretchCircle * sc)
    QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
    QSize textSize = fm.size(0, tmp);
 
-   float posx = sc->rect().x() + sc->pos().x() + sc->rect().width()*0.5 - sc->radius()*0.707;
+   //Appears to be not necessary. Remove this next time you see it, after Oct 23 2024
+   /*float posx = sc->rect().x() + sc->pos().x() + sc->rect().width()*0.5 - sc->radius()*0.707;
    float posy = sc->rect().y() + sc->pos().y()+ sc->rect().height()*0.5 - sc->radius()*0.707;
-
-   ui.graphicsView->m_userItemSize->setGeometry( posx, posy, textSize.width()+5,textSize.height()+5);
+   ui.graphicsView->m_userItemSize->setGeometry( posx, posy, textSize.width()+5,textSize.height()+5);*/
 
    //Take scene coordinates to viewport coordinates.
    QRectF sbr = sc->sceneBoundingRect();

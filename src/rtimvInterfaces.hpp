@@ -105,12 +105,15 @@ public:
       {
          clearBlob();
 
-         m_blob = malloc(sz);
-         m_sz = sz;
-         m_memSz = sz;
-         memcpy(m_blob, blob, sz);
+         if(blob != nullptr && sz > 0)
+         {
+            m_blob = malloc(sz);
+            m_sz = sz;
+            m_memSz = sz;
+            memcpy(m_blob, blob, sz);
 
-         m_owner = true;
+            m_owner = true;
+         }
       }
       else
       {

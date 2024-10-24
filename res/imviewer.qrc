@@ -9,6 +9,7 @@
         <file>icons/arrow_down_128.png</file>
         <file>icons/arrow_down_right_128.png</file>
         <file>icons/square_128.png</file>
-        <file>icons/scamper_cutout_sq_64.jpeg</file>
+        <file>icons/scamper_cutout_sq_64.png</file>
     </qresource>
 </RCC>
+
