@@ -56,6 +56,7 @@ public:
    ///@}
    
       
+   void remove();
 
 protected:
    

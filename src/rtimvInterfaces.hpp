@@ -105,20 +105,27 @@ public:
       {
          clearBlob();
 
-         if(blob != nullptr && sz > 0)
+         if(sz > 0)
          {
             m_blob = malloc(sz);
             m_sz = sz;
             m_memSz = sz;
-            memcpy(m_blob, blob, sz);
-
             m_owner = true;
+         }
+
+         if(blob != nullptr && sz > 0)
+         {   
+            memcpy(m_blob, blob, sz);  
          }
       }
       else
       {
+         //We're the owner and not reallocating
          m_sz = sz;
-         memcpy(m_blob, blob, sz);
+         if(blob != nullptr && sz > 0)
+         {
+            memcpy(m_blob, blob, sz);
+         }
       }
 
       clock_gettime(CLOCK_REALTIME, &m_lastMod);

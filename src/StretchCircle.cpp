@@ -31,6 +31,11 @@ float StretchCircle::radius()
    return 0.5*rect().width();
 }
 
+void StretchCircle::remove()
+{
+   emitRemove();
+}
+
 void StretchCircle::hoverMoveEvent(QGraphicsSceneHoverEvent * e)
 {
    handleHoverMoveEvent(e);
