@@ -38,6 +38,7 @@ enum class savingState{ on, ///< images are not being saved
   * \todo put this in an rtimv.hpp file.  Or, maybe, rtimvInterfaces.hpp should be rtimv.hpp
   */
 enum class warningLevel{ normal,  ///< No border, this is fine
+                         info,    ///< Info: information on which the user should take action.  Default color is white.
                          caution, ///< Caution: user should pay attention.  Default color is yellow.
                          warning, ///< Warning: user should fix something.  Default color is red.
                          alert    ///< Alert: user must take immediate action.  Default color is magenta.
@@ -114,8 +115,8 @@ public:
          }
 
          if(blob != nullptr && sz > 0)
-         {   
-            memcpy(m_blob, blob, sz);  
+         {
+            memcpy(m_blob, blob, sz);
          }
       }
       else

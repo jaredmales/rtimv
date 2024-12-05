@@ -13,61 +13,61 @@ class StretchBox : public QObject, public QGraphicsRectItem, public StretchGraph
    Q_OBJECT
 
    friend class StretchGraphicsItem<StretchBox>;
-   
+
 public:
 
    typedef QRectF coordSpecT;
-   
+
    StretchBox(QGraphicsItem * parent = 0);
    StretchBox(const QRectF & rect, QGraphicsItem * parent = 0 );
    StretchBox(qreal x, qreal y, qreal width, qreal height, QGraphicsItem * parent = 0 );
-   
+
 private:
    /// Initialize the stretch circle
    /** This connects m_cursorTimer (from StretchGraphicsItem) to the required cursorTimerOut slot.
      *
-     */ 
-   void initStretchBox(); 
-      
-   /** \name Geometry 
+     */
+   void initStretchBox();
+
+   /** \name Geometry
      * @{
-     */ 
+     */
 protected:
    bool m_maintainCenter {false}; ///< Sets whether the center coordinate is maintained (true) when stretching, or if it moves (false)
-   
+
    float m_ul_x {0}; ///< The x-coordinate of the upper left corner of the bounding box
    float m_ul_y {0}; ///< The y-coordinate of the upper left corner of the bounding box
    float m_width {0};  ///< The width of the bounding box
    float m_height {0}; ///< The height of the bounding box
    float m_mv_x0 {0}; ///< The x-coordinate of the mouse at the start of a re-size
    float m_mv_y0 {0}; ///< The y-coordinate of the mouse at the start of a re-size
-   
+
 public:
-   
+
    /// Get whether or not the center is maintained when stretching.
    /** \returns the current value of m_maintainCenter
      */
    bool maintainCenter();
-   
+
    /// Set whether to maintain the center when stretching.
    void setMaintainCenter(bool mc /**< [in] Set m_maintainCenter to true to maintain the center, false to move it.*/);
-   
+
    ///@}
 protected:
-   
+
    /** \name Event Handlers
      * Each of these calls the associated handleXXXX from StretchGraphicsItem
-     * 
+     *
      * @{
      */
    void hoverMoveEvent(QGraphicsSceneHoverEvent * e);
-   
+
    void hoverLeaveEvent(QGraphicsSceneHoverEvent * e);
-      
+
    void mousePressEvent ( QGraphicsSceneMouseEvent * event );
-   
+
    void mouseReleaseEvent(QGraphicsSceneMouseEvent * event );
-      
+
    void mouseMoveEvent(QGraphicsSceneMouseEvent * event);
 
    void keyPressEvent(QKeyEvent * ke);
@@ -77,7 +77,7 @@ protected:
    /** \name StretchGraphicsItem Interface
      *
      * @{
-     */ 
+     */
 
    bool onHoverComputeSizing(QGraphicsSceneHoverEvent * e);
 
@@ -99,13 +99,17 @@ protected slots:
 
    /// When the cursor timer times-out, the cursor is changed to the double-arrow
    virtual void cursorTimerOut();
-   
+
    /// When the selection timer times-out, the item is selected without clicking
    virtual void selectionTimerOut();
 
    ///@}
-   
+
 public:
+
+   /// Remove this box from the list
+   void remove();
+
    /** \name Signals
      * The emitXXXX are required by StretchGraphicsItem, and each
      * emits the associated signal.
@@ -119,19 +123,19 @@ public:
    void emitRemove();
    void emitSelected();
    void emitDeSelected();
-   
+
 signals:
    void moved(StretchBox * s);
    void resized(StretchBox * s);
    void rejectMouse(StretchBox * s);
    void mouseIn(StretchBox * s);
    void mouseOut(StretchBox * s);
-   void remove(StretchBox * s);   
+   void remove(StretchBox * s);
    void selected(StretchBox * s);
    void deSelected(StretchBox * s);
 
    ///@}
-   
+
 
 };
 

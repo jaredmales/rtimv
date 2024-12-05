@@ -1,8 +1,9 @@
 #include "rtimvMainWindow.hpp"
 
-#define RTIMV_EDGETOL_DEFAULT (7.5)
+#define RTIMV_EDGETOL_DEFAULT (5.5)
 
-#define RTIMV_EDGETOL (RTIMV_EDGETOL_DEFAULT/m_screenZoom < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom)
+#define RTIMV_EDGETOL (RTIMV_EDGETOL_DEFAULT / m_screenZoom)
+// < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom)
 
 #define RTIMV_TOOLLINEWIDTH_DEFAULT (0)
 
@@ -178,6 +179,9 @@ void rtimvMainWindow::setupConfig()
    config.add("north.enabled", "", "north.enabled", argType::Required, "north", "enabled", false, "bool", "Whether or not to enable the north arrow. Default is true.");
    config.add("north.offset", "", "north.offset", argType::Required, "north", "offset", false, "float", "Offset in degrees c.c.w. to apply to the north angle. Default is 0.");
    config.add("north.scale", "", "north.scale", argType::Required, "north", "scale", false, "float", "Scaling factor to apply to north angle to convert to degrees c.c.w. on the image.  Default is -1.");
+
+   config.add("item.crossWidthFract", "", "item.crossWidthFract", argType::Required, "item", "crossWidthFract", false, "float", "The half-width of the center cross, relative to the smallest dimension of the item. Default is 0.1.");
+   config.add("item.crossWidthMin", "", "item.crossWidthMin", argType::Required, "item", "crossWidthMin", false, "float", "The minimum half-width of the center cross, in image pixels. Default is 2.");
 }
 
 void rtimvMainWindow::loadConfig()
@@ -272,6 +276,9 @@ void rtimvMainWindow::loadConfig()
    config(m_northArrowEnabled, "north.enabled");
    config(m_northAngleOffset, "north.offset");
    config(m_northAngleScale, "north.scale");
+
+   config(m_userItemCrossWidthFract, "item.crossWidthFract");
+   config(m_userItemCrossWidthMin, "item.crossWidthMin");
 
 }
 
@@ -1116,6 +1123,30 @@ void rtimvMainWindow::userItemSelected( const QColor & color,
 
 }
 
+void rtimvMainWindow::userItemCross( const QPointF & pos,
+                                     const QRectF & rect,
+                                     const QPen & pen
+                                   )
+{
+    m_userItemXCen = rect.x() + pos.x() + 0.5*rect.width();
+    m_userItemYCen = rect.y() + pos.y() + 0.5*rect.height();
+
+    m_objCenH->setPen(pen);
+    m_objCenV->setPen(pen);
+
+   float iw = std::min(rect.width(), rect.height());
+
+   float cw = iw*m_userItemCrossWidthFract;
+
+   if(cw < m_userItemCrossWidthMin) cw = m_userItemCrossWidthMin;
+
+   if(cw > 0.5*iw) cw = 0.5*iw;
+
+   m_objCenH->setLine(m_userItemXCen-cw, m_userItemYCen, m_userItemXCen+cw, m_userItemYCen);
+   m_objCenV->setLine(m_userItemXCen, m_userItemYCen-cw, m_userItemXCen, m_userItemYCen+cw);
+}
+
+
 /*---- Color Box ----*/
 
 void rtimvMainWindow::mtxTry_colorBoxMoved(StretchBox * sb)
@@ -1386,13 +1417,7 @@ void rtimvMainWindow::mtxTry_userBoxSize(StretchBox * sb)
 
 void rtimvMainWindow::userBoxCross(StretchBox * sb)
 {
-   m_userItemXCen = sb->rect().x() + sb->pos().x() + 0.5*sb->rect().width();
-   m_userItemYCen = sb->rect().y() + sb->pos().y() + 0.5*sb->rect().height();
-
-   float w = std::max(sb->rect().width(), sb->rect().height());
-   if(w < 100) w = 100;
-   m_objCenH->setLine(m_userItemXCen-w*0.05, m_userItemYCen, m_userItemXCen+w*0.05, m_userItemYCen);
-   m_objCenV->setLine(m_userItemXCen, m_userItemYCen-w*0.05, m_userItemXCen, m_userItemYCen+w*0.05);
+    userItemCross(sb->pos(), sb->rect(), sb->pen());
 }
 
 void rtimvMainWindow::mtxTry_userBoxMouseCoords(StretchBox * sb)
@@ -1539,11 +1564,6 @@ void rtimvMainWindow::userCircleSize(StretchCircle * sc)
    QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
    QSize textSize = fm.size(0, tmp);
 
-   //Appears to be not necessary. Remove this next time you see it, after Oct 23 2024
-   /*float posx = sc->rect().x() + sc->pos().x() + sc->rect().width()*0.5 - sc->radius()*0.707;
-   float posy = sc->rect().y() + sc->pos().y()+ sc->rect().height()*0.5 - sc->radius()*0.707;
-   ui.graphicsView->m_userItemSize->setGeometry( posx, posy, textSize.width()+5,textSize.height()+5);*/
-
    //Take scene coordinates to viewport coordinates.
    QRectF sbr = sc->sceneBoundingRect();
    QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x()+sc->rect().width()*0.5 - sc->radius()*0.707, sbr.y()+ sc->rect().height()*0.5 - sc->radius()*0.707));
@@ -1556,17 +1576,7 @@ void rtimvMainWindow::userCircleSize(StretchCircle * sc)
 
 void rtimvMainWindow::userCircleCross(StretchCircle * sc)
 {
-   m_userItemXCen = sc->rect().x() + sc->pos().x() + 0.5*sc->rect().width();
-   m_userItemYCen = sc->rect().y() + sc->pos().y() + 0.5*sc->rect().height();
-
-   m_objCenH->setPen(sc->pen());
-   m_objCenV->setPen(sc->pen());
-
-   float w = std::max(sc->rect().width(), sc->rect().height());
-   if(w < 100) w = 100;
-   m_objCenH->setLine(m_userItemXCen-w*0.05, m_userItemYCen, m_userItemXCen+w*0.05, m_userItemYCen);
-   m_objCenV->setLine(m_userItemXCen, m_userItemYCen-w*0.05, m_userItemXCen, m_userItemYCen+w*0.05);
-
+    userItemCross(sc->pos(), sc->rect(), sc->pen());
 }
 
 void rtimvMainWindow::mtxTry_userCircleMouseCoords(StretchCircle * sc)
@@ -1978,24 +1988,6 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
          case Qt::Key_Minus:
             zoomLevel(zoomLevel() - 0.1);
             break;
-         /*case Qt::Key_W: //For testing the border
-            if(m_borderWarningLevel == rtimv::warningLevel::normal)
-            {
-                borderWarningLevel(rtimv::warningLevel::alert);
-            }
-            else if(m_borderWarningLevel == rtimv::warningLevel::alert)
-            {
-                borderWarningLevel(rtimv::warningLevel::warning);
-            }
-            else if(m_borderWarningLevel == rtimv::warningLevel::warning)
-            {
-                borderWarningLevel(rtimv::warningLevel::caution);
-            }
-            else
-            {
-                borderWarningLevel(rtimv::warningLevel::normal);
-            }
-            break;*/
       }
    }
    else //Finally deal with unmodified keys
@@ -2628,6 +2620,11 @@ void rtimvMainWindow::borderWarningLevel(rtimv::warningLevel lvl)
     else if(lvl == rtimv::warningLevel::caution)
     {
         m_borderBox->setPenColor("yellow");
+        m_borderBox->setVisible(true);
+    }
+    else if(lvl == rtimv::warningLevel::info)
+    {
+        m_borderBox->setPenColor("white");
         m_borderBox->setVisible(true);
     }
     else //(lvl == rtimv::warningLevel::normal)

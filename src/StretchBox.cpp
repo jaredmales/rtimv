@@ -8,13 +8,13 @@ StretchBox::StretchBox(QGraphicsItem * parent) : QGraphicsRectItem(parent)
    initStretchBox();
    return;
 }
-      
+
 StretchBox::StretchBox(const QRectF & rect, QGraphicsItem * parent) : QGraphicsRectItem(rect, parent)
 {
    initStretchBox();
    return;
 }
-      
+
 StretchBox::StretchBox(qreal x, qreal y, qreal width, qreal height, QGraphicsItem * parent) : QGraphicsRectItem(x,y,width,height,parent)
 {
    initStretchBox();
@@ -22,7 +22,7 @@ StretchBox::StretchBox(qreal x, qreal y, qreal width, qreal height, QGraphicsIte
 }
 
 void StretchBox::initStretchBox()
-{   
+{
    connect(&m_cursorTimer, SIGNAL(timeout()), this, SLOT(cursorTimerOut()));
    connect(&m_selectionTimer, SIGNAL(timeout()), this, SLOT(selectionTimerOut()));
 }
@@ -31,12 +31,12 @@ bool StretchBox::maintainCenter()
 {
    return m_maintainCenter;
 }
-   
+
 void StretchBox::setMaintainCenter(bool mc)
 {
    m_maintainCenter = mc;
 }
-   
+
 void StretchBox::hoverMoveEvent(QGraphicsSceneHoverEvent * e)
 {
    handleHoverMoveEvent(e);
@@ -90,12 +90,12 @@ void StretchBox::selectionTimerOut()
 bool StretchBox::onHoverComputeSizing(QGraphicsSceneHoverEvent * e)
 {
    double rx, ry;
-   
+
    rx = e->lastPos().x() - rect().x();
    ry = e->lastPos().y() - rect().y();
 
    if(rx > m_edgeTol && rx < rect().width()-m_edgeTol && ry > m_edgeTol && ry < rect().height() -m_edgeTol)
-   { 
+   {
       return false;
    }
 
@@ -132,7 +132,7 @@ bool StretchBox::onHoverComputeSizing(QGraphicsSceneHoverEvent * e)
    {
       m_sizing = szBot;
    }
-   
+
    return true;
 }
 
@@ -141,9 +141,9 @@ bool StretchBox::onMousePressCalcGrabbed(QGraphicsSceneMouseEvent * e)
    double rx, ry;
    rx = e->pos().x() - rect().x();
    ry = e->pos().y() - rect().y();
-   
+
    if(rx > m_edgeTol && rx < rect().width()-m_edgeTol && ry > m_edgeTol && ry < rect().height() - m_edgeTol)
-   { 
+   {
       return false;
    }
    else
@@ -151,14 +151,14 @@ bool StretchBox::onMousePressCalcGrabbed(QGraphicsSceneMouseEvent * e)
       return true;
    }
 }
- 
+
 void StretchBox::setGrabbedGeometry(QGraphicsSceneMouseEvent * e)
 {
    m_ul_x = x();
    m_ul_y = y();
    m_mv_x0 = e->scenePos().x();
    m_mv_y0 = e->scenePos().y();
-   
+
 }
 
 void StretchBox::setMovingGeometry(QGraphicsSceneMouseEvent * e)
@@ -169,14 +169,14 @@ void StretchBox::setMovingGeometry(QGraphicsSceneMouseEvent * e)
    m_height = rect().height();
    m_mv_x0 = e->scenePos().x();
    m_mv_y0 = e->scenePos().y();
-   
+
    return;
 }
 
 void StretchBox::sizingCalcNewPos(QGraphicsSceneMouseEvent * e)
 {
    double newx, newy, neww, newh, dw, dh;
-   
+
    dw = (e->scenePos().x() - m_mv_x0);
    dh = (e->scenePos().y() - m_mv_y0);
 
@@ -189,8 +189,8 @@ void StretchBox::sizingCalcNewPos(QGraphicsSceneMouseEvent * e)
       }
 
       newy = m_ul_y;
-      neww = m_width - dw; 
-      newh = m_height; 
+      neww = m_width - dw;
+      newh = m_height;
    }
    else if(m_sizing == szTopl)
    {
@@ -202,9 +202,9 @@ void StretchBox::sizingCalcNewPos(QGraphicsSceneMouseEvent * e)
          dw *= 2;
          dh *= 2;
       }
-      
+
       neww = m_width - dw;
-      newh = m_height - dh;    
+      newh = m_height - dh;
    }
    else if(m_sizing == szTop)
    {
@@ -216,7 +216,7 @@ void StretchBox::sizingCalcNewPos(QGraphicsSceneMouseEvent * e)
       }
 
       neww = m_width;
-      newh = m_height - dh; 
+      newh = m_height - dh;
    }
    else if(m_sizing == szTopr)
    {
@@ -231,7 +231,7 @@ void StretchBox::sizingCalcNewPos(QGraphicsSceneMouseEvent * e)
       }
 
       neww = m_width + dw;
-      newh = m_height - dh; 
+      newh = m_height - dh;
    }
    else if(m_sizing == szRight)
    {
@@ -245,7 +245,7 @@ void StretchBox::sizingCalcNewPos(QGraphicsSceneMouseEvent * e)
       }
 
       neww = m_width + dw;
-      newh = m_height; 
+      newh = m_height;
    }
    else if(m_sizing == szBotr)
    {
@@ -280,20 +280,20 @@ void StretchBox::sizingCalcNewPos(QGraphicsSceneMouseEvent * e)
       if(m_maintainCenter)
       {
          newy -= dh;
-         
+
          dw *= 2;
          dh *= 2;
       }
-      
+
       neww = m_width - dw;
       newh = m_height + dh;
    }
-   else 
+   else
    {
       std::cerr << "StretchBox::sizingCalcNewPos (" << __FILE__ << " " << __LINE__ << "): m_sizing has invalid value.\n";
       return;
    }
-      
+
    setRect(newx, newy, neww, newh);
 }
 
@@ -301,8 +301,13 @@ void StretchBox::movingCalcNewPos( QGraphicsSceneMouseEvent * e )
 {
    float newx = m_ul_x + (e->scenePos().x() - m_mv_x0);
    float newy = m_ul_y + (e->scenePos().y() - m_mv_y0);
- 
+
    setPos(newx, newy);
+}
+
+void StretchBox::remove()
+{
+   emitRemove();
 }
 
 void StretchBox::emitMoved()

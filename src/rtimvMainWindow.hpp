@@ -294,15 +294,8 @@ public:
 
 
 
-protected:
-    QGraphicsEllipseItem *m_lineHead;
-    QGraphicsLineItem *m_objCenV;
-    QGraphicsLineItem *m_objCenH;
 
-
-
-public:
-
+/// @}
 
     /*---- Target Cross ----*/
 protected:
@@ -382,6 +375,18 @@ protected:
     bool m_offsetItemMouseCoordsX {false}; ///< Flag to indicate that the x mouse coordinates should be offset to avoid the item.
     bool m_offsetItemMouseCoordsY {false}; ///< Flag to indicate that the y mouse coordinates should be offset to avoid the item.
 
+    QGraphicsEllipseItem *m_lineHead; ///< Origin marker for user lines
+
+    QGraphicsLineItem *m_objCenV; ///< Center marker for user boxes and circles, the vertical part
+
+    QGraphicsLineItem *m_objCenH;  ///< Center marker for user boxes and circles, the horizontal part
+
+    float m_userItemCrossWidthFract {0.1};  /**< The half-width of the center cross, relative to the smallest
+                                                 dimension of the item. Default is 0.1. */
+
+    float m_userItemCrossWidthMin {2};      /**< The minimum half-width of the center cross, in image pixels.
+                                                 Default is 2. */
+
 
 public:
 
@@ -401,6 +406,15 @@ public:
                            bool coordsVis,       ///< [in] whether or not the coordinate text is visible
                            bool cenVis           ///< [in] whether or not the center cross is visible
                          );
+
+    /// Position the cross marking the center of a user box or circle
+    /** Sets the center coordinate and updates the cross position and pen.
+      *
+      */
+    void userItemCross( const QPointF & pos, ///< The pos() of the item
+                        const QRectF & rect, ///< The rect() of the item
+                        const QPen & pen     ///< The pen() of the item
+                      );
 
     /*---- Color Box ----*/
 
@@ -440,6 +454,8 @@ public slots:
     void mtxTry_statsBoxSelected(StretchBox *);
 
     void statsBoxRemove(StretchBox *);
+
+
 
     /*---- user boxes ----*/
 

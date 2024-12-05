@@ -13,24 +13,24 @@ class StretchCircle : public QObject, public QGraphicsEllipseItem, public Stretc
    Q_OBJECT
 
    friend class StretchGraphicsItem<StretchCircle>;
-   
+
 public:
 
    typedef QRectF coordSpecT;
-   
+
    StretchCircle(QGraphicsItem * parent = 0);
    StretchCircle(const QRectF & rect, QGraphicsItem * parent = 0 );
    StretchCircle(qreal x, qreal y, qreal width, qreal height, QGraphicsItem * parent = 0 );
-   
+
 private:
    /// Initialize the stretch circle
    /** This connects m_cursorTimer (from StretchGraphicsItem) to the required cursorTimerOut slot.
      *
-     */ 
-   void initStretchCircle(); 
-      
+     */
+   void initStretchCircle();
+
 protected:
-      
+
    /** \name Geometry
      * @{
      */
@@ -44,35 +44,32 @@ protected:
    float m_cen_x {0};  ///< The x-coordinate of the center of the bounding box
    float m_cen_y {0};  ///< The x-coordinate of the center of the bounding box
    float m_drad0 {0}; ///< The radius of the mouse position at the start of a re-size
-   
+
 public:
-   
-   /// Get the current radius of the circle 
+
+   /// Get the current radius of the circle
    /**
      * \returns the radius
-     */ 
+     */
    float radius();
-   
+
    ///@}
-   
-      
-   void remove();
 
 protected:
-   
+
    /** \name Event Handlers
      * Each of these calls the associated handleXXXX from StretchGraphicsItem
-     * 
+     *
      * @{
      */
    void hoverMoveEvent(QGraphicsSceneHoverEvent * e);
-   
+
    void hoverLeaveEvent(QGraphicsSceneHoverEvent * e);
-      
+
    void mousePressEvent ( QGraphicsSceneMouseEvent * event );
-   
+
    void mouseReleaseEvent(QGraphicsSceneMouseEvent * event );
-      
+
    void mouseMoveEvent(QGraphicsSceneMouseEvent * event);
 
    void keyPressEvent(QKeyEvent * ke);
@@ -84,7 +81,7 @@ protected:
    /** \name StretchGraphicsItem Interface
      *
      * @{
-     */ 
+     */
 
    bool onHoverComputeSizing(QGraphicsSceneHoverEvent * e);
 
@@ -104,12 +101,16 @@ protected slots:
 
    /// When the cursor timer times-out, the cursor is changed to the double-arrow
    virtual void cursorTimerOut();
-   
+
    /// When the selection timer times-out, the item is selected without clicking
    virtual void selectionTimerOut();
 
    ///@}
-   
+
+public:
+   /// Remove this circle from the list
+   void remove();
+
    /** \name Signals
      * The emitXXXX are required by StretchGraphicsItem, and each
      * emits the associated signal.
@@ -130,13 +131,13 @@ signals:
    void rejectMouse(StretchCircle * s);
    void mouseIn(StretchCircle * s);
    void mouseOut(StretchCircle * s);
-   void remove(StretchCircle * s);   
+   void remove(StretchCircle * s);
    void selected(StretchCircle * s);
    void deSelected(StretchCircle * s);
 
 
    ///@}
-   
+
 
 };
 
