@@ -19,83 +19,84 @@
   *
   * Required interfaces in the derived class:
   * - The timer must be connected in the constructor with the code:
-  * \code
-   connect(&m_cursorTimer, SIGNAL(timeout()), this, SLOT(cursorTimerOut()));
-  \endcode
+  *   \code
+  *        connect(&m_cursorTimer, SIGNAL(timeout()), this, SLOT(cursorTimerOut()));
+  *   \endcode
+  *
   * - Handler functions which must call the associated handleXXXXX function
-  * of this class. For example:
-  * \code
-   void hoverMoveEvent(QGraphicsSceneHoverEvent * e)
-   {
-      handleHoverMoveEvent(e); // provided by StretchGraphicsItem
-   }
-   \endcode
-   The other required handlers are:
-   \code
-   void hoverLeaveEvent(QGraphicsSceneHoverEvent * e);
-   void mousePressEvent ( QGraphicsSceneMouseEvent * event );
-   void mouseReleaseEvent(QGraphicsSceneMouseEvent * event );
-   void mouseMoveEvent(QGraphicsSceneMouseEvent * event);
-   void keyPressEvent(QKeyEvent * ke);
-   \endcode
+  *   of this class. For example:
+  *   \code
+  *       void hoverMoveEvent(QGraphicsSceneHoverEvent * e)
+  *       {
+  *           handleHoverMoveEvent(e); // provided by StretchGraphicsItem
+  *       }
+  *   \endcode
+  *   The other required handlers in the base class are:
+  *   \code
+  *       void hoverLeaveEvent(QGraphicsSceneHoverEvent * e);
+  *       void mousePressEvent ( QGraphicsSceneMouseEvent * event );
+  *       void mouseReleaseEvent(QGraphicsSceneMouseEvent * event );
+  *       void mouseMoveEvent(QGraphicsSceneMouseEvent * event);
+  *       void keyPressEvent(QKeyEvent * ke);
+  *   \endcode
   *
   * - A slot for the cursor timer which calls the timeout handler.
-  \code
-  protected slots:
-     virtual void cursorTimerOut()
-     {
-        slotCursorTimerOut(); // provided by StretchGraphicsItem
-     }
-  \endcode
+  *   \code
+  *   protected slots:
+  *       virtual void cursorTimerOut()
+  *       {
+  *           slotCursorTimerOut(); // provided by StretchGraphicsItem
+  *       }
+  *   \endcode
   *
   * - Signal emitters must be provided.  For example:
-  \code
-   void emitMoved()
-   {
-      emit moved(this);
-   }
-   \endcode
-  * The remaining required emitters are:
-  \code
-   void emitResized();
-   void emitRejectMouse();
-   void emitMouseIn();
-   void emitMouseOut();
-   void emitRemove();
-  \endcode
+  *   \code
+  *       void emitMoved()
+  *       {
+  *          emit moved(this);
+  *       }
+  *   \endcode
+  *   The remaining required emitters are:
+  *   \code
+  *       void emitResized();
+  *       void emitRejectMouse();
+  *       void emitMouseIn();
+  *       void emitMouseOut();
+  *       void emitRemove();
+  *   \endcode
+  *
   * - The signals themselves must be declared in the class header:
-  \code
-  signals:
-   void moved(StretchCircle * s);
-   void resized(StretchCircle * s);
-   void rejectMouse(StretchCircle * s);
-   void mouseIn(StretchCircle * s);
-   void mouseOut(StretchCircle * s);
-   void remove(StretchCircle * s);
-  \endcode
+  *   \code
+  *   signals:
+  *       void moved(StretchCircle * s);
+  *       void resized(StretchCircle * s);
+  *       void rejectMouse(StretchCircle * s);
+  *       void mouseIn(StretchCircle * s);
+  *       void mouseOut(StretchCircle * s);
+  *       void remove(StretchCircle * s);
+  *   \endcode
   *
-  * The above are all straightforward, simply interfacing the QOBJECT to the StretchGraphicsItem logic.
-  * More complicated are the helper functions which must be implemented.  These are used to deal with the
-  * geometry of the implemented item, to then determine cursor state and provide item specific functionality.
-  \code
-   bool onHoverComputeSizing(QGraphicsSceneHoverEvent * e);
-   bool onMousePressCalcGrabbed(QGraphicsSceneMouseEvent * e);
-   void setGrabbedGeometry(QGraphicsSceneMouseEvent * e);
-   void setMovingGeometry(QGraphicsSceneMouseEvent * e);
-   void sizingCalcNewPos(QGraphicsSceneMouseEvent * e);
-   void movingCalcNewPos(QGraphicsSceneMouseEvent * e);
-   \endcode
+  * - The above are all straightforward, simply interfacing the QOBJECT to the StretchGraphicsItem logic.
+  *   More complicated are the helper functions which must be implemented.  These are used to deal with the
+  *   geometry of the implemented item, to then determine cursor state and provide item specific functionality.
+  *   \code
+  *       bool onHoverComputeSizing(QGraphicsSceneHoverEvent * e);
+  *       bool onMousePressCalcGrabbed(QGraphicsSceneMouseEvent * e);
+  *       void setGrabbedGeometry(QGraphicsSceneMouseEvent * e);
+  *       void setMovingGeometry(QGraphicsSceneMouseEvent * e);
+  *       void sizingCalcNewPos(QGraphicsSceneMouseEvent * e);
+  *       void movingCalcNewPos(QGraphicsSceneMouseEvent * e);
+  *   \endcode
   *
-  * Finally you need to provide a key press handler.  The keyPressEvent will
-  * handle the `delete` key if the item is removable (by emitting the remove signal)
-  * but pass anything else to:
-  *
-   \code
-   void passKeyPressEvent(QKeyEvent * ke)
-   {
-      QGraphicsEllipseItem::keyPressEvent(ke); //For example this passes to the Qt parent
-   }
-   \endcode
+  * - Finally you need to provide a key press handler.  The keyPressEvent will
+  *   handle the `delete` key if the item is removable (by emitting the remove signal)
+  *   but pass anything else to:
+  *   \code
+  *       void passKeyPressEvent(QKeyEvent * ke)
+  *       {
+  *           QGraphicsEllipseItem::keyPressEvent(ke); //For example this passes to the Qt parent
+  *       }
+  *   \endcode
   */
 template<class _QGraphicsItemT>
 class StretchGraphicsItem

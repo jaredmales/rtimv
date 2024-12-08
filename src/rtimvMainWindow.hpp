@@ -375,7 +375,16 @@ protected:
     bool m_offsetItemMouseCoordsX {false}; ///< Flag to indicate that the x mouse coordinates should be offset to avoid the item.
     bool m_offsetItemMouseCoordsY {false}; ///< Flag to indicate that the y mouse coordinates should be offset to avoid the item.
 
+    float m_userItemLineWidth {2}; /**< The width of lines in user items in screen pixels.  Default is 2. */
+
+    float m_userItemEdgeTol {5.5}; /**< The tolerance in screen pixels for the mouse to be on the edge of
+                                        a user item.  For closed shapes this applies only to the inside.
+                                        Default is 5.5 */
+
     QGraphicsEllipseItem *m_lineHead; ///< Origin marker for user lines
+
+    float m_userLineHeadRad {10}; /**< The radius of the circle marking the head of a user line, in screen pixels.
+                                      Default is 50. */
 
     QGraphicsLineItem *m_objCenV; ///< Center marker for user boxes and circles, the vertical part
 
@@ -384,9 +393,10 @@ protected:
     float m_userItemCrossWidthFract {0.1};  /**< The half-width of the center cross, relative to the smallest
                                                  dimension of the item. Default is 0.1. */
 
-    float m_userItemCrossWidthMin {2};      /**< The minimum half-width of the center cross, in image pixels.
-                                                 Default is 2. */
+    float m_userItemCrossWidthMin {5};      /**< The minimum half-width of the center cross, in screen pixels.
+                                                 Default is 5. */
 
+    float m_warningBorderWidth {5}; /**< The width of the warning border in screen pixels.  Default is 5. */
 
 public:
 

@@ -1,14 +1,5 @@
 #include "rtimvMainWindow.hpp"
 
-#define RTIMV_EDGETOL_DEFAULT (5.5)
-
-#define RTIMV_EDGETOL (RTIMV_EDGETOL_DEFAULT / m_screenZoom)
-// < RTIMV_EDGETOL_DEFAULT ? RTIMV_EDGETOL_DEFAULT : RTIMV_EDGETOL_DEFAULT/m_screenZoom)
-
-#define RTIMV_TOOLLINEWIDTH_DEFAULT (0)
-
-#define RTIMV_BORDERLINEWIDTH_DEFAULT (0.02)
-
 #define RTIMV_DEBUG_BREADCRUMB
 
 rtimvMainWindow::rtimvMainWindow( int argc,
@@ -180,8 +171,12 @@ void rtimvMainWindow::setupConfig()
    config.add("north.offset", "", "north.offset", argType::Required, "north", "offset", false, "float", "Offset in degrees c.c.w. to apply to the north angle. Default is 0.");
    config.add("north.scale", "", "north.scale", argType::Required, "north", "scale", false, "float", "Scaling factor to apply to north angle to convert to degrees c.c.w. on the image.  Default is -1.");
 
-   config.add("item.crossWidthFract", "", "item.crossWidthFract", argType::Required, "item", "crossWidthFract", false, "float", "The half-width of the center cross, relative to the smallest dimension of the item. Default is 0.1.");
-   config.add("item.crossWidthMin", "", "item.crossWidthMin", argType::Required, "item", "crossWidthMin", false, "float", "The minimum half-width of the center cross, in image pixels. Default is 2.");
+   config.add("tools.lineWidth", "", "tools.lineWidth", argType::Required, "tools", "lineWidth", false, "float", "The width of lines in user items in screen pixels.  Default is 2.");
+   config.add("tools.edgeTol", "", "tools.edgeTol", argType::Required, "tools", "edgeTol", false, "float", "The tolerance in screen pixels for the mouse to be on the edge of a user item.  For closed shapes this applies only to the inside. Default is 5.5 ");
+   config.add("tools.lineHeadRad", "", "tools.lineHeadRad", argType::Required, "tools", "lineHeadRad", false, "float", "The radius of the circle marking the head of a user line, in screen pixels. Default is 10.");
+   config.add("tools.crossWidthFract", "", "tools.crossWidthFract", argType::Required, "tools", "crossWidthFract", false, "float", "The half-width of the center cross, relative to the smallest dimension of the tools. Default is 0.1.");
+   config.add("tools.crossWidthMin", "", "tools.crossWidthMin", argType::Required, "tools", "crossWidthMin", false, "float", "The minimum half-width of the center cross, in screen pixels. Default is 5.");
+   config.add("tools.warningBorderWidth", "", "tools.warningBorderWidth", argType::Required, "tools", "warningBorderWidth", false, "float", "The width of the warning border in screen pixels.  Default is 5.");
 }
 
 void rtimvMainWindow::loadConfig()
@@ -277,9 +272,12 @@ void rtimvMainWindow::loadConfig()
    config(m_northAngleOffset, "north.offset");
    config(m_northAngleScale, "north.scale");
 
-   config(m_userItemCrossWidthFract, "item.crossWidthFract");
-   config(m_userItemCrossWidthMin, "item.crossWidthMin");
-
+   config(m_userItemLineWidth, "tools.lineWidth");
+   config(m_userItemEdgeTol, "tools.edgeTol");
+   config(m_userLineHeadRad, "tools.lineHeadRad");
+   config(m_userItemCrossWidthFract, "tools.crossWidthFract");
+   config(m_userItemCrossWidthMin, "tools.crossWidthMin");
+   config(m_warningBorderWidth, "tools.warningBorderWidth");
 }
 
 void rtimvMainWindow::onConnect()
@@ -314,12 +312,9 @@ void rtimvMainWindow::mtxL_postSetImsize( const uniqueLockT & lock )
 
     statsBoxRemove(m_statsBox);
 
-    if(m_colorBox)
-    {
-        colorBoxRemove(m_colorBox);
-    }
+    colorBoxRemove(m_colorBox);
 
-    std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
+    auto ubit = m_userBoxes.begin();
     while(ubit != m_userBoxes.end())
     {
         StretchBox *sb = *ubit;
@@ -327,8 +322,7 @@ void rtimvMainWindow::mtxL_postSetImsize( const uniqueLockT & lock )
         ubit = m_userBoxes.begin();
     }
 
-    //resize the circles
-    std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
+    auto ucit = m_userCircles.begin();
     while(ucit != m_userCircles.end())
     {
         StretchCircle *sc = *ucit;
@@ -336,8 +330,7 @@ void rtimvMainWindow::mtxL_postSetImsize( const uniqueLockT & lock )
         ucit = m_userCircles.begin();
     }
 
-    //resize the lines
-    std::unordered_set<StretchLine *>::iterator ulit = m_userLines.begin();
+    auto ulit = m_userLines.begin();
     while(ulit != m_userLines.end())
     {
         StretchLine *sl = *ulit;
@@ -369,6 +362,38 @@ void rtimvMainWindow::post_zoomLevel()
     RTIMV_DEBUG_BREADCRUMB
 
     change_center();
+
+    RTIMV_DEBUG_BREADCRUMB
+
+    if(m_statsBox)
+    {
+        m_statsBox->setPenWidth(m_userItemLineWidth / m_screenZoom / m_zoomLevel);
+        m_statsBox->setEdgeTol(m_userItemEdgeTol / m_screenZoom / m_zoomLevel);
+    }
+
+    if(m_colorBox)
+    {
+        m_colorBox->setPenWidth(m_userItemLineWidth / m_screenZoom / m_zoomLevel);
+        m_colorBox->setEdgeTol(m_userItemEdgeTol / m_screenZoom / m_zoomLevel);
+    }
+
+    for(auto & ubit : m_userBoxes)
+    {
+        ubit->setPenWidth(m_userItemLineWidth / m_screenZoom / m_zoomLevel);
+        ubit->setEdgeTol(m_userItemEdgeTol / m_screenZoom / m_zoomLevel);
+    }
+
+    for(auto & ucit : m_userCircles)
+    {
+        ucit->setPenWidth(m_userItemLineWidth / m_screenZoom / m_zoomLevel);
+        ucit->setEdgeTol(m_userItemEdgeTol / m_screenZoom / m_zoomLevel);
+    }
+
+    for(auto & ulit : m_userLines)
+    {
+        ulit->setPenWidth(m_userItemLineWidth / m_screenZoom / m_zoomLevel);
+        ulit->setEdgeTol(m_userItemEdgeTol / m_screenZoom / m_zoomLevel);
+    }
 
     RTIMV_DEBUG_BREADCRUMB
 
@@ -1108,7 +1133,7 @@ void rtimvMainWindow::userItemSelected( const QColor & color,
 
         QPen pV = m_objCenH->pen();
         pV.setColor(color);
-        m_objCenV->setPen(pH);
+        m_objCenV->setPen(pV);
         m_objCenV->setVisible(cenVis);
     }
     else
@@ -1138,7 +1163,7 @@ void rtimvMainWindow::userItemCross( const QPointF & pos,
 
    float cw = iw*m_userItemCrossWidthFract;
 
-   if(cw < m_userItemCrossWidthMin) cw = m_userItemCrossWidthMin;
+   if(cw < m_userItemCrossWidthMin/m_screenZoom) cw = m_userItemCrossWidthMin/m_screenZoom;
 
    if(cw > 0.5*iw) cw = 0.5*iw;
 
@@ -1379,12 +1404,14 @@ void rtimvMainWindow::addUserBox()
    StretchBox * sb = *it.first;
 
    sb->setPenColor("lime");
-   sb->setEdgeTol(RTIMV_EDGETOL);
-   sb->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT );
+   sb->setPenWidth(m_userItemLineWidth / m_screenZoom / m_zoomLevel);
+
+   sb->setEdgeTol(m_userItemEdgeTol / m_screenZoom / m_zoomLevel);
 
    sb->setMaintainCenter(true);
    sb->setStretchable(true);
    sb->setVisible(true);
+   sb->setRemovable(true);
 
    connect(sb, SIGNAL(resized(StretchBox *)), this, SLOT(mtxTry_userBoxMoved(StretchBox *)));
    connect(sb, SIGNAL(moved(StretchBox *)), this, SLOT(mtxTry_userBoxMoved(StretchBox *)));
@@ -1458,26 +1485,30 @@ void rtimvMainWindow::mtxTry_userBoxMoved(StretchBox * sb)
 
 void rtimvMainWindow::userBoxRejectMouse(StretchBox * sb)
 {
-   std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
-   while(ubit != m_userBoxes.end())
-   {
-      if(sb != *ubit) sb->stackBefore(*ubit);
-      ++ubit;
-   }
+    if(sb != m_colorBox && m_colorBox)
+    {
+        sb->stackBefore(m_colorBox);
+    }
 
-   std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
-   while(ucit != m_userCircles.end())
-   {
-      sb->stackBefore(*ucit);
-      ++ucit;
-   }
+    if(sb != m_statsBox && m_statsBox)
+    {
+        sb->stackBefore(m_statsBox);
+    }
 
-   std::unordered_set<StretchLine *>::iterator ulit = m_userLines.begin();
-   while(ulit != m_userLines.end())
-   {
-      sb->stackBefore(*ulit);
-      ++ulit;
-   }
+    for(auto & ubit : m_userBoxes)
+    {
+        if(sb != ubit) sb->stackBefore(ubit);
+    }
+
+    for(auto & ucit : m_userCircles)
+    {
+        sb->stackBefore(ucit);
+    }
+
+    for(auto & ulit : m_userLines)
+    {
+        sb->stackBefore(ulit);
+    }
 }
 
 void rtimvMainWindow::userBoxRemove(StretchBox * sb)
@@ -1489,7 +1520,7 @@ void rtimvMainWindow::userBoxRemove(StretchBox * sb)
 
    m_userBoxes.erase(sb); //Remove it from our list
    m_qgs->removeItem(sb); //Remove it from the scene
-   sb->deleteLater(); //clean it up after we're no longer in an asynch function
+   sb->deleteLater(); //clean it up after we're no longer in an async function
 
    ui.graphicsView->m_userItemSize->setVisible(false);
    ui.graphicsView->m_userItemMouseCoords->setVisible(false);
@@ -1536,8 +1567,8 @@ void rtimvMainWindow::addUserCircle()
    StretchCircle * sc = *it.first;
 
    sc->setPenColor("lime");
-   sc->setEdgeTol(RTIMV_EDGETOL);
-   sc->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT );
+   sc->setEdgeTol(m_userItemEdgeTol / m_screenZoom);
+   sc->setPenWidth(m_userItemLineWidth / m_screenZoom);
 
    sc->setStretchable(true);
    sc->setVisible(true);
@@ -1614,26 +1645,30 @@ void rtimvMainWindow::userCircleMoved(StretchCircle * sc)
 
 void rtimvMainWindow::userCircleRejectMouse(StretchCircle * sc)
 {
-   std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
-   while(ubit != m_userBoxes.end())
-   {
-      sc->stackBefore(*ubit);
-      ++ubit;
-   }
+    if(m_colorBox)
+    {
+        sc->stackBefore(m_colorBox);
+    }
 
-   std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
-   while(ucit != m_userCircles.end())
-   {
-      if(sc != *ucit) sc->stackBefore(*ucit);
-      ++ucit;
-   }
+    if(m_statsBox)
+    {
+        sc->stackBefore(m_statsBox);
+    }
 
-   std::unordered_set<StretchLine *>::iterator ulit = m_userLines.begin();
-   while(ulit != m_userLines.end())
-   {
-      sc->stackBefore(*ulit);
-      ++ulit;
-   }
+    for(auto & ubit : m_userBoxes)
+    {
+        sc->stackBefore(ubit);
+    }
+
+    for(auto & ucit : m_userCircles)
+    {
+        if(sc != ucit) sc->stackBefore(ucit);
+    }
+
+    for(auto & ulit : m_userLines)
+    {
+        sc->stackBefore(ulit);
+    }
 }
 
 void rtimvMainWindow::userCircleRemove(StretchCircle * sc)
@@ -1683,8 +1718,8 @@ void rtimvMainWindow::addUserLine()
    StretchLine * sl = *it.first;
 
    sl->setPenColor("lime");
-   sl->setEdgeTol(RTIMV_EDGETOL);
-   sl->setPenWidth(2*RTIMV_TOOLLINEWIDTH_DEFAULT );
+   sl->setEdgeTol(m_userItemEdgeTol / m_screenZoom);
+   sl->setPenWidth(m_userItemLineWidth / m_screenZoom);
 
    sl->setStretchable(true);
    sl->setVisible(true);
@@ -1743,11 +1778,13 @@ void rtimvMainWindow::userLineHead(StretchLine * sl)
     m_userItemYCen = sl->line().y1();
 
     m_lineHead->setPen(sl->pen());
-    float w = sl->penWidth();
-    if(w < 1) w = 1;
-    float lhx = sl->line().x1() - w*1.5;
-    float lhy = sl->line().y1() - w*1.5;
-    m_lineHead->setRect(lhx, lhy, 3*w, 3*w);
+
+    float w = m_userLineHeadRad/m_screenZoom/m_zoomLevel;
+
+    float lhx = sl->line().x1() - w;
+    float lhy = sl->line().y1() - w;
+
+    m_lineHead->setRect(lhx, lhy, 2*w, 2*w);
 }
 
 void rtimvMainWindow::mtxTry_userLineMouseCoords(StretchLine * sl)
@@ -1792,26 +1829,30 @@ void rtimvMainWindow::mtxTry_userLineMoved(StretchLine * sl)
 
 void rtimvMainWindow::userLineRejectMouse(StretchLine * sl)
 {
-   std::unordered_set<StretchBox *>::iterator ubit = m_userBoxes.begin();
-   while(ubit != m_userBoxes.end())
-   {
-      sl->stackBefore(*ubit);
-      ++ubit;
-   }
+    if(m_colorBox)
+    {
+        sl->stackBefore(m_colorBox);
+    }
 
-   std::unordered_set<StretchCircle *>::iterator ucit = m_userCircles.begin();
-   while(ucit != m_userCircles.end())
-   {
-      sl->stackBefore(*ucit);
-      ++ucit;
-   }
+    if(m_statsBox)
+    {
+        sl->stackBefore(m_statsBox);
+    }
 
-   std::unordered_set<StretchLine *>::iterator ulit = m_userLines.begin();
-   while(ulit != m_userLines.end())
-   {
-      if(sl != *ulit) sl->stackBefore(*ulit);
-      ++ulit;
-   }
+    for(auto & ubit : m_userBoxes)
+    {
+        sl->stackBefore(ubit);
+    }
+
+    for(auto & ucit : m_userCircles)
+    {
+        sl->stackBefore(ucit);
+    }
+
+    for(auto & ulit : m_userLines)
+    {
+        if(sl != ulit) sl->stackBefore(ulit);
+    }
 }
 
 void rtimvMainWindow::userLineRemove(StretchLine * sl)
@@ -2080,6 +2121,31 @@ void rtimvMainWindow::keyPressEvent(QKeyEvent * ke)
             return squareUp();
          /*case Qt::Key_Up:
             return;*/
+         case Qt::Key_W:
+            if(key == 'w')
+            {
+                if(m_borderWarningLevel == rtimv::warningLevel::normal)
+                {
+                    return borderWarningLevel(rtimv::warningLevel::info);
+                }
+                else if(m_borderWarningLevel == rtimv::warningLevel::info)
+                {
+                    return borderWarningLevel(rtimv::warningLevel::caution);
+                }
+                else if(m_borderWarningLevel == rtimv::warningLevel::caution)
+                {
+                    return borderWarningLevel(rtimv::warningLevel::warning);
+                }
+                if(m_borderWarningLevel == rtimv::warningLevel::warning)
+                {
+                    return borderWarningLevel(rtimv::warningLevel::alert);
+                }
+                else
+                {
+                    return borderWarningLevel(rtimv::warningLevel::normal);
+                }
+            }
+            break;
          default:
             break;
       }
@@ -2159,11 +2225,12 @@ void rtimvMainWindow::toggleColorBoxOn()
         m_colorBox = new StretchBox(colorBox_i0(), colorBox_j0(), w, w);
 
         m_colorBox->setPenColor(RTIMV_DEF_COLORBOXCOLOR);
-        m_colorBox->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT);
+        m_colorBox->setPenWidth(m_userItemLineWidth / m_screenZoom / m_zoomLevel);
+        m_colorBox->setEdgeTol(m_userItemEdgeTol / m_screenZoom / m_zoomLevel);
+
         m_colorBox->setVisible(false);
         m_colorBox->setStretchable(true);
         m_colorBox->setRemovable(true);
-        //m_userBoxes.insert(m_colorBox);
 
         connect(m_colorBox, SIGNAL(resized(StretchBox *)), this, SLOT(mtxTry_colorBoxMoved(StretchBox * )));
         connect(m_colorBox, SIGNAL(moved(StretchBox *)), this, SLOT(mtxTry_colorBoxMoved(StretchBox * )));
@@ -2171,6 +2238,7 @@ void rtimvMainWindow::toggleColorBoxOn()
         connect(m_colorBox, SIGNAL(selected(StretchBox*)), this, SLOT(mtxTry_colorBoxSelected(StretchBox*)));
         connect(m_colorBox, SIGNAL(deSelected(StretchBox*)), this, SLOT(colorBoxDeselected(StretchBox*)));
         connect(m_colorBox, SIGNAL(remove(StretchBox*)), this, SLOT(colorBoxRemove(StretchBox*)));
+
         m_qgs->addItem(m_colorBox);
     }
 
@@ -2214,7 +2282,9 @@ void rtimvMainWindow::toggleStatsBox()
 
       m_statsBox = new StretchBox(0.5*(m_nx)-w/2,0.5*(m_ny)-w/2, w, w);
       m_statsBox->setPenColor(RTIMV_DEF_STATSBOXCOLOR);
-      m_statsBox->setPenWidth(RTIMV_TOOLLINEWIDTH_DEFAULT );
+      m_statsBox->setPenWidth(m_userItemLineWidth / m_screenZoom / m_zoomLevel);
+      m_statsBox->setEdgeTol(m_userItemEdgeTol / m_screenZoom / m_zoomLevel);
+
       m_statsBox->setVisible(false);
       m_statsBox->setStretchable(true);
       m_statsBox->setRemovable(true);
@@ -2645,15 +2715,7 @@ void rtimvMainWindow::setBorderBox()
     h = m_ny/m_zoomLevel;
 
     //Change pen so it looks right relative to size of pixels
-    float pw;
-    if(m_nx < m_ny)
-    {
-        pw = RTIMV_BORDERLINEWIDTH_DEFAULT*m_nx;
-    }
-    else
-    {
-        pw = RTIMV_BORDERLINEWIDTH_DEFAULT*m_ny;
-    }
+    float pw = (m_warningBorderWidth / m_screenZoom) / m_zoomLevel;
 
     m_borderBox->setPenWidth(pw);
 
