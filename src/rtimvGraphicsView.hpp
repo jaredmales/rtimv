@@ -18,18 +18,13 @@
 #include <QTextEdit>
 #include <QFontMetrics>
 
-#define RTIMV_DEF_HELPFONTFAMILY "LKLUG"
-#define RTIMV_DEF_HELPFONTCOLOR "#3DA5FF" /**"skyblue"*/
-#define RTIMV_DEF_HELPFONTSIZE (12*1.4)
 
 //Defaults
 #define RTIMV_DEF_WARNINGFONTFAMILY "LKLUG"
 #define RTIMV_DEF_WARNINGFONTCOLOR "red"
 #define RTIMV_DEF_WARNINGFONTSIZE (22*1.4)
 
-#define RTIMV_DEF_SAVEBOXFONTFAMILY "LKLUG"
-#define RTIMV_DEF_SAVEBOXFONTCOLOR "lime"
-#define RTIMV_DEF_SAVEBOXFONTSIZE (18*1.4)
+
 
 #define RTIMV_DEF_LOOPFONTFAMILY "LKLUG"
 #define RTIMV_DEF_LOOPFONTCOLOR "lime"
@@ -39,30 +34,20 @@
 #define RTIMV_DEF_GAGEFONTCOLOR "#3DA5FF" /**"skyblue"*/
 #define RTIMV_DEF_GAGEFONTSIZE (14*1.4)
 
-#define RTIMV_DEF_ZOOMFONTFAMILY "LKLUG"
-#define RTIMV_DEF_ZOOMFONTCOLOR "#3DA5FF" /**"skyblue"*/
-#define RTIMV_DEF_ZOOMFONTSIZE (18*1.4)
-#define RTIMV_DEF_ZOOMTIMEOUT 2000
+
 
 #define RTIMV_DEF_STATUSTEXTFONTFAMILY "LKLUG"
 #define RTIMV_DEF_STATUSTEXTFONTCOLOR "#3DA5FF" /**"skyblue"*/
 #define RTIMV_DEF_STATUSTEXTFONTSIZE (14*1.4)
 
-#define RTIMV_DEF_USERITEMCOLOR "lime"
-#define RTIMV_DEF_USERITEMFONTFAMILY "LKLUG"
-
 #define RTIMV_DEF_COLORBOXCOLOR "yellow"
-#define RTIMV_DEF_COLORBOXFONTFAMILY "LKLUG"
 
 #define RTIMV_DEF_STATSBOXCOLOR "#3DA5FF"
-#define RTIMV_DEF_STATSBOXFONTFAMILY "LKLUG"
 
 ///The rtimv Graphics View
 class rtimvGraphicsView : public QGraphicsView
 {
    Q_OBJECT
-
-   friend class rtimvMainWindow;
 
    public:
       ///Constructor
@@ -167,19 +152,16 @@ class rtimvGraphicsView : public QGraphicsView
       ///The save status box
       QTextEdit * m_saveBox;
 
-      QString m_saveBoxFontFamily; ///< Font family for the save box
-      float m_saveBoxFontSize; ///< Font size for the save box
-      QString m_saveBoxFontColor; ///< Font color for the save box
+      QString m_saveBoxFontFamily {"LKLUG"}; ///< Font family for the save box
+      float m_saveBoxFontSize {25}; ///< Font size for the save box
+      QString m_saveBoxFontColor {"lime"}; ///< Font color for the save box
 
    public:
-      ///Set the SaveBox font size
-      void saveBoxFontFamily( const char * ff /**< [in] The new font family */ );
+
+      QTextEdit * saveBox();
 
       ///Set the SaveBox font size
-      void saveBoxFontSize( float fs /**< [in] The new font size */ );
-
-      ///Set the saveBox font color
-      void saveBoxFontColor( const char * fc /**< [in] The new font color */ );
+      void saveBoxFontFamily( const QString & ff /**< [in] The new font family */ );
 
       ///Get the current saveBox font family
       /**
@@ -187,11 +169,17 @@ class rtimvGraphicsView : public QGraphicsView
         */
       QString saveBoxFontFamily();
 
+      ///Set the SaveBox font size
+      void saveBoxFontSize( float fs /**< [in] The new font size */ );
+
       ///Get the current saveBox font size
       /**
         * \returns the saveBox font size
         */
       float saveBoxFontSize();
+
+      ///Set the saveBox font color
+      void saveBoxFontColor( const QString & fc /**< [in] The new font color */ );
 
       ///Get the current saveBox font color
       /**
@@ -227,14 +215,10 @@ class rtimvGraphicsView : public QGraphicsView
         */
       size_t statusTextNo();
 
-      ///Set the statusText font size
-      void statusTextFontFamily( const char * ff /**< [in] The new font family */ );
+      QTextEdit * statusText(size_t n);
 
       ///Set the statusText font size
-      void statusTextFontSize( float fs /**< [in] The new font size */ );
-
-      ///Set the statusText font color
-      void statusTextFontColor( const char * fc /**< [in] The new font color */ );
+      void statusTextFontFamily( const QString & ff /**< [in] The new font family */ );
 
       ///Get the current statusText font family
       /**
@@ -242,11 +226,17 @@ class rtimvGraphicsView : public QGraphicsView
         */
       QString statusTextFontFamily();
 
-      ///Get the current statusText font size
+      ///Set the statusText font size
+      void statusTextFontSize( float fs /**< [in] The new font size */ );
+
+       ///Get the current statusText font size
       /**
         * \returns the statusText font size
         */
       float statusTextFontSize();
+
+      ///Set the statusText font color
+      void statusTextFontColor( const QString & fc /**< [in] The new font color */ );
 
       ///Get the current statusText font color
       /**
@@ -258,27 +248,24 @@ class rtimvGraphicsView : public QGraphicsView
       /** If a font color is supplied the statusText text is set to that color.  Otherwise (fc == 0), then _statusTextFontColor is used.
         */
       void statusTextText( size_t fieldNo,    ///< [in] the field number (0- statusTextNo()-1)
-                           const char * nt,   ///< [in] the new statusText text
-                           const char * fc=0  ///< [in] [optional] color for the statusText text
+                           const char * nt   ///< [in] the new statusText text
                          );
 
 
    protected:
       ///The help text
       QTextEdit * m_helpText;
-      QString m_helpTextFontFamily;
-      float m_helpTextFontSize;
-      QString m_helpTextFontColor;
+
+      QString m_helpTextFontFamily {""};
+      float m_helpTextFontSize {16};
+      QString m_helpTextFontColor {"#3DA5FF" /**"skyblue"*/};
 
    public:
-      ///Set the SaveText font size
-      void helpTextFontFamily( const char * ff /**< [in] The new font family */ );
+
+      QTextEdit * helpText();
 
       ///Set the SaveText font size
-      void helpTextFontSize( float fs /**< [in] The new font size */ );
-
-      ///Set the helpText font color
-      void helpTextFontColor( const char * fc /**< [in] The new font color */ );
+      void helpTextFontFamily( const QString & ff /**< [in] The new font family */ );
 
       ///Get the current helpText font family
       /**
@@ -286,11 +273,17 @@ class rtimvGraphicsView : public QGraphicsView
         */
       QString helpTextFontFamily();
 
+      ///Set the SaveText font size
+      void helpTextFontSize( float fs /**< [in] The new font size */ );
+
       ///Get the current helpText font size
       /**
         * \returns the helpText font size
         */
       float helpTextFontSize();
+
+      ///Set the helpText font color
+      void helpTextFontColor( const QString & fc /**< [in] The new font color */ );
 
       ///Get the current helpText font color
       /**
@@ -301,9 +294,7 @@ class rtimvGraphicsView : public QGraphicsView
       ///Set the helpText text
       /** If a font color is supplied the helpText text is set to that color.  Otherwise (fc == 0), then _helpTextFontColor is used.
         */
-      void helpTextText( const char * nt, ///< [in] the new helpText text
-                        const char * fc=0  ///< [in] [optional] color for the helpText text
-                      );
+      void helpTextText( const char * nt /**< [in] the new helpText text */ );
 
       ///@}
 
@@ -394,22 +385,25 @@ class rtimvGraphicsView : public QGraphicsView
       ///The zoom level box
       QTextEdit * m_zoomText;
 
-      QString m_zoomFontFamily; ///< Font family for the zoom box
-      float m_zoomFontSize; ///< Font size for the zoom box
-      QString m_zoomFontColor; ///< Font color for the zoom color
+      QString m_zoomFontFamily {"LKLUG"}; ///< Font family for the zoom box
+      float m_zoomFontSize {25}; ///< Font size for the zoom box
+      QString m_zoomFontColor {"#3DA5FF" /**"skyblue"*/}; ///< Font color for the zoom color
 
       QTimer m_zoomTimer; ///< When this timer expires the zoomText box is hidden
-      int    m_zoomTimeOut { RTIMV_DEF_ZOOMTIMEOUT}; ///<The timeout length in msec for hiding the zoom box.
+      int    m_zoomTimeOut { 2000}; ///<The timeout length in msec for hiding the zoom box.
 
    public:
+
+      QTextEdit * zoomText();
+
       ///Set the Zoom font size
-      void zoomFontFamily(const char * ff /**< [in] The new font family */ );
+      void zoomFontFamily(const QString & ff /**< [in] The new font family */ );
 
       ///Set the Zoom font size
       void zoomFontSize( float fs /**< [in] The new font size */ );
 
       ///Set the zoom font color
-      void zoomFontColor( const char * fc /**< [in] The new font color */ );
+      void zoomFontColor( const QString & fc /**< [in] The new font color */ );
 
       ///Get the current zoom font color
       /**
@@ -432,9 +426,7 @@ class rtimvGraphicsView : public QGraphicsView
       ///Set the zoom text
       /** If a font color is supplied the zoom text is set to that color.  Otherwise (fc == 0), then _zoomFontColor is used.
         */
-      void zoomText( const char * nt, ///< [in] the new zoom text
-                     const char * fc=0  ///< [in] [optional] color for the zoom text
-                   );
+      void zoomText( const char * nt /**< [in] the new zoom text */ );
 
    protected slots:
       ///Handle the timeout signal of the zoomTimer.
@@ -442,9 +434,128 @@ class rtimvGraphicsView : public QGraphicsView
         */
       void zoomTimerOut();
 
-   public:
-      QTextEdit * m_userItemSize;
-      QTextEdit * m_userItemMouseCoords;
+   protected:
+      QString m_userItemDefColor {"lime"}; ///< The default line color for user items.
+      QString m_userItemColor {"lime"}; ///< The current line color for user items.
+      QString m_userItemFontFamily {"LKLUG"}; ///< Font family for the user item size and mouse coords
+
+
+
+    public:
+
+      ///Set the User Item default line color
+      /** This does not change the color of the displayed items
+        *
+        */
+      void userItemDefColor( const QString & fc /**< [in] The new line color */ );
+
+      ///Get the current User Item default line color
+      /**
+        * \returns the User Item default line color
+        */
+      QString userItemDefColor();
+
+      ///Set the User Item line color
+      /** This changes the color of the displayed items
+        *
+        */
+      void userItemColor( const QString & fc /**< [in] The new line color */ );
+
+      ///Get the current User Item line color
+      /**
+        * \returns the User Item line color
+        */
+      QString userItemColor();
+
+      ///Set the User Item font family
+      void userItemFontFamily(const QString & ff /**< [in] The new font family */ );
+
+      ///Get the current User Item  font family
+      /**
+        * \returns the User Item font family
+        */
+      QString userItemFontFamily();
+
+protected:
+      QTextEdit * m_userItemSize; ///< The user item size text edit field
+
+      float m_userItemSizeFontSize {22.0}; ///< Font size for the user item size
+
+public:
+
+      /// Get a pointer to the User Item Size text edit.
+      /**
+        * \returns m_userItemSize
+        */
+      QTextEdit * userItemSize();
+
+      ///Set the User Item Size font size
+      void userItemSizeFontSize( float fs /**< [in] The new font size */ );
+
+      ///Get the current User Item Size font size
+      /**
+        * \returns the User Item Size font size
+        */
+      float userItemSizeFontSize();
+
+      ///Set the User Item Size text
+      /**
+        */
+      void userItemSizeText( const char * nt   /**< [in] the new User Item Size text */);
+
+      ///Set the User Item Size text and move it
+      /**
+        */
+      void userItemSizeText( const char * nt,   ///< [in] the new User Item Size text
+                             const QPoint & pos       ///< [in] the position of the User Item Size text
+                           );
+
+      ///Set the User Item Size text and resize and move it
+      /**
+        */
+      void userItemSizeText( const char * nt,   ///< [in] the new User Item Size text
+                             const QRect & pos       ///< [in] the position of the User Item Size text
+                           );
+
+public:
+      QTextEdit * m_userItemMouseCoords; ///< The user item mouse coordinates text edit
+
+      float m_userItemMouseCoordsFontSize {22.0}; ///< Font size for the user item mouse coordinates
+
+      /// Get a pointer to the User Item Mouse Coords text edit.
+      /**
+        * \returns m_userItemMouseCoords
+        */
+      QTextEdit * userItemMouseCoords();
+
+      ///Set the User Item Mouse Coords font size
+      void userItemMouseCoordsFontSize( float fs /**< [in] The new font size */ );
+
+      ///Get the current User Item Mouse Coords font size
+      /**
+        * \returns the User Item Mouse Coords font size
+        */
+      float userItemMouseCoordsFontSize();
+
+      ///Set the User Item Mouse Coords text
+      /**
+        */
+      void userItemMouseCoordsText( const char * nt   /**< [in] the new User Item Mouse Coords text */);
+
+      ///Set the User Item Mouse Coords text and move it
+      /**
+        */
+      void userItemMouseCoordsText( const char * nt,   ///< [in] the new User Item Mouse Coords text
+                                    const QPoint & pos ///< [in] the position of the User Item Mouse Coords text
+                                  );
+
+      ///Set the User Item Mouse Coords text and resize and move it
+      /**
+        */
+      void userItemMouseCoordsText( const char * nt,  ///< [in] the new User Item Mouse Coords text
+                                    const QRect & pos ///< [in] the position of the User Item Mouse Coords text
+                                  );
+
 
    /** \name Mouse Interaction
      *

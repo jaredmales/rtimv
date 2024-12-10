@@ -112,13 +112,6 @@ protected:
     void initStretchGraphicsItem();
 
 protected:
-    /** \name Geometry
-      * @{
-      */
-
-
-    ///@}
-
 
     /** \name Sizing and Moving State
       * @{

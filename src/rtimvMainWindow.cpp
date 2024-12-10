@@ -407,7 +407,7 @@ void rtimvMainWindow::post_zoomLevel()
 
     RTIMV_DEBUG_BREADCRUMB
 
-    mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+    mtxTry_fontLuminance(ui.graphicsView->zoomText());
 
     RTIMV_DEBUG_BREADCRUMB
 }
@@ -1068,7 +1068,7 @@ void rtimvMainWindow::mtxTry_userItemMouseCoords( float mx,
     val = calPixel(idx_x, idx_y);
 
     char valStr[32];
-    char posStr[32];
+    char posStr[64];
 
     if(fabs(val) < 1e-1)
     {
@@ -1080,33 +1080,31 @@ void rtimvMainWindow::mtxTry_userItemMouseCoords( float mx,
     }
 
 
-    snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );
+    snprintf(posStr, sizeof(posStr), "%s\n%0.2f %0.2f", valStr, mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );
 
-    std::string str = std::string(valStr) + "\n" + posStr;
-    ui.graphicsView->m_userItemMouseCoords->setPlainText(str.c_str());
-
-    QFontMetrics fm(ui.graphicsView->m_userItemMouseCoords->currentFont());
-    QSize textSize = fm.size(0, str.c_str());
+    QFontMetrics fm(ui.graphicsView->userItemMouseCoords()->currentFont());
+    QSize textSize = fm.size(0, posStr);
 
     float offsetx = 0;
     float offsety = 0;
     if(m_offsetItemMouseCoordsX)
     {
-        offsetx = textSize.width()+5;
+        offsetx = textSize.width()+(m_userLineHeadRad);
     }
 
     if(m_offsetItemMouseCoordsY)
     {
-        offsety = textSize.height()+5;
+        offsety = textSize.height()+(m_userLineHeadRad);
     }
 
     //Take scene coordinates to viewport coordinates.
     QPoint qr = ui.graphicsView->mapFromScene(QPointF(dx, dy));
 
-    ui.graphicsView->m_userItemMouseCoords->resize(textSize.width()+5,textSize.height()+5);
-    ui.graphicsView->m_userItemMouseCoords->move(qr.x() - offsetx, qr.y() - offsety);
+    QRect rect(qr.x() - offsetx, qr.y() - offsety, textSize.width()+5,textSize.height()+5);
 
-    mtxL_fontLuminance(ui.graphicsView->m_userItemMouseCoords, lock);
+    ui.graphicsView->userItemMouseCoordsText(posStr, rect);
+
+    mtxL_fontLuminance(ui.graphicsView->userItemMouseCoords(), lock);
 
 }
 
@@ -1116,13 +1114,13 @@ void rtimvMainWindow::userItemSelected( const QColor & color,
                                         bool cenVis
                                       )
 {
-    ui.graphicsView->m_userItemSize->setText(" ");
-    ui.graphicsView->m_userItemSize->setTextColor(color);
-    ui.graphicsView->m_userItemSize->setVisible(sizeVis);
+    ui.graphicsView->userItemColor(color.name());
 
-    ui.graphicsView->m_userItemMouseCoords->setText(" ");
-    ui.graphicsView->m_userItemMouseCoords->setTextColor(color);
-    ui.graphicsView->m_userItemMouseCoords->setVisible(coordsVis);
+    ui.graphicsView->userItemSizeText(" ");
+    ui.graphicsView->userItemSize()->setVisible(sizeVis);
+
+    ui.graphicsView->userItemMouseCoordsText(" ");
+    ui.graphicsView->userItemMouseCoords()->setVisible(coordsVis);
 
     if(cenVis)
     {
@@ -1216,18 +1214,12 @@ void rtimvMainWindow::mtxTry_colorBoxMoved(StretchBox * sb)
 
     snprintf(tmp, 256, "min: %s\nmax: %s", valMin, valMax);
 
-    ui.graphicsView->m_userItemSize->setText(tmp);
-
-    QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
-    QSize textSize = fm.size(0, tmp);
-
     QRectF sbr = sb->sceneBoundingRect();
     QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x(), sbr.y()));
 
-    ui.graphicsView->m_userItemSize->resize(textSize.width()+5,textSize.height()+5);
-    ui.graphicsView->m_userItemSize->move(qr.x(), qr.y());
+    ui.graphicsView->userItemSizeText(tmp, qr);
 
-    mtxL_fontLuminance(ui.graphicsView->m_userItemSize, lock);
+    mtxL_fontLuminance(ui.graphicsView->userItemSize(), lock);
 
     mtxL_setColorBoxActive(true, lock); //recalcs and recolors.
 }
@@ -1242,8 +1234,8 @@ void rtimvMainWindow::mtxTry_colorBoxSelected(StretchBox * sb)
 void rtimvMainWindow::colorBoxDeselected(StretchBox * sb)
 {
     static_cast<void>(sb);
-    ui.graphicsView->m_userItemSize->setText("");
-    ui.graphicsView->m_userItemSize->setVisible(false);
+    ui.graphicsView->userItemSizeText("");
+    ui.graphicsView->userItemSize()->setVisible(false);
     m_nullMouseCoords=false;
     m_userItemSelected = false;
 }
@@ -1265,8 +1257,8 @@ void rtimvMainWindow::colorBoxRemove(StretchBox * sb)
     m_colorBox->deleteLater();
     m_colorBox = nullptr;
 
-    ui.graphicsView->m_userItemSize->setVisible(false);
-    ui.graphicsView->m_userItemMouseCoords->setVisible(false);
+    ui.graphicsView->userItemSize()->setVisible(false);
+    ui.graphicsView->userItemMouseCoords()->setVisible(false);
     m_objCenH->setVisible(false);
     m_objCenV->setVisible(false);
     m_nullMouseCoords=false;
@@ -1378,8 +1370,8 @@ void rtimvMainWindow::statsBoxRemove(StretchBox * sb)
 
     m_statsBox = nullptr;
 
-    ui.graphicsView->m_userItemSize->setVisible(false);
-    ui.graphicsView->m_userItemMouseCoords->setVisible(false);
+    ui.graphicsView->userItemSize()->setVisible(false);
+    ui.graphicsView->userItemMouseCoords()->setVisible(false);
     m_objCenH->setVisible(false);
     m_objCenV->setVisible(false);
     m_nullMouseCoords=false;
@@ -1428,18 +1420,13 @@ void rtimvMainWindow::mtxTry_userBoxSize(StretchBox * sb)
 {
    char tmp[256];
    snprintf(tmp, 256, "%0.1f x %0.1f", sb->rect().width(), sb->rect().height());
-   ui.graphicsView->m_userItemSize->setText(tmp);
-
-   QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
-   QSize textSize = fm.size(0, tmp);
 
    QRectF sbr = sb->sceneBoundingRect();
    QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x(), sbr.y()));
 
-   ui.graphicsView->m_userItemSize->resize(textSize.width()+5,textSize.height()+5);
-   ui.graphicsView->m_userItemSize->move(qr.x(), qr.y());
+   ui.graphicsView->userItemSizeText(tmp, qr);
 
-   mtxTry_fontLuminance(ui.graphicsView->m_userItemSize);
+   mtxTry_fontLuminance(ui.graphicsView->userItemSize());
 }
 
 void rtimvMainWindow::userBoxCross(StretchBox * sb)
@@ -1522,8 +1509,8 @@ void rtimvMainWindow::userBoxRemove(StretchBox * sb)
    m_qgs->removeItem(sb); //Remove it from the scene
    sb->deleteLater(); //clean it up after we're no longer in an async function
 
-   ui.graphicsView->m_userItemSize->setVisible(false);
-   ui.graphicsView->m_userItemMouseCoords->setVisible(false);
+   ui.graphicsView->userItemSize()->setVisible(false);
+   ui.graphicsView->userItemMouseCoords()->setVisible(false);
    m_objCenH->setVisible(false);
    m_objCenV->setVisible(false);
    m_nullMouseCoords=false;
@@ -1536,15 +1523,15 @@ void rtimvMainWindow::mtxTry_userBoxSelected(StretchBox * sb)
     m_userItemXCen = sb->rect().x() + sb->pos().x() + 0.5*sb->rect().width();
     m_userItemYCen = sb->rect().y() + sb->pos().y() + 0.5*sb->rect().height();
 
-    userItemSelected(RTIMV_DEF_USERITEMCOLOR, true, true, true);
+    userItemSelected(ui.graphicsView->userItemDefColor(), true, true, true);
     mtxTry_userBoxMoved(sb);
 }
 
 void rtimvMainWindow::userBoxDeSelected(StretchBox * sb)
 {
    static_cast<void>(sb);
-   ui.graphicsView->m_userItemSize->setVisible(false);
-   ui.graphicsView->m_userItemMouseCoords->setVisible(false);
+   ui.graphicsView->userItemSize()->setVisible(false);
+   ui.graphicsView->userItemMouseCoords()->setVisible(false);
    m_objCenH->setVisible(false);
    m_objCenV->setVisible(false);
    m_nullMouseCoords=false;
@@ -1567,8 +1554,8 @@ void rtimvMainWindow::addUserCircle()
    StretchCircle * sc = *it.first;
 
    sc->setPenColor("lime");
-   sc->setEdgeTol(m_userItemEdgeTol / m_screenZoom);
-   sc->setPenWidth(m_userItemLineWidth / m_screenZoom);
+   sc->setEdgeTol(m_userItemEdgeTol / m_screenZoom / m_zoomLevel);
+   sc->setPenWidth(m_userItemLineWidth / m_screenZoom / m_zoomLevel);
 
    sc->setStretchable(true);
    sc->setVisible(true);
@@ -1590,19 +1577,13 @@ void rtimvMainWindow::userCircleSize(StretchCircle * sc)
    char tmp[32];
    snprintf(tmp, sizeof(tmp), "r=%0.1f", sc->radius());
 
-   ui.graphicsView->m_userItemSize->setText(tmp);
-
-   QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
-   QSize textSize = fm.size(0, tmp);
-
    //Take scene coordinates to viewport coordinates.
    QRectF sbr = sc->sceneBoundingRect();
    QPoint qr = ui.graphicsView->mapFromScene(QPointF(sbr.x()+sc->rect().width()*0.5 - sc->radius()*0.707, sbr.y()+ sc->rect().height()*0.5 - sc->radius()*0.707));
 
-   ui.graphicsView->m_userItemSize->resize(textSize.width()+5,textSize.height()+5);
-   ui.graphicsView->m_userItemSize->move(qr.x(), qr.y());
+   ui.graphicsView->userItemSizeText(tmp, qr);
 
-   mtxTry_fontLuminance(ui.graphicsView->m_userItemSize);
+   mtxTry_fontLuminance(ui.graphicsView->userItemSize());
 }
 
 void rtimvMainWindow::userCircleCross(StretchCircle * sc)
@@ -1677,8 +1658,8 @@ void rtimvMainWindow::userCircleRemove(StretchCircle * sc)
    m_qgs->removeItem(sc); //Remove it from the scene
    sc->deleteLater(); //clean it up after we're no longer in an asynch function
 
-   ui.graphicsView->m_userItemSize->setVisible(false);
-   ui.graphicsView->m_userItemMouseCoords->setVisible(false);
+   ui.graphicsView->userItemSize()->setVisible(false);
+   ui.graphicsView->userItemMouseCoords()->setVisible(false);
    m_objCenH->setVisible(false);
    m_objCenV->setVisible(false);
    m_userItemSelected = false;
@@ -1689,15 +1670,15 @@ void rtimvMainWindow::userCircleSelected(StretchCircle * sc)
     m_userItemXCen = sc->rect().x() + sc->pos().x() + 0.5*sc->rect().width();
     m_userItemYCen = sc->rect().y() + sc->pos().y() + 0.5*sc->rect().height();
 
-    userItemSelected(RTIMV_DEF_USERITEMCOLOR, true, true, true);
+    userItemSelected(ui.graphicsView->userItemDefColor(), true, true, true);
     userCircleMoved(sc);
 }
 
 void rtimvMainWindow::userCircleDeSelected(StretchCircle * sb)
 {
    static_cast<void>(sb);
-   ui.graphicsView->m_userItemSize->setVisible(false);
-   ui.graphicsView->m_userItemMouseCoords->setVisible(false);
+   ui.graphicsView->userItemSize()->setVisible(false);
+   ui.graphicsView->userItemMouseCoords()->setVisible(false);
    m_objCenH->setVisible(false);
    m_objCenV->setVisible(false);
    m_userItemSelected = false;
@@ -1713,13 +1694,13 @@ void rtimvMainWindow::addUserLine()
    if(znx < zny) w = znx/4;
    else w = zny/4;
 
-   std::pair<std::unordered_set<StretchLine *>::iterator,bool> it = m_userLines.insert(new StretchLine(ui.graphicsView->xCen()-w/2, ui.graphicsView->yCen()-w/2, ui.graphicsView->xCen()+w/2, ui.graphicsView->yCen()+w/2));
+   auto it = m_userLines.insert(new StretchLine(ui.graphicsView->xCen()-w/2, ui.graphicsView->yCen()-w/2, ui.graphicsView->xCen()+w/2, ui.graphicsView->yCen()+w/2));
 
    StretchLine * sl = *it.first;
 
    sl->setPenColor("lime");
-   sl->setEdgeTol(m_userItemEdgeTol / m_screenZoom);
-   sl->setPenWidth(m_userItemLineWidth / m_screenZoom);
+   sl->setEdgeTol(m_userItemEdgeTol / m_screenZoom / m_zoomLevel);
+   sl->setPenWidth(m_userItemLineWidth / m_screenZoom  / m_zoomLevel);
 
    sl->setStretchable(true);
    sl->setVisible(true);
@@ -1748,28 +1729,26 @@ void rtimvMainWindow::mtxTry_userLineSize(StretchLine * sl)
     if(ang < 0) ang += 360.0;
 
     char tmp[256];
-    snprintf(tmp, 256, "%0.1f @ %0.1f", sl->length(), ang);
-
-    ui.graphicsView->m_userItemSize->setText(tmp);
-
+    snprintf(tmp, 256, "%0.1f\n%0.1f", sl->length(), ang);
 
     QPointF np = m_qpmi->mapFromItem(sl, sl->line().p2());
+
+    QFontMetrics fm(ui.graphicsView->userItemSize()->currentFont());
+    QSize fntsz = fm.size(0, tmp);
 
     float offsetX = 0;
     float offsetY = 10;
 
     if(sl->angle() > 90 && sl->angle() < 270)
     {
-        QFontMetrics fm(ui.graphicsView->m_userItemSize->currentFont());
-        QSize fntsz = fm.size(0, ui.graphicsView->m_userItemSize->toPlainText());
-
         offsetX = fntsz.width() + 20;
         offsetY = 0;
     }
 
-    ui.graphicsView->m_userItemSize->setGeometry(np.x()*m_screenZoom - offsetX, np.y()*m_screenZoom - offsetY, 200,40);
+    QRect rect(np.x()*m_screenZoom - offsetX, np.y()*m_screenZoom - offsetY, fntsz.width()+5, fntsz.height()+5);
+    ui.graphicsView->userItemSizeText(tmp, rect);
 
-    mtxTry_fontLuminance(ui.graphicsView->m_userItemSize);
+    mtxTry_fontLuminance(ui.graphicsView->userItemSize());
 }
 
 void rtimvMainWindow::userLineHead(StretchLine * sl)
@@ -1860,8 +1839,8 @@ void rtimvMainWindow::userLineRemove(StretchLine * sl)
    m_userLines.erase(sl); //Remove it from our list
    m_qgs->removeItem(sl); //Remove it from the scene
    sl->deleteLater(); //clean it up after we're no longer in an asynch function
-   ui.graphicsView->m_userItemMouseCoords->setVisible(false);
-   ui.graphicsView->m_userItemSize->setVisible(false);
+   ui.graphicsView->userItemMouseCoords()->setVisible(false);
+   ui.graphicsView->userItemSize()->setVisible(false);
    m_lineHead->setVisible(false);
    m_userItemSelected = false;
 }
@@ -1872,15 +1851,15 @@ void rtimvMainWindow::mtxTry_userLineSelected(StretchLine * sl)
     m_userItemYCen = sl->line().y1();
 
     m_lineHead->setVisible(true);
-    userItemSelected(RTIMV_DEF_USERITEMCOLOR, true, true, false);
+    userItemSelected(ui.graphicsView->userItemDefColor(), true, true, false);
     mtxTry_userLineMoved(sl);
 }
 
 void rtimvMainWindow::userLineDeSelected(StretchLine * sl)
 {
    static_cast<void>(sl);
-   ui.graphicsView->m_userItemSize->setVisible(false);
-   ui.graphicsView->m_userItemMouseCoords->setVisible(false);
+   ui.graphicsView->userItemSize()->setVisible(false);
+   ui.graphicsView->userItemMouseCoords()->setVisible(false);
    m_lineHead->setVisible(false);
    m_userItemSelected = false;
 }
@@ -1934,12 +1913,12 @@ void rtimvMainWindow::targetVisible(bool tv)
       if(tv)
       {
          ui.graphicsView->zoomText("target on");
-         mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+         mtxTry_fontLuminance(ui.graphicsView->zoomText());
       }
       else
       {
          ui.graphicsView->zoomText("target off");
-         mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+         mtxTry_fontLuminance(ui.graphicsView->zoomText());
       }
    }
    m_targetVisible = tv;
@@ -1986,17 +1965,17 @@ void rtimvMainWindow::savingState(rtimv::savingState ss)
    if(ss == rtimv::savingState::on)
    {
       ui.graphicsView->saveBoxFontColor("lightgreen");
-      ui.graphicsView->m_saveBox->setText("S");
+      ui.graphicsView->saveBox()->setText("S");
    }
    else if(ss == rtimv::savingState::waiting)
    {
       ui.graphicsView->saveBoxFontColor("yellow");
-      ui.graphicsView->m_saveBox->setText("S");
+      ui.graphicsView->saveBox()->setText("S");
    }
    else
    {
       ui.graphicsView->saveBoxFontColor("red");
-      ui.graphicsView->m_saveBox->setText("X");
+      ui.graphicsView->saveBox()->setText("X");
    }
 }
 
@@ -2163,12 +2142,12 @@ void rtimvMainWindow::setAutoScale( bool as )
    if(m_autoScale)
    {
       ui.graphicsView->zoomText("autoscale on");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
    else
    {
       ui.graphicsView->zoomText("autoscale off");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
 }
 
@@ -2194,7 +2173,7 @@ void rtimvMainWindow::mtxUL_center()
 
     ui.graphicsView->zoomText("centered");
 
-    mtxL_fontLuminance(ui.graphicsView->m_zoomText, lock);
+    mtxL_fontLuminance(ui.graphicsView->zoomText(), lock);
 }
 
 void rtimvMainWindow::toggleColorBox()
@@ -2249,7 +2228,7 @@ void rtimvMainWindow::toggleColorBoxOn()
     lock.unlock();
 
     ui.graphicsView->zoomText("color box scale");
-    mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+    mtxTry_fontLuminance(ui.graphicsView->zoomText());
 
 }
 
@@ -2267,7 +2246,7 @@ void rtimvMainWindow::toggleColorBoxOff()
     lock.unlock();
 
     ui.graphicsView->zoomText("global scale");
-    mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+    mtxTry_fontLuminance(ui.graphicsView->zoomText());
 
 }
 
@@ -2302,7 +2281,7 @@ void rtimvMainWindow::toggleStatsBox()
    {
       doHideStatsBox();
       ui.graphicsView->zoomText("stats off");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
       if(imcp)
       {
          imcp->statsBoxButtonState = false;
@@ -2314,7 +2293,7 @@ void rtimvMainWindow::toggleStatsBox()
    {
       doLaunchStatsBox();
       ui.graphicsView->zoomText("stats on");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
       if(imcp)
       {
          imcp->statsBoxButtonState = true;
@@ -2340,14 +2319,14 @@ void rtimvMainWindow::toggleNorthArrow()
       m_northArrow->setVisible(false);
       m_northArrowTip->setVisible(false);
       ui.graphicsView->zoomText("North Off");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
    else
    {
       m_northArrow->setVisible(true);
       m_northArrowTip->setVisible(true);
       ui.graphicsView->zoomText("North On");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
 
 }
@@ -2358,13 +2337,13 @@ void rtimvMainWindow::showFPSGage( bool sfg )
    if(m_showFPSGage)
    {
       ui.graphicsView->zoomText("fps gage on");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
    else
    {
       ui.graphicsView->fpsGageText("");
       ui.graphicsView->zoomText("fps gage off");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
 }
 
@@ -2386,12 +2365,12 @@ void rtimvMainWindow::setDarkSub( bool ds )
    if(m_subtractDark)
    {
       ui.graphicsView->zoomText("dark sub. on");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
    else
    {
       ui.graphicsView->zoomText("dark sub. off");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
 
    mtxUL_changeImdata(false);
@@ -2415,12 +2394,12 @@ void rtimvMainWindow::setApplyMask( bool am )
    if(m_applyMask)
    {
       ui.graphicsView->zoomText("mask on");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
    else
    {
       ui.graphicsView->zoomText("mask off");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
 
    mtxUL_changeImdata(false);
@@ -2444,12 +2423,12 @@ void rtimvMainWindow::setApplySatMask( bool as )
    if(m_applySatMask)
    {
       ui.graphicsView->zoomText("sat mask on");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
    else
    {
       ui.graphicsView->zoomText("sat mask off");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
 
    mtxUL_changeImdata(false);
@@ -2476,13 +2455,13 @@ void rtimvMainWindow::toggleLogLinear()
    {
       set_cbStretch(stretchLinear);
       ui.graphicsView->zoomText("linear stretch");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
    else
    {
       set_cbStretch(stretchLog);
       ui.graphicsView->zoomText("log stretch");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
 }
 
@@ -2492,13 +2471,13 @@ void rtimvMainWindow::toggleTarget()
    {
       targetVisible(false);
       ui.graphicsView->zoomText("target off");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
    else
    {
       targetVisible(true);
       ui.graphicsView->zoomText("target on");
-      mtxTry_fontLuminance(ui.graphicsView->m_zoomText);
+      mtxTry_fontLuminance(ui.graphicsView->zoomText());
    }
 }
 
@@ -2538,14 +2517,14 @@ void rtimvMainWindow::toggleHelp()
 {
    if(m_helpVisible)
    {
-      ui.graphicsView->m_helpText->setVisible(false);
+      ui.graphicsView->helpText()->setVisible(false);
       m_helpVisible = false;
    }
    else
    {
       std::string help = generateHelp();
       ui.graphicsView->helpTextText(help.c_str());
-      ui.graphicsView->m_helpText->setVisible(true);
+      ui.graphicsView->helpText()->setVisible(true);
       m_helpVisible = true;
       m_infoVisible = false;
    }
@@ -2650,14 +2629,14 @@ void rtimvMainWindow::toggleInfo()
 {
    if(m_infoVisible)
    {
-      ui.graphicsView->m_helpText->setVisible(false);
+      ui.graphicsView->helpText()->setVisible(false);
       m_infoVisible = false;
    }
    else
    {
       std::string info = generateInfo();
       ui.graphicsView->helpTextText(info.c_str());
-      ui.graphicsView->m_helpText->setVisible(true);
+      ui.graphicsView->helpText()->setVisible(true);
       m_infoVisible = true;
       m_helpVisible = false;
    }
@@ -2828,7 +2807,7 @@ void rtimvMainWindow::mtxTry_fontLuminance()
 
     mtxL_fontLuminance(ui.graphicsView->m_fpsGage, lock);
 
-    mtxL_fontLuminance(ui.graphicsView->m_zoomText, lock);
+    mtxL_fontLuminance(ui.graphicsView->zoomText(), lock);
 
     if(!m_nullMouseCoords)
     {
@@ -2845,15 +2824,15 @@ void rtimvMainWindow::mtxTry_fontLuminance()
         }
     }
 
-    for(size_t n=0; n< ui.graphicsView->m_statusText.size(); ++n)
+    for(size_t n=0; n< ui.graphicsView->statusTextNo(); ++n)
     {
-        if(ui.graphicsView->m_statusText[n]->toPlainText().size() > 0)
+        if(ui.graphicsView->statusText(n)->toPlainText().size() > 0)
         {
-            mtxL_fontLuminance(ui.graphicsView->m_statusText[n], lock);
+            mtxL_fontLuminance(ui.graphicsView->statusText(n), lock);
         }
     }
 
-    mtxL_fontLuminance(ui.graphicsView->m_saveBox, lock);
+    mtxL_fontLuminance(ui.graphicsView->saveBox(), lock);
 
     return;
 
