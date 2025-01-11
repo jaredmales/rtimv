@@ -2,15 +2,12 @@
 
 #include "rtimvMainWindow.hpp"
 
-
-
-int main(int argc, char *argv[])
+int main( int argc, char *argv[] )
 {
-   QApplication app(argc, argv);
+    QApplication app( argc, argv );
 
-   rtimvMainWindow rtimv(argc, argv);
-   rtimv.show();
+    rtimvMainWindow rtimv( argc, argv );
+    rtimv.show();
 
-   return app.exec();
+    return app.exec();
 }
-

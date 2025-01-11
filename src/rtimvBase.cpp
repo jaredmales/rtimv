@@ -3,132 +3,131 @@
 #include <utility>
 
 #ifdef RTIMV_MILK
-#include "images/shmimImage.hpp"
+    #include "images/shmimImage.hpp"
 #endif
 
 #include "images/fitsImage.hpp"
 #include "images/fitsDirectory.hpp"
 #include "images/mzmqImage.hpp"
 
-//#define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
+// #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
 
-rtimvBase::rtimvBase( QWidget *Parent,
-                      Qt::WindowFlags f) : QWidget(Parent, f)
+rtimvBase::rtimvBase( QWidget *Parent, Qt::WindowFlags f ) : QWidget( Parent, f )
 {
 }
 
-rtimvBase::rtimvBase( const std::vector<std::string> &shkeys,
-                      QWidget *Parent,
-                      Qt::WindowFlags f) : QWidget(Parent, f)
+rtimvBase::rtimvBase( const std::vector<std::string> &shkeys, QWidget *Parent, Qt::WindowFlags f )
+    : QWidget( Parent, f )
 {
-    startup(shkeys);
+    startup( shkeys );
 }
 
-void rtimvBase::startup(const std::vector<std::string> &shkeys)
+void rtimvBase::startup( const std::vector<std::string> &shkeys )
 {
-    m_images.resize(4, nullptr);
+    m_images.resize( 4, nullptr );
 
-    for(size_t i = 0; i < m_images.size(); ++i)
+    for( size_t i = 0; i < m_images.size(); ++i )
     {
-        if(shkeys.size() > i)
+        if( shkeys.size() > i )
         {
-            if(shkeys[i] != "")
+            if( shkeys[i] != "" )
             {
                 // safely accept several different common fits extensions
                 bool isFits = false;
-                if(shkeys[i].size() > 4)
+                if( shkeys[i].size() > 4 )
                 {
-                    if(shkeys[i].rfind(".fit") == shkeys[i].size() - 4 ||
-                        shkeys[i].rfind(".FIT") == shkeys[i].size() - 4)
+                    if( shkeys[i].rfind( ".fit" ) == shkeys[i].size() - 4 ||
+                        shkeys[i].rfind( ".FIT" ) == shkeys[i].size() - 4 )
                         isFits = true;
                 }
-                if(shkeys[i].size() > 5 && !isFits)
+                if( shkeys[i].size() > 5 && !isFits )
                 {
-                    if(shkeys[i].rfind(".fits") == shkeys[i].size() - 5 ||
-                        shkeys[i].rfind(".FITS") == shkeys[i].size() - 5)
+                    if( shkeys[i].rfind( ".fits" ) == shkeys[i].size() - 5 ||
+                        shkeys[i].rfind( ".FITS" ) == shkeys[i].size() - 5 )
                         isFits = true;
                 }
 
                 bool isDirectory = false;
-                if(!isFits)
+                if( !isFits )
                 {
-                    if(shkeys[i][shkeys[i].size() - 1] == '/')
+                    if( shkeys[i][shkeys[i].size() - 1] == '/' )
                     {
                         isDirectory = true;
                     }
                 }
 
-                if(isFits)
+                if( isFits )
                 {
-                    fitsImage *fi = new fitsImage(&m_rawMutex);
+                    fitsImage *fi = new fitsImage( &m_rawMutex );
                     m_images[i] = (rtimvImage *)fi;
                 }
-                else if(isDirectory)
+                else if( isDirectory )
                 {
-                    fitsDirectory *fd = new fitsDirectory(&m_rawMutex);
+                    fitsDirectory *fd = new fitsDirectory( &m_rawMutex );
                     m_images[i] = (rtimvImage *)fd;
                 }
-                else if(shkeys[i].find('@') != std::string::npos || shkeys[i].find(':') != std::string::npos || m_mzmqAlways == true)
+                else if( shkeys[i].find( '@' ) != std::string::npos || shkeys[i].find( ':' ) != std::string::npos ||
+                         m_mzmqAlways == true )
                 {
-                    mzmqImage *mi = new mzmqImage(&m_rawMutex);
+                    mzmqImage *mi = new mzmqImage( &m_rawMutex );
 
                     // change defaults
-                    if(m_mzmqServer != "")
+                    if( m_mzmqServer != "" )
                     {
-                        mi->imageServer(m_mzmqServer);
+                        mi->imageServer( m_mzmqServer );
                     }
 
-                    if(m_mzmqPort != 0)
+                    if( m_mzmqPort != 0 )
                     {
-                        mi->imagePort(m_mzmqPort);
+                        mi->imagePort( m_mzmqPort );
                     }
 
                     m_images[i] = (rtimvImage *)mi;
                 }
                 else
                 {
-                    #ifdef RTIMV_MILK
-                    //If we get here we try to interpret as an ImageStreamIO image
-                    shmimImage *si = new shmimImage(&m_rawMutex);
+#ifdef RTIMV_MILK
+                    // If we get here we try to interpret as an ImageStreamIO image
+                    shmimImage *si = new shmimImage( &m_rawMutex );
                     m_images[i] = (rtimvImage *)si;
-                    #else
-                    qFatal("Unrecognized image key format");
-                    #endif
+#else
+                    qFatal( "Unrecognized image key format" );
+#endif
                 }
 
-                m_images[i]->imageKey(shkeys[i]); // Set the key
+                m_images[i]->imageKey( shkeys[i] ); // Set the key
             }
         }
     }
 
     // Turn on features if images exist:
-    if(m_images[1] != nullptr)
+    if( m_images[1] != nullptr )
     {
         m_subtractDark = true;
     }
 
-    if(m_images[2] != nullptr)
+    if( m_images[2] != nullptr )
     {
         m_applyMask = true;
     }
 
-    if(m_images[3] != nullptr)
+    if( m_images[3] != nullptr )
     {
         m_applySatMask = true;
     }
 
-    connect(&m_imageTimer, SIGNAL(timeout()), this, SLOT(updateImages()));
+    connect( &m_imageTimer, SIGNAL( timeout() ), this, SLOT( updateImages() ) );
 }
 
-bool rtimvBase::imageValid(size_t n)
+bool rtimvBase::imageValid( size_t n )
 {
-    if(n >= m_images.size())
+    if( n >= m_images.size() )
     {
         return false;
     }
 
-    if(m_images[n] == nullptr)
+    if( m_images[n] == nullptr )
     {
         return false;
     }
@@ -136,49 +135,47 @@ bool rtimvBase::imageValid(size_t n)
     return m_images[n]->valid();
 }
 
-void rtimvBase::mtxL_setImsize( uint32_t x,
-                                uint32_t y,
-                                const uniqueLockT & lock
-                              )
+void rtimvBase::mtxL_setImsize( uint32_t x, uint32_t y, const uniqueLockT &lock )
 {
-    assert(lock.owns_lock());
+    assert( lock.owns_lock() );
 
-    //Always have at least one pixel
-    if(x == 0) x = 1;
-    if(y == 0) y = 1;
+    // Always have at least one pixel
+    if( x == 0 )
+        x = 1;
+    if( y == 0 )
+        y = 1;
 
-    if(m_nx != x || m_ny != y || m_calData == 0 || m_qim == 0)
+    if( m_nx != x || m_ny != y || m_calData == 0 || m_qim == 0 )
     {
         m_nx = x;
         m_ny = y;
 
-        if(m_calData != nullptr)
+        if( m_calData != nullptr )
         {
             delete[] m_calData;
             m_calData = nullptr;
         }
 
-        if(m_satData != nullptr)
+        if( m_satData != nullptr )
         {
             delete[] m_satData;
             m_satData = nullptr;
         }
 
-        m_calData = new float[m_nx*m_ny];
-        m_satData = new uint8_t[m_nx*m_ny];
+        m_calData = new float[m_nx * m_ny];
+        m_satData = new uint8_t[m_nx * m_ny];
 
-        if(m_qim != nullptr)
+        if( m_qim != nullptr )
         {
             delete m_qim;
             m_qim = nullptr;
         }
 
-        m_qim = new QImage(m_nx, m_ny, QImage::Format_Indexed8);
+        m_qim = new QImage( m_nx, m_ny, QImage::Format_Indexed8 );
 
-        mtxL_load_colorbar(current_colorbar, false, lock); //have to load into newly created image
+        mtxL_load_colorbar( current_colorbar, false, lock ); // have to load into newly created image
 
-        mtxL_postSetImsize(lock);
-
+        mtxL_postSetImsize( lock );
     }
 }
 
@@ -199,9 +196,9 @@ void rtimvBase::updateImages()
     int doupdate = RTIMVIMAGE_NOUPDATE;
     int supportUpdate = RTIMVIMAGE_NOUPDATE;
 
-    if(m_images[0] != nullptr)
+    if( m_images[0] != nullptr )
     {
-        if(m_images[0]->cubeMode() == rtimvImage::mode::playback)
+        if( m_images[0]->cubeMode() == rtimvImage::mode::playback )
         {
             m_images[0]->incImageNo();
         }
@@ -209,65 +206,66 @@ void rtimvBase::updateImages()
         doupdate = m_images[0]->update();
     }
 
-    for(size_t i = 1; i < m_images.size(); ++i)
+    for( size_t i = 1; i < m_images.size(); ++i )
     {
-        if(m_images[i] != nullptr)
+        if( m_images[i] != nullptr )
         {
             int sU = m_images[i]->update();
-            if(sU > supportUpdate) //Do an update if any support image needs an update
+            if( sU > supportUpdate ) // Do an update if any support image needs an update
             {
                 supportUpdate = sU;
             }
         }
     }
 
-    ///\todo onConnect should maybe only be called upon connection to main image, and may need to wait a sec to let things settle.
-    if(doupdate >= RTIMVIMAGE_IMUPDATE || supportUpdate >= RTIMVIMAGE_IMUPDATE)
+    ///\todo onConnect should maybe only be called upon connection to main image, and may need to wait a sec to let
+    /// things settle.
+    if( doupdate >= RTIMVIMAGE_IMUPDATE || supportUpdate >= RTIMVIMAGE_IMUPDATE )
     {
-        mtxUL_changeImdata(true);
+        mtxUL_changeImdata( true );
 
-        if(!connected)
+        if( !connected )
         {
             onConnect();
             connected = true;
         }
     }
 
-    if(!connected)
+    if( !connected )
     {
         updateNC();
         return;
     }
 
-    if(doupdate == RTIMVIMAGE_FPSUPDATE)
+    if( doupdate == RTIMVIMAGE_FPSUPDATE )
     {
         updateFPS();
     }
 
-    if(doupdate == RTIMVIMAGE_AGEUPDATE)
+    if( doupdate == RTIMVIMAGE_AGEUPDATE )
     {
         updateAge();
     }
 }
 
-void rtimvBase::imageTimeout(int to)
+void rtimvBase::imageTimeout( int to )
 {
-    if(to == m_imageTimeout) //Don't interrupt if not needed
+    if( to == m_imageTimeout ) // Don't interrupt if not needed
     {
         return;
     }
 
     m_imageTimer.stop();
 
-    for(size_t i = 0; i < m_images.size(); ++i)
+    for( size_t i = 0; i < m_images.size(); ++i )
     {
-        if(m_images[i] != nullptr)
+        if( m_images[i] != nullptr )
         {
-            m_images[i]->timeout(to); // just for fps calculations
+            m_images[i]->timeout( to ); // just for fps calculations
         }
     }
 
-    m_imageTimer.start(to);
+    m_imageTimer.start( to );
 }
 
 int rtimvBase::imageTimeout()
@@ -279,12 +277,12 @@ rtimvBase::pixelF rtimvBase::rawPixel()
 {
     pixelF _pixel = nullptr;
 
-    if(m_images[0] == nullptr)
+    if( m_images[0] == nullptr )
     {
         return _pixel; // no valid base image
     }
 
-    if(m_images[0]->valid())
+    if( m_images[0]->valid() )
     {
         _pixel = &pixel_noCal; // default if there is a valid base image.
     }
@@ -293,62 +291,62 @@ rtimvBase::pixelF rtimvBase::rawPixel()
         return _pixel; // no valid base image
     }
 
-    if(m_subtractDark == true && m_applyMask == false)
+    if( m_subtractDark == true && m_applyMask == false )
     {
-        if(m_images[1] == nullptr)
+        if( m_images[1] == nullptr )
         {
             return _pixel;
         }
 
-        if(m_images[1]->nx() != m_images[0]->nx() || m_images[1]->ny() != m_images[0]->ny())
+        if( m_images[1]->nx() != m_images[0]->nx() || m_images[1]->ny() != m_images[0]->ny() )
         {
             return _pixel;
         }
 
-        if(m_images[0]->valid() && m_images[1]->valid())
+        if( m_images[0]->valid() && m_images[1]->valid() )
         {
             _pixel = &pixel_subDark;
         }
     }
 
-    if(m_subtractDark == false && m_applyMask == true)
+    if( m_subtractDark == false && m_applyMask == true )
     {
-        if(m_images[2] == nullptr)
+        if( m_images[2] == nullptr )
             return _pixel;
 
-        if(m_images[2]->nx() != m_images[0]->nx() || m_images[2]->ny() != m_images[0]->ny())
+        if( m_images[2]->nx() != m_images[0]->nx() || m_images[2]->ny() != m_images[0]->ny() )
             return _pixel;
 
-        if(m_images[0]->valid() && m_images[2]->valid())
+        if( m_images[0]->valid() && m_images[2]->valid() )
             _pixel = &pixel_applyMask;
     }
 
-    if(m_subtractDark == true && m_applyMask == true)
+    if( m_subtractDark == true && m_applyMask == true )
     {
 
-        if(m_images[1] == nullptr && m_images[2] == nullptr)
+        if( m_images[1] == nullptr && m_images[2] == nullptr )
             return _pixel;
-        else if(m_images[2] == nullptr)
+        else if( m_images[2] == nullptr )
         {
-            if(m_images[1]->nx() != m_images[0]->nx() || m_images[1]->ny() != m_images[0]->ny())
+            if( m_images[1]->nx() != m_images[0]->nx() || m_images[1]->ny() != m_images[0]->ny() )
                 return _pixel;
-            if(m_images[1]->valid())
+            if( m_images[1]->valid() )
                 _pixel = &pixel_subDark;
         }
-        else if(m_images[1] == nullptr)
+        else if( m_images[1] == nullptr )
         {
-            if(m_images[2]->nx() != m_images[0]->nx() || m_images[2]->ny() != m_images[0]->ny())
+            if( m_images[2]->nx() != m_images[0]->nx() || m_images[2]->ny() != m_images[0]->ny() )
                 return _pixel;
-            if(m_images[2]->valid())
+            if( m_images[2]->valid() )
                 _pixel = &pixel_applyMask;
         }
         else
         {
-            if(m_images[1]->nx() != m_images[0]->nx() || m_images[1]->ny() != m_images[0]->ny())
+            if( m_images[1]->nx() != m_images[0]->nx() || m_images[1]->ny() != m_images[0]->ny() )
                 return _pixel;
-            if(m_images[2]->nx() != m_images[0]->nx() || m_images[2]->ny() != m_images[0]->ny())
+            if( m_images[2]->nx() != m_images[0]->nx() || m_images[2]->ny() != m_images[0]->ny() )
                 return _pixel;
-            if(m_images[1]->valid() && m_images[2]->valid())
+            if( m_images[1]->valid() && m_images[2]->valid() )
                 _pixel = &pixel_subDarkApplyMask;
         }
     }
@@ -356,80 +354,68 @@ rtimvBase::pixelF rtimvBase::rawPixel()
     return _pixel;
 }
 
-float rtimvBase::pixel_noCal(rtimvBase *imv,
-                             size_t idx)
+float rtimvBase::pixel_noCal( rtimvBase *imv, size_t idx )
 {
-    return imv->m_images[0]->pixel(idx);
+    return imv->m_images[0]->pixel( idx );
 }
 
-float rtimvBase::pixel_subDark(rtimvBase *imv,
-                               size_t idx)
+float rtimvBase::pixel_subDark( rtimvBase *imv, size_t idx )
 {
-    return imv->m_images[0]->pixel(idx) - imv->m_images[1]->pixel(idx);
+    return imv->m_images[0]->pixel( idx ) - imv->m_images[1]->pixel( idx );
 }
 
-float rtimvBase::pixel_applyMask(rtimvBase *imv,
-                                 size_t idx)
+float rtimvBase::pixel_applyMask( rtimvBase *imv, size_t idx )
 {
-    return imv->m_images[0]->pixel(idx) * imv->m_images[2]->pixel(idx);
+    return imv->m_images[0]->pixel( idx ) * imv->m_images[2]->pixel( idx );
 }
 
-float rtimvBase::pixel_subDarkApplyMask(rtimvBase *imv,
-                                        size_t idx)
+float rtimvBase::pixel_subDarkApplyMask( rtimvBase *imv, size_t idx )
 {
-    return (imv->m_images[0]->pixel(idx) - imv->m_images[1]->pixel(idx)) * imv->m_images[2]->pixel(idx);
+    return ( imv->m_images[0]->pixel( idx ) - imv->m_images[1]->pixel( idx ) ) * imv->m_images[2]->pixel( idx );
 }
 
-float rtimvBase::calPixel( uint32_t x,
-                           uint32_t y
-                         )
+float rtimvBase::calPixel( uint32_t x, uint32_t y )
 {
     return m_calData[y * m_nx + x];
 }
 
-uint8_t rtimvBase::satPixel( uint32_t x,
-                             uint32_t y
-                           )
+uint8_t rtimvBase::satPixel( uint32_t x, uint32_t y )
 {
     return m_satData[y * m_nx + x];
 }
 
 // https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color/56678483#56678483
 template <typename realT>
-realT sRGBtoLinRGB(int rgb)
+realT sRGBtoLinRGB( int rgb )
 {
-    realT V = ((realT)rgb) / 255.0;
+    realT V = ( (realT)rgb ) / 255.0;
 
-    if(V <= 0.0405)
+    if( V <= 0.0405 )
         return V / 12.92;
 
-    return pow((V + 0.055) / 1.055, 2.4);
+    return pow( ( V + 0.055 ) / 1.055, 2.4 );
 }
 
 template <typename realT>
-realT linRGBtoLuminance(realT linR,
-                        realT linG,
-                        realT linB)
+realT linRGBtoLuminance( realT linR, realT linG, realT linB )
 {
     return 0.2126 * linR + 0.7152 * linG + 0.0722 * linB;
 }
 
 template <typename realT>
-realT pLightness(realT lum)
+realT pLightness( realT lum )
 {
-    if(lum <= static_cast<realT>(216) / static_cast<realT>(24389))
+    if( lum <= static_cast<realT>( 216 ) / static_cast<realT>( 24389 ) )
     {
-        return lum * static_cast<realT>(24389) / static_cast<realT>(27);
+        return lum * static_cast<realT>( 24389 ) / static_cast<realT>( 27 );
     }
 
-    return pow(lum, static_cast<realT>(1) / static_cast<realT>(3)) * 116 - 16;
+    return pow( lum, static_cast<realT>( 1 ) / static_cast<realT>( 3 ) ) * 116 - 16;
 }
 
-
-
-void rtimvBase::set_cbStretch(int ct)
+void rtimvBase::set_cbStretch( int ct )
 {
-    if(ct < 0 || ct >= cbStretches_max)
+    if( ct < 0 || ct >= cbStretches_max )
     {
         ct = stretchLinear;
     }
@@ -442,7 +428,7 @@ int rtimvBase::get_cbStretch()
     return m_cbStretch;
 }
 
-void rtimvBase::mindat(float md)
+void rtimvBase::mindat( float md )
 {
     m_mindat = md;
 }
@@ -452,7 +438,7 @@ float rtimvBase::mindat()
     return m_mindat;
 }
 
-void rtimvBase::maxdat(float md)
+void rtimvBase::maxdat( float md )
 {
     m_maxdat = md;
 }
@@ -462,37 +448,37 @@ float rtimvBase::maxdat()
     return m_maxdat;
 }
 
-void rtimvBase::bias(float b)
+void rtimvBase::bias( float b )
 {
     float cont = contrast();
 
-    mindat(b - 0.5 * cont);
-    maxdat(b + 0.5 * cont);
+    mindat( b - 0.5 * cont );
+    maxdat( b + 0.5 * cont );
 }
 
 float rtimvBase::bias()
 {
-    return 0.5 * (m_maxdat + m_mindat);
+    return 0.5 * ( m_maxdat + m_mindat );
 }
 
-void rtimvBase::bias_rel(float br)
+void rtimvBase::bias_rel( float br )
 {
     float cont = contrast();
 
-    mindat(imdat_min + br * (imdat_max - imdat_min) - 0.5 * cont);
-    maxdat(imdat_min + br * (imdat_max - imdat_min) + 0.5 * cont);
+    mindat( imdat_min + br * ( imdat_max - imdat_min ) - 0.5 * cont );
+    maxdat( imdat_min + br * ( imdat_max - imdat_min ) + 0.5 * cont );
 }
 
 float rtimvBase::bias_rel()
 {
-    return 0.5 * (m_maxdat + m_mindat) / (m_maxdat - m_mindat);
+    return 0.5 * ( m_maxdat + m_mindat ) / ( m_maxdat - m_mindat );
 }
 
-void rtimvBase::contrast(float c)
+void rtimvBase::contrast( float c )
 {
     float b = bias();
-    mindat(b - 0.5 * c);
-    maxdat(b + 0.5 * c);
+    mindat( b - 0.5 * c );
+    maxdat( b + 0.5 * c );
 }
 
 float rtimvBase::contrast()
@@ -502,414 +488,411 @@ float rtimvBase::contrast()
 
 float rtimvBase::contrast_rel()
 {
-    return (imdat_max - imdat_min) / (m_maxdat - m_mindat);
+    return ( imdat_max - imdat_min ) / ( m_maxdat - m_mindat );
 }
 
-void rtimvBase::contrast_rel(float cr)
+void rtimvBase::contrast_rel( float cr )
 {
     float b = bias();
-    mindat(b - .5 * (imdat_max - imdat_min) / cr);
-    maxdat(b + .5 * (imdat_max - imdat_min) / cr);
+    mindat( b - .5 * ( imdat_max - imdat_min ) / cr );
+    maxdat( b + .5 * ( imdat_max - imdat_min ) / cr );
 }
 
-int calcPixIndex_linear(float pixval, float mindat, float maxdat, int mincol, int maxcol)
+int calcPixIndex_linear( float pixval, float mindat, float maxdat, int mincol, int maxcol )
 {
     // We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
-    pixval = (pixval - mindat) / ((float)(maxdat - mindat));
-    if(pixval < 0)
+    pixval = ( pixval - mindat ) / ( (float)( maxdat - mindat ) );
+    if( pixval < 0 )
         return 0;
 
     // Clamp it to <= 1
-    if(pixval > 1.)
+    if( pixval > 1. )
         pixval = 1.;
 
     // And finally put it in the color bar index range
-    return pixval * (maxcol - mincol) + 0.5;
+    return pixval * ( maxcol - mincol ) + 0.5;
 }
 
-int calcPixIndex_log(float pixval, float mindat, float maxdat, int mincol, int maxcol)
+int calcPixIndex_log( float pixval, float mindat, float maxdat, int mincol, int maxcol )
 {
     static float a = 1000;
-    static float log10_a = log10(a);
+    static float log10_a = log10( a );
 
     // We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
-    pixval = (pixval - mindat) / ((float)(maxdat - mindat));
-    if(pixval < 0)
+    pixval = ( pixval - mindat ) / ( (float)( maxdat - mindat ) );
+    if( pixval < 0 )
         return 0;
 
-    pixval = log10(pixval * a + 1) / log10_a;
+    pixval = log10( pixval * a + 1 ) / log10_a;
 
     // Clamp it to <= 1
-    if(pixval > 1.)
+    if( pixval > 1. )
         pixval = 1.;
 
     // And finally put it in the color bar index range
-    return pixval * (maxcol - mincol) + 0.5;
+    return pixval * ( maxcol - mincol ) + 0.5;
 }
 
-int calcPixIndex_pow(float pixval, float mindat, float maxdat, int mincol, int maxcol)
+int calcPixIndex_pow( float pixval, float mindat, float maxdat, int mincol, int maxcol )
 {
     static float a = 1000;
 
     // We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
-    pixval = (pixval - mindat) / ((float)(maxdat - mindat));
-    if(pixval < 0)
+    pixval = ( pixval - mindat ) / ( (float)( maxdat - mindat ) );
+    if( pixval < 0 )
         return 0;
 
-    pixval = (pow(a, pixval)) / a;
+    pixval = ( pow( a, pixval ) ) / a;
 
     // Clamp it to <= 1
-    if(pixval > 1.)
+    if( pixval > 1. )
         pixval = 1.;
 
     // And finally put it in the color bar index range
-    return pixval * (maxcol - mincol) + 0.5;
+    return pixval * ( maxcol - mincol ) + 0.5;
 }
 
-int calcPixIndex_sqrt(float pixval, float mindat, float maxdat, int mincol, int maxcol)
+int calcPixIndex_sqrt( float pixval, float mindat, float maxdat, int mincol, int maxcol )
 {
     // We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
-    pixval = (pixval - mindat) / ((float)(maxdat - mindat));
-    if(pixval < 0)
+    pixval = ( pixval - mindat ) / ( (float)( maxdat - mindat ) );
+    if( pixval < 0 )
         return 0;
 
-    pixval = sqrt(pixval);
+    pixval = sqrt( pixval );
 
     // Clamp it to <= 1
-    if(pixval > 1.)
+    if( pixval > 1. )
         pixval = 1.;
 
     // And finally put it in the color bar index range
-    return pixval * (maxcol - mincol) + 0.5;
+    return pixval * ( maxcol - mincol ) + 0.5;
 }
 
-int calcPixIndex_square(float pixval, float mindat, float maxdat, int mincol, int maxcol)
+int calcPixIndex_square( float pixval, float mindat, float maxdat, int mincol, int maxcol )
 {
     // We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
-    pixval = (pixval - mindat) / ((float)(maxdat - mindat));
-    if(pixval < 0)
+    pixval = ( pixval - mindat ) / ( (float)( maxdat - mindat ) );
+    if( pixval < 0 )
         return 0;
 
     pixval = pixval * pixval;
 
     // Clamp it to <= 1
-    if(pixval > 1.)
+    if( pixval > 1. )
         pixval = 1.;
 
     // And finally put it in the color bar index range
-    return pixval * (maxcol - mincol) + 0.5;
+    return pixval * ( maxcol - mincol ) + 0.5;
 }
 
-void rtimvBase::mtxUL_changeImdata(bool newdata)
+void rtimvBase::mtxUL_changeImdata( bool newdata )
 {
     RTIMV_DEBUG_BREADCRUMB
 
-    if(m_amChangingimdata && !newdata) //this means we're already in this function!
+    if( m_amChangingimdata && !newdata ) // this means we're already in this function!
     {
         return;
     }
 
     bool resized = false;
 
-    { //mutex scope
+    { // mutex scope
 
-    //Get a unique lock on the cal data to allow us to delete it and overwrite it
-    std::unique_lock<std::shared_mutex> lock(m_calMutex);
+        // Get a unique lock on the cal data to allow us to delete it and overwrite it
+        std::unique_lock<std::shared_mutex> lock( m_calMutex );
 
-    //Also lock the raw data for the size checks to make sure it doesn't change out from under us
-    std::unique_lock<std::mutex> rawlock(m_rawMutex);
+        // Also lock the raw data for the size checks to make sure it doesn't change out from under us
+        std::unique_lock<std::mutex> rawlock( m_rawMutex );
 
-    if(!imageValid(0) || (m_amChangingimdata && !newdata)) //Check again in case it changed while we were waiting on the lock
-    {
-        return;
-    }
-
-    m_amChangingimdata = true;
-
-    //Here we realize we need to resize
-    if(m_images[0]->nx() != m_nx || m_images[0]->ny() != m_ny || !m_qim)
-    {
-        RTIMV_DEBUG_BREADCRUMB
-
-        mtxL_setImsize(m_images[0]->nx(), m_images[0]->ny(), lock);
-
-        RTIMV_DEBUG_BREADCRUMB
-
-        resized = true;
-    }
-
-    RTIMV_DEBUG_BREADCRUMB
-
-    //If it's new data we copy it to m_calData
-    if(resized || newdata)
-    {
-        RTIMV_DEBUG_BREADCRUMB
-
-        // Get the pixel calculating function
-        float (*_pixel)(rtimvBase *, size_t) = rawPixel();
-
-        if(_pixel == nullptr)
+        if( !imageValid( 0 ) ||
+            ( m_amChangingimdata && !newdata ) ) // Check again in case it changed while we were waiting on the lock
         {
-            m_amChangingimdata = false;
-
             return;
         }
 
-        RTIMV_DEBUG_BREADCRUMB
+        m_amChangingimdata = true;
 
-        if(m_nx != m_images[0]->nx() || m_ny != m_images[0]->ny())
+        // Here we realize we need to resize
+        if( m_images[0]->nx() != m_nx || m_images[0]->ny() != m_ny || !m_qim )
         {
-            m_amChangingimdata = false;
-            return;
+            RTIMV_DEBUG_BREADCRUMB
+
+            mtxL_setImsize( m_images[0]->nx(), m_images[0]->ny(), lock );
+
+            RTIMV_DEBUG_BREADCRUMB
+
+            resized = true;
         }
 
         RTIMV_DEBUG_BREADCRUMB
 
-        for(uint64_t n=0; n < m_nx*m_ny; ++n)
+        // If it's new data we copy it to m_calData
+        if( resized || newdata )
         {
-            //Check for saturation
-            if(pixel_noCal(this,n) >= m_satLevel)
+            RTIMV_DEBUG_BREADCRUMB
+
+            // Get the pixel calculating function
+            float ( *_pixel )( rtimvBase *, size_t ) = rawPixel();
+
+            if( _pixel == nullptr )
             {
-                m_satData[n] = 1;
-                ++m_saturated;
+                m_amChangingimdata = false;
+
+                return;
             }
-            else
+
+            RTIMV_DEBUG_BREADCRUMB
+
+            if( m_nx != m_images[0]->nx() || m_ny != m_images[0]->ny() )
             {
-                m_satData[n] = 0;
+                m_amChangingimdata = false;
+                return;
             }
 
-            //Fill in calibrated value
-            m_calData[n] = _pixel(this, n);
-        }
+            RTIMV_DEBUG_BREADCRUMB
 
-        RTIMV_DEBUG_BREADCRUMB
-
-        //Now check the sat image itself
-        if(imageValid(3))
-        {
-            if(m_nx == m_images[3]->nx() && m_ny == m_images[3]->ny())
+            for( uint64_t n = 0; n < m_nx * m_ny; ++n )
             {
-                for(uint64_t n=0; n < m_nx*m_ny; ++n)
+                // Check for saturation
+                if( pixel_noCal( this, n ) >= m_satLevel )
                 {
-                    if(m_images[3]->pixel(n) > 0)
+                    m_satData[n] = 1;
+                    ++m_saturated;
+                }
+                else
+                {
+                    m_satData[n] = 0;
+                }
+
+                // Fill in calibrated value
+                m_calData[n] = _pixel( this, n );
+            }
+
+            RTIMV_DEBUG_BREADCRUMB
+
+            // Now check the sat image itself
+            if( imageValid( 3 ) )
+            {
+                if( m_nx == m_images[3]->nx() && m_ny == m_images[3]->ny() )
+                {
+                    for( uint64_t n = 0; n < m_nx * m_ny; ++n )
                     {
-                        m_satData[n] = 1;
+                        if( m_images[3]->pixel( n ) > 0 )
+                        {
+                            m_satData[n] = 1;
+                        }
+                        // don't set 0 b/c it would override m_satLevel
                     }
-                    //don't set 0 b/c it would override m_satLevel
                 }
             }
         }
-    }
 
-    } //mutex scope -- lock and rawlock release
-    { //mutex scope
+    } // mutex scope -- lock and rawlock release
+    { // mutex scope
 
-    sharedLockT lock(m_calMutex);
-    RTIMV_DEBUG_BREADCRUMB
+        sharedLockT lock( m_calMutex );
+        RTIMV_DEBUG_BREADCRUMB
 
-    //At this point the raw data has been copied out to calData.
-    //We have released the raw data mutex (rawlock).
-    //We shared_lock the caldata mutex to make sure a subsequent call
-    //from a different thread doesn't delete m_calData.
-    //This could be forced by newdata
+        // At this point the raw data has been copied out to calData.
+        // We have released the raw data mutex (rawlock).
+        // We shared_lock the caldata mutex to make sure a subsequent call
+        // from a different thread doesn't delete m_calData.
+        // This could be forced by newdata
 
-    RTIMV_DEBUG_BREADCRUMB
+        RTIMV_DEBUG_BREADCRUMB
 
-    imdat_min = std::numeric_limits<float>::max();
-    imdat_max = -std::numeric_limits<float>::max();
-
-    float imval;
-
-    for(uint32_t j = 0; j < m_ny; ++j)
-    {
-        for(uint32_t i = 0; i < m_nx; ++i)
-        {
-            imval = calPixel(i,j);
-
-             if(!std::isfinite(imval))
-             {
-                 continue;
-             }
-
-             if(imval > imdat_max)
-             {
-                imdat_max = imval;
-             }
-
-            if(imval < imdat_min)
-            {
-                imdat_min = imval;
-            }
-        }
-    }
-
-    RTIMV_DEBUG_BREADCRUMB
-
-    if(!std::isfinite(imdat_max) || !std::isfinite(imdat_min))
-    {
-        // It should be impossible for them to be infinite by themselves unless it's all NaNs.
-        imdat_max = 0;
-        imdat_min = 0;
-    }
-
-    if( (resized || (newdata && m_autoScale)) && !colorBoxActive)
-    {
-         mindat(imdat_min);
-         maxdat(imdat_max);
-    }
-    else if(colorBoxActive)
-    {
-        normalizeColorBox();
-
-        m_colorBox_min = std::numeric_limits<float>::max();
-        m_colorBox_max = -std::numeric_limits<float>::max();
+        imdat_min = std::numeric_limits<float>::max();
+        imdat_max = -std::numeric_limits<float>::max();
 
         float imval;
 
-        for(uint32_t j = m_colorBox_j0; j <= m_colorBox_j1; ++j)
+        for( uint32_t j = 0; j < m_ny; ++j )
         {
-            for(uint32_t i = m_colorBox_i0; i <= m_colorBox_i1; ++i)
+            for( uint32_t i = 0; i < m_nx; ++i )
             {
-                imval = calPixel(i,j);
+                imval = calPixel( i, j );
 
-                if(!std::isfinite(imval))
+                if( !std::isfinite( imval ) )
                 {
                     continue;
                 }
 
-                if(imval < m_colorBox_min)
+                if( imval > imdat_max )
                 {
-                    m_colorBox_min = imval;
-                }
-                if(imval > m_colorBox_max)
-                {
-                    m_colorBox_max = imval;
+                    imdat_max = imval;
                 }
 
+                if( imval < imdat_min )
+                {
+                    imdat_min = imval;
+                }
             }
         }
 
-        if(!std::isfinite(m_colorBox_max) || !std::isfinite(m_colorBox_min))
+        RTIMV_DEBUG_BREADCRUMB
+
+        if( !std::isfinite( imdat_max ) || !std::isfinite( imdat_min ) )
         {
-            // It should be impossible for them to be infinite by themselves unless it's all NaNs in the box.
-            m_colorBox_max = 0;
-            m_colorBox_min = 0;
+            // It should be impossible for them to be infinite by themselves unless it's all NaNs.
+            imdat_max = 0;
+            imdat_min = 0;
         }
 
-        if(resized || (newdata && m_autoScale))
+        if( ( resized || ( newdata && m_autoScale ) ) && !colorBoxActive )
         {
-            mindat(m_colorBox_min);
-            maxdat(m_colorBox_max);
+            mindat( imdat_min );
+            maxdat( imdat_max );
+        }
+        else if( colorBoxActive )
+        {
+            normalizeColorBox();
+
+            m_colorBox_min = std::numeric_limits<float>::max();
+            m_colorBox_max = -std::numeric_limits<float>::max();
+
+            float imval;
+
+            for( uint32_t j = m_colorBox_j0; j <= m_colorBox_j1; ++j )
+            {
+                for( uint32_t i = m_colorBox_i0; i <= m_colorBox_i1; ++i )
+                {
+                    imval = calPixel( i, j );
+
+                    if( !std::isfinite( imval ) )
+                    {
+                        continue;
+                    }
+
+                    if( imval < m_colorBox_min )
+                    {
+                        m_colorBox_min = imval;
+                    }
+                    if( imval > m_colorBox_max )
+                    {
+                        m_colorBox_max = imval;
+                    }
+                }
+            }
+
+            if( !std::isfinite( m_colorBox_max ) || !std::isfinite( m_colorBox_min ) )
+            {
+                // It should be impossible for them to be infinite by themselves unless it's all NaNs in the box.
+                m_colorBox_max = 0;
+                m_colorBox_min = 0;
+            }
+
+            if( resized || ( newdata && m_autoScale ) )
+            {
+                mindat( m_colorBox_min );
+                maxdat( m_colorBox_max );
+            }
         }
 
-    }
+        RTIMV_DEBUG_BREADCRUMB
 
+        if( !m_qim )
+        {
+            m_amChangingimdata = false;
+            return;
+        }
 
-    RTIMV_DEBUG_BREADCRUMB
+        RTIMV_DEBUG_BREADCRUMB
 
-    if(!m_qim)
-    {
-        m_amChangingimdata = false;
-        return;
-    }
+        mtxL_recolor( lock );
 
-    RTIMV_DEBUG_BREADCRUMB
+        mtxL_postChangeImdata( lock );
 
-    mtxL_recolor(lock);
+        if( resized )
+        {
+            // Always switch to zoom 1 after a resize occurs
+            zoomLevel( 1 );
+        }
 
-    mtxL_postChangeImdata(lock);
+        RTIMV_DEBUG_BREADCRUMB
 
-    if(resized)
-    {
-        //Always switch to zoom 1 after a resize occurs
-        zoomLevel(1);
-    }
-
-    RTIMV_DEBUG_BREADCRUMB
-
-
-    }//mutex scope. - at this point we're done with calData
+    } // mutex scope. - at this point we're done with calData
 
     RTIMV_DEBUG_BREADCRUMB
 
     m_amChangingimdata = false;
 
-} //void rtimvBase::mtxUL_changeImdata(bool newdata)
+} // void rtimvBase::mtxUL_changeImdata(bool newdata)
 
 void rtimvBase::mtxL_recolor()
 {
     /* Here is where we color the pixmap*/
 
     // Get the color index calculating function
-    int (*_index)(float, float, float, int, int);
-    switch (m_cbStretch)
+    int ( *_index )( float, float, float, int, int );
+    switch( m_cbStretch )
     {
-        case stretchLog:
-            _index = calcPixIndex_log;
-            break;
-        case stretchPow:
-            _index = calcPixIndex_pow;
-            break;
-        case stretchSqrt:
-            _index = calcPixIndex_sqrt;
-            break;
-        case stretchSquare:
-            _index = calcPixIndex_square;
-            break;
-        default:
-            _index = calcPixIndex_linear;
+    case stretchLog:
+        _index = calcPixIndex_log;
+        break;
+    case stretchPow:
+        _index = calcPixIndex_pow;
+        break;
+    case stretchSqrt:
+        _index = calcPixIndex_sqrt;
+        break;
+    case stretchSquare:
+        _index = calcPixIndex_square;
+        break;
+    default:
+        _index = calcPixIndex_linear;
     }
 
-    if(m_mindat == m_maxdat)
+    if( m_mindat == m_maxdat )
     {
         float imval;
-        for(uint32_t i = 0; i < m_ny; ++i)
+        for( uint32_t i = 0; i < m_ny; ++i )
         {
-            for(uint32_t j = 0; j < m_nx; ++j)
+            for( uint32_t j = 0; j < m_nx; ++j )
             {
-                imval = calPixel(j,i);
-                if(!std::isfinite(imval))
+                imval = calPixel( j, i );
+                if( !std::isfinite( imval ) )
                 {
-                    m_qim->setPixel(j, m_ny - i - 1, m_nanColor);
+                    m_qim->setPixel( j, m_ny - i - 1, m_nanColor );
                     continue;
                 }
 
-                m_qim->setPixel(j, m_ny - i - 1, 0);
+                m_qim->setPixel( j, m_ny - i - 1, 0 );
             }
         }
     }
     else
     {
         float imval;
-        for(uint32_t i = 0; i < m_ny; ++i)
+        for( uint32_t i = 0; i < m_ny; ++i )
         {
-            for(uint32_t j = 0; j < m_nx; ++j)
+            for( uint32_t j = 0; j < m_nx; ++j )
             {
-                imval = calPixel(j,i);
+                imval = calPixel( j, i );
 
-                if(!std::isfinite(imval))
+                if( !std::isfinite( imval ) )
                 {
-                    m_qim->setPixel(j, m_ny - i - 1, m_nanColor);
+                    m_qim->setPixel( j, m_ny - i - 1, m_nanColor );
                     continue;
                 }
 
-                int idxVal =  _index(imval, m_mindat, m_maxdat, m_minColor, m_maxColor);
-                m_qim->setPixel(j, m_ny - i - 1, idxVal);
+                int idxVal = _index( imval, m_mindat, m_maxdat, m_minColor, m_maxColor );
+                m_qim->setPixel( j, m_ny - i - 1, idxVal );
             }
         }
     }
 
     RTIMV_DEBUG_BREADCRUMB
 
-    if(m_applySatMask)
+    if( m_applySatMask )
     {
-        for(uint32_t j = 0; j < m_ny; ++j)
+        for( uint32_t j = 0; j < m_ny; ++j )
         {
-            for(uint32_t i = 0; i < m_nx; ++i)
+            for( uint32_t i = 0; i < m_nx; ++i )
             {
-                if(satPixel(i,j) == 1)
+                if( satPixel( i, j ) == 1 )
                 {
-                    m_qim->setPixel(i, m_ny - j - 1, m_satColor);
+                    m_qim->setPixel( i, m_ny - j - 1, m_satColor );
                 }
             }
         }
@@ -917,36 +900,35 @@ void rtimvBase::mtxL_recolor()
 
     RTIMV_DEBUG_BREADCRUMB
 
-    m_qpm.convertFromImage(*m_qim, Qt::AutoColor | Qt::ThresholdDither);
-
+    m_qpm.convertFromImage( *m_qim, Qt::AutoColor | Qt::ThresholdDither );
 }
 
-void rtimvBase::mtxL_recolor(const uniqueLockT & lock)
+void rtimvBase::mtxL_recolor( const uniqueLockT &lock )
 {
-    assert(lock.owns_lock());
+    assert( lock.owns_lock() );
 
     mtxL_recolor();
 
-    mtxL_postRecolor(lock);
+    mtxL_postRecolor( lock );
 }
 
-void rtimvBase::mtxL_recolor(const sharedLockT & lock)
+void rtimvBase::mtxL_recolor( const sharedLockT &lock )
 {
-    assert(lock.owns_lock());
+    assert( lock.owns_lock() );
 
     mtxL_recolor();
 
-    mtxL_postRecolor(lock);
+    mtxL_postRecolor( lock );
 }
 
-void rtimvBase::zoomLevel(float zl)
+void rtimvBase::zoomLevel( float zl )
 {
-    if(zl < m_zoomLevelMin)
+    if( zl < m_zoomLevelMin )
     {
         zl = m_zoomLevelMin;
     }
 
-    if(zl > m_zoomLevelMax)
+    if( zl > m_zoomLevelMax )
     {
         zl = m_zoomLevelMax;
     }
@@ -962,50 +944,50 @@ void rtimvBase::zoomLevel(float zl)
 
 void rtimvBase::normalizeColorBox()
 {
-    if(m_colorBox_i0 < 0)
+    if( m_colorBox_i0 < 0 )
     {
         m_colorBox_i0 = 0;
     }
-    else if(m_colorBox_i0 >= (int64_t) m_nx-1)
+    else if( m_colorBox_i0 >= (int64_t)m_nx - 1 )
     {
-        m_colorBox_i0 = (int64_t) m_nx - 2;
+        m_colorBox_i0 = (int64_t)m_nx - 2;
     }
 
-    if(m_colorBox_i1 < 0)
+    if( m_colorBox_i1 < 0 )
     {
         m_colorBox_i1 = 0;
     }
-    else if(m_colorBox_i1 >= (int64_t )m_nx-1)
+    else if( m_colorBox_i1 >= (int64_t)m_nx - 1 )
     {
-        m_colorBox_i1 = m_nx-2;
+        m_colorBox_i1 = m_nx - 2;
     }
 
-    if(m_colorBox_i0 > m_colorBox_i1)
+    if( m_colorBox_i0 > m_colorBox_i1 )
     {
-        std::swap(m_colorBox_i0, m_colorBox_i1);
+        std::swap( m_colorBox_i0, m_colorBox_i1 );
     }
 
-    if(m_colorBox_j0 < 0)
+    if( m_colorBox_j0 < 0 )
     {
         m_colorBox_j0 = 0;
     }
-    else if(m_colorBox_j0 >= (int64_t) m_ny-1)
+    else if( m_colorBox_j0 >= (int64_t)m_ny - 1 )
     {
-        m_colorBox_j0 = (int64_t) m_ny - 2;
+        m_colorBox_j0 = (int64_t)m_ny - 2;
     }
 
-    if(m_colorBox_j1 <= 0)
+    if( m_colorBox_j1 <= 0 )
     {
         m_colorBox_j1 = 0;
     }
-    else if(m_colorBox_j1 >= (int64_t) m_ny-1)
+    else if( m_colorBox_j1 >= (int64_t)m_ny - 1 )
     {
-        m_colorBox_j1 = (int64_t) m_ny - 2;
+        m_colorBox_j1 = (int64_t)m_ny - 2;
     }
 
-    if(m_colorBox_j0 > m_colorBox_j1)
+    if( m_colorBox_j0 > m_colorBox_j1 )
     {
-        std::swap(m_colorBox_j0, m_colorBox_j1);
+        std::swap( m_colorBox_j0, m_colorBox_j1 );
     }
 }
 
@@ -1049,13 +1031,11 @@ int64_t rtimvBase::colorBox_j1()
     return m_colorBox_j1;
 }
 
-void rtimvBase::mtxL_setColorBoxActive( bool usba,
-                                        const sharedLockT & lock
-                                      )
+void rtimvBase::mtxL_setColorBoxActive( bool usba, const sharedLockT &lock )
 {
-    assert(lock.owns_lock());
+    assert( lock.owns_lock() );
 
-    if(usba)
+    if( usba )
     {
         float imval;
 
@@ -1064,64 +1044,64 @@ void rtimvBase::mtxL_setColorBoxActive( bool usba,
         m_colorBox_min = std::numeric_limits<float>::max();
         m_colorBox_max = -std::numeric_limits<float>::max();
 
-        for(int i = m_colorBox_i0; i <= m_colorBox_i1; i++)
+        for( int i = m_colorBox_i0; i <= m_colorBox_i1; i++ )
         {
-            for(int j = m_colorBox_j0; j <= m_colorBox_j1; j++)
+            for( int j = m_colorBox_j0; j <= m_colorBox_j1; j++ )
             {
-                imval = calPixel(i,j);
+                imval = calPixel( i, j );
 
-                if(!std::isfinite(imval))
+                if( !std::isfinite( imval ) )
                 {
                     continue;
                 }
 
-                if(imval < m_colorBox_min)
+                if( imval < m_colorBox_min )
                     m_colorBox_min = imval;
-                if(imval > m_colorBox_max)
+                if( imval > m_colorBox_max )
                     m_colorBox_max = imval;
             }
         }
 
-        if(m_colorBox_min == std::numeric_limits<float>::max() && m_colorBox_max == -std::numeric_limits<float>::max()) // If all nans
+        if( m_colorBox_min == std::numeric_limits<float>::max() &&
+            m_colorBox_max == -std::numeric_limits<float>::max() ) // If all nans
         {
             m_colorBox_min = 0;
             m_colorBox_max = 0;
         }
 
-        mindat(m_colorBox_min);
-        maxdat(m_colorBox_max);
+        mindat( m_colorBox_min );
+        maxdat( m_colorBox_max );
 
-        set_colorbar_mode(minmaxbox);
+        set_colorbar_mode( minmaxbox );
     }
     else
     {
-        set_colorbar_mode(minmaxglobal);
+        set_colorbar_mode( minmaxglobal );
     }
 
     colorBoxActive = usba;
 
-    mtxL_recolor(lock);
+    mtxL_recolor( lock );
 
-    mtxL_postSetColorBoxActive(usba, lock);
+    mtxL_postSetColorBoxActive( usba, lock );
 }
 
-
-void rtimvBase::set_RealTimeEnabled(int rte)
+void rtimvBase::set_RealTimeEnabled( int rte )
 {
-    RealTimeEnabled = (rte != 0);
+    RealTimeEnabled = ( rte != 0 );
 }
 
-void rtimvBase::set_RealTimeStopped(int rts)
+void rtimvBase::set_RealTimeStopped( int rts )
 {
-    RealTimeStopped = (rts != 0);
+    RealTimeStopped = ( rts != 0 );
 
-    if(RealTimeStopped)
+    if( RealTimeStopped )
     {
         m_imageTimer.stop();
     }
     else
     {
-        m_imageTimer.start(m_imageTimeout);
+        m_imageTimer.start( m_imageTimeout );
     }
 }
 
@@ -1139,4 +1119,3 @@ void rtimvBase::updateNC()
 {
     return;
 }
-

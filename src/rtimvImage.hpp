@@ -15,10 +15,10 @@
 
 #include <mx/sys/timeUtils.hpp>
 
-#define RTIMVIMAGE_NOUPDATE (0)
-#define RTIMVIMAGE_AGEUPDATE (1)
-#define RTIMVIMAGE_IMUPDATE (2)
-#define RTIMVIMAGE_FPSUPDATE (3)
+#define RTIMVIMAGE_NOUPDATE ( 0 )
+#define RTIMVIMAGE_AGEUPDATE ( 1 )
+#define RTIMVIMAGE_IMUPDATE ( 2 )
+#define RTIMVIMAGE_FPSUPDATE ( 3 )
 
 /// Base class for rtimv images
 /** Defines the interface to an image stream to be displayed by rtimv.
@@ -27,20 +27,23 @@
 struct rtimvImage : public QObject
 {
 
-public:
-
-    enum class mode { single, manual, playback };
+  public:
+    enum class mode
+    {
+        single,
+        manual,
+        playback
+    };
 
     rtimvImage() = delete;
 
-    rtimvImage( std::mutex * mut ) : m_accessMutex{mut}
+    rtimvImage( std::mutex *mut ) : m_accessMutex{ mut }
     {
-        if(m_accessMutex == nullptr)
+        if( m_accessMutex == nullptr )
         {
-            throw std::invalid_argument("m_accessMutex can't be null");
+            throw std::invalid_argument( "m_accessMutex can't be null" );
         }
     }
-
 
     /// Set the image key
     /** This function sets the image key, and must begin the connection and reading process.
@@ -48,7 +51,7 @@ public:
      * \returns 0 on success
      * \returns -1 on error
      */
-    virtual int imageKey(const std::string &sn /**< [in] the new share memory image name*/) = 0;
+    virtual int imageKey( const std::string &sn /**< [in] the new share memory image name*/ ) = 0;
 
     /// Get the current image key.
     /**
@@ -65,7 +68,7 @@ public:
     virtual std::string imageName() = 0;
 
     /// Set the managing processes display timeout, which is only used for F.P.S. calculations
-    virtual void timeout(int to /**< [in] the new timeout in milliseconds */) = 0;
+    virtual void timeout( int to /**< [in] the new timeout in milliseconds */ ) = 0;
 
     /// Get the image dimension in the x direction.
     /** Units are pixels.
@@ -97,9 +100,9 @@ public:
         return mode::manual;
     }
 
-    virtual void cubeMode(mode nm)
+    virtual void cubeMode( mode nm )
     {
-        static_cast<void>(nm);
+        static_cast<void>( nm );
     }
 
     /// Get the current image in the cube.
@@ -116,7 +119,9 @@ public:
      *
      * \returns the current image number;
      */
-    virtual void incImageNo() {}
+    virtual void incImageNo()
+    {
+    }
 
     /// Get the image acquisition time
     /** Gets the acquisition time converted to double, giving time since the epoch.
@@ -147,15 +152,15 @@ public:
      */
     virtual bool valid() = 0;
 
-    ///Mutex for locking access to memory
-    std::mutex * m_accessMutex {nullptr};
+    /// Mutex for locking access to memory
+    std::mutex *m_accessMutex{ nullptr };
 
     /// Get the value at pixel n as a float.
     /** The linear index n is determined by n = y * nx() + x where (x,y) is the pixel coordinate.
      *
      * \returns the value of the pixel
      */
-    virtual float pixel(size_t n) = 0;
+    virtual float pixel( size_t n ) = 0;
 
     /// Get the latest estimate of FPS for this image.
     /** This must be safe to call regardless of whether valid() is true.
@@ -168,11 +173,11 @@ public:
     {
         std::vector<std::string> vinfo;
 
-        vinfo.push_back( imageName() + " [" + std::to_string(nx()) + "x" + std::to_string(ny()) +"]");
+        vinfo.push_back( imageName() + " [" + std::to_string( nx() ) + "x" + std::to_string( ny() ) + "]" );
         double age = mx::sys::get_curr_time() - imageTime();
-        if(age > 10)
+        if( age > 10 )
         {
-            vinfo[0] += " age: " + std::to_string((int) age) + " sec";
+            vinfo[0] += " age: " + std::to_string( (int)age ) + " sec";
         }
 
         return vinfo;
