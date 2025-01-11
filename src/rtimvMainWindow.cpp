@@ -2689,12 +2689,14 @@ void rtimvMainWindow::toggleLogLinear()
         set_cbStretch( stretchLinear );
         ui.graphicsView->zoomText( "linear stretch" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
+        reStretch();
     }
     else
     {
         set_cbStretch( stretchLog );
         ui.graphicsView->zoomText( "log stretch" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
+        reStretch();
     }
 }
 
