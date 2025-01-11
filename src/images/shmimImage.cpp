@@ -8,15 +8,15 @@
 
 shmimImage::shmimImage(std::mutex * mut) : rtimvImage(mut)
 {
-   connect(&m_timer, SIGNAL(timeout()), this, SLOT(shmimTimerout()));   
+   connect(&m_timer, SIGNAL(timeout()), this, SLOT(shmimTimerout()));
 }
 
 int shmimImage::imageKey( const std::string & sn )
 {
    m_shmimName = sn;
-   
+
    shmimTimerout();
-   
+
    return 0;
 }
 
@@ -46,20 +46,30 @@ void shmimImage::timeout(int to)
 }
 
 uint32_t shmimImage::nx()
-{ 
-   return m_nx; 
+{
+   return m_nx;
 }
-   
+
 uint32_t shmimImage::ny()
-{ 
+{
    return m_ny;
 }
-   
+
+uint32_t shmimImage::nz()
+{
+   return 1;
+}
+
+uint32_t shmimImage::imageNo()
+{
+   return 0;
+}
+
 double shmimImage::imageTime()
 {
    return m_imageTime;
 }
-   
+
 void shmimImage::shmimTimerout()
 {
    m_timer.stop();
@@ -73,7 +83,8 @@ void shmimImage::shmimTimerout()
 
 void shmimImage::imConnect()
 {
-   //b/c ImageStreamIO prints every single time, and latest version don't support stopping it yet, and that isn't thread-safe-able anyway
+   //b/c ImageStreamIO prints every single time, and latest version don't support stopping it yet,
+   //and that isn't thread-safe-able anyway
    //we do our own checks.  This is the same code in ImageStreamIO_openIm...
    int SM_fd;
    char SM_fname[200];
@@ -84,9 +95,9 @@ void shmimImage::imConnect()
       if(!m_notFoundLogged) std::cerr << "ImageStream " <<  m_shmimName << " not found (yet).  Retrying . . .\n";
       m_notFoundLogged = true;
       close(SM_fd);
-      return;   
+      return;
    }
-         
+
    //Found and opened,  close it and then use ImageStreamIO
    if(m_notFoundLogged) std::cerr << "ImageStream " <<  m_shmimName << " found.  Connecting . . .\n";
    m_notFoundLogged = false;
@@ -101,7 +112,7 @@ void shmimImage::imConnect()
       m_shmimAttached = 0;
       return; //comeback on next timeout
    }
-   
+
    if(m_image.md->sem <= 1)  //Creation not complete yet (believe it or not this happens!)
    {
       ImageStreamIO_closeIm(&m_image);
@@ -109,12 +120,12 @@ void shmimImage::imConnect()
       m_shmimAttached = 0;
       return; //We just need to wait for the server process to finish startup, so come back on next timeout
    }
-   
+
    m_nx = m_image.md->size[0];
    m_ny = m_image.md->size[1];
-      
+
    m_typeSize = ImageStreamIO_typesize(m_image.md->datatype);
-         
+
    switch(m_image.md->datatype)
    {
       case IMAGESTRUCT_UINT8:
@@ -151,7 +162,7 @@ void shmimImage::imConnect()
          std::cerr << "Unknown or unsupported data type\n";
          exit(0);
    }
-   
+
    struct stat buffer;
    int rv = stat(SM_fname, &buffer);
 
@@ -161,7 +172,7 @@ void shmimImage::imConnect()
       m_data = nullptr;
       m_shmimAttached = 0;
       std::cerr << "Could not get inode for image. " << strerror(errno) << "\n";
-      return; 
+      return;
    }
    m_inode = buffer.st_ino;
 
@@ -172,7 +183,7 @@ void shmimImage::imConnect()
 
 
 int shmimImage::update()
-{      
+{
    if(!m_shmimAttached)
    {
       if(m_age_counter > 1000/m_timeout)
@@ -182,20 +193,20 @@ int shmimImage::update()
          m_fpsEst = 0;
          return RTIMVIMAGE_AGEUPDATE;
       }
-      else 
+      else
       {
          ++m_age_counter;
          return RTIMVIMAGE_NOUPDATE;
       }
    }
-   
-   
+
+
    int64_t curr_image;
    uint64_t cnt0;
-      
+
    uint32_t snx, sny;
 
-   
+
    if(m_image.md->sem <= 0 || m_image.md == NULL) //Indicates that the server has cleaned up.
    {
       std::lock_guard<std::mutex> guard(*m_accessMutex);
@@ -204,12 +215,12 @@ int shmimImage::update()
       ImageStreamIO_closeIm(&m_image);
       m_shmimAttached = 0;
       m_lastCnt0 = -1;
-      
+
       m_timer.start(m_shmimTimeout);
-      
+
       return RTIMVIMAGE_NOUPDATE;
    }
-   
+
    if(m_image.md->size[2] > 0)
    {
       curr_image = m_image.md->cnt1;
@@ -217,10 +228,10 @@ int shmimImage::update()
    }
    else curr_image = 0;
 
-   
+
    snx = m_image.md->size[0];
    sny = m_image.md->size[1];
-   
+
    if( snx != m_nx || sny != m_ny ) //Something else changed!
    {
       std::lock_guard<std::mutex> guard(*m_accessMutex);
@@ -232,19 +243,19 @@ int shmimImage::update()
       m_timer.start(m_shmimTimeout);
       return RTIMVIMAGE_NOUPDATE;
    }
-   
+
    cnt0 = m_image.md->cnt0;
-   
+
    if(cnt0 != m_lastCnt0) //Only redraw if it's actually a new image.
    {
       std::lock_guard<std::mutex> guard(*m_accessMutex);
 
       m_data = ((char *) (m_image.array.raw)) + curr_image*snx*sny*m_typeSize;
       m_imageTime = m_image.md->writetime.tv_sec + ((double) m_image.md->writetime.tv_nsec)/1e9;
-      
+
       m_lastCnt0 = cnt0;
       m_age_counter = 0;
-      
+
       if(m_fps_counter > 1000/m_timeout)
       {
          update_fps();
@@ -256,7 +267,7 @@ int shmimImage::update()
          ++m_fps_counter;
          return RTIMVIMAGE_IMUPDATE;
       }
-      
+
    }
    else
    {
@@ -299,21 +310,21 @@ int shmimImage::update()
          return RTIMVIMAGE_NOUPDATE;
       }
    }
-   
-   return RTIMVIMAGE_NOUPDATE; 
+
+   return RTIMVIMAGE_NOUPDATE;
 }
 
 void shmimImage::detach()
-{  
+{
    if(m_shmimAttached == 0) return;
-         
+
    std::lock_guard<std::mutex> guard(*m_accessMutex);
 
-   m_data = nullptr; 
+   m_data = nullptr;
    ImageStreamIO_closeIm(&m_image);
    m_shmimAttached = 0;
    m_lastCnt0 = -1;
-   
+
    //Start checking for a new image stream:
    m_timer.start(m_shmimTimeout);
 }
@@ -321,7 +332,7 @@ void shmimImage::detach()
 bool shmimImage::valid()
 {
    if(m_shmimAttached && m_data) return true;
-   
+
    return false;
 }
 
@@ -333,21 +344,21 @@ float shmimImage::pixel(size_t n)
 void shmimImage::update_fps()
 {
    double dftime;
-   
+
    if(m_fpsTime0 == 0)
    {
       m_fpsTime0 = m_imageTime;
       m_fpsFrame0 = m_image.md->cnt0;
    }
-   
+
    if(m_imageTime != m_fpsTime0)
    {
       dftime = m_imageTime - m_fpsTime0;
 
       if(dftime < 1e-9) return;
 
-      m_fpsEst = (float)((m_image.md->cnt0 - m_fpsFrame0))/dftime;   
-      
+      m_fpsEst = (float)((m_image.md->cnt0 - m_fpsFrame0))/dftime;
+
       m_fpsTime0 = m_imageTime;
       m_fpsFrame0 = m_image.md->cnt0;
    }

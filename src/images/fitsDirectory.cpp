@@ -4,276 +4,326 @@
 #include <mx/ioutils/fileUtils.hpp>
 #include <unistd.h>
 
-fitsDirectory::fitsDirectory(std::mutex * mut) : rtimvImage(mut)
+fitsDirectory::fitsDirectory(std::mutex *mut) : rtimvImage(mut)
 {
-   connect(&m_timer, SIGNAL(timeout()), this, SLOT(imageTimerout()));
+    connect(&m_timer, SIGNAL(timeout()), this, SLOT(imageTimerout()));
 }
 
-int fitsDirectory::imageKey( const std::string & sn )
+int fitsDirectory::imageKey(const std::string &sn)
 {
-   m_dirPath = sn;
+    m_dirPath = sn;
 
-   imageTimerout();
-   
-   return 0;
+    imageTimerout();
+
+    return 0;
 }
 
 std::string fitsDirectory::imageKey()
 {
-   return m_dirPath;
+    return m_dirPath;
 }
 
 std::string fitsDirectory::imageName()
 {
-   if(m_fileList.size() == 0)
-   {
-      return "";
-   }
+    if (m_fileList.size() == 0)
+    {
+        return "";
+    }
 
-   return mx::ioutils::pathStem(m_fileList[m_currImage]);
+    return mx::ioutils::pathStem(m_fileList[m_imageNo]);
 }
 
 void fitsDirectory::imageTimeout(int to)
 {
-   m_imageTimeout = to;
+    m_imageTimeout = to;
 }
 
 int fitsDirectory::imageTimeout()
 {
-   return m_imageTimeout;
+    return m_imageTimeout;
 }
 
 void fitsDirectory::timeout(int to)
 {
-   m_timeout = to;
+    m_timeout = to;
 }
 
 uint32_t fitsDirectory::nx()
-{ 
-   return m_nx; 
+{
+    return m_nx;
 }
-   
+
 uint32_t fitsDirectory::ny()
-{ 
-   return m_ny;
+{
+    return m_ny;
 }
-   
+
+uint32_t fitsDirectory::nz()
+{
+    return m_fileList.size();
+}
+
+rtimvImage::mode fitsDirectory::cubeMode()
+{
+    return m_cubeMode;
+}
+
+void fitsDirectory::cubeMode(rtimvImage::mode nm)
+{
+    m_cubeMode = nm;
+}
+
+uint32_t fitsDirectory::imageNo()
+{
+    return m_imageNo;
+}
+
+void fitsDirectory::incImageNo()
+{
+    if (m_imageNo >= nz() - 1)
+    {
+        m_nextImageNo = 0;
+    }
+    else
+    {
+        m_nextImageNo = m_imageNo + 1;
+    }
+}
+
 double fitsDirectory::imageTime()
 {
-   return m_lastImageTime;
+    return m_lastImageTime;
 }
-   
+
 void fitsDirectory::imageTimerout()
 {
-   m_timer.stop();
-   imConnect();
+    m_timer.stop();
+    imConnect();
 
-   if(!m_imageFound)
-   {
-      m_timer.start(m_imageTimeout);
-   }
+    if (!m_imageFound)
+    {
+        m_timer.start(m_imageTimeout);
+    }
 }
 
 int fitsDirectory::readImage(size_t imno)
 {
-   if(imno >= m_fileList.size()) return -1;
+    if (imno >= m_fileList.size())
+        return -1;
 
-   ///The cfitsio data structure
-   fitsfile * fptr {nullptr};
-   
-   int fstatus = 0;
+    /// The cfitsio data structure
+    fitsfile *fptr{nullptr};
 
-   fits_open_file(&fptr, m_fileList[imno].c_str(), READONLY, &fstatus);
+    int fstatus = 0;
 
-   if (fstatus)
-   {
-      if(!m_reported) std::cerr << "rtimv: " << m_fileList[imno] << " not found.\n";
-      m_reported = true;
-      return -1;
-   }
-   m_reported = false;
+    fits_open_file(&fptr, m_fileList[imno].c_str(), READONLY, &fstatus);
 
-   ///The dimensions of the image (1D, 2D, 3D etc)
-   int naxis;
+    if (fstatus)
+    {
+        if (!m_reported)
+            std::cerr << "rtimv: " << m_fileList[imno] << " not found.\n";
+        m_reported = true;
+        return -1;
+    }
+    m_reported = false;
 
-   fits_get_img_dim(fptr, &naxis, &fstatus);
-   if (fstatus)
-   {
-      if(!m_reported) std::cerr << "rtimv: error getting number of axes in file " << m_fileList[imno] << "\n";
-      m_reported = true;
+    /// The dimensions of the image (1D, 2D, 3D etc)
+    int naxis;
 
-      fstatus = 0;
-      fits_close_file(fptr, &fstatus);
+    fits_get_img_dim(fptr, &naxis, &fstatus);
+    if (fstatus)
+    {
+        if (!m_reported)
+            std::cerr << "rtimv: error getting number of axes in file " << m_fileList[imno] << "\n";
+        m_reported = true;
 
-      return -1;
-   }
-   m_reported = false;
+        fstatus = 0;
+        fits_close_file(fptr, &fstatus);
 
-   long * naxes = new long[naxis];
+        return -1;
+    }
+    m_reported = false;
 
-   fits_get_img_size(fptr, naxis, naxes, &fstatus);
-   if (fstatus)
-   {
-      if(!m_reported) std::cerr << "rtimv: error getting dimensions in file " << m_fileList[imno] << "\n";
-      m_reported = true;
+    long *naxes = new long[naxis];
 
-      fstatus = 0;
-      fits_close_file(fptr, &fstatus);
+    fits_get_img_size(fptr, naxis, naxes, &fstatus);
+    if (fstatus)
+    {
+        if (!m_reported)
+            std::cerr << "rtimv: error getting dimensions in file " << m_fileList[imno] << "\n";
+        m_reported = true;
 
-      delete[] naxes;
-      return -1;
-   }
-   m_reported = false;
+        fstatus = 0;
+        fits_close_file(fptr, &fstatus);
 
-   //resize the array if needed, which could be a reformat
-   if(m_data == nullptr || m_nx*m_ny != naxes[0]*naxes[1])
-   {
-      //If here and m_data is not null, then it is already allocated with new.
-      if(m_data) delete[] m_data;
-      m_data = new char[naxes[0]*naxes[1]*sizeof(float)];
-   }
+        delete[] naxes;
+        return -1;
+    }
+    m_reported = false;
 
-   //always set in case of a reformat
-   m_nx = naxes[0];
-   m_ny = naxes[1];
-      
-   long fpix[3];
-   long lpix[3];
-   long inc[3];
-   
-   fpix[0] = 1;
-   fpix[1] = 1;
-   fpix[2] = 1;
+    // resize the array if needed, which could be a reformat
+    if (m_data == nullptr || m_nx * m_ny != naxes[0] * naxes[1])
+    {
+        // If here and m_data is not null, then it is already allocated with new.
+        if (m_data)
+            delete[] m_data;
+        m_data = new char[naxes[0] * naxes[1] * sizeof(float)];
+    }
 
-   lpix[0] = naxes[0];
-   lpix[1] = naxes[1];
-   lpix[2] = 1;
+    // always set in case of a reformat
+    m_nx = naxes[0];
+    m_ny = naxes[1];
 
-   inc[0] = 1;
-   inc[1] = 1;
-   inc[2] = 1;
+    long fpix[3];
+    long lpix[3];
+    long inc[3];
 
-   delete[] naxes;
+    fpix[0] = 1;
+    fpix[1] = 1;
+    fpix[2] = 1;
 
-   int anynul;
-   
-   fits_read_subset(fptr, TFLOAT, fpix, lpix, inc, 0,
-                                     (void *) m_data, &anynul, &fstatus);
-   
-   if (fstatus)
-   {
-      if(!m_reported) std::cerr << "rtimv: error reading data from " << m_fileList[imno] << "\n";
-      m_reported = true;
+    lpix[0] = naxes[0];
+    lpix[1] = naxes[1];
+    lpix[2] = 1;
 
-      fstatus = 0;
-      fits_close_file(fptr, &fstatus);
-      
-      return -1;
-   }
-   m_reported = false;
+    inc[0] = 1;
+    inc[1] = 1;
+    inc[2] = 1;
 
-   this->pixget = getPixPointer<IMAGESTRUCT_FLOAT>();
-   
-   fits_close_file(fptr, &fstatus);
+    delete[] naxes;
 
-   if (fstatus)
-   {
-      if(!m_reported) std::cerr << "rtimv: error closing file " << m_fileList[imno] << "\n";
-      m_reported = true;
+    int anynul;
 
-      fstatus = 0;
-      fits_close_file(fptr, &fstatus);
+    fits_read_subset(fptr, TFLOAT, fpix, lpix, inc, 0,
+                     (void *)m_data, &anynul, &fstatus);
 
-      return -1;
-   }
-   m_reported = false;
+    if (fstatus)
+    {
+        if (!m_reported)
+            std::cerr << "rtimv: error reading data from " << m_fileList[imno] << "\n";
+        m_reported = true;
 
-   return 0;
+        fstatus = 0;
+        fits_close_file(fptr, &fstatus);
+
+        return -1;
+    }
+    m_reported = false;
+
+    this->pixget = getPixPointer<IMAGESTRUCT_FLOAT>();
+
+    fits_close_file(fptr, &fstatus);
+
+    if (fstatus)
+    {
+        if (!m_reported)
+            std::cerr << "rtimv: error closing file " << m_fileList[imno] << "\n";
+        m_reported = true;
+
+        fstatus = 0;
+        fits_close_file(fptr, &fstatus);
+
+        return -1;
+    }
+    m_reported = false;
+
+    return 0;
 }
 
 void fitsDirectory::imConnect()
 {
-   m_imageFound = 0;
-   m_imageUpdated = false;
-   
-   m_fileList = mx::ioutils::getFileNames(m_dirPath, "", "", ".fits");
+    m_imageFound = 0;
+    m_imageUpdated = false;
 
-   if(m_fileList.size() == 0)
-   {
-      return;
-   }
+    m_fileList = mx::ioutils::getFileNames(m_dirPath, "", "", ".fits");
 
-   m_currImage = 0;
+    if (m_fileList.size() == 0)
+    {
+        return;
+    }
 
-   m_imageFound = 1;
-   
-   m_lastWriteTime = std::filesystem::last_write_time(m_dirPath);
-   
-   emit connected();
+    if(m_fileList.size() > 1)
+    {
+        m_cubeMode == rtimvImage::mode::playback;
+    }
+    else
+    {
+        m_cubeMode == rtimvImage::mode::single;
+    }
+
+    m_imageNo = 0;
+
+    m_imageFound = 1;
+
+    m_lastWriteTime = std::filesystem::last_write_time(m_dirPath);
+
+    emit connected();
 }
 
 int fitsDirectory::update()
-{   
-   if(!m_imageFound) return RTIMVIMAGE_NOUPDATE;
+{
+    if (!m_imageFound)
+        return RTIMVIMAGE_NOUPDATE;
 
-   //Check file time to see if it changed.
-   if(m_lastWriteTime != std::filesystem::last_write_time(m_dirPath))
-   {
-      //Handle change in directory, but this could be a lot smarter than just starting over
-      detach();
-      return RTIMVIMAGE_NOUPDATE;
-   }
+    // Check file time to see if it changed.
+    if (m_lastWriteTime != std::filesystem::last_write_time(m_dirPath))
+    {
+        // Handle change in directory, but this could be a lot smarter than just starting over
+        detach();
+        return RTIMVIMAGE_NOUPDATE;
+    }
 
-   //No change in directory, just keep playing.
+    // No change in directory, just keep playing.
 
-   if(m_fileList.size() == 1) return RTIMVIMAGE_NOUPDATE;
+    if (m_fileList.size() == 1)
+    {
+        return RTIMVIMAGE_NOUPDATE;
+    }
+    if (m_nextImageNo != m_imageNo)
+    {
+        m_imageNo = m_nextImageNo;
+        if (readImage(m_imageNo) < 0)
+        {
+            // this likely means we need to re-read the directory list
+            detach();
+            return RTIMVIMAGE_NOUPDATE;
+        }
 
-   if(readImage(m_currImage) < 0)
-   {
-      //this likely means we need to re-read the directory list
-      detach();
-      return RTIMVIMAGE_NOUPDATE;
-   }
+        return RTIMVIMAGE_IMUPDATE;
+    }
 
-
-   ++m_currImage;
-   if(m_currImage >= m_fileList.size()) m_currImage =0;
-
-   return RTIMVIMAGE_IMUPDATE;
-
+    return RTIMVIMAGE_IMUPDATE;
 }
 
 void fitsDirectory::detach()
-{  
-   if(m_data)
-   {
-      delete[] m_data;
-      m_data = 0;
-   }
-      
-   m_imageFound = 0;
-      
-   //Start checking for the file
-   m_timer.start(m_imageTimeout);
+{
+    if (m_data)
+    {
+        delete[] m_data;
+        m_data = 0;
+    }
 
-   return;
+    m_imageFound = 0;
+
+    // Start checking for the file
+    m_timer.start(m_imageTimeout);
+
+    return;
 }
 
 bool fitsDirectory::valid()
 {
-   if(m_imageFound && m_data) return true;
-   
-   return false;
+    if (m_imageFound && m_data)
+        return true;
+
+    return false;
 }
 
 void fitsDirectory::update_fps()
 {
-
 }
 
 float fitsDirectory::pixel(size_t n)
 {
-   return pixget(m_data, n);
+    return pixget(m_data, n);
 }
-
-

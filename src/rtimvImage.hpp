@@ -29,6 +29,8 @@ struct rtimvImage : public QObject
 
 public:
 
+    enum class mode { single, manual, playback };
+
     rtimvImage() = delete;
 
     rtimvImage( std::mutex * mut ) : m_accessMutex{mut}
@@ -79,9 +81,46 @@ public:
      */
     virtual uint32_t ny() = 0;
 
+    /// Get the number of images.
+    /** Must be at least 1. If greater than 1 this is a cube.
+     *
+     * \returns the current z dimension;
+     */
+    virtual uint32_t nz() = 0;
+
+    /// Get the current cube mode
+    /**
+     *  \returns the current cube mode
+     */
+    virtual mode cubeMode()
+    {
+        return mode::manual;
+    }
+
+    virtual void cubeMode(mode nm)
+    {
+        static_cast<void>(nm);
+    }
+
+    /// Get the current image in the cube.
+    /** If not a cube this will always be 0.  Must be less than nz.
+     *
+     * \returns the current image number;
+     */
+    virtual uint32_t imageNo() = 0;
+
+    /// Increment the current image number.
+    /** If not a cube this has no effect.  If it is a cube it should
+     *  cause the next image in the cube to be presented as an update on the
+     *  next call to update().
+     *
+     * \returns the current image number;
+     */
+    virtual void incImageNo() {}
+
     /// Get the image acquisition time
     /** Gets the acquisition time converted to double, giving time since the epoch.
-     * This must be safe to call regardless of whehter valid() is true.
+     * This must be safe to call regardless of whether valid() is true.
      *
      * \returns the time the current image was acquired.
      */
@@ -89,7 +128,7 @@ public:
 
     /// Function called at intervals to check for updated image data.
     /**
-     * \returns RTIMVIMAGE_NOUPDATE if there no updates
+     * \returns RTIMVIMAGE_NOUPDATE if there are no updates
      * \returns RTIMVIMAGE_AGEUPDATE if the image age has been updated but the data has not.
      * \returns RTIMVIMAGE_IMUPDATE if the image data has updated
      * \returns RTIMVIMAGE_FPSUPDATE if there is an F.P.S. update along with an image data update
@@ -119,7 +158,7 @@ public:
     virtual float pixel(size_t n) = 0;
 
     /// Get the latest estimate of FPS for this image.
-    /** This must be safe to call regardless of whehter valid() is true.
+    /** This must be safe to call regardless of whether valid() is true.
      *
      * \returns the latest FPS estimate.
      */
@@ -134,7 +173,7 @@ public:
         if(age > 10)
         {
             vinfo[0] += " age: " + std::to_string((int) age) + " sec";
-        } 
+        }
 
         return vinfo;
     }

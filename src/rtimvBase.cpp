@@ -11,7 +11,7 @@
 #include "images/mzmqImage.hpp"
 
 //#define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
-#define RTIMV_DEBUG_BREADCRUMB 
+#define RTIMV_DEBUG_BREADCRUMB
 
 rtimvBase::rtimvBase( QWidget *Parent,
                       Qt::WindowFlags f) : QWidget(Parent, f)
@@ -136,7 +136,7 @@ bool rtimvBase::imageValid(size_t n)
     return m_images[n]->valid();
 }
 
-void rtimvBase::mtxL_setImsize( uint32_t x,  
+void rtimvBase::mtxL_setImsize( uint32_t x,
                                 uint32_t y,
                                 const uniqueLockT & lock
                               )
@@ -156,7 +156,7 @@ void rtimvBase::mtxL_setImsize( uint32_t x,
         {
             delete[] m_calData;
             m_calData = nullptr;
-        }  
+        }
 
         if(m_satData != nullptr)
         {
@@ -201,9 +201,14 @@ void rtimvBase::updateImages()
 
     if(m_images[0] != nullptr)
     {
+        if(m_images[0]->cubeMode() == rtimvImage::mode::playback)
+        {
+            m_images[0]->incImageNo();
+        }
+
         doupdate = m_images[0]->update();
     }
-    
+
     for(size_t i = 1; i < m_images.size(); ++i)
     {
         if(m_images[i] != nullptr)
@@ -211,7 +216,7 @@ void rtimvBase::updateImages()
             int sU = m_images[i]->update();
             if(sU > supportUpdate) //Do an update if any support image needs an update
             {
-                supportUpdate = sU;  
+                supportUpdate = sU;
             }
         }
     }
@@ -610,7 +615,7 @@ void rtimvBase::mtxUL_changeImdata(bool newdata)
 
     //Get a unique lock on the cal data to allow us to delete it and overwrite it
     std::unique_lock<std::shared_mutex> lock(m_calMutex);
-    
+
     //Also lock the raw data for the size checks to make sure it doesn't change out from under us
     std::unique_lock<std::mutex> rawlock(m_rawMutex);
 
@@ -690,22 +695,22 @@ void rtimvBase::mtxUL_changeImdata(bool newdata)
                     {
                         m_satData[n] = 1;
                     }
-                    //don't set 0 b/c it would override m_satLevel 
+                    //don't set 0 b/c it would override m_satLevel
                 }
             }
         }
     }
-    
+
     } //mutex scope -- lock and rawlock release
     { //mutex scope
 
     sharedLockT lock(m_calMutex);
     RTIMV_DEBUG_BREADCRUMB
 
-    //At this point the raw data has been copied out to calData.  
-    //We have released the raw data mutex (rawlock). 
-    //We shared_lock the caldata mutex to make sure a subsequent call 
-    //from a different thread doesn't delete m_calData.  
+    //At this point the raw data has been copied out to calData.
+    //We have released the raw data mutex (rawlock).
+    //We shared_lock the caldata mutex to make sure a subsequent call
+    //from a different thread doesn't delete m_calData.
     //This could be forced by newdata
 
     RTIMV_DEBUG_BREADCRUMB
@@ -719,7 +724,7 @@ void rtimvBase::mtxUL_changeImdata(bool newdata)
     {
         for(uint32_t i = 0; i < m_nx; ++i)
         {
-            imval = calPixel(i,j);  
+            imval = calPixel(i,j);
 
              if(!std::isfinite(imval))
              {
@@ -758,20 +763,20 @@ void rtimvBase::mtxUL_changeImdata(bool newdata)
 
         m_colorBox_min = std::numeric_limits<float>::max();
         m_colorBox_max = -std::numeric_limits<float>::max();
-    
+
         float imval;
 
         for(uint32_t j = m_colorBox_j0; j <= m_colorBox_j1; ++j)
         {
             for(uint32_t i = m_colorBox_i0; i <= m_colorBox_i1; ++i)
             {
-                imval = calPixel(i,j);  
+                imval = calPixel(i,j);
 
                 if(!std::isfinite(imval))
                 {
                     continue;
                 }
-                
+
                 if(imval < m_colorBox_min)
                 {
                     m_colorBox_min = imval;
@@ -780,7 +785,7 @@ void rtimvBase::mtxUL_changeImdata(bool newdata)
                 {
                     m_colorBox_max = imval;
                 }
-                
+
             }
         }
 
@@ -802,7 +807,7 @@ void rtimvBase::mtxUL_changeImdata(bool newdata)
 
     RTIMV_DEBUG_BREADCRUMB
 
-    if(!m_qim) 
+    if(!m_qim)
     {
         m_amChangingimdata = false;
         return;
@@ -822,7 +827,7 @@ void rtimvBase::mtxUL_changeImdata(bool newdata)
 
     RTIMV_DEBUG_BREADCRUMB
 
-    
+
     }//mutex scope. - at this point we're done with calData
 
     RTIMV_DEBUG_BREADCRUMB
@@ -887,13 +892,13 @@ void rtimvBase::mtxL_recolor()
                     m_qim->setPixel(j, m_ny - i - 1, m_nanColor);
                     continue;
                 }
-                                
+
                 int idxVal =  _index(imval, m_mindat, m_maxdat, m_minColor, m_maxColor);
                 m_qim->setPixel(j, m_ny - i - 1, idxVal);
             }
         }
     }
-    
+
     RTIMV_DEBUG_BREADCRUMB
 
     if(m_applySatMask)
@@ -989,7 +994,7 @@ void rtimvBase::normalizeColorBox()
         m_colorBox_j0 = (int64_t) m_ny - 2;
     }
 
-    if(m_colorBox_j1 <= 0)  
+    if(m_colorBox_j1 <= 0)
     {
         m_colorBox_j1 = 0;
     }
@@ -1010,7 +1015,7 @@ void rtimvBase::colorBox_i0( int64_t i0 )
 }
 
 int64_t rtimvBase::colorBox_i0()
-{   
+{
     return m_colorBox_i0;
 }
 
@@ -1020,7 +1025,7 @@ void rtimvBase::colorBox_i1( int64_t i1 )
 }
 
 int64_t rtimvBase::colorBox_i1()
-{   
+{
     return m_colorBox_i1;
 }
 
@@ -1030,7 +1035,7 @@ void rtimvBase::colorBox_j0( int64_t j0 )
 }
 
 int64_t rtimvBase::colorBox_j0()
-{   
+{
     return m_colorBox_j0;
 }
 
@@ -1040,7 +1045,7 @@ void rtimvBase::colorBox_j1( int64_t j1 )
 }
 
 int64_t rtimvBase::colorBox_j1()
-{   
+{
     return m_colorBox_j1;
 }
 
@@ -1058,7 +1063,7 @@ void rtimvBase::mtxL_setColorBoxActive( bool usba,
 
         m_colorBox_min = std::numeric_limits<float>::max();
         m_colorBox_max = -std::numeric_limits<float>::max();
-        
+
         for(int i = m_colorBox_i0; i <= m_colorBox_i1; i++)
         {
             for(int j = m_colorBox_j0; j <= m_colorBox_j1; j++)
@@ -1088,7 +1093,7 @@ void rtimvBase::mtxL_setColorBoxActive( bool usba,
 
         set_colorbar_mode(minmaxbox);
     }
-    else 
+    else
     {
         set_colorbar_mode(minmaxglobal);
     }
