@@ -52,8 +52,8 @@ rtimvMainWindow::rtimvMainWindow( int argc,
    imStats = 0;
    m_imageTimer.start(m_imageTimeout);
 
-   m_northArrow = m_qgs->addLine(QLineF(512,400, 512, 624), QColor(RTIMV_DEF_GAGEFONTCOLOR));
-   m_northArrowTip = m_qgs->addLine(QLineF(512,400, 536, 424), QColor(RTIMV_DEF_GAGEFONTCOLOR));
+   m_northArrow = m_qgs->addLine(QLineF(512,400, 512, 624), QColor(ui.graphicsView->gageFontColor()));
+   m_northArrowTip = m_qgs->addLine(QLineF(512,400, 536, 424), QColor(ui.graphicsView->gageFontColor()));
    m_northArrow->setTransformOriginPoint ( QPointF(512,512) );
    m_northArrowTip->setTransformOriginPoint ( QPointF(512,512) );
    m_northArrow->setVisible(false);
@@ -880,7 +880,7 @@ void rtimvMainWindow::mtxL_updateMouseCoords( const sharedLockT & lock )
             }
             snprintf(posStr, sizeof(posStr), "%0.2f %0.2f", mx-0.5, m_qpmi->boundingRect().height() - my-0.5 );
             ui.graphicsView->showMouseToolTip(valStr, posStr, QPoint(ui.graphicsView->mouseViewX(),ui.graphicsView->mouseViewY()));
-            mtxTry_fontLuminance(ui.graphicsView->m_mouseCoords);
+            mtxTry_fontLuminance(ui.graphicsView->mouseCoords());
         }
 
 
@@ -2805,7 +2805,7 @@ void rtimvMainWindow::mtxTry_fontLuminance()
 {
     sharedLockT lock(m_calMutex);
 
-    mtxL_fontLuminance(ui.graphicsView->m_fpsGage, lock);
+    mtxL_fontLuminance(ui.graphicsView->fpsGage(), lock);
 
     mtxL_fontLuminance(ui.graphicsView->zoomText(), lock);
 
@@ -2813,14 +2813,14 @@ void rtimvMainWindow::mtxTry_fontLuminance()
     {
         if(m_showStaticCoords)
         {
-            mtxL_fontLuminance(ui.graphicsView->m_textCoordX, lock);
-            mtxL_fontLuminance(ui.graphicsView->m_textCoordY, lock);
-            mtxL_fontLuminance(ui.graphicsView->m_textPixelVal, lock);
+            mtxL_fontLuminance(ui.graphicsView->textCoordX(), lock);
+            mtxL_fontLuminance(ui.graphicsView->textCoordY(), lock);
+            mtxL_fontLuminance(ui.graphicsView->textPixelVal(), lock);
         }
 
         if(m_showToolTipCoords)
         {
-            mtxL_fontLuminance(ui.graphicsView->m_mouseCoords, lock);
+            mtxL_fontLuminance(ui.graphicsView->mouseCoords(), lock);
         }
     }
 

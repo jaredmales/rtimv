@@ -48,9 +48,10 @@ rtimvGraphicsView::rtimvGraphicsView(QWidget *parent): QGraphicsView(parent)
 
    m_warningText = new QTextEdit(this);
    textEditSetup(m_warningText);
-   warningFontSize(RTIMV_DEF_WARNINGFONTSIZE);
-   warningFontColor(RTIMV_DEF_WARNINGFONTCOLOR);
-   warningFontFamily(RTIMV_DEF_WARNINGFONTFAMILY);
+   m_warningText->setAlignment(Qt::AlignLeft);
+   warningFontSize(m_warningFontSize);
+   warningFontColor(m_warningFontColor);
+   warningFontFamily(m_warningFontFamily);
 
    m_fpsGage = new QTextEdit(this);
    textEditSetup(m_fpsGage);
@@ -71,12 +72,13 @@ rtimvGraphicsView::rtimvGraphicsView(QWidget *parent): QGraphicsView(parent)
    m_mouseCoords = new QTextEdit(this);
    textEditSetup(m_mouseCoords);
    m_mouseCoords->viewport()->setAutoFillBackground(false);
-   m_mouseCoords->hide();
    m_mouseCoords->setTextBackgroundColor(QColor(0,0,0,125));
+   m_mouseCoords->setWordWrapMode(QTextOption::NoWrap);
+   m_mouseCoords->hide();
 
-   gageFontFamily(RTIMV_DEF_GAGEFONTFAMILY);
-   gageFontSize(RTIMV_DEF_GAGEFONTSIZE);
-   gageFontColor(RTIMV_DEF_GAGEFONTCOLOR);
+   gageFontFamily(m_gageFontFamily);
+   gageFontSize(m_gageFontSize);
+   gageFontColor(m_gageFontColor);
 
    m_loopText = new QTextEdit(this);
    textEditSetup(m_loopText);
@@ -142,7 +144,7 @@ void rtimvGraphicsView::textEditSetup( QTextEdit * te )
 }
 
 
-void rtimvGraphicsView::warningFontFamily(const char * ff)
+void rtimvGraphicsView::warningFontFamily(const QString & ff)
 {
    m_warningFontFamily = ff;
 
@@ -163,7 +165,7 @@ void rtimvGraphicsView::warningFontSize( float fs )
    m_warningText->setCurrentFont(qf);
 }
 
-void rtimvGraphicsView::warningFontColor(const char * fc)
+void rtimvGraphicsView::warningFontColor(const QString & fc)
 {
    m_warningFontColor = fc;
    m_warningText->setTextColor(QColor(m_warningFontColor));
@@ -184,21 +186,9 @@ QString rtimvGraphicsView::warningFontColor()
    return m_warningFontColor;
 }
 
-void rtimvGraphicsView::warningText( const char * nt,
-                                const char * fc
-                              )
+void rtimvGraphicsView::warningText( const char * nt )
 {
    m_warningText->setPlainText(nt);
-   m_warningText->setAlignment(Qt::AlignLeft);
-
-   if(fc)
-   {
-      m_warningText->setTextColor(QColor(fc));
-   }
-   else
-   {
-      m_warningText->setTextColor(QColor(m_warningFontColor));
-   }
 }
 
 //-------------
@@ -513,12 +503,32 @@ void rtimvGraphicsView::helpTextText( const char * nt )
 }
 
 //-------------
-const QTextEdit * rtimvGraphicsView::fpsGage()
+QTextEdit * rtimvGraphicsView::fpsGage()
 {
    return m_fpsGage;
 }
 
-void rtimvGraphicsView::gageFontFamily(const char * ff)
+QTextEdit * rtimvGraphicsView::textCoordX()
+{
+    return m_textCoordX;
+}
+
+QTextEdit * rtimvGraphicsView::textCoordY()
+{
+    return m_textCoordY;
+}
+
+QTextEdit * rtimvGraphicsView::textPixelVal()
+{
+    return m_textPixelVal;
+}
+
+QTextEdit * rtimvGraphicsView::mouseCoords()
+{
+    return m_mouseCoords;
+}
+
+void rtimvGraphicsView::gageFontFamily(const QString & ff)
 {
    m_gageFontFamily = ff;
 
@@ -548,7 +558,7 @@ void rtimvGraphicsView::gageFontSize( float fs )
    m_mouseCoords->setCurrentFont(qf);
 }
 
-void rtimvGraphicsView::gageFontColor(const char * fc)
+void rtimvGraphicsView::gageFontColor(const QString & fc)
 {
    m_gageFontColor = fc;
    m_fpsGage->setTextColor(QColor(m_gageFontColor));
@@ -634,8 +644,6 @@ void rtimvGraphicsView::showMouseToolTip( const std::string & valStr,
                                         )
 {
    std::string str;
-
-   m_mouseCoords->setWordWrapMode(QTextOption::NoWrap);
 
    int x = pt.x();
    int y = pt.y();
