@@ -53,12 +53,12 @@ class rtimvBase : public QWidget
                QWidget *Parent = nullptr,
                Qt::WindowFlags f = Qt::WindowFlags() );
 
-  protected:
     /** @name Connection - Data
      *
      * @{
      */
 
+  protected:
     /// The images to be displayed
     /** By index:
      * - 0 is the main image.
@@ -67,6 +67,9 @@ class rtimvBase : public QWidget
      * - 3 is the saturation mask which (optionally) denotes which pixels to turn the saturation color.
      */
     std::vector<rtimvImage *> m_images;
+
+    /// Flag used to indicate that the main image, m_images[0], is connected to its first image
+    bool m_connected{ false };
 
     /// Flag to indicate that the milkzmq protocol should be used for all ImageStremIO images
     bool m_mzmqAlways{ false };
@@ -88,12 +91,17 @@ class rtimvBase : public QWidget
     /// Configure the image sources and start checking for updates.
     /**
      */
-    void startup(
-        const std::vector<std::string> &shkeys /**< [in] The keys used to access the images (see \ref m_images)*/ );
+    void startup( const std::vector<std::string> &shkeys /**< [in] The keys used to access
+                                                         the images (see \ref m_images)*/ );
 
     /// Function called on connection
+    /**
+     * This function must set m_connected to true if successful.
+     */
     virtual void onConnect()
     {
+               m_connected = true;
+
     }
 
     /// Check if an image is currently valid.
@@ -115,6 +123,8 @@ class rtimvBase : public QWidget
 
     uint32_t m_ny{ 0 }; ///< The number of pixels in the y (vertical) direction
 
+    uint32_t m_nz{ 1 }; ///< The number of images in the cube.  Always >= 1.
+
     ///@}
 
   public:
@@ -129,6 +139,7 @@ class rtimvBase : public QWidget
      */
     void mtxL_setImsize( uint32_t x, ///< [in] the new x size
                          uint32_t y, ///< [in] the new y size
+                         uint32_t z, ///< [in] the new z size
                          const uniqueLockT &lock );
 
     /// Called after set_imsize to handle allocations for derived classes
@@ -146,6 +157,17 @@ class rtimvBase : public QWidget
      */
     uint32_t ny();
 
+    /// Get the number of images
+    /**
+     * \returns the current vvalue of m_nz
+     */
+    uint32_t nz();
+
+  signals:
+
+    /// Update the number of images in the cube
+    void nzUpdated( uint32_t n /**< [in] the current number of images in the cube */ );
+
     /// @}
 
     /** @name Image Update - Data
@@ -156,40 +178,109 @@ class rtimvBase : public QWidget
   protected:
     QTimer m_imageTimer; ///< When this times out rtimvBase checks for a new image.
 
-    int m_imageTimeout{ 50 }; ///< The timeout for checking for a new images, ms.
+    QTimer m_cubeTimer; ///< When this times out rtimvBase increments the cube frame number.
+
+    QTimer m_cubeFrameUpdateTimer; ///< When this times out the current frame number signal is sent.
+
+    int m_imageTimeout{ 50 }; ///< The minimum timeout for checking for a new images, ms.
+
+    bool m_cubeMode{ false }; ///< Whether or not cube mode is enabled.
+
+    float m_cubeFPS{ 20 }; ///< The cube frame rate
+
+    float m_desiredCubeFPS{ 20 }; ///< The cube frame rate
+
+    float m_cubeFPSMult{ 1.0 }; ///< Multiplier on cube FPS, e.g. for fast forwarding
+
+    int m_cubeDir{ 1 }; ///< Direction of cube travel. +1 or -1.
+
+    int m_currImageTimeout{ 50 }; /**< The timeout for checking for a new image in ms.  This is
+                                       what is used to maintain both the cube update rate set by
+                                       m_cubeFPS (as close as possible) while meeting the minimum
+                                       interval set by m_imageTimeout. */
 
     ///@}
 
-    /** @name Image Update - Slots
+    /** @name Image Update - Slots and Signals
      *
      * @{
      */
-  protected slots:
+  public slots:
 
-    /// Function called by m_imageTimer expiration.
-    /** This is what actually checks for image data updates.
-     */
-    void updateImages();
-
-    ///@}
-
-    /** @name Image Update
-     *
-     * @{
-     */
-
-  public:
     /// Set the image display timeout.
-    /** This sets the display frame rate, e.g. a timeout of 100 msec will
-     * cause the display to update at 10 f.p.s.
+    /** This sets the display frame rate, e.g. a timeout of 50 msec will
+     * cause the display to update at 20 f.p.s. (the default setting).
      */
     void imageTimeout( int to /**< [in] the new image display timeout*/ );
 
-    /// Get the image display timeout.
+    void cubeMode( bool cm /**< [in] */ );
+
+    void cubeFPS( float fps /**< [in] */ );
+
+    void cubeFPSMult( float mult ) /**< [in] */;
+
+    void cubeDir( int dir /**< [in] */ );
+
+    void cubeFrame( uint32_t fno /**< [in] */ );
+
+    void cubeFrameDelta( int32_t dfno /**< [in] the change in image number */ );
+
+    /// Check all images for updates
+    /** This is called on m_imageTimer expiration.
+     */
+    void updateImages();
+
+    /// Increment the main image cube number
+    /** This is on m_cubeTimer expiration
+     */
+    void updateCube();
+
+    /// Update the cube frame number
+    /**
+     *  Emits cubeFrameUpdated(uint32_t)
+     */
+    void updateCubeFrame();
+
+  signals:
+
+    /// Update the cube mode
+    void cubeModeUpdated( bool mode /**< [in] the current cube mode (true is playing back, false is stopped */ );
+
+    /// Update the cube FPS
+    void cubeFPSUpdated( float fps, /**< [in] the current actual FPS*/
+                         float desiredFPS /**< [in] the desired FPS*/ );
+
+    /// Update the cube FPS multiplier
+    void cubeFPSMultUpdated( float fpsMult /**< [in] the current FPS multiplier*/ );
+
+    /// Update the cube direction
+    void cubeDirUpdated( int dir /**< [in] the current cube direction (+1 is forward, -1 is backward)*/ );
+
+    /// Update the cube frame number
+    void cubeFrameUpdated( uint32_t fno /**< [in] the current cube frame number*/ );
+
+    ///@}
+
+    /** @name Image Update Member Access
+     *
+     * @{
+     */
+
+  private:
+    void setCurrImageTimeout();
+
+  public:
+    /// Get the minimum image display timeout.
     /**
      * \returns the current value of m_imageTimeout
      */
     int imageTimeout();
+
+    /// Get the current image display timeout.
+    /**
+     * \returns the current value of m_currImageTimeout
+     */
+    int currImageTimeout();
 
     /// @}
 
@@ -356,10 +447,12 @@ class rtimvBase : public QWidget
         user,
         colorbar_modes_max
     };
+
     void set_colorbar_mode( int mode )
     {
         colorbar_mode = mode;
     }
+
     int get_colorbar_mode()
     {
         return colorbar_mode;

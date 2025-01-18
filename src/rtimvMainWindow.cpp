@@ -134,7 +134,9 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
 rtimvMainWindow::~rtimvMainWindow()
 {
     if( imStats )
+    {
         delete imStats;
+    }
 }
 
 void rtimvMainWindow::setupConfig()
@@ -169,16 +171,46 @@ void rtimvMainWindow::setupConfig()
                 "string",
                 "The mask image key. Specifies the protocol, location, and name of the mask image." );
 
-    config.add(
-        "satMask.key",
-        "",
-        "satMask.key",
-        argType::Required,
-        "satMask",
-        "key",
-        false,
-        "string",
-        "The saturation mask image key. Specifies the protocol, location, and name of the saturation mask image." );
+    config.add( "satMask.key",
+                "",
+                "satMask.key",
+                argType::Required,
+                "satMask",
+                "key",
+                false,
+                "string",
+                "The saturation mask image key. Specifies the protocol, location, "
+                "and name of the saturation mask image." );
+
+    config.add( "update.fps",
+                "",
+                "update.fps",
+                argType::Required,
+                "update",
+                "fps",
+                false,
+                "real",
+                "Specify the image update timeout in FPS.  Overridden by update.timeout if set." );
+
+    config.add( "update.timeout",
+                "",
+                "update.timeout",
+                argType::Required,
+                "update",
+                "timeout",
+                false,
+                "real",
+                "Specify the image update timeout in ms.  Default is 50 ms (20 FPS). Overrides update.fps." );
+
+    config.add( "update.cubeFPS",
+                "",
+                "update.cubeFPS",
+                argType::Required,
+                "update",
+                "cubeFPS",
+                false,
+                "real",
+                "Specify the image cube update rate in FPS.  Default is 20 FPS." );
 
     config.add( "autoscale",
                 "",
@@ -189,6 +221,7 @@ void rtimvMainWindow::setupConfig()
                 false,
                 "bool",
                 "Set to turn autoscaling on at startup" );
+
     config.add( "nofpsgage",
                 "",
                 "nofpsgage",
@@ -198,16 +231,18 @@ void rtimvMainWindow::setupConfig()
                 false,
                 "bool",
                 "Set to turn the fps gage off at startup" );
-    config.add(
-        "darksub",
-        "",
-        "darksub",
-        argType::True,
-        "",
-        "darksub",
-        false,
-        "bool",
-        "Set to false to turn off dark subtraction at startup.  If a dark is supplied, darksub is otherwise on." );
+
+    config.add( "darksub",
+                "",
+                "darksub",
+                argType::True,
+                "",
+                "darksub",
+                false,
+                "bool",
+                "Set to false to turn off dark subtraction at startup. "
+                "If a dark is supplied, darksub is otherwise on." );
+
     config.add( "targetXc",
                 "",
                 "targetXc",
@@ -217,6 +252,7 @@ void rtimvMainWindow::setupConfig()
                 false,
                 "float",
                 "The fractional x-coordinate of the target, 0<= x <=1" );
+
     config.add( "targetYc",
                 "",
                 "targetYc",
@@ -226,6 +262,7 @@ void rtimvMainWindow::setupConfig()
                 false,
                 "float",
                 "The fractional y-coordinate of the target, 0<= y <=1" );
+
     config.add( "satLevel",
                 "",
                 "satLevel",
@@ -235,16 +272,17 @@ void rtimvMainWindow::setupConfig()
                 false,
                 "float",
                 "The saturation level for this camera" );
-    config.add(
-        "masksat",
-        "",
-        "masksat",
-        argType::True,
-        "",
-        "masksat",
-        false,
-        "bool",
-        "Set to false to turn off sat-masking at startup.  If a satMaks is supplied, masksat is otherwise on." );
+
+    config.add( "masksat",
+                "",
+                "masksat",
+                argType::True,
+                "",
+                "masksat",
+                false,
+                "bool",
+                "Set to false to turn off sat-masking at startup. "
+                "If a satMaks is supplied, masksat is otherwise on." );
 
     config.add( "mouse.pointerCoords",
                 "",
@@ -255,6 +293,7 @@ void rtimvMainWindow::setupConfig()
                 false,
                 "bool",
                 "Show or don't show the pointer coordinates.  Default is true." );
+
     config.add( "mouse.staticCoords",
                 "",
                 "mouse.staticCoords",
@@ -273,8 +312,9 @@ void rtimvMainWindow::setupConfig()
                 "always",
                 false,
                 "bool",
-                "Set to make milkzmq the protocol for bare image names.  Note that local shmims can not be used if "
-                "this is set." );
+                "Set to make milkzmq the protocol for bare image names.  Note that local shmims can"
+                "not be used if this is set." );
+
     config.add( "mzmq.server",
                 "s",
                 "mzmq.server",
@@ -285,6 +325,7 @@ void rtimvMainWindow::setupConfig()
                 "string",
                 "The default server for milkzmq.  The default default is localhost.  This will be overridden by an "
                 "image specific server specified in a key." );
+
     config.add( "mzmq.port",
                 "p",
                 "mzmq.port",
@@ -305,6 +346,7 @@ void rtimvMainWindow::setupConfig()
                 false,
                 "bool",
                 "Whether or not to enable the north arrow. Default is true." );
+
     config.add( "north.offset",
                 "",
                 "north.offset",
@@ -314,6 +356,7 @@ void rtimvMainWindow::setupConfig()
                 false,
                 "float",
                 "Offset in degrees c.c.w. to apply to the north angle. Default is 0." );
+
     config.add( "north.scale",
                 "",
                 "north.scale",
@@ -333,6 +376,7 @@ void rtimvMainWindow::setupConfig()
                 false,
                 "float",
                 "The width of lines in user items in screen pixels.  Default is 2." );
+
     config.add( "tools.edgeTol",
                 "",
                 "tools.edgeTol",
@@ -343,6 +387,7 @@ void rtimvMainWindow::setupConfig()
                 "float",
                 "The tolerance in screen pixels for the mouse to be on the edge of a user item.  For closed shapes "
                 "this applies only to the inside. Default is 5.5 " );
+
     config.add( "tools.lineHeadRad",
                 "",
                 "tools.lineHeadRad",
@@ -352,16 +397,18 @@ void rtimvMainWindow::setupConfig()
                 false,
                 "float",
                 "The radius of the circle marking the head of a user line, in screen pixels. Default is 10." );
-    config.add(
-        "tools.crossWidthFract",
-        "",
-        "tools.crossWidthFract",
-        argType::Required,
-        "tools",
-        "crossWidthFract",
-        false,
-        "float",
-        "The half-width of the center cross, relative to the smallest dimension of the tools. Default is 0.1." );
+
+    config.add( "tools.crossWidthFract",
+                "",
+                "tools.crossWidthFract",
+                argType::Required,
+                "tools",
+                "crossWidthFract",
+                false,
+                "float",
+                "The half-width of the center cross, relative to the smallest "
+                "dimension of the tools. Default is 0.1." );
+
     config.add( "tools.crossWidthMin",
                 "",
                 "tools.crossWidthMin",
@@ -371,6 +418,7 @@ void rtimvMainWindow::setupConfig()
                 false,
                 "float",
                 "The minimum half-width of the center cross, in screen pixels. Default is 5." );
+
     config.add( "tools.warningBorderWidth",
                 "",
                 "tools.warningBorderWidth",
@@ -452,6 +500,23 @@ void rtimvMainWindow::loadConfig()
     }
 
     // Now load remaining options, respecting coded defaults.
+
+    //get timeouts.
+    float fps = -999;
+    config( fps, "update.fps" );
+
+    if( fps > 0 ) //fps sets m_imageTimeout
+    {
+        m_imageTimeout = std::round( 1000. / fps );
+    }
+
+    //but update.timeout can override it
+    config( m_imageTimeout, "update.timeout" );
+    config( m_cubeFPS, "update.cubeFPS" );
+
+    //Now set the actual timeouts
+    cubeFPS(m_cubeFPS);
+
     config( m_autoScale, "autoscale" );
     config( m_subtractDark, "darksub" );
 
@@ -494,6 +559,13 @@ void rtimvMainWindow::onConnect()
     setWindowTitle( m_title.c_str() );
 
     squareDown();
+
+    if( nz() > 1 && !m_cubeCtrl )
+    {
+        launchCubeCtrl();
+    }
+
+    m_connected = true;
 }
 
 void rtimvMainWindow::mtxL_postSetImsize( const uniqueLockT &lock )
@@ -756,6 +828,18 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT &lock )
     }
 
     RTIMV_DEBUG_BREADCRUMB
+
+    if( m_connected ) // first time through this won't be true
+    {
+        if( m_images[0] != nullptr ) // really can't be true if connected
+        {
+            if( m_images[0]->nz() > 1 && m_cubeCtrl == nullptr ) // new image is cube for first time
+            {
+                cubeMode( true );
+                launchCubeCtrl();
+            }
+        }
+    }
 }
 
 void rtimvMainWindow::launchControlPanel()
@@ -770,6 +854,87 @@ void rtimvMainWindow::launchControlPanel()
     imcp->show();
 
     imcp->activateWindow();
+}
+
+void rtimvMainWindow::launchCubeCtrl()
+{
+    if( m_cubeCtrl == nullptr )
+    {
+        int fno = 0;
+        if( m_images[0] != nullptr )
+        {
+            fno = m_images[0]->imageNo();
+        }
+
+        m_cubeCtrl = new cubeCtrl( m_cubeMode,
+                                   m_cubeFPS,
+                                   m_desiredCubeFPS,
+                                   m_cubeFPSMult,
+                                   m_cubeDir,
+                                   nz(),
+                                   fno,
+                                   m_autoScale,
+                                   this,
+                                   Qt::Dialog );
+
+        connect( this, SIGNAL( cubeModeUpdated( bool ) ), m_cubeCtrl, SLOT( cubeMode( bool ) ) );
+        connect( m_cubeCtrl, SIGNAL( cubeModeUpdated( bool ) ), this, SLOT( cubeMode( bool ) ) );
+
+        connect( this, SIGNAL( cubeFPSUpdated( float, float ) ), m_cubeCtrl, SLOT( cubeFPS( float, float ) ) );
+        connect( m_cubeCtrl, SIGNAL( cubeFPSUpdated( float ) ), this, SLOT( cubeFPS( float ) ) );
+
+        connect( this, SIGNAL( cubeFPSMultUpdated( float ) ), m_cubeCtrl, SLOT( cubeFPSMult( float ) ) );
+        connect( m_cubeCtrl, SIGNAL( cubeFPSMultUpdated( float ) ), this, SLOT( cubeFPSMult( float ) ) );
+
+        connect( this, SIGNAL( cubeDirUpdated( int ) ), m_cubeCtrl, SLOT( cubeDir( int ) ) );
+        connect( m_cubeCtrl, SIGNAL( cubeDirUpdated( int ) ), this, SLOT( cubeDir( int ) ) );
+
+        connect( this, SIGNAL( nzUpdated( uint32_t ) ), m_cubeCtrl, SLOT( cubeFrames( uint32_t ) ) );
+
+        connect( this, SIGNAL( cubeFrameUpdated( uint32_t ) ), m_cubeCtrl, SLOT( cubeFrame( uint32_t ) ) );
+        connect( m_cubeCtrl, SIGNAL( cubeFrameUpdated( uint32_t ) ), this, SLOT( cubeFrame( uint32_t ) ) );
+
+        connect( m_cubeCtrl, SIGNAL( cubeFrameDeltaUpdated( int32_t ) ), this, SLOT( cubeFrameDelta( int32_t ) ) );
+
+        connect( this, SIGNAL( autoScaleUpdated( bool ) ), m_cubeCtrl, SLOT( autoScale( bool ) ) );
+        connect( m_cubeCtrl, SIGNAL( autoScaleUpdated( bool ) ), this, SLOT( autoScale( bool ) ) );
+
+        connect( m_cubeCtrl->restretchButton(), SIGNAL( pressed() ), this, SLOT( reStretch() ) );
+
+        // Position cubeCtrl below window, centered, with minimum size.
+        QRect mw = this->geometry();
+        QRect cc = m_cubeCtrl->geometry();
+        // This minimizes the width
+        m_cubeCtrl->setGeometry( cc.x(), cc.y(), 0.5 * cc.width(), cc.height() );
+        cc = m_cubeCtrl->geometry();
+
+        int tbh = QApplication::style()->pixelMetric( QStyle::PM_TitleBarHeight );
+        m_cubeCtrl->setGeometry(
+            mw.x() - ( cc.width() - mw.width() ), mw.y() + height() + 2 * tbh, cc.width(), cc.height() );
+
+        m_cubeCtrl->setWindowTitle( QString( "cube: %1" ).arg( m_title.c_str() ) );
+    }
+
+    m_cubeCtrl->show();
+}
+
+void rtimvMainWindow::toggleCubeCtrl()
+{
+    if( m_cubeCtrl == nullptr )
+    {
+        launchCubeCtrl();
+    }
+    else
+    {
+        if( m_cubeCtrl->isVisible() )
+        {
+            m_cubeCtrl->hide();
+        }
+        else
+        {
+            m_cubeCtrl->show();
+        }
+    }
 }
 
 void rtimvMainWindow::centerNorthArrow()
@@ -2242,6 +2407,8 @@ void rtimvMainWindow::keyPressEvent( QKeyEvent *ke )
         case Qt::Key_C:
             if( key == 'c' )
                 return addUserCircle();
+            if( key == 'C' )
+                return toggleCubeCtrl();
             break;
         case Qt::Key_D:
             if( key == 'D' )
@@ -2369,9 +2536,10 @@ void rtimvMainWindow::keyPressEvent( QKeyEvent *ke )
     }
 }
 
-void rtimvMainWindow::setAutoScale( bool as )
+void rtimvMainWindow::autoScale( bool as )
 {
     m_autoScale = as;
+    emit autoScaleUpdated( m_autoScale );
     if( m_autoScale )
     {
         ui.graphicsView->zoomText( "autoscale on" );
@@ -2388,11 +2556,11 @@ void rtimvMainWindow::toggleAutoScale()
 {
     if( m_autoScale )
     {
-        setAutoScale( false );
+        autoScale( false );
     }
     else
     {
-        setAutoScale( true );
+        autoScale( true );
     }
 }
 
@@ -2734,8 +2902,9 @@ std::string rtimvMainWindow::generateHelp()
     help += "z: toggle color box\n";
 
     help += "\n";
-    help += "D: toggle dark subtraction    L: toggle log scale            \n";
-    help += "M: toggle mask                S: toggle saturation mask      \n";
+    help += "C: toggle cube control        D: toggle dark subtraction     \n";
+    help += "L: toggle log scale           M: toggle mask                 \n";
+    help += "S: toggle saturation mask      \n";
 
     help += "\n";
     help += "1-9: change zoom level        ctrl +: zoom in\n";

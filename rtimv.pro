@@ -26,6 +26,7 @@ HEADERS += src/rtimvGraphicsView.hpp \
            src/rtimvMainWindow.hpp \
            src/rtimvInterfaces.hpp \
            src/rtimvControlPanel.hpp \
+           src/cubeCtrl.hpp \
            src/rtimvStats.hpp \
            src/rtimvImage.hpp \
            src/colorMaps.hpp \
@@ -40,6 +41,7 @@ SOURCES += src/rtimvBase.cpp \
            src/rtimvMainWindow.cpp \
            src/rtimvMain.cpp \
            src/rtimvControlPanel.cpp \
+           src/cubeCtrl.cpp \
            src/rtimvStats.cpp \
            src/images/shmimImage.cpp \
            src/images/fitsImage.cpp \
@@ -48,7 +50,8 @@ SOURCES += src/rtimvBase.cpp \
 
 FORMS += forms/rtimvMainWindow.ui \
          forms/imviewerControlPanel.ui \
-         forms/imviewerStats.ui
+         forms/imviewerStats.ui \
+         forms/cubeCtrl.ui
 
 unix:!macx {
     $$system(which milk, blob, which_milk_exit_code)
@@ -59,22 +62,22 @@ unix:!macx {
 }
 
 #MILK include path
-unix::INCLUDEPATH += /usr/local/milk/include 
+unix::INCLUDEPATH += /usr/local/milk/include
 unix::LIBPATH += /usr/local/milk/lib/
 
 
 CONFIG += link_pkgconfig
 
 #CFITSIO
-PKGCONFIG += cfitsio 
+PKGCONFIG += cfitsio
 
-#EIGEN 
+#EIGEN
 PKGCONFIG += eigen3
 
 packagesExist(libzmq) {
    PKGCONFIG += libzmq
 } else {
-   LIBS += -lzmq 
+   LIBS += -lzmq
 }
 
 LIBS += -lmxlib

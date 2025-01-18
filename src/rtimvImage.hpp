@@ -27,14 +27,6 @@
 struct rtimvImage : public QObject
 {
 
-  public:
-    enum class mode
-    {
-        single,
-        manual,
-        playback
-    };
-
     rtimvImage() = delete;
 
     rtimvImage( std::mutex *mut ) : m_accessMutex{ mut }
@@ -91,20 +83,6 @@ struct rtimvImage : public QObject
      */
     virtual uint32_t nz() = 0;
 
-    /// Get the current cube mode
-    /**
-     *  \returns the current cube mode
-     */
-    virtual mode cubeMode()
-    {
-        return mode::manual;
-    }
-
-    virtual void cubeMode( mode nm )
-    {
-        static_cast<void>( nm );
-    }
-
     /// Get the current image in the cube.
     /** If not a cube this will always be 0.  Must be less than nz.
      *
@@ -112,15 +90,44 @@ struct rtimvImage : public QObject
      */
     virtual uint32_t imageNo() = 0;
 
+    /// Set the current image in the cube.
+    /** If not a cube this will have no effect.
+     *
+     */
+    virtual void imageNo(uint32_t ino /**< [in] then new image number to display */)
+    {
+        static_cast<void>(ino);
+    }
+
     /// Increment the current image number.
     /** If not a cube this has no effect.  If it is a cube it should
      *  cause the next image in the cube to be presented as an update on the
      *  next call to update().
      *
-     * \returns the current image number;
      */
     virtual void incImageNo()
     {
+    }
+
+    /// Decrement the current image number.
+    /** If not a cube this has no effect.  If it is a cube it should
+     *  cause the previous image in the cube to be presented as an update on the
+     *  next call to update().
+     *
+     */
+    virtual void decImageNo()
+    {
+    }
+
+    /// Change the current image number by an offset.
+    /** If not a cube this has no effect.  If it is a cube it should
+     *  cause a new image in the cube to be presented as an update on the
+     *  next call to update().
+     *
+     */
+    virtual void deltaImageNo(int32_t dino /**< [in] the change in image number */)
+    {
+        static_cast<void>(dino);
     }
 
     /// Get the image acquisition time
@@ -173,11 +180,12 @@ struct rtimvImage : public QObject
     {
         std::vector<std::string> vinfo;
 
-        vinfo.push_back( imageName() + " [" + std::to_string( nx() ) + "x" + std::to_string( ny() ) + "]" );
+        vinfo.push_back( imageName() );
+        vinfo.push_back( "size: [" + std::to_string( nx() ) + "x" + std::to_string( ny() ) + "x" + std::to_string( nz() ) + "]" );
         double age = mx::sys::get_curr_time() - imageTime();
         if( age > 10 )
         {
-            vinfo[0] += " age: " + std::to_string( (int)age ) + " sec";
+            vinfo.push_back(std::string("age: ") + std::to_string( (int)age ) + " sec" );
         }
 
         return vinfo;

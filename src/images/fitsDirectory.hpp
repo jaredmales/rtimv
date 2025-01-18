@@ -47,8 +47,6 @@ struct fitsDirectory : public rtimvImage
 
     uint32_t m_nextImageNo{ 0 }; ///< The next image number.
 
-    mode m_cubeMode{ mode::playback };
-
     char *m_data{ nullptr }; ///< Pointer to the image data
 
     QTimer m_timer; ///< When this times out we check for a new image.
@@ -113,21 +111,16 @@ struct fitsDirectory : public rtimvImage
      */
     uint32_t nz();
 
-    /// Get the current cube mode
-    /**
-     *  \returns the current cube mode
-     */
-    virtual mode cubeMode();
-
-    /// Set the cube mode
-    virtual void cubeMode( rtimvImage::mode nm /**< [in] the new mode */ );
-
     /// Get the current image in the cube.
-    /** If not a cube this will always be 0.  Must be less than nz.
-     *
+    /**
      * \returns the current image number;
      */
     uint32_t imageNo();
+
+    /// Set the current image in the cube.
+    /**
+     */
+    virtual void imageNo(uint32_t ino /**< [in] the new image number to display */);
 
     /// Increment the current image number.
     /** Cause the next image in the cube to be presented as an update on the
@@ -135,6 +128,20 @@ struct fitsDirectory : public rtimvImage
      *
      */
     virtual void incImageNo();
+
+    /// Decrement the current image number.
+    /** Cause the previous image in the cube to be presented as an update on the
+     *  next call to update().
+     *
+     */
+    virtual void decImageNo();
+
+    /// Change the current image number by an offset.
+    /** Causes a new image in the cube to be presented as an update on the
+     *  next call to update().
+     *
+     */
+    virtual void deltaImageNo(int32_t dino /**< [in] the change in image number */);
 
     /// Get the image acquisition time
     /** Gets the acquisition time converted to double, giving time since the epoch.
@@ -196,6 +203,8 @@ struct fitsDirectory : public rtimvImage
 
   public:
     float pixel( size_t n );
+
+    std::vector<std::string> info();
 };
 
 #endif // rtimv_fitsDirectory_hpp

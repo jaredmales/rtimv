@@ -118,6 +118,8 @@ void rtimvBase::startup( const std::vector<std::string> &shkeys )
     }
 
     connect( &m_imageTimer, SIGNAL( timeout() ), this, SLOT( updateImages() ) );
+    connect( &m_cubeTimer, SIGNAL( timeout() ), this, SLOT( updateCube() ) );
+    connect( &m_cubeFrameUpdateTimer, SIGNAL(timeout()),this,SLOT(updateCubeFrame()));
 }
 
 bool rtimvBase::imageValid( size_t n )
@@ -135,15 +137,28 @@ bool rtimvBase::imageValid( size_t n )
     return m_images[n]->valid();
 }
 
-void rtimvBase::mtxL_setImsize( uint32_t x, uint32_t y, const uniqueLockT &lock )
+void rtimvBase::mtxL_setImsize( uint32_t x, uint32_t y, uint32_t z, const uniqueLockT &lock )
 {
     assert( lock.owns_lock() );
 
     // Always have at least one pixel
     if( x == 0 )
+    {
         x = 1;
+    }
+
     if( y == 0 )
+    {
         y = 1;
+    }
+
+    if( z == 0 )
+    {
+        z = 1;
+    }
+
+    m_nz = z;
+    emit nzUpdated(m_nz);
 
     if( m_nx != x || m_ny != y || m_calData == 0 || m_qim == 0 )
     {
@@ -189,20 +204,173 @@ uint32_t rtimvBase::ny()
     return m_ny;
 }
 
+uint32_t rtimvBase::nz()
+{
+    return m_nz;
+}
+
+void rtimvBase::setCurrImageTimeout()
+{
+    int cubeTimeout;
+    int currImageTimeout;
+
+    if( m_desiredCubeFPS <= 0 || m_nz <= 1)
+    {
+        m_cubeTimer.stop();
+
+        if(m_nz <= 1)
+        {
+            m_cubeFrameUpdateTimer.stop();
+        }
+        else
+        {
+            m_cubeFrameUpdateTimer.start(250);
+        }
+
+
+        m_cubeFPS = 0;
+
+        emit cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
+
+        currImageTimeout = m_imageTimeout;
+    }
+    else // it's a cube, cube mode is on, and FPS > 0
+    {
+        // First get our wish
+        cubeTimeout = std::round( 1000. / ( m_desiredCubeFPS * m_cubeFPSMult ) );
+
+        if(cubeTimeout < 1)
+        {
+            cubeTimeout = 1;
+        }
+
+
+
+        if( cubeTimeout <= m_imageTimeout )
+        {
+            // Report reality
+            m_cubeFPS = ( 1000.0 / cubeTimeout  ) / m_cubeFPSMult;
+            currImageTimeout = cubeTimeout;
+        }
+        else
+        {
+            // Now get reality with imageTimeout
+            int f = std::round( ( 1.0 * cubeTimeout ) / m_imageTimeout );
+            if( f <= 0 )
+            {
+                f = 1;
+            }
+
+            // Report reality
+            m_cubeFPS = ( 1000.0 / ( f * m_imageTimeout ) ) / m_cubeFPSMult;
+
+            // Implement reality
+            cubeTimeout = std::round( 1000. / ( m_cubeFPS * m_cubeFPSMult ) );
+            currImageTimeout = m_imageTimeout;
+        }
+
+        if(m_cubeMode)
+        {
+            m_cubeTimer.start( cubeTimeout );
+            m_cubeFrameUpdateTimer.start(250);
+        }
+        else
+        {
+            m_cubeFPS = 0;
+            m_cubeTimer.stop();
+        }
+
+        emit cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
+    }
+
+    if( currImageTimeout == m_currImageTimeout ) // Don't interrupt if not needed
+    {
+        return;
+    }
+
+    m_currImageTimeout = currImageTimeout;
+
+    m_imageTimer.stop();
+
+    for( size_t i = 0; i < m_images.size(); ++i )
+    {
+        if( m_images[i] != nullptr )
+        {
+            m_images[i]->timeout( m_currImageTimeout ); // just for fps calculations
+        }
+    }
+
+    m_imageTimer.start( m_currImageTimeout );
+}
+
+void rtimvBase::imageTimeout( int to )
+{
+    m_imageTimeout = to;
+
+    setCurrImageTimeout();
+}
+
+void rtimvBase::cubeMode( bool cm )
+{
+    m_cubeMode = cm;
+
+    setCurrImageTimeout();
+
+    emit cubeModeUpdated( m_cubeMode );
+}
+
+void rtimvBase::cubeFPS( float fps )
+{
+    if( fps < 0 )
+    {
+        fps = 0;
+    }
+    m_desiredCubeFPS = fps;
+    setCurrImageTimeout();
+
+    emit cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
+}
+
+void rtimvBase::cubeFPSMult( float mult )
+{
+    m_cubeFPSMult = mult;
+    setCurrImageTimeout();
+    emit cubeFPSMultUpdated( m_cubeFPSMult );
+}
+
+void rtimvBase::cubeDir( int dir )
+{
+    m_cubeDir = dir;
+    emit cubeDirUpdated( m_cubeDir );
+}
+
+void rtimvBase::cubeFrame( uint32_t fno)
+{
+    if(m_images[0] != nullptr)
+    {
+        m_images[0]->imageNo(fno);
+    }
+
+    updateCubeFrame();
+}
+
+void rtimvBase::cubeFrameDelta( int32_t dfno)
+{
+    if(m_images[0] != nullptr)
+    {
+        m_images[0]->deltaImageNo(dfno);
+    }
+
+    updateCubeFrame();
+}
+
 void rtimvBase::updateImages()
 {
-    static bool connected = false;
-
     int doupdate = RTIMVIMAGE_NOUPDATE;
     int supportUpdate = RTIMVIMAGE_NOUPDATE;
 
     if( m_images[0] != nullptr )
     {
-        if( m_images[0]->cubeMode() == rtimvImage::mode::playback )
-        {
-            m_images[0]->incImageNo();
-        }
-
         doupdate = m_images[0]->update();
     }
 
@@ -218,20 +386,23 @@ void rtimvBase::updateImages()
         }
     }
 
-    ///\todo onConnect should maybe only be called upon connection to main image, and may need to wait a sec to let
-    /// things settle.
+    ///\todo onConnect may need to wait a sec to let things settle.
     if( doupdate >= RTIMVIMAGE_IMUPDATE || supportUpdate >= RTIMVIMAGE_IMUPDATE )
     {
         mtxUL_changeImdata( true );
 
-        if( !connected )
+        if( !m_connected && doupdate >= RTIMVIMAGE_IMUPDATE ) // this will only trigger onConnect on the main image
         {
+            if( m_images[0]->nz() > 1 )
+            {
+                cubeMode( true );
+            }
+
             onConnect();
-            connected = true;
         }
     }
 
-    if( !connected )
+    if( !m_connected )
     {
         updateNC();
         return;
@@ -248,24 +419,24 @@ void rtimvBase::updateImages()
     }
 }
 
-void rtimvBase::imageTimeout( int to )
+void rtimvBase::updateCube()
 {
-    if( to == m_imageTimeout ) // Don't interrupt if not needed
+    if( m_images[0] != nullptr )
     {
-        return;
-    }
-
-    m_imageTimer.stop();
-
-    for( size_t i = 0; i < m_images.size(); ++i )
-    {
-        if( m_images[i] != nullptr )
+        if( m_cubeDir >= 0 )
         {
-            m_images[i]->timeout( to ); // just for fps calculations
+            m_images[0]->incImageNo();
+        }
+        else
+        {
+            m_images[0]->decImageNo();
         }
     }
+}
 
-    m_imageTimer.start( to );
+void rtimvBase::updateCubeFrame()
+{
+    emit cubeFrameUpdated(m_images[0]->imageNo());
 }
 
 int rtimvBase::imageTimeout()
@@ -618,7 +789,7 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
         {
             RTIMV_DEBUG_BREADCRUMB
 
-            mtxL_setImsize( m_images[0]->nx(), m_images[0]->ny(), lock );
+            mtxL_setImsize( m_images[0]->nx(), m_images[0]->ny(), m_images[0]->nz(), lock );
 
             RTIMV_DEBUG_BREADCRUMB
 
@@ -652,6 +823,7 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
 
             RTIMV_DEBUG_BREADCRUMB
 
+            m_saturated = 0;
             for( uint64_t n = 0; n < m_nx * m_ny; ++n )
             {
                 // Check for saturation
@@ -678,9 +850,10 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
                 {
                     for( uint64_t n = 0; n < m_nx * m_ny; ++n )
                     {
-                        if( m_images[3]->pixel( n ) > 0 )
+                        if( m_images[3]->pixel( n ) > 0 && m_satData[n] == 0)
                         {
                             m_satData[n] = 1;
+                            ++m_saturated;
                         }
                         // don't set 0 b/c it would override m_satLevel
                     }

@@ -64,19 +64,21 @@ uint32_t fitsImage::nz()
     return m_nz;
 }
 
-rtimvImage::mode fitsImage::cubeMode()
-{
-    return m_cubeMode;
-}
-
-void fitsImage::cubeMode( rtimvImage::mode nm )
-{
-    m_cubeMode = nm;
-}
-
 uint32_t fitsImage::imageNo()
 {
     return m_imageNo;
+}
+
+void fitsImage::imageNo(uint32_t ino)
+{
+    if( ino > nz() - 1 )
+    {
+        m_nextImageNo = nz()-1;
+    }
+    else
+    {
+        m_nextImageNo = ino;
+    }
 }
 
 void fitsImage::incImageNo()
@@ -89,6 +91,42 @@ void fitsImage::incImageNo()
     {
         m_nextImageNo = m_imageNo + 1;
     }
+}
+
+void fitsImage::decImageNo()
+{
+    if( m_imageNo == 0 )
+    {
+        m_nextImageNo = m_nz-1;
+    }
+    else
+    {
+        m_nextImageNo = m_imageNo - 1;
+    }
+}
+
+void fitsImage::deltaImageNo(int32_t dino)
+{
+    if(abs(dino) > nz())
+    {
+        dino %= nz();
+    }
+
+    uint32_t absdino = abs(dino);
+
+    if(dino < 0 && absdino > m_imageNo)
+    {
+        m_nextImageNo = nz() + (m_imageNo+dino);
+    }
+    else if(dino > 0 && absdino > (nz()-1 - m_imageNo))
+    {
+        m_nextImageNo = dino - (nz() - m_imageNo);
+    }
+    else
+    {
+        m_nextImageNo += dino;
+    }
+
 }
 
 double fitsImage::imageTime()
@@ -249,15 +287,6 @@ int fitsImage::readImage()
         std::cerr << "rtimv: " << m_imagePath << " found and read.\n";
     }
 
-    if( m_nz > 1 )
-    {
-        m_cubeMode == rtimvImage::mode::playback;
-    }
-    else
-    {
-        m_cubeMode == rtimvImage::mode::single;
-    }
-
     m_reported = 0;
 
     return 0;
@@ -352,7 +381,7 @@ float fitsImage::pixel( size_t n )
 std::vector<std::string> fitsImage::info()
 {
     std::vector<std::string> info = rtimvImage::info();
-    info.push_back( std::string( imageName().size() + 1, ' ' ) + imageKey() );
+    info.push_back( std::string("path: ") + imageKey() );
 
     return info;
 }

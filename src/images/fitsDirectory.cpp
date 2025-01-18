@@ -25,12 +25,14 @@ std::string fitsDirectory::imageKey()
 
 std::string fitsDirectory::imageName()
 {
-    if( m_fileList.size() == 0 )
+    /*if( m_fileList.size() == 0 )
     {
         return "";
     }
 
-    return mx::ioutils::pathStem( m_fileList[m_imageNo] );
+    return mx::ioutils::pathStem( m_fileList[m_imageNo] );*/
+
+    return m_dirPath + "*.fits";
 }
 
 void fitsDirectory::imageTimeout( int to )
@@ -63,19 +65,21 @@ uint32_t fitsDirectory::nz()
     return m_fileList.size();
 }
 
-rtimvImage::mode fitsDirectory::cubeMode()
-{
-    return m_cubeMode;
-}
-
-void fitsDirectory::cubeMode( rtimvImage::mode nm )
-{
-    m_cubeMode = nm;
-}
-
 uint32_t fitsDirectory::imageNo()
 {
     return m_imageNo;
+}
+
+void fitsDirectory::imageNo(uint32_t ino)
+{
+    if( ino > nz() - 1 )
+    {
+        m_nextImageNo = nz()-1;
+    }
+    else
+    {
+        m_nextImageNo = ino;
+    }
 }
 
 void fitsDirectory::incImageNo()
@@ -89,6 +93,43 @@ void fitsDirectory::incImageNo()
         m_nextImageNo = m_imageNo + 1;
     }
 }
+
+void fitsDirectory::decImageNo()
+{
+    if( m_imageNo == 0 )
+    {
+        m_nextImageNo = nz() - 1;
+    }
+    else
+    {
+        m_nextImageNo = m_imageNo - 1;
+    }
+}
+
+void fitsDirectory::deltaImageNo(int32_t dino)
+{
+    if(abs(dino) > nz())
+    {
+        dino %= nz();
+    }
+
+    uint32_t absdino = abs(dino);
+
+    if(dino < 0 && absdino > m_imageNo)
+    {
+        m_nextImageNo = nz() + (m_imageNo+dino);
+    }
+    else if(dino > 0 && absdino > (nz()-1 - m_imageNo))
+    {
+        m_nextImageNo = dino - (nz() - m_imageNo);
+    }
+    else
+    {
+        m_nextImageNo += dino;
+    }
+
+}
+
 
 double fitsDirectory::imageTime()
 {
@@ -241,16 +282,8 @@ void fitsDirectory::imConnect()
         return;
     }
 
-    if( m_fileList.size() > 1 )
-    {
-        m_cubeMode == rtimvImage::mode::playback;
-    }
-    else
-    {
-        m_cubeMode == rtimvImage::mode::single;
-    }
-
-    m_imageNo = 0;
+    m_imageNo = 1;
+    m_nextImageNo = 0;
 
     m_imageFound = 1;
 
@@ -326,3 +359,12 @@ float fitsDirectory::pixel( size_t n )
 {
     return pixget( m_data, n );
 }
+
+std::vector<std::string> fitsDirectory::info()
+{
+    std::vector<std::string> info = rtimvImage::info();
+    info.push_back( std::string("path: ") + imageKey() );
+
+    return info;
+}
+

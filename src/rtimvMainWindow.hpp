@@ -20,6 +20,7 @@ using namespace mx::app;
 #include "ui_rtimvMainWindow.h"
 #include "rtimvBase.hpp"
 #include "rtimvControlPanel.hpp"
+#include "cubeCtrl.hpp"
 
 #include "rtimvInterfaces.hpp"
 
@@ -97,6 +98,19 @@ class rtimvMainWindow : public rtimvBase, public application
 
     void setPointerOverZoom( float poz );
 
+    /** \name Cube Control
+     * @{
+     */
+protected:
+    cubeCtrl * m_cubeCtrl {nullptr};
+
+    public:
+    void launchCubeCtrl();
+
+    void toggleCubeCtrl();
+
+    ///@}
+
     /*** Graphics stuff ***/
   protected:
     QGraphicsScene *m_qgs{ nullptr };
@@ -130,8 +144,8 @@ class rtimvMainWindow : public rtimvBase, public application
 
     bool m_northArrowEnabled{ true }; ///< Flag controlling whether or not the north arrow is enabled.
 
-    float m_northAngleScale{
-        -1 }; ///< The scale to multiply the value contained in "rtimv.north.angle" to convert to degrees c.c.w.
+    float m_northAngleScale{ -1 }; /**< The scale to multiply the value contained in "rtimv.north.angle"
+                                        to convert to degrees c.c.w.*/
 
     float m_northAngleOffset{ 0 }; ///< The offset to apply to the scaled north angle in degrees c.c.w.
 
@@ -161,7 +175,7 @@ class rtimvMainWindow : public rtimvBase, public application
     ///@}
 
     /*** Real Time Controls ***/
-  public:
+  public slots:
     void freezeRealTime();
 
     void reStretch();
@@ -609,9 +623,22 @@ class rtimvMainWindow : public rtimvBase, public application
     bool m_showSaveStat{ false };
     bool m_showFPSGage{ true };
 
-  public:
-    void setAutoScale( bool as );
+  public slots:
 
+    /// Set the autoScale flag
+    /** When m_autoScale is true, the color scale is adjusted for each image.
+     *
+     */
+    void autoScale( bool as /**< [in] the new value of the autoScale flag. */);
+
+  signals:
+
+    /// Notify that the autoScale flag has changed.
+    void autoScaleUpdated(bool /**< [in] the new value of the autoScale flag. */);
+
+  public:
+
+    ///Change the value of the autoScale flag.
     void toggleAutoScale();
 
     void mtxUL_center();
@@ -796,6 +823,9 @@ class rtimvMainWindow : public rtimvBase, public application
     bool eventFilter( QObject *obj, ///< [in] the object processing the event
                       QEvent *event ///< [in] the event
     );
+
+
+
 };
 
 #endif // rtimvMainWindow_hpp

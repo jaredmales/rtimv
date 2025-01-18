@@ -10,6 +10,21 @@
         <file>icons/arrow_down_right_128.png</file>
         <file>icons/square_128.png</file>
         <file>icons/scamper_cutout_sq_64.png</file>
+        <file>icons/play.svg</file>
+        <file>icons/play-reverse-48.png</file>
+        <file>icons/fast-forward.svg</file>
+        <file>icons/rewind.svg</file>
+        <file>icons/skip-next.svg</file>
+        <file>icons/skip-forward.svg</file>
+        <file>icons/skip-previous.svg</file>
+        <file>icons/skip-backward.svg</file>
+        <file>icons/step-forward.svg</file>
+        <file>icons/step-backward.svg</file>
+        <file>icons/step-forward-2.svg</file>
+        <file>icons/step-backward-2.svg</file>
+        <file>icons/stop.svg</file>
+        <file>icons/refresh.svg</file>
+
     </qresource>
 </RCC>
 

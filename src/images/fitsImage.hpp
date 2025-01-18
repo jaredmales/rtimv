@@ -49,8 +49,6 @@ struct fitsImage : public rtimvImage
 
     uint32_t m_nextImageNo{ 0 }; ///< The next image number.
 
-    mode m_cubeMode{ mode::playback };
-
     char *m_data{ nullptr }; ///< Pointer to the image data
 
     char *m_currData{ nullptr }; ///< Pointer to the image data
@@ -117,15 +115,6 @@ struct fitsImage : public rtimvImage
      */
     uint32_t nz();
 
-    /// Get the current cube mode
-    /**
-     *  \returns the current cube mode
-     */
-    virtual mode cubeMode();
-
-    /// Set the cube mode
-    virtual void cubeMode( rtimvImage::mode nm /**< [in] the new mode */ );
-
     /// Get the current image in the cube.
     /** If not a cube this will always be 0.  Must be less than nz.
      *
@@ -133,14 +122,33 @@ struct fitsImage : public rtimvImage
      */
     uint32_t imageNo();
 
+    /// Set the current image in the cube.
+    /**
+     */
+    void imageNo(uint32_t ino /**< [in] the new image number to display */);
+
     /// Increment the current image number.
     /** If not a cube this has no effect.  If it is a cube it
      *  causes the next image in the cube to be presented as an update on the
      *  next call to update().
      *
-     * \returns the current image number;
      */
-    virtual void incImageNo();
+    void incImageNo();
+
+    /// Decrement the current image number.
+    /** If not a cube this has no effect.  If it is a cube it
+     *  causes the previous image in the cube to be presented as an update on the
+     *  next call to update().
+     *
+     */
+    void decImageNo();
+
+    /// Change the current image number by an offset.
+    /** Causes a new image in the cube to be presented as an update on the
+     *  next call to update().
+     *
+     */
+    void deltaImageNo(int32_t dino /**< [in] the change in image number */);
 
     /// Get the image acquisition time
     /** Gets the acquisition time converted to double, giving time since the epoch.
