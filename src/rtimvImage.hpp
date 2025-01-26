@@ -83,6 +83,17 @@ struct rtimvImage : public QObject
      */
     virtual uint32_t nz() = 0;
 
+    /// Get the default cube playback mode for this image type
+    /**
+     *  Returns the cube playback mode that should be initiated when a
+     *  cube of this image type is opened. The global default is false,
+     *  which means playback is not started.
+     */
+    virtual bool defaultCubeMode()
+    {
+        return false;
+    }
+
     /// Get the current image in the cube.
     /** If not a cube this will always be 0.  Must be less than nz.
      *

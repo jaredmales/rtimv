@@ -1,7 +1,7 @@
 
 # rtimv User's Guide
 
-An astronomical image viewer optimized for real-time image stream display. Works with MILK/CACAO shared memory image streams locally or via the `milkzmq` protocol.  Will also display local FITS files.
+An astronomical image viewer optimized for real-time image stream display. Works with MILK/CACAO shared memory image streams locally or via the `milkzmq` protocol.  Will also display local FITS files, updating anytime the file is updated.
 
 ## Basic Startup
 
@@ -22,8 +22,21 @@ $ rtimv -c /path/to/camname_config.conf
 
 The name and location of an image is specified by its `key`.  The following rules are followed in the given order to determine how to find an image:
 - If the `key` ends in `.fits`, `.fit`, `.FITS`, or `.FIT`, then the image is treated as a FITS file stored on local disk with `key` specifying a valid path.
+- if the `key` ends in `/`, e.g. `/path/to/directory/`, then rtimv will treat the FITS files in that directory as a cube, enabling playback and incrementing through the images.
 - If the `key` contains `@` or `:`, or the configuration option `--mzmq.always=true` (`-Z`) is set, then the `key` is interpreted as a `milkzmq` address of the form `name@server:port`.  If `mzmq.always` is set, then `@` and `:` are optional. The default server is `localhost` and the default port is `5556`.
 - Otherwise, `key` is treated as a local `milk` `shmim` name and the standard path is followed, e.g. `/milk/shm/image.im.shm` for `key=image`.
+
+## Cube Mode
+
+If a FITS file containing an image cube (NAXIS3 > 1) is opened, rtimv will automatically enter cube mode.  This enables playback of the cube at varying speeds, as well as switching between frames.  
+
+Cube mode can also be entered by pointing rtimv at a directory containing multiple FITS files.  This mode is entered anytime the image key ends in `/`.
+
+The FPS of playback in cube mode is determined both by the entered "desired" FPS, and the overal update timeout.  The update timeout takes precedence to ensure that rtimv is responsive to image updates.  This results in not necessarily obtaining the desired FPS for cube playback if `FPS < 1/update_timeout`.  The cube control GUI will show the effective FPS compared to the desired FPS.
+
+Cube playback and frame position controlled by the Cube Control GUI.  This opens automatically when a cube is opened, and can be toggles with the `C` shortcut.  The GUI is illustrated below.
+
+![The Cube Control GUI](cubeMode.png)
 
 ## Operating rtimv
 
@@ -65,6 +78,7 @@ In general, if you see the "resize arrows" cursor when your mouse hovers over th
 | `t`     | toggle the target cross           | |
 | `x`     | freeze the display                | stop updating until `x` is pressed again |
 | `z`     | toggle color box                   | the yellow box used for changing the color table limits based on the values inside it |
+| `C`     | toggle cube control GUI           | opens automatically if a cube is opened |
 | `D`     | toggle dark subtraction           | |
 | `L`     | toggle log scale                  | |
 | `M`     | toggle the mask                   | |

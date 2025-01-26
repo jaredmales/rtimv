@@ -395,7 +395,7 @@ void rtimvBase::updateImages()
         {
             if( m_images[0]->nz() > 1 )
             {
-                cubeMode( true );
+                cubeMode( m_images[0]->defaultCubeMode() );
             }
 
             onConnect();

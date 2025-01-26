@@ -111,6 +111,16 @@ struct fitsDirectory : public rtimvImage
      */
     uint32_t nz();
 
+    /// Get the default cube playback mode for a FITS Directory
+    /**
+     *  Specifies that should playback should be on when a
+     *  FITS directory is opened
+     */
+    virtual bool defaultCubeMode()
+    {
+        return true;
+    }
+
     /// Get the current image in the cube.
     /**
      * \returns the current image number;
