@@ -2775,7 +2775,7 @@ void rtimvMainWindow::setDarkSub( bool ds )
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
     }
 
-    mtxUL_changeImdata( false );
+    mtxUL_changeImdata( true ); //have to trigger refresh of cal data
 }
 
 void rtimvMainWindow::toggleDarkSub()
@@ -2788,6 +2788,7 @@ void rtimvMainWindow::toggleDarkSub()
     {
         return setDarkSub( true );
     }
+
 }
 
 void rtimvMainWindow::setApplyMask( bool am )
@@ -2804,7 +2805,7 @@ void rtimvMainWindow::setApplyMask( bool am )
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
     }
 
-    mtxUL_changeImdata( false );
+    mtxUL_changeImdata( true ); //have to trigger refresh of cal data
 }
 
 void rtimvMainWindow::toggleApplyMask()
@@ -2817,6 +2818,7 @@ void rtimvMainWindow::toggleApplyMask()
     {
         return setApplyMask( true );
     }
+
 }
 
 void rtimvMainWindow::setApplySatMask( bool as )
@@ -2833,7 +2835,7 @@ void rtimvMainWindow::setApplySatMask( bool as )
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
     }
 
-    mtxUL_changeImdata( false );
+    mtxUL_changeImdata( true ); //have to trigger refresh of cal data
 }
 
 void rtimvMainWindow::toggleApplySatMask()
