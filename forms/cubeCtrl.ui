@@ -46,7 +46,7 @@
          <item>
           <widget class="QLineEdit" name="lineEditFPS">
            <property name="focusPolicy">
-            <enum>Qt::NoFocus</enum>
+            <enum>Qt::ClickFocus</enum>
            </property>
           </widget>
          </item>
@@ -397,7 +397,7 @@
          <item>
           <widget class="QLineEdit" name="lineEditFrame">
            <property name="focusPolicy">
-            <enum>Qt::NoFocus</enum>
+            <enum>Qt::ClickFocus</enum>
            </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>

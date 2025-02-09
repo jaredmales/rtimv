@@ -283,6 +283,7 @@ void cubeCtrl::cubeFrames( uint32_t fno )
 void cubeCtrl::cubeFrame( uint32_t fno )
 {
     m_frame = fno;
+
     if( !ui.lineEditFrame->hasFocus() )
     {
         ui.lineEditFrame->setText( QString( "%1" ).arg( fno ) );

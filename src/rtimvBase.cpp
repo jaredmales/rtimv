@@ -119,7 +119,7 @@ void rtimvBase::startup( const std::vector<std::string> &shkeys )
 
     connect( &m_imageTimer, SIGNAL( timeout() ), this, SLOT( updateImages() ) );
     connect( &m_cubeTimer, SIGNAL( timeout() ), this, SLOT( updateCube() ) );
-    connect( &m_cubeFrameUpdateTimer, SIGNAL(timeout()),this,SLOT(updateCubeFrame()));
+    connect( &m_cubeFrameUpdateTimer, SIGNAL( timeout() ), this, SLOT( updateCubeFrame() ) );
 }
 
 bool rtimvBase::imageValid( size_t n )
@@ -158,7 +158,7 @@ void rtimvBase::mtxL_setImsize( uint32_t x, uint32_t y, uint32_t z, const unique
     }
 
     m_nz = z;
-    emit nzUpdated(m_nz);
+    emit nzUpdated( m_nz );
 
     if( m_nx != x || m_ny != y || m_calData == 0 || m_qim == 0 )
     {
@@ -214,19 +214,18 @@ void rtimvBase::setCurrImageTimeout()
     int cubeTimeout;
     int currImageTimeout;
 
-    if( m_desiredCubeFPS <= 0 || m_nz <= 1)
+    if( m_desiredCubeFPS <= 0 || m_nz <= 1 )
     {
         m_cubeTimer.stop();
 
-        if(m_nz <= 1)
+        if( m_nz <= 1 )
         {
             m_cubeFrameUpdateTimer.stop();
         }
         else
         {
-            m_cubeFrameUpdateTimer.start(250);
+            m_cubeFrameUpdateTimer.start( 250 );
         }
-
 
         m_cubeFPS = 0;
 
@@ -239,17 +238,15 @@ void rtimvBase::setCurrImageTimeout()
         // First get our wish
         cubeTimeout = std::round( 1000. / ( m_desiredCubeFPS * m_cubeFPSMult ) );
 
-        if(cubeTimeout < 1)
+        if( cubeTimeout < 1 )
         {
             cubeTimeout = 1;
         }
 
-
-
         if( cubeTimeout <= m_imageTimeout )
         {
             // Report reality
-            m_cubeFPS = ( 1000.0 / cubeTimeout  ) / m_cubeFPSMult;
+            m_cubeFPS = ( 1000.0 / cubeTimeout ) / m_cubeFPSMult;
             currImageTimeout = cubeTimeout;
         }
         else
@@ -269,10 +266,10 @@ void rtimvBase::setCurrImageTimeout()
             currImageTimeout = m_imageTimeout;
         }
 
-        if(m_cubeMode)
+        if( m_cubeMode )
         {
             m_cubeTimer.start( cubeTimeout );
-            m_cubeFrameUpdateTimer.start(250);
+            m_cubeFrameUpdateTimer.start( 250 );
         }
         else
         {
@@ -344,24 +341,20 @@ void rtimvBase::cubeDir( int dir )
     emit cubeDirUpdated( m_cubeDir );
 }
 
-void rtimvBase::cubeFrame( uint32_t fno)
+void rtimvBase::cubeFrame( uint32_t fno )
 {
-    if(m_images[0] != nullptr)
+    if( m_images[0] != nullptr )
     {
-        m_images[0]->imageNo(fno);
+        m_images[0]->imageNo( fno );
     }
-
-    updateCubeFrame();
 }
 
-void rtimvBase::cubeFrameDelta( int32_t dfno)
+void rtimvBase::cubeFrameDelta( int32_t dfno )
 {
-    if(m_images[0] != nullptr)
+    if( m_images[0] != nullptr )
     {
-        m_images[0]->deltaImageNo(dfno);
+        m_images[0]->deltaImageNo( dfno );
     }
-
-    updateCubeFrame();
 }
 
 void rtimvBase::updateImages()
@@ -391,6 +384,11 @@ void rtimvBase::updateImages()
     {
         mtxUL_changeImdata( true );
 
+        if( doupdate >= RTIMVIMAGE_IMUPDATE && m_images[0]->nz() > 1 )
+        {
+            updateCubeFrame();
+        }
+
         if( !m_connected && doupdate >= RTIMVIMAGE_IMUPDATE ) // this will only trigger onConnect on the main image
         {
             if( m_images[0]->nz() > 1 )
@@ -400,6 +398,8 @@ void rtimvBase::updateImages()
 
             onConnect();
         }
+
+
     }
 
     if( !m_connected )
@@ -436,7 +436,7 @@ void rtimvBase::updateCube()
 
 void rtimvBase::updateCubeFrame()
 {
-    emit cubeFrameUpdated(m_images[0]->imageNo());
+    emit cubeFrameUpdated( m_images[0]->imageNo() );
 }
 
 int rtimvBase::imageTimeout()
@@ -776,8 +776,8 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
         // Also lock the raw data for the size checks to make sure it doesn't change out from under us
         std::unique_lock<std::mutex> rawlock( m_rawMutex );
 
-        if( !imageValid( 0 ) ||
-            ( m_amChangingimdata && !newdata ) ) // Check again in case it changed while we were waiting on the lock
+        // Check again in case it changed while we were waiting on the lock
+        if( !imageValid( 0 ) || ( m_amChangingimdata && !newdata ) )
         {
             return;
         }
@@ -850,7 +850,7 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
                 {
                     for( uint64_t n = 0; n < m_nx * m_ny; ++n )
                     {
-                        if( m_images[3]->pixel( n ) > 0 && m_satData[n] == 0)
+                        if( m_images[3]->pixel( n ) > 0 && m_satData[n] == 0 )
                         {
                             m_satData[n] = 1;
                             ++m_saturated;

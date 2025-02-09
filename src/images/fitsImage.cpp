@@ -91,6 +91,7 @@ void fitsImage::incImageNo()
     {
         m_nextImageNo = m_imageNo + 1;
     }
+
 }
 
 void fitsImage::decImageNo()
@@ -103,6 +104,7 @@ void fitsImage::decImageNo()
     {
         m_nextImageNo = m_imageNo - 1;
     }
+
 }
 
 void fitsImage::deltaImageNo(int32_t dino)
@@ -126,6 +128,7 @@ void fitsImage::deltaImageNo(int32_t dino)
     {
         m_nextImageNo += dino;
     }
+
 
 }
 
@@ -164,7 +167,9 @@ int fitsImage::readImage()
         if( fstatus )
         {
             if( m_reported == m_reportThresh )
+            {
                 std::cerr << "rtimv: " << m_imagePath << " not found.\n";
+            }
             ++m_reported;
             return -1;
         }
@@ -177,7 +182,9 @@ int fitsImage::readImage()
     if( fstatus )
     {
         if( m_reported == m_reportThresh )
+        {
             std::cerr << "rtimv: error getting number of axes in file " << m_imagePath << "\n";
+        }
         ++m_reported;
 
         fstatus = 0;
@@ -192,7 +199,9 @@ int fitsImage::readImage()
     if( fstatus )
     {
         if( m_reported == m_reportThresh )
+        {
             std::cerr << "rtimv: error getting dimensions in file " << m_imagePath << "\n";
+        }
         ++m_reported;
 
         fstatus = 0;
@@ -257,7 +266,9 @@ int fitsImage::readImage()
     if( fstatus )
     {
         if( m_reported == m_reportThresh )
+        {
             std::cerr << "rtimv: error reading data from " << m_imagePath << "\n";
+        }
         ++m_reported;
 
         fstatus = 0;
@@ -273,7 +284,9 @@ int fitsImage::readImage()
     if( fstatus )
     {
         if( m_reported == m_reportThresh )
+        {
             std::cerr << "rtimv: error closing file " << m_imagePath << "\n";
+        }
         ++m_reported;
 
         fstatus = 0;
