@@ -35,7 +35,11 @@ void cubeCtrl::cubeFPS( float fps, float desiredFPS )
 {
     m_desiredCubeFPS = desiredFPS;
     m_cubeFPS = fps;
-    ui.lineEditFPS->setText( QString( "%1" ).arg( m_desiredCubeFPS, 0, 'f', 2 ) );
+
+    if(!ui.lineEditFPS->hasFocus())
+    {
+        ui.lineEditFPS->setText( QString( "%1" ).arg( m_desiredCubeFPS, 0, 'f', 2 ) );
+    }
 
     ui.labelFPS->setText( QString( "FPS (%1 FPS)" ).arg( m_cubeFPS * m_cubeFPSMult, 0, 'f', 2 ) );
 }
@@ -67,13 +71,25 @@ void cubeCtrl::autoScale( bool as )
 
 void cubeCtrl::on_lineEditFPS_editingFinished()
 {
+    ui.lineEditFPS->clearFocus();
+    cubeFPS( m_cubeFPS, m_desiredCubeFPS );
+
+}
+
+void cubeCtrl::on_lineEditFPS_returnPressed()
+{
     bool ok;
     float fps = ui.lineEditFPS->text().toFloat( &ok );
+
+    ui.lineEditFPS->clearFocus();
+    cubeFPS( m_cubeFPS, m_desiredCubeFPS );
 
     if( ok )
     {
         emit cubeFPSUpdated( fps );
     }
+
+
 }
 
 void cubeCtrl::on_buttonFPSD10_pressed()
@@ -145,13 +161,27 @@ void cubeCtrl::on_buttonFastFastForward_pressed()
 
 void cubeCtrl::on_lineEditFrame_editingFinished()
 {
+    ui.lineEditFrame->clearFocus();
+
+    cubeFrame(m_frame);
+
+}
+
+void cubeCtrl::on_lineEditFrame_returnPressed()
+{
     bool ok;
     uint32_t fno = ui.lineEditFrame->text().toULong( &ok );
+
+    ui.lineEditFrame->clearFocus();
+
+    cubeFrame(m_frame);
 
     if( ok )
     {
         emit cubeFrameUpdated( fno );
     }
+
+
 }
 
 void cubeCtrl::on_scrollBarFrame_sliderMoved( int value )

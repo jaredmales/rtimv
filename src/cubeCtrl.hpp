@@ -46,6 +46,7 @@ class cubeCtrl : public QWidget
     void autoScale(bool as);
 
     void on_lineEditFPS_editingFinished();
+    void on_lineEditFPS_returnPressed();
 
     void on_buttonFPSD10_pressed();
     void on_buttonFPSD2_pressed();
@@ -61,6 +62,7 @@ class cubeCtrl : public QWidget
     void on_buttonFastFastForward_pressed();
 
     void on_lineEditFrame_editingFinished();
+    void on_lineEditFrame_returnPressed();
 
     void on_scrollBarFrame_sliderMoved(int value);
     void on_scrollBarFrame_sliderReleased();
