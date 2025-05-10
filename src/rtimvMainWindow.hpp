@@ -45,6 +45,8 @@ using namespace mx::app;
 
 class rtimvControlPanel;
 
+#define RTIMV_DEBUG_BREADCRUMB
+
 class rtimvMainWindow : public rtimvBase, public application
 {
     Q_OBJECT
@@ -69,9 +71,15 @@ class rtimvMainWindow : public rtimvBase, public application
 
     virtual void post_zoomLevel();
 
-    virtual void mtxL_postRecolor( const uniqueLockT &lock );
+  private:
+    ///Generic implementation of postRecolor
+    template<class lockT>
+    void postRecolorImpl(const lockT & lock /**<[in] a mutex lock which is locked*/);
 
-    virtual void mtxL_postRecolor( const sharedLockT &lock );
+  public:
+    virtual void mtxL_postRecolor( const uniqueLockT &lock /**<[in] a unique mutex lock which is locked*/);
+
+    virtual void mtxL_postRecolor( const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/);
 
     virtual void mtxL_postChangeImdata( const sharedLockT &lock );
 
@@ -101,10 +109,10 @@ class rtimvMainWindow : public rtimvBase, public application
     /** \name Cube Control
      * @{
      */
-protected:
-    cubeCtrl * m_cubeCtrl {nullptr};
+  protected:
+    cubeCtrl *m_cubeCtrl{ nullptr };
 
-    public:
+  public:
     void launchCubeCtrl();
 
     void toggleCubeCtrl();
@@ -113,12 +121,27 @@ protected:
 
     /*** Graphics stuff ***/
   protected:
+    QPixmap m_qpm; ///< A QT pixmap, used to prep the QImage for display.
+
     QGraphicsScene *m_qgs{ nullptr };
     QGraphicsPixmapItem *m_qpmi{ nullptr };
 
     float m_screenZoom;
 
   public:
+    /// Get a pointer to the pixmap
+    /**
+     * \returns a pointer m_qpm
+     */
+    QPixmap *getPixmap()
+    {
+        return &m_qpm;
+    }
+
+    /// Get a pointer to the graphics scene
+    /**
+     * \returns a pointer m_qgs
+     */
     QGraphicsScene *get_qgs();
 
     /** \name North Arrow
@@ -629,16 +652,15 @@ protected:
     /** When m_autoScale is true, the color scale is adjusted for each image.
      *
      */
-    void autoScale( bool as /**< [in] the new value of the autoScale flag. */);
+    void autoScale( bool as /**< [in] the new value of the autoScale flag. */ );
 
   signals:
 
     /// Notify that the autoScale flag has changed.
-    void autoScaleUpdated(bool /**< [in] the new value of the autoScale flag. */);
+    void autoScaleUpdated( bool /**< [in] the new value of the autoScale flag. */ );
 
   public:
-
-    ///Change the value of the autoScale flag.
+    /// Change the value of the autoScale flag.
     void toggleAutoScale();
 
     void mtxUL_center();
@@ -823,9 +845,47 @@ protected:
     bool eventFilter( QObject *obj, ///< [in] the object processing the event
                       QEvent *event ///< [in] the event
     );
-
-
-
 };
+
+template<class lockT>
+void rtimvMainWindow::postRecolorImpl(const lockT & lock)
+{
+    RTIMV_DEBUG_BREADCRUMB
+
+    assert( lock.owns_lock() );
+
+    RTIMV_DEBUG_BREADCRUMB
+
+    m_qpm.convertFromImage( *m_qim, Qt::AutoColor | Qt::ThresholdDither );
+
+    RTIMV_DEBUG_BREADCRUMB
+
+    if( !m_qpmi ) // This happens on first time through
+    {
+        RTIMV_DEBUG_BREADCRUMB
+
+        m_qpmi = m_qgs->addPixmap( m_qpm );
+
+        // So we need to initialize the viewport center, etc.
+        // center();
+        mtxL_setViewCen( .5, .5, lock );
+        post_zoomLevel();
+
+        // and update stats box
+        if( m_statsBox )
+        {
+            mtxTry_statsBoxMoved( m_statsBox );
+        }
+
+        RTIMV_DEBUG_BREADCRUMB
+    }
+    else
+    {
+        m_qpmi->setPixmap( m_qpm );
+        RTIMV_DEBUG_BREADCRUMB
+    }
+
+    RTIMV_DEBUG_BREADCRUMB
+}
 
 #endif // rtimvMainWindow_hpp

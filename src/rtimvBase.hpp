@@ -534,17 +534,10 @@ class rtimvBase : public QWidget
 
     std::vector<double> m_lightness; ///< The perceived lightness values of the colormap RGB values
 
-    QPixmap m_qpm; ///< A QT pixmap, used to prep the QImage for display.
-
     /// Flag indicating that changeImdata(bool) is currently executing
     bool m_amChangingimdata{ false };
 
   public:
-    /// Get the QPixMap pointer
-    QPixmap *getPixmap()
-    {
-        return &m_qpm;
-    }
 
     /// Updates the QImage and basic statistics after a new image.
     /** \param newdata determines whether statistics are calculated (true) or not (false).

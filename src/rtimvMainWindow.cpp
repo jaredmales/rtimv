@@ -1,6 +1,5 @@
 #include "rtimvMainWindow.hpp"
 
-#define RTIMV_DEBUG_BREADCRUMB
 
 rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::WindowFlags f ) : rtimvBase( Parent, f )
 {
@@ -692,72 +691,17 @@ void rtimvMainWindow::post_zoomLevel()
     RTIMV_DEBUG_BREADCRUMB
 }
 
+
+
 void rtimvMainWindow::mtxL_postRecolor( const uniqueLockT &lock )
 {
-    assert( lock.owns_lock() );
+    postRecolorImpl(lock);
 
-    RTIMV_DEBUG_BREADCRUMB
-
-    if( !m_qpmi ) // This happens on first time through
-    {
-        RTIMV_DEBUG_BREADCRUMB
-
-        m_qpmi = m_qgs->addPixmap( m_qpm );
-
-        // So we need to initialize the viewport center, etc.
-        // center();
-        mtxL_setViewCen( .5, .5, lock );
-        post_zoomLevel();
-
-        // and update stats box
-        if( m_statsBox )
-        {
-            mtxTry_statsBoxMoved( m_statsBox );
-        }
-
-        RTIMV_DEBUG_BREADCRUMB
-    }
-    else
-    {
-        m_qpmi->setPixmap( m_qpm );
-        RTIMV_DEBUG_BREADCRUMB
-    }
-
-    RTIMV_DEBUG_BREADCRUMB
 }
 
 void rtimvMainWindow::mtxL_postRecolor( const sharedLockT &lock )
 {
-    assert( lock.owns_lock() );
-
-    RTIMV_DEBUG_BREADCRUMB
-
-    if( !m_qpmi ) // This happens on first time through
-    {
-        RTIMV_DEBUG_BREADCRUMB
-
-        m_qpmi = m_qgs->addPixmap( m_qpm );
-
-        // So we need to initialize the viewport center, etc.
-        // center();
-        mtxL_setViewCen( .5, .5, lock );
-        post_zoomLevel();
-
-        // and update stats box
-        if( m_statsBox )
-        {
-            mtxTry_statsBoxMoved( m_statsBox );
-        }
-
-        RTIMV_DEBUG_BREADCRUMB
-    }
-    else
-    {
-        m_qpmi->setPixmap( m_qpm );
-        RTIMV_DEBUG_BREADCRUMB
-    }
-
-    RTIMV_DEBUG_BREADCRUMB
+    postRecolorImpl(lock);
 }
 
 void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT &lock )

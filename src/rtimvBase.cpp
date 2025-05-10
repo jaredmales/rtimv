@@ -1073,7 +1073,6 @@ void rtimvBase::mtxL_recolor()
 
     RTIMV_DEBUG_BREADCRUMB
 
-    m_qpm.convertFromImage( *m_qim, Qt::AutoColor | Qt::ThresholdDither );
 }
 
 void rtimvBase::mtxL_recolor( const uniqueLockT &lock )
