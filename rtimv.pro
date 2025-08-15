@@ -12,7 +12,9 @@ CONFIG(release, debug|release) {
     CONFIG += optimize_full
 }
 
-CONFIG += c++17
+#CONFIG += c++17
+
+QMAKE_CXXFLAGS += -std=c++20
 
 CONFIG += -O3
 

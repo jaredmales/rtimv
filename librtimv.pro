@@ -1,6 +1,6 @@
 TEMPLATE = lib
 TARGET = rtimv
-DESTDIR = bin/ 
+DESTDIR = bin/
 DEPENDPATH += src/
 
 MOC_DIR = moc/
@@ -12,7 +12,9 @@ CONFIG(release, debug|release) {
     CONFIG += optimize_full
 }
 
-CONFIG += c++14
+#CONFIG += c++14
+
+QMAKE_CXXFLAGS += -std=c++20
 
 CONFIG += -O3
 
@@ -35,7 +37,7 @@ SOURCES += src/rtimvGraphicsView.cpp \
 
 
 #########################
-# installation 
+# installation
 #########################
 
 unix:target.path = /usr/local/lib
