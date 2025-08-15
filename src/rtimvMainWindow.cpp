@@ -1,7 +1,7 @@
 #include "rtimvMainWindow.hpp"
 
 
-rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::WindowFlags f ) : rtimvBase( Parent, f )
+rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::WindowFlags f ) : rtimvBase( Parent )
 {
     m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; // Tells mx::application to look for this env var.
 
@@ -691,17 +691,14 @@ void rtimvMainWindow::post_zoomLevel()
     RTIMV_DEBUG_BREADCRUMB
 }
 
-
-
 void rtimvMainWindow::mtxL_postRecolor( const uniqueLockT &lock )
 {
-    postRecolorImpl(lock);
-
+    mtxL_postRecolorImpl(lock);
 }
 
 void rtimvMainWindow::mtxL_postRecolor( const sharedLockT &lock )
 {
-    postRecolorImpl(lock);
+    mtxL_postRecolorImpl(lock);
 }
 
 void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT &lock )

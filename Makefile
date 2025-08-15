@@ -1,6 +1,6 @@
 
 #############################
-# The qt5 qmake 
+# The qt5 qmake
 #
 # On a system where qt5 qmake is the one in the path, then no
 # argument is needed.  If not, then invoke with, e.g., `make QMAKE=qmake-qt5`
@@ -26,11 +26,17 @@ makefile.librtimv: librtimv.pro
 makefile.rtimv: rtimv.pro
 	$(QMAKE) -makefile rtimv.pro
 
+makefile.rtimvServer: rtimvServer.pro
+	$(QMAKE) -makefile rtimvServer.pro
+
 librtimv: makefile.librtimv
 	$(MAKE) -f makefile.librtimv
 
 rtimv: makefile.rtimv
 	$(MAKE) -f makefile.rtimv
+
+rtimvServer: makefile.rtimvServer
+	$(MAKE) -f makefile.rtimvServer
 
 install: makefile.librtimv makefile.rtimv librtimv rtimv
 	$(MAKE) -f makefile.librtimv install
@@ -41,7 +47,9 @@ clean:
 	rm -f moc/moc_* res/qrc_* forms/ui_*
 	rm -f makefile.librtimv
 	rm -f makefile.rtimv
+	rm -f makefile.rtimvServer
 	rm -f bin/librtimv.so*
 	rm -f bin/rtimv
+	rm -f bin/rtimvServer
 
 .PHONY: all install clean librtimv rtimv

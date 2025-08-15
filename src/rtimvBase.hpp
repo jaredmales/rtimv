@@ -8,29 +8,47 @@
 #ifndef rtimv_rtimvBase_hpp
 #define rtimv_rtimvBase_hpp
 
-#include <cmath>
-#include <iostream>
 #include <vector>
 #include <mutex>
 #include <shared_mutex>
 
-#include <QImage>
-#include <QPixmap>
-#include <QTimer>
 #include <QWidget>
-#include <QSocketNotifier>
+#include <QImage>
 
 #include "rtimvImage.hpp"
-
-#include <cstdio>
-
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <sys/file.h>
-
 #include "colorMaps.hpp"
 
+/// The base class for rtimv functions
+/** Manages access to images based on specified format and protocol.  On each image update this
+ * colors the image according to the current configuration.
+ *
+ * Access to calibrated image data is protected by \ref m_calMutex, which is a protected member.
+ * Functions which depend on/require the mutex to be in a certain state are prefixed with
+ * - `mtxL_` if the mutex should be locked
+ * - `mtxUL_` if the mutex should be unlocked.
+ * Such functions often also take the mutex as an argument and verify that the mutex is in the correct state.
+ * Calling an `mtxL_` function with the mutex unlocked will result in concurrency bugs and crashes. Attempting to
+ * lock \ref m_calMutex from within a call to such a function will result in a deadlock.
+ * Note that a `mtxUL_` function likely locks the mutex, so calling it with the mutex locked may
+ * result in a deadlock.
+ *
+ * There is also \ref m_rawMutex which protects access to the raw image data.  This normally will not need to be
+ * used by derived classes.
+ *
+ * This class is pure virtual.  The following virtual functions must be implemented in derived classes:
+ * - \ref virtual void mtxL_postSetImsize( const uniqueLockT &lock )
+ * - \ref virtual void mtxL_postRecolor( const uniqueLockT &lock )
+ * - \ref virtual void mtxL_postRecolor( const sharedLockT &lock )
+ * - \ref virtual void mtxL_postChangeImdata( const sharedLockT &lock )
+ * - \ref virtual void post_zoomLevel()
+ * - \ref virtual void mtxL_postSetColorBoxActive( bool usba, const sharedLockT &lock )
+ *
+ * Additional optional virtual functions that may be implemented are:
+ * - \ref virtual void onConnect()
+ * - \ref virtual void updateFPS();
+ * - \ref virtual void updateAge();
+ * - \ref virtual void updateNC();
+ */
 class rtimvBase : public QWidget
 {
     Q_OBJECT
@@ -41,6 +59,11 @@ class rtimvBase : public QWidget
     typedef std::shared_lock<std::shared_mutex> sharedLockT;
 
   public:
+    /** @name Construction
+     *
+     * @{
+     */
+
     /// Basic c'tor.  Does not startup the images.
     /** startup should be called with the list of keys.
      */
@@ -49,11 +72,13 @@ class rtimvBase : public QWidget
     /// Image c'tor, starts up the images.
     /** startup should not be called.
      */
-    rtimvBase( const std::vector<std::string> &shkeys, ///< [in] The shmim keys used ot access the images.
+    rtimvBase( const std::vector<std::string> &shkeys, ///< [in] The shmim keys used to access the images.
                QWidget *Parent = nullptr,
                Qt::WindowFlags f = Qt::WindowFlags() );
 
-    /** @name Connection - Data
+    /// @}
+
+    /** @name Connection Data
      *
      * @{
      */
@@ -100,8 +125,7 @@ class rtimvBase : public QWidget
      */
     virtual void onConnect()
     {
-               m_connected = true;
-
+        m_connected = true;
     }
 
     /// Check if an image is currently valid.
@@ -114,7 +138,7 @@ class rtimvBase : public QWidget
 
     ///@}
 
-    /** @name Image Size - Data
+    /** @name Image Size Data
      *
      * @{
      */
@@ -134,7 +158,7 @@ class rtimvBase : public QWidget
      */
 
     /// Changes the image size, but only if necessary.
-    /** The reallocates m_calData and m_qim
+    /** This reallocates m_calData and m_qim
      *
      */
     void mtxL_setImsize( uint32_t x, ///< [in] the new x size
@@ -143,11 +167,19 @@ class rtimvBase : public QWidget
                          const uniqueLockT &lock );
 
     /// Called after set_imsize to handle allocations for derived classes
-    virtual void mtxL_postSetImsize( const uniqueLockT &lock ) = 0;
+    /**
+     *
+     * Called with m_calMutex in a unique lock.  Implementation should verify that the mutex is locked
+     * with, e.g.
+     * \code
+     * assert( lock.owns_lock() );
+     * \endcode
+     */
+    virtual void mtxL_postSetImsize( const uniqueLockT &lock /**<[in] a unique mutex lock which is locked*/ ) = 0;
 
     /// Get the number of x pixels
     /**
-     * \returns the current vvalue of m_nx
+     * \returns the current value of m_nx
      */
     uint32_t nx();
 
@@ -323,7 +355,7 @@ class rtimvBase : public QWidget
 
     /** \name Calibrated Pixel Access
      *
-     * Functions to manage which calibrations are applied and provide acccess to calibrated pixels.
+     * Functions to manage which calibrations are applied and provide access to calibrated pixels.
      *
      * Calibrations include dark subtraction, reference subtraction, flat field, mask, and low and high pass filtering.
      * Note: only dark subtraction and masking are currently implemented.
@@ -377,9 +409,19 @@ class rtimvBase : public QWidget
                                          size_t idx      ///< [in] the linear pixel number to access
     );
 
-    float calPixel( uint32_t x, uint32_t y );
+    /// Get the value of a calibrated pixel
+    /**
+     * \returns the value of the (x,y) pixel in \ref m_calData
+     */
+    float calPixel( uint32_t x, /**< [in] the x coordinate of the pixel */
+                    uint32_t y /**< [in] the y coordinate of the pixel */ );
 
-    uint8_t satPixel( uint32_t x, uint32_t y );
+    /// Get the value of a pixel in the saturation mask
+    /**
+     * \returns the value of the (x,y) pixel in \ref m_satData
+     */
+    uint8_t satPixel( uint32_t x, /**< [in] the x coordinate of the pixel */
+                      uint32_t y /**< [in] the y coordinate of the pixel */ );
 
     ///@}
 
@@ -538,25 +580,82 @@ class rtimvBase : public QWidget
     bool m_amChangingimdata{ false };
 
   public:
-
     /// Updates the QImage and basic statistics after a new image.
     /** \param newdata determines whether statistics are calculated (true) or not (false).
      */
     void mtxUL_changeImdata( bool newdata = false );
 
   private:
+    /// Color the image based on the current colormap configuration and stretch
+    /** This uses the specified color scale (linear, log, etc), and the
+     * specified stretch.  If all pixels are equal they are all set to 0.
+     * Sets NaN pixels to the \ref m_nanColor.
+     *
+     * Also sets any saturated pixels to \ref m_satColor.
+     *
+     */
     void mtxL_recolor();
 
   public:
+    /// Perform a recolor when \ref m_calMutex is in unique lock
+    /**
+     * Calls \ref mtxL_recolor()
+     *
+     */
     void mtxL_recolor( const uniqueLockT &lock );
 
+    /// Perform a recolor when \ref m_calMutex is in shared lock
+    /**
+     * Calls \ref mtxL_recolor()
+     *
+     */
     void mtxL_recolor( const sharedLockT &lock );
 
-    virtual void mtxL_postRecolor( const uniqueLockT &lock ) = 0; ///< to call after changing colors.
+    /// Interface for derived class to perform actions after recolor.
+    /** This is where the derived class updates the display.
+     *
+     * Called with m_calMutex in a unique lock.  Implementation should verify that the mutex is locked
+     * with, e.g.
+     * \code
+     * assert( lock.owns_lock() );
+     * \endcode
+     *
+     * Note that the two version of this differ only in the state of the mutex lock, which is necessary due to
+     * the different circumstances under which an image is recolored.  Derived classes
+     * will normally want to implement a single function using a template.
+     */
+    virtual void mtxL_postRecolor( const uniqueLockT &lock /**<[in] a unique mutex lock which is locked*/ ) = 0;
 
-    virtual void mtxL_postRecolor( const sharedLockT &lock ) = 0; ///< to call after changing colors.
+    /// Interface for derived class to perform actions after recolor.
+    /** This is where the derived class updates the display.
+     *
+     * Called with m_calMutex in a shared lock.  Implementation should verify that the mutex is locked
+     * with, e.g.
+     * \code
+     * assert( lock.owns_lock() );
+     * \endcode
+     *
+     * Note that the two version of this differ only in the state of the mutex lock, which is necessary due to
+     * the different circumstances under which an image is recolored.  Derived classes
+     * will normally want to implement a single function using a template.
+     *
+     * \overload
+     */
+    virtual void
+    mtxL_postRecolor( const sharedLockT &
+                          lock /**<[in] a shared mutex lock which is locked*/ ) = 0; ///< to call after changing colors.
 
-    virtual void mtxL_postChangeImdata( const sharedLockT &lock ) = 0; ///< to call after change imdata does its work.
+    /// Interface for derived classes to take any actions after the image data has changed
+    /**
+     * Called with m_calMutex in a shared lock.  Implementation should verify that the mutex is locked
+     * with, e.g.
+     * \code
+     * assert( lock.owns_lock() );
+     * \endcode
+     *
+     * \overload
+     */
+    virtual void mtxL_postChangeImdata( const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/ ) = 0;
 
   protected:
     float m_satLevel{ 1e30 };
@@ -639,9 +738,14 @@ class rtimvBase : public QWidget
         return colorBoxActive;
     }
 
-    void mtxL_setColorBoxActive( bool usba, const sharedLockT &lock );
+    /// Change whether the color box is active
+    void mtxL_setColorBoxActive( bool usba /**< [in] the new state of color box active */,
+                                 const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/ );
 
-    virtual void mtxL_postSetColorBoxActive( bool usba, const sharedLockT &lock ) = 0;
+    /// Take actions after the color box active state is changed
+    virtual void
+    mtxL_postSetColorBoxActive( bool usba /**< [in] the new state of color box active */,
+                                const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/ ) = 0;
 
     ///@}
 

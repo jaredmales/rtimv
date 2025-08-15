@@ -2,6 +2,7 @@
 #ifndef rtimvMainWindow_hpp
 #define rtimvMainWindow_hpp
 
+#include <cstdio>
 #include <unordered_set>
 
 #include <QWidget>
@@ -12,6 +13,7 @@
 #include <QPluginLoader>
 #include <QDir>
 #include <QMainWindow>
+#include <QPixmap>
 
 #include <mx/app/application.hpp>
 
@@ -30,7 +32,6 @@ using namespace mx::app;
 
 #include "rtimvStats.hpp"
 
-#include <cstdio>
 
 #define SCALEMODE_USER 3
 
@@ -74,14 +75,14 @@ class rtimvMainWindow : public rtimvBase, public application
   private:
     ///Generic implementation of postRecolor
     template<class lockT>
-    void postRecolorImpl(const lockT & lock /**<[in] a mutex lock which is locked*/);
+    void mtxL_postRecolorImpl(const lockT & lock /**<[in] a mutex lock which is locked*/);
 
   public:
     virtual void mtxL_postRecolor( const uniqueLockT &lock /**<[in] a unique mutex lock which is locked*/);
 
     virtual void mtxL_postRecolor( const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/);
 
-    virtual void mtxL_postChangeImdata( const sharedLockT &lock );
+    virtual void mtxL_postChangeImdata( const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/);
 
     virtual void updateFPS();
 
@@ -848,7 +849,7 @@ class rtimvMainWindow : public rtimvBase, public application
 };
 
 template<class lockT>
-void rtimvMainWindow::postRecolorImpl(const lockT & lock)
+void rtimvMainWindow::mtxL_postRecolorImpl(const lockT & lock)
 {
     RTIMV_DEBUG_BREADCRUMB
 

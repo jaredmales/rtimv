@@ -1,6 +1,6 @@
 #include "rtimvBase.hpp"
 
-#include <utility>
+#include <cmath>
 
 #ifdef RTIMV_MILK
     #include "images/shmimImage.hpp"
@@ -669,19 +669,28 @@ void rtimvBase::contrast_rel( float cr )
     maxdat( b + .5 * ( imdat_max - imdat_min ) / cr );
 }
 
+// Produce a value nominally between 0 and 1, though depending on the range it could be > 1.
+#define NORMALIZE_PIXVAL( pixval, mindat, maxdat)                  \
+    pixval = ( pixval - mindat ) / ( (float)( maxdat - mindat ) ); \
+    if( pixval < 0 )                                               \
+    {                                                              \
+        return 0;                                                  \
+    }
+
+// Clamp pixval to <= 1 and scale to the colorbar range
+#define SCALE_PIXVAL_RETURN(pixval, mincol, maxcol)     \
+    if( pixval > 1. )                                   \
+    {                                                   \
+        pixval = 1.;                                    \
+    }                                                   \
+                                                        \
+    return mincol + pixval * ( maxcol - mincol ) + 0.5;
+
 int calcPixIndex_linear( float pixval, float mindat, float maxdat, int mincol, int maxcol )
 {
-    // We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
-    pixval = ( pixval - mindat ) / ( (float)( maxdat - mindat ) );
-    if( pixval < 0 )
-        return 0;
+    NORMALIZE_PIXVAL(pixval, mindat, maxdat);
 
-    // Clamp it to <= 1
-    if( pixval > 1. )
-        pixval = 1.;
-
-    // And finally put it in the color bar index range
-    return pixval * ( maxcol - mincol ) + 0.5;
+    SCALE_PIXVAL_RETURN(pixval, mincol, maxcol);
 }
 
 int calcPixIndex_log( float pixval, float mindat, float maxdat, int mincol, int maxcol )
@@ -689,72 +698,40 @@ int calcPixIndex_log( float pixval, float mindat, float maxdat, int mincol, int 
     static float a = 1000;
     static float log10_a = log10( a );
 
-    // We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
-    pixval = ( pixval - mindat ) / ( (float)( maxdat - mindat ) );
-    if( pixval < 0 )
-        return 0;
+    NORMALIZE_PIXVAL(pixval, mindat, maxdat);
 
     pixval = log10( pixval * a + 1 ) / log10_a;
 
-    // Clamp it to <= 1
-    if( pixval > 1. )
-        pixval = 1.;
-
-    // And finally put it in the color bar index range
-    return pixval * ( maxcol - mincol ) + 0.5;
+    SCALE_PIXVAL_RETURN(pixval, mincol, maxcol);
 }
 
 int calcPixIndex_pow( float pixval, float mindat, float maxdat, int mincol, int maxcol )
 {
     static float a = 1000;
 
-    // We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
-    pixval = ( pixval - mindat ) / ( (float)( maxdat - mindat ) );
-    if( pixval < 0 )
-        return 0;
+    NORMALIZE_PIXVAL(pixval, mindat, maxdat);
 
     pixval = ( pow( a, pixval ) ) / a;
 
-    // Clamp it to <= 1
-    if( pixval > 1. )
-        pixval = 1.;
-
-    // And finally put it in the color bar index range
-    return pixval * ( maxcol - mincol ) + 0.5;
+    SCALE_PIXVAL_RETURN(pixval, mincol, maxcol);
 }
 
 int calcPixIndex_sqrt( float pixval, float mindat, float maxdat, int mincol, int maxcol )
 {
-    // We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
-    pixval = ( pixval - mindat ) / ( (float)( maxdat - mindat ) );
-    if( pixval < 0 )
-        return 0;
+    NORMALIZE_PIXVAL(pixval, mindat, maxdat);
 
     pixval = sqrt( pixval );
 
-    // Clamp it to <= 1
-    if( pixval > 1. )
-        pixval = 1.;
-
-    // And finally put it in the color bar index range
-    return pixval * ( maxcol - mincol ) + 0.5;
+    SCALE_PIXVAL_RETURN(pixval, mincol, maxcol);
 }
 
 int calcPixIndex_square( float pixval, float mindat, float maxdat, int mincol, int maxcol )
 {
-    // We first produce a value nominally between 0 and 1, though depending on the range it could be > 1.
-    pixval = ( pixval - mindat ) / ( (float)( maxdat - mindat ) );
-    if( pixval < 0 )
-        return 0;
+    NORMALIZE_PIXVAL(pixval, mindat, maxdat);
 
     pixval = pixval * pixval;
 
-    // Clamp it to <= 1
-    if( pixval > 1. )
-        pixval = 1.;
-
-    // And finally put it in the color bar index range
-    return pixval * ( maxcol - mincol ) + 0.5;
+    SCALE_PIXVAL_RETURN(pixval, mincol, maxcol);
 }
 
 void rtimvBase::mtxUL_changeImdata( bool newdata )
@@ -994,7 +971,7 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
 
 void rtimvBase::mtxL_recolor()
 {
-    /* Here is where we color the pixmap*/
+    /* Here is where we color the qImage*/
 
     // Get the color index calculating function
     int ( *_index )( float, float, float, int, int );

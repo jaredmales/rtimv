@@ -1,6 +1,6 @@
 TEMPLATE = lib
 TARGET = rtimv
-DESTDIR = bin/ 
+DESTDIR = bin/
 DEPENDPATH += src/
 
 MOC_DIR = moc/
@@ -35,7 +35,7 @@ SOURCES += src/rtimvGraphicsView.cpp \
 
 
 #########################
-# installation 
+# installation
 #########################
 
 unix:target.path = /usr/local/lib

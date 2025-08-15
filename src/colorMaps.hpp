@@ -1,6 +1,8 @@
 #ifndef colorMaps_hpp
 #define colorMaps_hpp
 
+#include <QImage>
+
 struct rtimvColorMap
 {
     std::string m_helpFontColor{ "#3DA5FF" };
@@ -346,10 +348,10 @@ inline int load_colorbar_jet( QImage *qim )
    qim->setColor(i++, qRgb(160,   0,   0 ));
    qim->setColor(i++, qRgb(144  ,   0,   0 ));
    qim->setColor(i, qRgb(128  ,   0,   0 ));
-   
+
    qim->setColor(i+1,   qRgb(    0,      0,  0 ));
    qim->setColor(i+2,   qRgb(    255,      0,  0 ));
-   
+
    return i;
 #endif
 }
