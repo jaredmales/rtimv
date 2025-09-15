@@ -12,9 +12,9 @@ CONFIG(release, debug|release) {
     CONFIG += optimize_full
 }
 
-CONFIG += c++17
+QMAKE_CXXFLAGS += -std=c++20
 
-CONFIG += -O3
+CONFIG += -O2
 
 QT += widgets
 QT += core
@@ -23,8 +23,10 @@ QT -= gui
 
 MAKEFILE = makefile.rtimvServer
 
+DEFINES += RTIMVBASE_QBASET_QOBJECT
 # Input
-HEADERS += src/rtimvBase.hpp \
+HEADERS += src/rtimvBaseObject.hpp \
+           src/rtimvBase.hpp \
            src/rtimvServer.hpp \
            src/rtimvImage.hpp \
            src/colorMaps.hpp \
@@ -35,7 +37,8 @@ HEADERS += src/rtimvBase.hpp \
            src/images/pixaccess.hpp \
            #src/images/ImageStruct.hpp
 
-SOURCES += src/rtimvBase.cpp \
+SOURCES += src/rtimvBaseObject.cpp \
+           src/rtimvBase.cpp \
            src/rtimvServer.cpp \
            src/rtimvServerMain.cpp \
            src/images/shmimImage.cpp \

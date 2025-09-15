@@ -12,21 +12,18 @@ using namespace mx::app;
 #define RTIMV_DEBUG_BREADCRUMB
 
 
-
-
-class rtimvServer : public rtimvBase, public application
+class rtimvServer : public QObject, public rtimvBase, public application
 {
     Q_OBJECT
 
   public:
-    rtimvServer( int argc, char **argv, QWidget *Parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags() );
+    rtimvServer( int argc, char **argv, QObject *Parent = nullptr );
 
     ~rtimvServer();
 
     virtual void setupConfig();
 
     virtual void loadConfig();
-
 
   public:
     /// Called on initial connection to the image stream, sets matching aspect ratio.

@@ -1,4 +1,5 @@
 #include "rtimvBase.hpp"
+#include "rtimvBaseObject.hpp"
 
 #include <cmath>
 
@@ -13,14 +14,15 @@
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
 
-rtimvBase::rtimvBase( QWidget *Parent, Qt::WindowFlags f ) : QWidget( Parent, f )
+rtimvBase::rtimvBase()
 {
+    m_foundation = new rtimvBaseObject( this, nullptr );
 }
 
-rtimvBase::rtimvBase( const std::vector<std::string> &shkeys, QWidget *Parent, Qt::WindowFlags f )
-    : QWidget( Parent, f )
+rtimvBase::rtimvBase( const std::vector<std::string> &shkeys )
 {
     startup( shkeys );
+    m_foundation = new rtimvBaseObject( this, nullptr );
 }
 
 void rtimvBase::startup( const std::vector<std::string> &shkeys )
@@ -39,16 +41,21 @@ void rtimvBase::startup( const std::vector<std::string> &shkeys )
                 {
                     if( shkeys[i].rfind( ".fit" ) == shkeys[i].size() - 4 ||
                         shkeys[i].rfind( ".FIT" ) == shkeys[i].size() - 4 )
+                    {
                         isFits = true;
+                    }
                 }
                 if( shkeys[i].size() > 5 && !isFits )
                 {
                     if( shkeys[i].rfind( ".fits" ) == shkeys[i].size() - 5 ||
                         shkeys[i].rfind( ".FITS" ) == shkeys[i].size() - 5 )
+                    {
                         isFits = true;
+                    }
                 }
 
                 bool isDirectory = false;
+
                 if( !isFits )
                 {
                     if( shkeys[i][shkeys[i].size() - 1] == '/' )
@@ -87,13 +94,15 @@ void rtimvBase::startup( const std::vector<std::string> &shkeys )
                 }
                 else
                 {
-#ifdef RTIMV_MILK
-                    // If we get here we try to interpret as an ImageStreamIO image
-                    shmimImage *si = new shmimImage( &m_rawMutex );
-                    m_images[i] = (rtimvImage *)si;
-#else
-                    qFatal( "Unrecognized image key format" );
-#endif
+                    // clang-format off
+                    #ifdef RTIMV_MILK
+                        // If we get here we try to interpret as an ImageStreamIO image
+                        shmimImage *si = new shmimImage( &m_rawMutex );
+                        m_images[i] = (rtimvImage *)si;
+                    #else
+                        qFatal( "Unrecognized image key format" );
+                    #endif
+                    //  clang-format on
                 }
 
                 m_images[i]->imageKey( shkeys[i] ); // Set the key
@@ -117,9 +126,7 @@ void rtimvBase::startup( const std::vector<std::string> &shkeys )
         m_applySatMask = true;
     }
 
-    connect( &m_imageTimer, SIGNAL( timeout() ), this, SLOT( updateImages() ) );
-    connect( &m_cubeTimer, SIGNAL( timeout() ), this, SLOT( updateCube() ) );
-    connect( &m_cubeFrameUpdateTimer, SIGNAL( timeout() ), this, SLOT( updateCubeFrame() ) );
+
 }
 
 bool rtimvBase::imageValid( size_t n )
@@ -158,7 +165,7 @@ void rtimvBase::mtxL_setImsize( uint32_t x, uint32_t y, uint32_t z, const unique
     }
 
     m_nz = z;
-    emit nzUpdated( m_nz );
+    m_foundation->emit_nzUpdated( m_nz );
 
     if( m_nx != x || m_ny != y || m_calData == 0 || m_qim == 0 )
     {
@@ -216,20 +223,20 @@ void rtimvBase::setCurrImageTimeout()
 
     if( m_desiredCubeFPS <= 0 || m_nz <= 1 )
     {
-        m_cubeTimer.stop();
+        m_foundation->m_cubeTimer.stop();
 
         if( m_nz <= 1 )
         {
-            m_cubeFrameUpdateTimer.stop();
+            m_foundation->m_cubeFrameUpdateTimer.stop();
         }
         else
         {
-            m_cubeFrameUpdateTimer.start( 250 );
+            m_foundation->m_cubeFrameUpdateTimer.start( 250 );
         }
 
         m_cubeFPS = 0;
 
-        emit cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
+        m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
 
         currImageTimeout = m_imageTimeout;
     }
@@ -268,16 +275,16 @@ void rtimvBase::setCurrImageTimeout()
 
         if( m_cubeMode )
         {
-            m_cubeTimer.start( cubeTimeout );
-            m_cubeFrameUpdateTimer.start( 250 );
+            m_foundation->m_cubeTimer.start( cubeTimeout );
+            m_foundation->m_cubeFrameUpdateTimer.start( 250 );
         }
         else
         {
             m_cubeFPS = 0;
-            m_cubeTimer.stop();
+            m_foundation->m_cubeTimer.stop();
         }
 
-        emit cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
+        m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
     }
 
     if( currImageTimeout == m_currImageTimeout ) // Don't interrupt if not needed
@@ -287,7 +294,7 @@ void rtimvBase::setCurrImageTimeout()
 
     m_currImageTimeout = currImageTimeout;
 
-    m_imageTimer.stop();
+    m_foundation->m_imageTimer.stop();
 
     for( size_t i = 0; i < m_images.size(); ++i )
     {
@@ -297,7 +304,7 @@ void rtimvBase::setCurrImageTimeout()
         }
     }
 
-    m_imageTimer.start( m_currImageTimeout );
+    m_foundation->m_imageTimer.start( m_currImageTimeout );
 }
 
 void rtimvBase::imageTimeout( int to )
@@ -313,7 +320,7 @@ void rtimvBase::cubeMode( bool cm )
 
     setCurrImageTimeout();
 
-    emit cubeModeUpdated( m_cubeMode );
+    m_foundation->emit_cubeModeUpdated( m_cubeMode );
 }
 
 void rtimvBase::cubeFPS( float fps )
@@ -325,20 +332,20 @@ void rtimvBase::cubeFPS( float fps )
     m_desiredCubeFPS = fps;
     setCurrImageTimeout();
 
-    emit cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
+    m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
 }
 
 void rtimvBase::cubeFPSMult( float mult )
 {
     m_cubeFPSMult = mult;
     setCurrImageTimeout();
-    emit cubeFPSMultUpdated( m_cubeFPSMult );
+    m_foundation->emit_cubeFPSMultUpdated( m_cubeFPSMult );
 }
 
 void rtimvBase::cubeDir( int dir )
 {
     m_cubeDir = dir;
-    emit cubeDirUpdated( m_cubeDir );
+    m_foundation->emit_cubeDirUpdated( m_cubeDir );
 }
 
 void rtimvBase::cubeFrame( uint32_t fno )
@@ -398,8 +405,6 @@ void rtimvBase::updateImages()
 
             onConnect();
         }
-
-
     }
 
     if( !m_connected )
@@ -436,7 +441,7 @@ void rtimvBase::updateCube()
 
 void rtimvBase::updateCubeFrame()
 {
-    emit cubeFrameUpdated( m_images[0]->imageNo() );
+    m_foundation->emit_cubeFrameUpdated( m_images[0]->imageNo() );
 }
 
 int rtimvBase::imageTimeout()
@@ -670,27 +675,27 @@ void rtimvBase::contrast_rel( float cr )
 }
 
 // Produce a value nominally between 0 and 1, though depending on the range it could be > 1.
-#define NORMALIZE_PIXVAL( pixval, mindat, maxdat)                  \
-    pixval = ( pixval - mindat ) / ( (float)( maxdat - mindat ) ); \
-    if( pixval < 0 )                                               \
-    {                                                              \
-        return 0;                                                  \
+#define NORMALIZE_PIXVAL( pixval, mindat, maxdat )                                                                     \
+    pixval = ( pixval - mindat ) / ( (float)( maxdat - mindat ) );                                                     \
+    if( pixval < 0 )                                                                                                   \
+    {                                                                                                                  \
+        return 0;                                                                                                      \
     }
 
 // Clamp pixval to <= 1 and scale to the colorbar range
-#define SCALE_PIXVAL_RETURN(pixval, mincol, maxcol)     \
-    if( pixval > 1. )                                   \
-    {                                                   \
-        pixval = 1.;                                    \
-    }                                                   \
-                                                        \
+#define SCALE_PIXVAL_RETURN( pixval, mincol, maxcol )                                                                  \
+    if( pixval > 1. )                                                                                                  \
+    {                                                                                                                  \
+        pixval = 1.;                                                                                                   \
+    }                                                                                                                  \
+                                                                                                                       \
     return mincol + pixval * ( maxcol - mincol ) + 0.5;
 
 int calcPixIndex_linear( float pixval, float mindat, float maxdat, int mincol, int maxcol )
 {
-    NORMALIZE_PIXVAL(pixval, mindat, maxdat);
+    NORMALIZE_PIXVAL( pixval, mindat, maxdat );
 
-    SCALE_PIXVAL_RETURN(pixval, mincol, maxcol);
+    SCALE_PIXVAL_RETURN( pixval, mincol, maxcol );
 }
 
 int calcPixIndex_log( float pixval, float mindat, float maxdat, int mincol, int maxcol )
@@ -698,40 +703,40 @@ int calcPixIndex_log( float pixval, float mindat, float maxdat, int mincol, int 
     static float a = 1000;
     static float log10_a = log10( a );
 
-    NORMALIZE_PIXVAL(pixval, mindat, maxdat);
+    NORMALIZE_PIXVAL( pixval, mindat, maxdat );
 
     pixval = log10( pixval * a + 1 ) / log10_a;
 
-    SCALE_PIXVAL_RETURN(pixval, mincol, maxcol);
+    SCALE_PIXVAL_RETURN( pixval, mincol, maxcol );
 }
 
 int calcPixIndex_pow( float pixval, float mindat, float maxdat, int mincol, int maxcol )
 {
     static float a = 1000;
 
-    NORMALIZE_PIXVAL(pixval, mindat, maxdat);
+    NORMALIZE_PIXVAL( pixval, mindat, maxdat );
 
     pixval = ( pow( a, pixval ) ) / a;
 
-    SCALE_PIXVAL_RETURN(pixval, mincol, maxcol);
+    SCALE_PIXVAL_RETURN( pixval, mincol, maxcol );
 }
 
 int calcPixIndex_sqrt( float pixval, float mindat, float maxdat, int mincol, int maxcol )
 {
-    NORMALIZE_PIXVAL(pixval, mindat, maxdat);
+    NORMALIZE_PIXVAL( pixval, mindat, maxdat );
 
     pixval = sqrt( pixval );
 
-    SCALE_PIXVAL_RETURN(pixval, mincol, maxcol);
+    SCALE_PIXVAL_RETURN( pixval, mincol, maxcol );
 }
 
 int calcPixIndex_square( float pixval, float mindat, float maxdat, int mincol, int maxcol )
 {
-    NORMALIZE_PIXVAL(pixval, mindat, maxdat);
+    NORMALIZE_PIXVAL( pixval, mindat, maxdat );
 
     pixval = pixval * pixval;
 
-    SCALE_PIXVAL_RETURN(pixval, mincol, maxcol);
+    SCALE_PIXVAL_RETURN( pixval, mincol, maxcol );
 }
 
 void rtimvBase::mtxUL_changeImdata( bool newdata )
@@ -1049,7 +1054,6 @@ void rtimvBase::mtxL_recolor()
     }
 
     RTIMV_DEBUG_BREADCRUMB
-
 }
 
 void rtimvBase::mtxL_recolor( const uniqueLockT &lock )
@@ -1246,11 +1250,11 @@ void rtimvBase::set_RealTimeStopped( int rts )
 
     if( RealTimeStopped )
     {
-        m_imageTimer.stop();
+        m_foundation->m_imageTimer.stop();
     }
     else
     {
-        m_imageTimer.start( m_imageTimeout );
+        m_foundation->m_imageTimer.start( m_imageTimeout );
     }
 }
 

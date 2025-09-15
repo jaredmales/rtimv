@@ -20,7 +20,9 @@
 using namespace mx::app;
 
 #include "ui_rtimvMainWindow.h"
+
 #include "rtimvBase.hpp"
+
 #include "rtimvControlPanel.hpp"
 #include "cubeCtrl.hpp"
 
@@ -48,7 +50,7 @@ class rtimvControlPanel;
 
 #define RTIMV_DEBUG_BREADCRUMB
 
-class rtimvMainWindow : public rtimvBase, public application
+class rtimvMainWindow : public QWidget, public rtimvBase, public application
 {
     Q_OBJECT
 

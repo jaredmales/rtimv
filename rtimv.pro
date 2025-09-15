@@ -12,9 +12,9 @@ CONFIG(release, debug|release) {
     CONFIG += optimize_full
 }
 
-CONFIG += c++17
+QMAKE_CXXFLAGS += -std=c++20
 
-CONFIG += -O3
+CONFIG += -O2
 
 QT += widgets
 
@@ -22,6 +22,7 @@ MAKEFILE = makefile.rtimv
 
 # Input
 HEADERS += src/rtimvGraphicsView.hpp \
+           src/rtimvBaseObject.hpp \
            src/rtimvBase.hpp \
            src/rtimvMainWindow.hpp \
            src/rtimvInterfaces.hpp \
@@ -37,7 +38,8 @@ HEADERS += src/rtimvGraphicsView.hpp \
            src/images/pixaccess.hpp \
            src/images/ImageStruct.hpp
 
-SOURCES += src/rtimvBase.cpp \
+SOURCES += src/rtimvBaseObject.cpp \
+           src/rtimvBase.cpp \
            src/rtimvMainWindow.cpp \
            src/rtimvMain.cpp \
            src/rtimvControlPanel.cpp \

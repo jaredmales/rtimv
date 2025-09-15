@@ -275,7 +275,13 @@ void fitsDirectory::imConnect()
     m_imageFound = 0;
     m_imageUpdated = false;
 
-    m_fileList = mx::ioutils::getFileNames( m_dirPath, "", "", ".fits" );
+    mx::error_t errc = mx::ioutils::getFileNames( m_fileList, m_dirPath, "", "", ".fits" );
+
+    if(errc != mx::error_t::noerror)
+    {
+        mx::error_report<mx::verbose::vvv>(errc);
+        return;
+    }
 
     if( m_fileList.size() == 0 )
     {

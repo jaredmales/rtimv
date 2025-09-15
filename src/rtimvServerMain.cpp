@@ -1,4 +1,4 @@
-#include <QApplication>
+#include <QCoreApplication>
 
 #include "rtimvServer.hpp"
 

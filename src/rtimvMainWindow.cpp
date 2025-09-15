@@ -1,8 +1,9 @@
 #include "rtimvMainWindow.hpp"
 
 
-rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::WindowFlags f ) : rtimvBase( Parent )
+rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::WindowFlags f ) : QWidget(Parent, f)
 {
+
     m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; // Tells mx::application to look for this env var.
 
     setup( argc, argv );
@@ -44,7 +45,7 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
     m_cenLineHorz = 0;
 
     imStats = 0;
-    m_imageTimer.start( m_imageTimeout );
+    m_foundation->m_imageTimer.start( m_imageTimeout );
 
     m_northArrow = m_qgs->addLine( QLineF( 512, 400, 512, 624 ), QColor( ui.graphicsView->gageFontColor() ) );
     m_northArrowTip = m_qgs->addLine( QLineF( 512, 400, 536, 424 ), QColor( ui.graphicsView->gageFontColor() ) );
@@ -818,24 +819,24 @@ void rtimvMainWindow::launchCubeCtrl()
                                    this,
                                    Qt::Dialog );
 
-        connect( this, SIGNAL( cubeModeUpdated( bool ) ), m_cubeCtrl, SLOT( cubeMode( bool ) ) );
-        connect( m_cubeCtrl, SIGNAL( cubeModeUpdated( bool ) ), this, SLOT( cubeMode( bool ) ) );
+        connect( m_foundation, SIGNAL( cubeModeUpdated( bool ) ), m_cubeCtrl, SLOT( cubeMode( bool ) ) );
+        connect( m_cubeCtrl, SIGNAL( cubeModeUpdated( bool ) ), m_foundation, SLOT( cubeMode( bool ) ) );
 
-        connect( this, SIGNAL( cubeFPSUpdated( float, float ) ), m_cubeCtrl, SLOT( cubeFPS( float, float ) ) );
-        connect( m_cubeCtrl, SIGNAL( cubeFPSUpdated( float ) ), this, SLOT( cubeFPS( float ) ) );
+        connect( m_foundation, SIGNAL( cubeFPSUpdated( float, float ) ), m_cubeCtrl, SLOT( cubeFPS( float, float ) ) );
+        connect( m_cubeCtrl, SIGNAL( cubeFPSUpdated( float ) ), m_foundation, SLOT( cubeFPS( float ) ) );
 
-        connect( this, SIGNAL( cubeFPSMultUpdated( float ) ), m_cubeCtrl, SLOT( cubeFPSMult( float ) ) );
-        connect( m_cubeCtrl, SIGNAL( cubeFPSMultUpdated( float ) ), this, SLOT( cubeFPSMult( float ) ) );
+        connect( m_foundation, SIGNAL( cubeFPSMultUpdated( float ) ), m_cubeCtrl, SLOT( cubeFPSMult( float ) ) );
+        connect( m_cubeCtrl, SIGNAL( cubeFPSMultUpdated( float ) ), m_foundation, SLOT( cubeFPSMult( float ) ) );
 
-        connect( this, SIGNAL( cubeDirUpdated( int ) ), m_cubeCtrl, SLOT( cubeDir( int ) ) );
-        connect( m_cubeCtrl, SIGNAL( cubeDirUpdated( int ) ), this, SLOT( cubeDir( int ) ) );
+        connect( m_foundation, SIGNAL( cubeDirUpdated( int ) ), m_cubeCtrl, SLOT( cubeDir( int ) ) );
+        connect( m_cubeCtrl, SIGNAL( cubeDirUpdated( int ) ), m_foundation, SLOT( cubeDir( int ) ) );
 
-        connect( this, SIGNAL( nzUpdated( uint32_t ) ), m_cubeCtrl, SLOT( cubeFrames( uint32_t ) ) );
+        connect( m_foundation, SIGNAL( nzUpdated( uint32_t ) ), m_cubeCtrl, SLOT( cubeFrames( uint32_t ) ) );
 
-        connect( this, SIGNAL( cubeFrameUpdated( uint32_t ) ), m_cubeCtrl, SLOT( cubeFrame( uint32_t ) ) );
-        connect( m_cubeCtrl, SIGNAL( cubeFrameUpdated( uint32_t ) ), this, SLOT( cubeFrame( uint32_t ) ) );
+        connect( m_foundation, SIGNAL( cubeFrameUpdated( uint32_t ) ), m_cubeCtrl, SLOT( cubeFrame( uint32_t ) ) );
+        connect( m_cubeCtrl, SIGNAL( cubeFrameUpdated( uint32_t ) ), m_foundation, SLOT( cubeFrame( uint32_t ) ) );
 
-        connect( m_cubeCtrl, SIGNAL( cubeFrameDeltaUpdated( int32_t ) ), this, SLOT( cubeFrameDelta( int32_t ) ) );
+        connect( m_cubeCtrl, SIGNAL( cubeFrameDeltaUpdated( int32_t ) ), m_foundation, SLOT( cubeFrameDelta( int32_t ) ) );
 
         connect( this, SIGNAL( autoScaleUpdated( bool ) ), m_cubeCtrl, SLOT( autoScale( bool ) ) );
         connect( m_cubeCtrl, SIGNAL( autoScaleUpdated( bool ) ), this, SLOT( autoScale( bool ) ) );

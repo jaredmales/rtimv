@@ -14,6 +14,7 @@
 
 #include "ui_imviewerStats.h"
 
+#define RTIMV_BASE_QWIDGET
 #include "rtimvBase.hpp"
 
 class rtimvStats;

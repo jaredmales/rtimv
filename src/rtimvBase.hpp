@@ -12,11 +12,12 @@
 #include <mutex>
 #include <shared_mutex>
 
-#include <QWidget>
 #include <QImage>
 
 #include "rtimvImage.hpp"
 #include "colorMaps.hpp"
+
+#include "rtimvBaseObject.hpp"
 
 /// The base class for rtimv functions
 /** Manages access to images based on specified format and protocol.  On each image update this
@@ -49,9 +50,10 @@
  * - \ref virtual void updateAge();
  * - \ref virtual void updateNC();
  */
-class rtimvBase : public QWidget
+class rtimvBase
 {
-    Q_OBJECT
+
+    friend class rtimvFoundation;
 
   public:
     typedef std::unique_lock<std::shared_mutex> uniqueLockT;
@@ -67,16 +69,17 @@ class rtimvBase : public QWidget
     /// Basic c'tor.  Does not startup the images.
     /** startup should be called with the list of keys.
      */
-    rtimvBase( QWidget *Parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags() );
+    rtimvBase( );
 
     /// Image c'tor, starts up the images.
     /** startup should not be called.
      */
-    rtimvBase( const std::vector<std::string> &shkeys, ///< [in] The shmim keys used to access the images.
-               QWidget *Parent = nullptr,
-               Qt::WindowFlags f = Qt::WindowFlags() );
+    rtimvBase( const std::vector<std::string> &shkeys ///< [in] The shmim keys used to access the images.
+                );
 
     /// @}
+
+    rtimvBaseObject *m_foundation{ nullptr };
 
     /** @name Connection Data
      *
@@ -195,11 +198,6 @@ class rtimvBase : public QWidget
      */
     uint32_t nz();
 
-  signals:
-
-    /// Update the number of images in the cube
-    void nzUpdated( uint32_t n /**< [in] the current number of images in the cube */ );
-
     /// @}
 
     /** @name Image Update - Data
@@ -208,12 +206,6 @@ class rtimvBase : public QWidget
      */
 
   protected:
-    QTimer m_imageTimer; ///< When this times out rtimvBase checks for a new image.
-
-    QTimer m_cubeTimer; ///< When this times out rtimvBase increments the cube frame number.
-
-    QTimer m_cubeFrameUpdateTimer; ///< When this times out the current frame number signal is sent.
-
     int m_imageTimeout{ 50 }; ///< The minimum timeout for checking for a new images, ms.
 
     bool m_cubeMode{ false }; ///< Whether or not cube mode is enabled.
@@ -237,8 +229,7 @@ class rtimvBase : public QWidget
      *
      * @{
      */
-  public slots:
-
+  public:
     /// Set the image display timeout.
     /** This sets the display frame rate, e.g. a timeout of 50 msec will
      * cause the display to update at 20 f.p.s. (the default setting).
@@ -249,7 +240,7 @@ class rtimvBase : public QWidget
 
     void cubeFPS( float fps /**< [in] */ );
 
-    void cubeFPSMult( float mult ) /**< [in] */;
+    void cubeFPSMult( float mult /**< [in] */ );
 
     void cubeDir( int dir /**< [in] */ );
 
@@ -272,24 +263,6 @@ class rtimvBase : public QWidget
      *  Emits cubeFrameUpdated(uint32_t)
      */
     void updateCubeFrame();
-
-  signals:
-
-    /// Update the cube mode
-    void cubeModeUpdated( bool mode /**< [in] the current cube mode (true is playing back, false is stopped */ );
-
-    /// Update the cube FPS
-    void cubeFPSUpdated( float fps, /**< [in] the current actual FPS*/
-                         float desiredFPS /**< [in] the desired FPS*/ );
-
-    /// Update the cube FPS multiplier
-    void cubeFPSMultUpdated( float fpsMult /**< [in] the current FPS multiplier*/ );
-
-    /// Update the cube direction
-    void cubeDirUpdated( int dir /**< [in] the current cube direction (+1 is forward, -1 is backward)*/ );
-
-    /// Update the cube frame number
-    void cubeFrameUpdated( uint32_t fno /**< [in] the current cube frame number*/ );
 
     ///@}
 

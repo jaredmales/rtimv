@@ -1,7 +1,7 @@
 #include "rtimvServer.hpp"
 
 
-rtimvServer::rtimvServer( int argc, char **argv, QWidget *Parent, Qt::WindowFlags f ) : rtimvBase( Parent, f )
+rtimvServer::rtimvServer( int argc, char **argv, QObject *Parent ) : QObject( Parent )
 {
     m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; // Tells mx::application to look for this env var.
 
@@ -13,7 +13,7 @@ rtimvServer::rtimvServer( int argc, char **argv, QWidget *Parent, Qt::WindowFlag
         exit( 0 );
     }
 
-    startServer();
+    //startServer();
 }
 
 rtimvServer::~rtimvServer()
