@@ -14,6 +14,8 @@
 
 #include <QImage>
 
+#include <mx/app/application.hpp>
+
 #include "rtimvImage.hpp"
 #include "colorMaps.hpp"
 
@@ -50,10 +52,8 @@
  * - \ref virtual void updateAge();
  * - \ref virtual void updateNC();
  */
-class rtimvBase
+class rtimvBase : public mx::app::application
 {
-
-    friend class rtimvFoundation;
 
   public:
     typedef std::unique_lock<std::shared_mutex> uniqueLockT;
@@ -78,6 +78,17 @@ class rtimvBase
                 );
 
     /// @}
+
+    /** @name Configuration
+     *
+     *  The mx::app::application interface for command line and config files.
+     * @{
+     */
+    virtual void setupConfig();
+
+    virtual void loadConfig();
+
+    ///@}
 
     rtimvBaseObject *m_foundation{ nullptr };
 

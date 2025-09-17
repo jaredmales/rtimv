@@ -27,6 +27,7 @@ DEFINES += RTIMVBASE_QBASET_QOBJECT
 # Input
 HEADERS += src/rtimvBaseObject.hpp \
            src/rtimvBase.hpp \
+           src/rtimvServerThread.hpp \
            src/rtimvServer.hpp \
            src/rtimvImage.hpp \
            src/colorMaps.hpp \
@@ -39,6 +40,7 @@ HEADERS += src/rtimvBaseObject.hpp \
 
 SOURCES += src/rtimvBaseObject.cpp \
            src/rtimvBase.cpp \
+           src/rtimvServerThread.cpp \
            src/rtimvServer.cpp \
            src/rtimvServerMain.cpp \
            src/images/shmimImage.cpp \

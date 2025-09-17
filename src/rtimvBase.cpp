@@ -25,6 +25,255 @@ rtimvBase::rtimvBase( const std::vector<std::string> &shkeys )
     m_foundation = new rtimvBaseObject( this, nullptr );
 }
 
+void rtimvBase::setupConfig()
+{
+    config.add( "image.key",
+                "",
+                "image.key",
+                mx::app::argType::Required,
+                "image",
+                "key",
+                false,
+                "string",
+                "The main image key. Specifies the protocol, location, and name of the main image." );
+
+    config.add( "dark.key",
+                "",
+                "dark.key",
+                mx::app::argType::Required,
+                "dark",
+                "key",
+                false,
+                "string",
+                "The dark image key. Specifies the protocol, location, and name of the dark image." );
+
+    config.add( "mask.key",
+                "",
+                "mask.key",
+                mx::app::argType::Required,
+                "mask",
+                "key",
+                false,
+                "string",
+                "The mask image key. Specifies the protocol, location, and name of the mask image." );
+
+    config.add( "satMask.key",
+                "",
+                "satMask.key",
+                mx::app::argType::Required,
+                "satMask",
+                "key",
+                false,
+                "string",
+                "The saturation mask image key. Specifies the protocol, location, "
+                "and name of the saturation mask image." );
+
+    config.add( "update.fps",
+                "",
+                "update.fps",
+                mx::app::argType::Required,
+                "update",
+                "fps",
+                false,
+                "real",
+                "Specify the image update timeout in FPS.  Overridden by update.timeout if set." );
+
+    config.add( "update.timeout",
+                "",
+                "update.timeout",
+                mx::app::argType::Required,
+                "update",
+                "timeout",
+                false,
+                "real",
+                "Specify the image update timeout in ms.  Default is 50 ms (20 FPS). Overrides update.fps." );
+
+    config.add( "update.cubeFPS",
+                "",
+                "update.cubeFPS",
+                mx::app::argType::Required,
+                "update",
+                "cubeFPS",
+                false,
+                "real",
+                "Specify the image cube update rate in FPS.  Default is 20 FPS." );
+
+    config.add( "autoscale",
+                "",
+                "autoscale",
+                mx::app::argType::True,
+                "",
+                "autoscale",
+                false,
+                "bool",
+                "Set to turn autoscaling on at startup" );
+
+    config.add( "darksub",
+                "",
+                "darksub",
+                mx::app::argType::True,
+                "",
+                "darksub",
+                false,
+                "bool",
+                "Set to false to turn off dark subtraction at startup. "
+                "If a dark is supplied, darksub is otherwise on." );
+
+    config.add( "satLevel",
+                "",
+                "satLevel",
+                mx::app::argType::Required,
+                "",
+                "satLevel",
+                false,
+                "float",
+                "The saturation level for this camera" );
+
+    config.add( "masksat",
+                "",
+                "masksat",
+                mx::app::argType::True,
+                "",
+                "masksat",
+                false,
+                "bool",
+                "Set to false to turn off sat-masking at startup. "
+                "If a satMaks is supplied, masksat is otherwise on." );
+
+    config.add( "mzmq.always",
+                "Z",
+                "mzmq.always",
+                mx::app::argType::True,
+                "mzmq",
+                "always",
+                false,
+                "bool",
+                "Set to make milkzmq the protocol for bare image names.  Note that local shmims can"
+                "not be used if this is set." );
+
+    config.add( "mzmq.server",
+                "s",
+                "mzmq.server",
+                mx::app::argType::Required,
+                "mzmq",
+                "server",
+                false,
+                "string",
+                "The default server for milkzmq.  The default default is localhost.  This will be overridden by an "
+                "image specific server specified in a key." );
+
+    config.add( "mzmq.port",
+                "p",
+                "mzmq.port",
+                mx::app::argType::Required,
+                "mzmq",
+                "port",
+                false,
+                "int",
+                "The default port for milkzmq.  The default default is 5556.  This will be overridden by an image "
+                "specific port specified in a key." );
+}
+
+void rtimvBase::loadConfig()
+{
+    std::string imKey;
+    std::string darkKey;
+
+    std::string flatKey;
+
+    std::string maskKey;
+
+    std::string satMaskKey;
+
+    std::vector<std::string> keys;
+
+    // Set up milkzmq
+    config( m_mzmqAlways, "mzmq.always" );
+    config( m_mzmqServer, "mzmq.server" );
+    config( m_mzmqPort, "mzmq.port" );
+
+    // Check for use of deprecated shmim_name keyword by itself, but use key if available
+    config( imKey, "image.key" );
+
+    config( darkKey, "dark.key" );
+
+    config( maskKey, "mask.key" );
+
+    config( satMaskKey, "satMask.key" );
+
+    // Populate the key vector, a "" means no image specified
+    keys.resize( 4 );
+
+    if( imKey != "" )
+        keys[0] = imKey;
+    if( darkKey != "" )
+        keys[1] = darkKey;
+    if( maskKey != "" )
+        keys[2] = maskKey;
+    if( satMaskKey != "" )
+        keys[3] = satMaskKey;
+
+    // The command line always overrides the config
+    if( config.nonOptions.size() > 0 )
+        keys[0] = config.nonOptions[0];
+    if( config.nonOptions.size() > 1 )
+        keys[1] = config.nonOptions[1];
+    if( config.nonOptions.size() > 2 )
+        keys[2] = config.nonOptions[2];
+    if( config.nonOptions.size() > 3 )
+        keys[3] = config.nonOptions[3];
+
+    startup( keys );
+
+    if( m_images[0] == nullptr )
+    {
+        if( doHelp )
+        {
+            help();
+
+            throw std::runtime_error("help");
+        }
+        else
+        {
+            throw std::runtime_error("rtimv: No valid image specified so cowardly refusing to start.  Use -h for help.");
+        }
+
+    }
+
+    // Now load remaining options, respecting coded defaults.
+
+    //get timeouts.
+    float fps = -999;
+    config( fps, "update.fps" );
+
+    if( fps > 0 ) //fps sets m_imageTimeout
+    {
+        m_imageTimeout = std::round( 1000. / fps );
+    }
+
+    //but update.timeout can override it
+    config( m_imageTimeout, "update.timeout" );
+    config( m_cubeFPS, "update.cubeFPS" );
+
+    //Now set the actual timeouts
+    cubeFPS(m_cubeFPS);
+
+    config( m_autoScale, "autoscale" );
+    config( m_subtractDark, "darksub" );
+
+    float satLevelDefault = m_satLevel;
+    config( m_satLevel, "satLevel" );
+
+    // If we set a sat level or mask, apply it
+    if( m_satLevel != satLevelDefault || satMaskKey != "" )
+    {
+        m_applySatMask = true;
+    }
+
+    // except turn it off if requested
+    config( m_applySatMask, "masksat" );
+}
+
 void rtimvBase::startup( const std::vector<std::string> &shkeys )
 {
     m_images.resize( 4, nullptr );

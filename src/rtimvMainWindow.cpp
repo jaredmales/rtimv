@@ -141,112 +141,23 @@ rtimvMainWindow::~rtimvMainWindow()
 
 void rtimvMainWindow::setupConfig()
 {
-    config.add( "image.key",
-                "",
-                "image.key",
-                argType::Required,
-                "image",
-                "key",
-                false,
-                "string",
-                "The main image key. Specifies the protocol, location, and name of the main image." );
 
-    config.add( "dark.key",
-                "",
-                "dark.key",
-                argType::Required,
-                "dark",
-                "key",
-                false,
-                "string",
-                "The dark image key. Specifies the protocol, location, and name of the dark image." );
-
-    config.add( "mask.key",
-                "",
-                "mask.key",
-                argType::Required,
-                "mask",
-                "key",
-                false,
-                "string",
-                "The mask image key. Specifies the protocol, location, and name of the mask image." );
-
-    config.add( "satMask.key",
-                "",
-                "satMask.key",
-                argType::Required,
-                "satMask",
-                "key",
-                false,
-                "string",
-                "The saturation mask image key. Specifies the protocol, location, "
-                "and name of the saturation mask image." );
-
-    config.add( "update.fps",
-                "",
-                "update.fps",
-                argType::Required,
-                "update",
-                "fps",
-                false,
-                "real",
-                "Specify the image update timeout in FPS.  Overridden by update.timeout if set." );
-
-    config.add( "update.timeout",
-                "",
-                "update.timeout",
-                argType::Required,
-                "update",
-                "timeout",
-                false,
-                "real",
-                "Specify the image update timeout in ms.  Default is 50 ms (20 FPS). Overrides update.fps." );
-
-    config.add( "update.cubeFPS",
-                "",
-                "update.cubeFPS",
-                argType::Required,
-                "update",
-                "cubeFPS",
-                false,
-                "real",
-                "Specify the image cube update rate in FPS.  Default is 20 FPS." );
-
-    config.add( "autoscale",
-                "",
-                "autoscale",
-                argType::True,
-                "",
-                "autoscale",
-                false,
-                "bool",
-                "Set to turn autoscaling on at startup" );
+    rtimvBase::setupConfig();
 
     config.add( "nofpsgage",
                 "",
                 "nofpsgage",
-                argType::True,
+                mx::app::argType::True,
                 "",
                 "nofpsgage",
                 false,
                 "bool",
                 "Set to turn the fps gage off at startup" );
 
-    config.add( "darksub",
-                "",
-                "darksub",
-                argType::True,
-                "",
-                "darksub",
-                false,
-                "bool",
-                "Set to false to turn off dark subtraction at startup. "
-                "If a dark is supplied, darksub is otherwise on." );
-
     config.add( "targetXc",
                 "",
                 "targetXc",
-                argType::Required,
+                mx::app::argType::Required,
                 "",
                 "targetXc",
                 false,
@@ -256,38 +167,18 @@ void rtimvMainWindow::setupConfig()
     config.add( "targetYc",
                 "",
                 "targetYc",
-                argType::Required,
+                mx::app::argType::Required,
                 "",
                 "targetYc",
                 false,
                 "float",
                 "The fractional y-coordinate of the target, 0<= y <=1" );
 
-    config.add( "satLevel",
-                "",
-                "satLevel",
-                argType::Required,
-                "",
-                "satLevel",
-                false,
-                "float",
-                "The saturation level for this camera" );
-
-    config.add( "masksat",
-                "",
-                "masksat",
-                argType::True,
-                "",
-                "masksat",
-                false,
-                "bool",
-                "Set to false to turn off sat-masking at startup. "
-                "If a satMaks is supplied, masksat is otherwise on." );
 
     config.add( "mouse.pointerCoords",
                 "",
                 "mouse.pointerCoords",
-                argType::Required,
+                mx::app::argType::Required,
                 "mouse",
                 "pointerCoords",
                 false,
@@ -297,50 +188,17 @@ void rtimvMainWindow::setupConfig()
     config.add( "mouse.staticCoords",
                 "",
                 "mouse.staticCoords",
-                argType::Required,
+                mx::app::argType::Required,
                 "mouse",
                 "staticCoords",
                 false,
                 "bool",
                 "Show or don't show the static coordinates at bottom of display.  Default is false." );
 
-    config.add( "mzmq.always",
-                "Z",
-                "mzmq.always",
-                argType::True,
-                "mzmq",
-                "always",
-                false,
-                "bool",
-                "Set to make milkzmq the protocol for bare image names.  Note that local shmims can"
-                "not be used if this is set." );
-
-    config.add( "mzmq.server",
-                "s",
-                "mzmq.server",
-                argType::Required,
-                "mzmq",
-                "server",
-                false,
-                "string",
-                "The default server for milkzmq.  The default default is localhost.  This will be overridden by an "
-                "image specific server specified in a key." );
-
-    config.add( "mzmq.port",
-                "p",
-                "mzmq.port",
-                argType::Required,
-                "mzmq",
-                "port",
-                false,
-                "int",
-                "The default port for milkzmq.  The default default is 5556.  This will be overridden by an image "
-                "specific port specified in a key." );
-
     config.add( "north.enabled",
                 "",
                 "north.enabled",
-                argType::Required,
+                mx::app::argType::Required,
                 "north",
                 "enabled",
                 false,
@@ -350,7 +208,7 @@ void rtimvMainWindow::setupConfig()
     config.add( "north.offset",
                 "",
                 "north.offset",
-                argType::Required,
+                mx::app::argType::Required,
                 "north",
                 "offset",
                 false,
@@ -360,7 +218,7 @@ void rtimvMainWindow::setupConfig()
     config.add( "north.scale",
                 "",
                 "north.scale",
-                argType::Required,
+                mx::app::argType::Required,
                 "north",
                 "scale",
                 false,
@@ -370,7 +228,7 @@ void rtimvMainWindow::setupConfig()
     config.add( "tools.lineWidth",
                 "",
                 "tools.lineWidth",
-                argType::Required,
+                mx::app::argType::Required,
                 "tools",
                 "lineWidth",
                 false,
@@ -380,7 +238,7 @@ void rtimvMainWindow::setupConfig()
     config.add( "tools.edgeTol",
                 "",
                 "tools.edgeTol",
-                argType::Required,
+                mx::app::argType::Required,
                 "tools",
                 "edgeTol",
                 false,
@@ -391,7 +249,7 @@ void rtimvMainWindow::setupConfig()
     config.add( "tools.lineHeadRad",
                 "",
                 "tools.lineHeadRad",
-                argType::Required,
+                mx::app::argType::Required,
                 "tools",
                 "lineHeadRad",
                 false,
@@ -401,7 +259,7 @@ void rtimvMainWindow::setupConfig()
     config.add( "tools.crossWidthFract",
                 "",
                 "tools.crossWidthFract",
-                argType::Required,
+                mx::app::argType::Required,
                 "tools",
                 "crossWidthFract",
                 false,
@@ -412,7 +270,7 @@ void rtimvMainWindow::setupConfig()
     config.add( "tools.crossWidthMin",
                 "",
                 "tools.crossWidthMin",
-                argType::Required,
+                mx::app::argType::Required,
                 "tools",
                 "crossWidthMin",
                 false,
@@ -422,7 +280,7 @@ void rtimvMainWindow::setupConfig()
     config.add( "tools.warningBorderWidth",
                 "",
                 "tools.warningBorderWidth",
-                argType::Required,
+                mx::app::argType::Required,
                 "tools",
                 "warningBorderWidth",
                 false,
@@ -432,93 +290,15 @@ void rtimvMainWindow::setupConfig()
 
 void rtimvMainWindow::loadConfig()
 {
-    std::string imKey;
-    std::string darkKey;
 
-    std::string flatKey;
+    rtimvBase::loadConfig();
 
-    std::string maskKey;
-
-    std::string satMaskKey;
-
-    std::vector<std::string> keys;
-
-    // Set up milkzmq
-    config( m_mzmqAlways, "mzmq.always" );
-    config( m_mzmqServer, "mzmq.server" );
-    config( m_mzmqPort, "mzmq.port" );
-
-    // Check for use of deprecated shmim_name keyword by itself, but use key if available
-    config( imKey, "image.key" );
-
-    config( darkKey, "dark.key" );
-
-    config( maskKey, "mask.key" );
-
-    config( satMaskKey, "satMask.key" );
-
-    // Populate the key vector, a "" means no image specified
-    keys.resize( 4 );
-
-    if( imKey != "" )
-        keys[0] = imKey;
-    if( darkKey != "" )
-        keys[1] = darkKey;
-    if( maskKey != "" )
-        keys[2] = maskKey;
-    if( satMaskKey != "" )
-        keys[3] = satMaskKey;
-
-    // The command line always overrides the config
-    if( config.nonOptions.size() > 0 )
-        keys[0] = config.nonOptions[0];
-    if( config.nonOptions.size() > 1 )
-        keys[1] = config.nonOptions[1];
-    if( config.nonOptions.size() > 2 )
-        keys[2] = config.nonOptions[2];
-    if( config.nonOptions.size() > 3 )
-        keys[3] = config.nonOptions[3];
-
-    startup( keys );
-
-    if( m_images[0] == nullptr )
-    {
-        if( doHelp )
-        {
-            help();
-        }
-        else
-        {
-            std::cerr << "rtimv: No valid image specified so cowardly refusing to start.  Use -h for help.\n";
-        }
-
-        exit( 0 );
-    }
-    else
+    if( m_images[0] != nullptr )
     {
         m_title = m_images[0]->imageName();
     }
 
     // Now load remaining options, respecting coded defaults.
-
-    //get timeouts.
-    float fps = -999;
-    config( fps, "update.fps" );
-
-    if( fps > 0 ) //fps sets m_imageTimeout
-    {
-        m_imageTimeout = std::round( 1000. / fps );
-    }
-
-    //but update.timeout can override it
-    config( m_imageTimeout, "update.timeout" );
-    config( m_cubeFPS, "update.cubeFPS" );
-
-    //Now set the actual timeouts
-    cubeFPS(m_cubeFPS);
-
-    config( m_autoScale, "autoscale" );
-    config( m_subtractDark, "darksub" );
 
     bool nofpsgage = !m_showFPSGage;
     config( nofpsgage, "nofpsgage" );
@@ -526,18 +306,6 @@ void rtimvMainWindow::loadConfig()
 
     config( m_targetXc, "targetXc" );
     config( m_targetYc, "targetYc" );
-
-    float satLevelDefault = m_satLevel;
-    config( m_satLevel, "satLevel" );
-
-    // If we set a sat level or mask, apply it
-    if( m_satLevel != satLevelDefault || satMaskKey != "" )
-    {
-        m_applySatMask = true;
-    }
-
-    // except turn it off if requested
-    config( m_applySatMask, "masksat" );
 
     config( m_showToolTipCoords, "mouse.pointerCoords" );
     config( m_showStaticCoords, "mouse.staticCoords" );
@@ -688,6 +456,47 @@ void rtimvMainWindow::post_zoomLevel()
     RTIMV_DEBUG_BREADCRUMB
 
     mtxTry_fontLuminance( ui.graphicsView->zoomText() );
+
+    RTIMV_DEBUG_BREADCRUMB
+}
+
+template<class lockT>
+void rtimvMainWindow::mtxL_postRecolorImpl(const lockT & lock)
+{
+    RTIMV_DEBUG_BREADCRUMB
+
+    assert( lock.owns_lock() );
+
+    RTIMV_DEBUG_BREADCRUMB
+
+    m_qpm.convertFromImage( *m_qim, Qt::AutoColor | Qt::ThresholdDither );
+
+    RTIMV_DEBUG_BREADCRUMB
+
+    if( !m_qpmi ) // This happens on first time through
+    {
+        RTIMV_DEBUG_BREADCRUMB
+
+        m_qpmi = m_qgs->addPixmap( m_qpm );
+
+        // So we need to initialize the viewport center, etc.
+        // center();
+        mtxL_setViewCen( .5, .5, lock );
+        post_zoomLevel();
+
+        // and update stats box
+        if( m_statsBox )
+        {
+            mtxTry_statsBoxMoved( m_statsBox );
+        }
+
+        RTIMV_DEBUG_BREADCRUMB
+    }
+    else
+    {
+        m_qpmi->setPixmap( m_qpm );
+        RTIMV_DEBUG_BREADCRUMB
+    }
 
     RTIMV_DEBUG_BREADCRUMB
 }

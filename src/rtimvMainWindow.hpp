@@ -15,9 +15,6 @@
 #include <QMainWindow>
 #include <QPixmap>
 
-#include <mx/app/application.hpp>
-
-using namespace mx::app;
 
 #include "ui_rtimvMainWindow.h"
 
@@ -50,7 +47,7 @@ class rtimvControlPanel;
 
 #define RTIMV_DEBUG_BREADCRUMB
 
-class rtimvMainWindow : public QWidget, public rtimvBase, public application
+class rtimvMainWindow : public QWidget, public rtimvBase
 {
     Q_OBJECT
 
@@ -850,45 +847,6 @@ class rtimvMainWindow : public QWidget, public rtimvBase, public application
     );
 };
 
-template<class lockT>
-void rtimvMainWindow::mtxL_postRecolorImpl(const lockT & lock)
-{
-    RTIMV_DEBUG_BREADCRUMB
 
-    assert( lock.owns_lock() );
-
-    RTIMV_DEBUG_BREADCRUMB
-
-    m_qpm.convertFromImage( *m_qim, Qt::AutoColor | Qt::ThresholdDither );
-
-    RTIMV_DEBUG_BREADCRUMB
-
-    if( !m_qpmi ) // This happens on first time through
-    {
-        RTIMV_DEBUG_BREADCRUMB
-
-        m_qpmi = m_qgs->addPixmap( m_qpm );
-
-        // So we need to initialize the viewport center, etc.
-        // center();
-        mtxL_setViewCen( .5, .5, lock );
-        post_zoomLevel();
-
-        // and update stats box
-        if( m_statsBox )
-        {
-            mtxTry_statsBoxMoved( m_statsBox );
-        }
-
-        RTIMV_DEBUG_BREADCRUMB
-    }
-    else
-    {
-        m_qpmi->setPixmap( m_qpm );
-        RTIMV_DEBUG_BREADCRUMB
-    }
-
-    RTIMV_DEBUG_BREADCRUMB
-}
 
 #endif // rtimvMainWindow_hpp
