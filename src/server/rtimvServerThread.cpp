@@ -1,21 +1,11 @@
 #include "rtimvServerThread.hpp"
 
-rtimvServerThread::rtimvServerThread( int sockDescrip, const std::string &configFile, QObject *parent )
+rtimvServerThread::rtimvServerThread( const std::string &configFile, QObject *parent )
     : QThread( parent )
 {
     std::cerr << "thread: " << configFile << "\n";
 
-    m_tcpSocket = new QTcpSocket;
-
-    if( !m_tcpSocket->setSocketDescriptor(sockDescrip ) )
-    {
-        std::cerr << "socket error\n";
-        emit error( m_tcpSocket->error() );
-        return;
-    }
-
     m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; // Tells mx::application to look for this env var.
-
 
     std::vector<std::string> argvstr( { "rst", "-c", configFile } );
     std::vector<const char *> argv( argvstr.size() + 1, NULL );
@@ -47,8 +37,6 @@ void rtimvServerThread::run()
 
     std::cerr << "execed: " << rv << '\n';
 
-    m_tcpSocket->disconnectFromHost();
-    m_tcpSocket->waitForDisconnected();
 }
 
 void rtimvServerThread::onConnect()
@@ -82,6 +70,7 @@ void rtimvServerThread::mtxL_postRecolorImpl( const lockT &lock )
 
     m_qim->save("render.jpeg", nullptr, 75);
 
+    emit rendered();
     // Do the jpeg here!
 
     RTIMV_DEBUG_BREADCRUMB

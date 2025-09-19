@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>imviewerControlPanel</class>
- <widget class="QWidget" name="imviewerControlPanel">
+ <class>rtimvControlPanel</class>
+ <widget class="QWidget" name="rtimvControlPanel">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>imviewer control panel</string>
+   <string>rtimv control panel</string>
   </property>
   <widget class="QTabWidget" name="tabWidget">
    <property name="geometry">
@@ -407,7 +407,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="../res/imviewer.qrc">
+      <iconset resource="../res/rtimv.qrc">
        <normaloff>:/icons/arrow_left_128.png</normaloff>:/icons/arrow_left_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -479,7 +479,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="../res/imviewer.qrc">
+      <iconset resource="../res/rtimv.qrc">
        <normaloff>:/icons/arrow_up_right_128.png</normaloff>:/icons/arrow_up_right_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -502,7 +502,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="../res/imviewer.qrc">
+      <iconset resource="../res/rtimv.qrc">
        <normaloff>:/icons/arrow_down_right_128.png</normaloff>:/icons/arrow_down_right_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -591,7 +591,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="../res/imviewer.qrc">
+      <iconset resource="../res/rtimv.qrc">
        <normaloff>:/icons/square_128.png</normaloff>:/icons/square_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -676,7 +676,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="../res/imviewer.qrc">
+      <iconset resource="../res/rtimv.qrc">
        <normaloff>:/icons/arrow_right_128.png</normaloff>:/icons/arrow_right_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -705,7 +705,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="../res/imviewer.qrc">
+      <iconset resource="../res/rtimv.qrc">
        <normaloff>:/icons/arrow_down_128.png</normaloff>:/icons/arrow_down_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -868,7 +868,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="../res/imviewer.qrc">
+      <iconset resource="../res/rtimv.qrc">
        <normaloff>:/icons/arrow_up_left_128.png</normaloff>:/icons/arrow_up_left_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -998,7 +998,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="../res/imviewer.qrc">
+      <iconset resource="../res/rtimv.qrc">
        <normaloff>:/icons/arrow_down_left_128.png</normaloff>:/icons/arrow_down_left_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -1067,7 +1067,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset resource="../res/imviewer.qrc">
+      <iconset resource="../res/rtimv.qrc">
        <normaloff>:/icons/arrow_up_128.png</normaloff>:/icons/arrow_up_128.png</iconset>
      </property>
      <property name="iconSize">
@@ -2004,7 +2004,7 @@
   <tabstop>imtimerspinBox</tabstop>
  </tabstops>
  <resources>
-  <include location="../res/imviewer.qrc"/>
+  <include location="../res/rtimv.qrc"/>
  </resources>
  <connections/>
 </ui>

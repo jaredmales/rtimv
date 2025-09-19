@@ -36,7 +36,7 @@ HEADERS += src/rtimvBaseObject.hpp \
            src/images/fitsDirectory.hpp \
            src/images/mzmqImage.hpp \
            src/images/pixaccess.hpp \
-           #src/images/ImageStruct.hpp
+           src/proto/rtimv.grpc.pb.h
 
 SOURCES += src/rtimvBaseObject.cpp \
            src/rtimvBase.cpp \
@@ -46,7 +46,9 @@ SOURCES += src/rtimvBaseObject.cpp \
            src/images/shmimImage.cpp \
            src/images/fitsImage.cpp \
            src/images/fitsDirectory.cpp \
-           src/images/mzmqImage.cpp
+           src/images/mzmqImage.cpp \
+           src/proto/rtimv.grpc.pb.cc \
+           src/proto/rtimv.pb.cc
 
 unix:!macx {
     $$system(which milk, blob, which_milk_exit_code)
@@ -58,6 +60,7 @@ unix:!macx {
 
 #MILK include path
 unix::INCLUDEPATH += /usr/local/milk/include
+unix::INCLUDEPATH += /usr/include
 unix::LIBPATH += /usr/local/milk/lib/
 
 
@@ -78,6 +81,9 @@ packagesExist(libzmq) {
 LIBS += -lmxlib
 LIBS += -lxrif
 LIBS += -L./bin -lrtimv
+
+#grpc
+LIBS += -lgrpc++ -lgpr -labsl_synchronization -lprotobuf -lgrpc++_reflection
 
 RESOURCES += res/imviewer.qrc
 

@@ -12,7 +12,7 @@
 
 #include <mx/improc/eigenImage.hpp>
 
-#include "ui_imviewerStats.h"
+#include "ui_rtimvStats.h"
 
 #define RTIMV_BASE_QWIDGET
 #include "rtimvBase.hpp"

@@ -5,7 +5,6 @@
 #include "rtimvBase.hpp"
 
 #include <QThread>
-#include <QTcpSocket>
 #include <mx/app/application.hpp>
 
 using namespace mx::app;
@@ -19,17 +18,16 @@ class rtimvServerThread : public QThread, public rtimvBase
 
   protected:
 
-    QTcpSocket * m_tcpSocket {nullptr};
 
   public:
-    rtimvServerThread( int sockDescrip, const std::string & configFile, QObject *parent = nullptr );
+    rtimvServerThread( const std::string & configFile, QObject *parent = nullptr );
 
     ~rtimvServerThread();
 
     void run() override;
 
 signals:
-    void error(QTcpSocket::SocketError socketError);
+    void rendered();
 
   public:
     /// Called on initial connection to the image stream, sets matching aspect ratio.

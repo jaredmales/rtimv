@@ -1,0 +1,21 @@
+syntax="proto3";
+
+package remote_rtimv;
+
+service rtimv
+{
+    rpc Configure(Config) returns (ConfigResult);
+}
+
+message Config
+{
+    string file = 1;
+}
+
+message ConfigResult
+{
+    int32 result = 1;
+}
+
+
+

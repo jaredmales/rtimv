@@ -194,7 +194,7 @@
             <string/>
            </property>
            <property name="icon">
-            <iconset resource="../res/imviewer.qrc">
+            <iconset resource="../res/rtimv.qrc">
              <normaloff>:/icons/step-backward-2.svg</normaloff>
              <disabledoff>:/icons/step-backward-2.svg</disabledoff>:/icons/step-backward-2.svg</iconset>
            </property>
@@ -218,7 +218,7 @@
             <string/>
            </property>
            <property name="icon">
-            <iconset resource="../res/imviewer.qrc">
+            <iconset resource="../res/rtimv.qrc">
              <normaloff>:/icons/step-backward.svg</normaloff>
              <disabledoff>:/icons/step-backward.svg</disabledoff>:/icons/step-backward.svg</iconset>
            </property>
@@ -242,7 +242,7 @@
             <string/>
            </property>
            <property name="icon">
-            <iconset resource="../res/imviewer.qrc">
+            <iconset resource="../res/rtimv.qrc">
              <normaloff>:/icons/play-reverse-48.png</normaloff>
              <disabledoff>:/icons/play-reverse-48.png</disabledoff>:/icons/play-reverse-48.png</iconset>
            </property>
@@ -266,7 +266,7 @@
             <string/>
            </property>
            <property name="icon">
-            <iconset resource="../res/imviewer.qrc">
+            <iconset resource="../res/rtimv.qrc">
              <normaloff>:/icons/stop.svg</normaloff>
              <disabledoff>:/icons/stop.svg</disabledoff>:/icons/stop.svg</iconset>
            </property>
@@ -290,7 +290,7 @@
             <string/>
            </property>
            <property name="icon">
-            <iconset resource="../res/imviewer.qrc">
+            <iconset resource="../res/rtimv.qrc">
              <normaloff>:/icons/play.svg</normaloff>
              <disabledoff>:/icons/play.svg</disabledoff>:/icons/play.svg</iconset>
            </property>
@@ -314,7 +314,7 @@
             <string/>
            </property>
            <property name="icon">
-            <iconset resource="../res/imviewer.qrc">
+            <iconset resource="../res/rtimv.qrc">
              <normaloff>:/icons/step-forward.svg</normaloff>
              <disabledoff>:/icons/step-forward.svg</disabledoff>:/icons/step-forward.svg</iconset>
            </property>
@@ -338,7 +338,7 @@
             <string/>
            </property>
            <property name="icon">
-            <iconset resource="../res/imviewer.qrc">
+            <iconset resource="../res/rtimv.qrc">
              <normaloff>:/icons/step-forward-2.svg</normaloff>
              <disabledoff>:/icons/step-forward-2.svg</disabledoff>:/icons/step-forward-2.svg</iconset>
            </property>
@@ -469,7 +469,7 @@
             <string/>
            </property>
            <property name="icon">
-            <iconset resource="../res/imviewer.qrc">
+            <iconset resource="../res/rtimv.qrc">
              <normaloff>:/icons/skip-backward.svg</normaloff>:/icons/skip-backward.svg</iconset>
            </property>
            <property name="iconSize">
@@ -495,7 +495,7 @@
             <string/>
            </property>
            <property name="icon">
-            <iconset resource="../res/imviewer.qrc">
+            <iconset resource="../res/rtimv.qrc">
              <normaloff>:/icons/skip-previous.svg</normaloff>:/icons/skip-previous.svg</iconset>
            </property>
            <property name="iconSize">
@@ -518,7 +518,7 @@
             <string/>
            </property>
            <property name="icon">
-            <iconset resource="../res/imviewer.qrc">
+            <iconset resource="../res/rtimv.qrc">
              <normaloff>:/icons/skip-next.svg</normaloff>:/icons/skip-next.svg</iconset>
            </property>
            <property name="iconSize">
@@ -541,7 +541,7 @@
             <string/>
            </property>
            <property name="icon">
-            <iconset resource="../res/imviewer.qrc">
+            <iconset resource="../res/rtimv.qrc">
              <normaloff>:/icons/skip-forward.svg</normaloff>:/icons/skip-forward.svg</iconset>
            </property>
            <property name="iconSize">
@@ -578,7 +578,7 @@
             <string/>
            </property>
            <property name="icon">
-            <iconset resource="../res/imviewer.qrc">
+            <iconset resource="../res/rtimv.qrc">
              <normaloff>:/icons/refresh.svg</normaloff>:/icons/refresh.svg</iconset>
            </property>
            <property name="iconSize">
@@ -647,7 +647,7 @@
   </layout>
  </widget>
  <resources>
-  <include location="../res/imviewer.qrc"/>
+  <include location="../res/rtimv.qrc"/>
  </resources>
  <connections/>
 </ui>

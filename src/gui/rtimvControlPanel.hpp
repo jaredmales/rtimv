@@ -2,7 +2,7 @@
 #ifndef __imviewercontrolpanel_h__
 #define __imviewercontrolpanel_h__
 
-#include "ui_imviewerControlPanel.h"
+#include "ui_rtimvControlPanel.h"
 #include "rtimvMainWindow.hpp"
 #include "StretchBox.hpp"
 
@@ -175,7 +175,7 @@ class rtimvControlPanel : public QWidget
     void hideStatsBox();
 
   public:
-    Ui::imviewerControlPanel ui;
+    Ui::rtimvControlPanel ui;
 
     /*--------- Mouse coordinates display ---------------*/
   public slots:

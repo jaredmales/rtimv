@@ -24,7 +24,7 @@
    <string>imviewer</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="../res/imviewer.qrc">
+   <iconset resource="../res/rtimv.qrc">
     <normaloff>:/icons/scamper_cutout_sq_64.png</normaloff>:/icons/scamper_cutout_sq_64.png</iconset>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="20">
@@ -120,7 +120,7 @@
   <customwidget>
    <class>rtimvGraphicsView</class>
    <extends>QGraphicsView</extends>
-   <header>src/rtimvGraphicsView.hpp</header>
+   <header>../librtimv/rtimvGraphicsView.hpp</header>
    <slots>
     <signal>centerChanged()</signal>
     <signal>mouseCoordsChanged()</signal>
@@ -134,7 +134,7 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="../res/imviewer.qrc"/>
+  <include location="../res/rtimv.qrc"/>
  </resources>
  <connections>
   <connection>
