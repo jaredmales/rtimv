@@ -47,7 +47,7 @@ add_library(objlib OBJECT src/librtimv/rtimvGraphicsView.cpp
                           src/librtimv/StretchCircle.cpp
                           src/librtimv/StretchLine.cpp)
 
-target_link_libraries(objlib Qt5::Widgets)
+target_link_libraries(objlib PUBLIC Qt5::Widgets)
 
 
 # shared libraries need PIC
@@ -78,37 +78,86 @@ install( EXPORT rtimv-sharedTargets
 ############################################
 # common objects
 ############################################
-add_library(commonlib OBJECT src/common/rtimvBaseObject.cpp
+
+set( commonsrcs src/common/rtimvBaseObject.cpp
                              src/common/rtimvBase.cpp
                              src/common/images/shmimImage.cpp
                              src/common/images/mzmqImage.cpp
                              src/common/images/fitsImage.cpp
                              src/common/images/fitsDirectory.cpp)
 
-target_link_libraries(commonlib Qt5::Widgets)
+
+
+add_library(commonlib OBJECT ${commonsrcs})
+
+
+target_link_libraries(commonlib PUBLIC Qt5::Widgets)
 
 
 ############################################
 # rtimv main window
 ############################################
 
-add_executable(rtimv src/gui/rtimvMainWindow.cpp
-                     src/gui/rtimvControlPanel.cpp
-                     src/gui/rtimvStats.cpp
-                     src/gui/cubeCtrl.cpp
-                     src/rtimv/rtimvMain.cpp
-                     res/rtimv.qrc )
+set(rtimvsrcs src/gui/rtimvMainWindow.cpp
+              src/gui/rtimvControlPanel.cpp
+              src/gui/rtimvStats.cpp
+              src/gui/cubeCtrl.cpp
+              src/rtimv/rtimvMain.cpp
+              res/rtimv.qrc)
+
+add_executable(rtimv ${rtimvsrcs})
+
+target_compile_options(rtimv PRIVATE -DRTIMV_BASE_INCLUDE="rtimvBase.hpp")
 
 target_include_directories(rtimv PRIVATE src/librtimv
                                          src/common
                                          src/common/images
-                                         src/gui )
+                                         src/gui
+                                         src/rtimv )
 
-target_link_libraries(rtimv PUBLIC Qt5::Widgets)
 target_link_libraries(rtimv PRIVATE commonlib)
-target_link_libraries(rtimv PUBLIC rtimv-shared)
-target_link_libraries(rtimv PUBLIC PkgConfig::MXLIB)
-target_link_libraries(rtimv PUBLIC PkgConfig::LIBZMQ)
-target_link_libraries(rtimv PUBLIC -lxrif)
+target_link_libraries(rtimv PRIVATE rtimv-shared)
+target_link_libraries(rtimv PRIVATE PkgConfig::MXLIB)
+target_link_libraries(rtimv PRIVATE PkgConfig::LIBZMQ)
+target_link_libraries(rtimv PRIVATE -lxrif)
 
 install (TARGETS rtimv DESTINATION bin)
+
+
+############################################
+# rtimvServer
+############################################
+
+find_package(Protobuf)
+#pkg_check_modules(GRPC REQUIRED IMPORTED_TARGET grpc)
+pkg_check_modules(GRPCPP REQUIRED IMPORTED_TARGET grpc++)
+
+if(Protobuf_FOUND AND GRPCPP_FOUND)
+
+add_executable(rtimvServer src/server/rtimvServer.cpp
+                           src/server/rtimvServerThread.cpp
+                           src/server/rtimvServerMain.cpp
+                           src/proto/rtimv.proto )
+
+target_include_directories(rtimvServer PRIVATE src/librtimv
+                                               src/common
+                                               src/common/images
+                                               src/gui
+                                               ${CMAKE_CURRENT_BINARY_DIR}/proto )
+
+make_directory(${CMAKE_CURRENT_BINARY_DIR}/proto)
+protobuf_generate(TARGET rtimvServer APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS src/proto/rtimv.proto)
+protobuf_generate(TARGET rtimvServer LANGUAGE grpc PLUGIN "protoc-gen-grpc=/usr/bin/grpc_cpp_plugin" GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS src/proto/rtimv.proto)
+
+target_link_libraries(rtimvServer PRIVATE commonlib)
+target_link_libraries(rtimvServer PRIVATE rtimv-shared)
+target_link_libraries(rtimvServer PRIVATE PkgConfig::MXLIB)
+target_link_libraries(rtimvServer PRIVATE PkgConfig::LIBZMQ)
+target_link_libraries(rtimvServer PRIVATE -lxrif)
+target_link_libraries(rtimvServer PRIVATE protobuf::libprotobuf)
+target_link_libraries(rtimvServer PRIVATE PkgConfig::GRPCPP)
+target_link_libraries(rtimvServer PRIVATE -lgrpc++_reflection)
+
+install (TARGETS rtimv DESTINATION bin)
+
+endif() #(Protobuf_FOUND AND GRPCPP_FOUND)

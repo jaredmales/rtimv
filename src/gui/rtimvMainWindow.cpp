@@ -1,5 +1,5 @@
-#include "rtimvMainWindow.hpp"
 
+#include "rtimvMainWindow.hpp"
 
 rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::WindowFlags f ) : QWidget(Parent, f)
 {
@@ -142,7 +142,7 @@ rtimvMainWindow::~rtimvMainWindow()
 void rtimvMainWindow::setupConfig()
 {
 
-    rtimvBase::setupConfig();
+    RTIMV_BASE::setupConfig();
 
     config.add( "nofpsgage",
                 "",
@@ -291,11 +291,11 @@ void rtimvMainWindow::setupConfig()
 void rtimvMainWindow::loadConfig()
 {
 
-    rtimvBase::loadConfig();
+    RTIMV_BASE::loadConfig();
 
-    if( m_images[0] != nullptr )
+    if( imageValid() )
     {
-        m_title = m_images[0]->imageName();
+        m_title = imageName(0);
     }
 
     // Now load remaining options, respecting coded defaults.
@@ -582,9 +582,9 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT &lock )
 
     if( m_connected ) // first time through this won't be true
     {
-        if( m_images[0] != nullptr ) // really can't be true if connected
+        if( imageValid(0) ) // really can't be true if connected
         {
-            if( m_images[0]->nz() > 1 && m_cubeCtrl == nullptr ) // new image is cube for first time
+            if( nz() > 1 && m_cubeCtrl == nullptr ) // new image is cube for first time
             {
                 cubeMode( true );
                 launchCubeCtrl();
@@ -611,11 +611,7 @@ void rtimvMainWindow::launchCubeCtrl()
 {
     if( m_cubeCtrl == nullptr )
     {
-        int fno = 0;
-        if( m_images[0] != nullptr )
-        {
-            fno = m_images[0]->imageNo();
-        }
+        uint32_t fno = imageNo(0);
 
         m_cubeCtrl = new cubeCtrl( m_cubeMode,
                                    m_cubeFPS,
@@ -755,15 +751,17 @@ QGraphicsScene *rtimvMainWindow::get_qgs()
 
 void rtimvMainWindow::freezeRealTime()
 {
-    if( RealTimeStopped )
+    if( realTimeStopped() )
     {
-        set_RealTimeStopped( false );
+        realTimeStopped( false );
     }
     else
     {
-        set_RealTimeStopped( true );
+        realTimeStopped( true );
         if( m_showFPSGage )
+        {
             ui.graphicsView->fpsGageText( 0.0 );
+        }
     }
 }
 
@@ -1115,7 +1113,7 @@ void rtimvMainWindow::updateAge()
     // Check the font luminance to make sure it is visible
     mtxTry_fontLuminance();
 
-    if( m_showFPSGage && m_images[0] != nullptr )
+    if( m_showFPSGage && imageValid() )
     {
         struct timespec tstmp;
 
@@ -1123,13 +1121,15 @@ void rtimvMainWindow::updateAge()
 
         double timetmp = (double)tstmp.tv_sec + ( (double)tstmp.tv_nsec ) / 1e9;
 
-        double fpsTime = m_images[0]->imageTime();
+        double fpsEst = RTIMV_BASE::fpsEst();
+
+        double fpsTime = imageTime();
 
         double age = timetmp - fpsTime;
 
-        if( m_images[0]->fpsEst() > 1.0 && age < 2.0 )
+        if( fpsEst > 1.0 && age < 2.0 )
         {
-            ui.graphicsView->fpsGageText( m_images[0]->fpsEst() );
+            ui.graphicsView->fpsGageText( fpsEst );
         }
         else if( age < 86400 * 10000 ) // only if age is reasonable
         {
@@ -2695,9 +2695,9 @@ std::string rtimvMainWindow::generateInfo()
     info += "\n";
     info += "Images:\n";
     //      "01234567890123456789012345678901234567890123456789012345678901234567890123456789
-    if( m_images[0] != nullptr )
+    if( imageValid(0) )
     {
-        std::vector<std::string> iinfo = m_images[0]->info();
+        std::vector<std::string> iinfo = RTIMV_BASE::info(0);
         if( iinfo.size() > 0 )
         {
             info += "  image:   " + iinfo[0] + "\n";
@@ -2712,9 +2712,9 @@ std::string rtimvMainWindow::generateInfo()
     {
         info += "  image:   \n";
     }
-    if( m_images[1] != nullptr )
+    if( imageValid(1) )
     {
-        std::vector<std::string> iinfo = m_images[1]->info();
+        std::vector<std::string> iinfo = RTIMV_BASE::info(1);
         if( iinfo.size() > 0 )
         {
             info += "  dark:    " + iinfo[0] + "\n";
@@ -2729,9 +2729,9 @@ std::string rtimvMainWindow::generateInfo()
     {
         info += "  dark:    \n";
     }
-    if( m_images[2] != nullptr )
+    if( imageValid(2) )
     {
-        std::vector<std::string> iinfo = m_images[2]->info();
+        std::vector<std::string> iinfo = RTIMV_BASE::info(2);
         if( iinfo.size() > 0 )
         {
             info += "  mask:    " + iinfo[0] + "\n";
@@ -2746,9 +2746,9 @@ std::string rtimvMainWindow::generateInfo()
     {
         info += "  mask:    \n";
     }
-    if( m_images[3] != nullptr )
+    if( imageValid(3) )
     {
-        std::vector<std::string> iinfo = m_images[3]->info();
+        std::vector<std::string> iinfo = RTIMV_BASE::info(3);
         if( iinfo.size() > 0 )
         {
             info += "  sat-mask: " + iinfo[0] + "\n";

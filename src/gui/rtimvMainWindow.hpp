@@ -1,6 +1,6 @@
 
-#ifndef rtimvMainWindow_hpp
-#define rtimvMainWindow_hpp
+#ifndef rtimvMainWindow_hpp_inc
+#define rtimvMainWindow_hpp_inc
 
 #include <cstdio>
 #include <unordered_set>
@@ -15,10 +15,16 @@
 #include <QMainWindow>
 #include <QPixmap>
 
+// This file defines the base class, and must also define the RTIMV_BASE class
+// Example:
+// -DRTIMV_BASE_INCLUDE="rtimvBase.hpp"
+//
+// where "rtimvBase.hpp" includes:
+// #define RTIMV_BASE rtimvBase
+//
+#include RTIMV_BASE_INCLUDE
 
 #include "ui_rtimvMainWindow.h"
-
-#include "rtimvBase.hpp"
 
 #include "rtimvControlPanel.hpp"
 #include "cubeCtrl.hpp"
@@ -47,7 +53,7 @@ class rtimvControlPanel;
 
 #define RTIMV_DEBUG_BREADCRUMB
 
-class rtimvMainWindow : public QWidget, public rtimvBase
+class rtimvMainWindow : public QWidget, public RTIMV_BASE
 {
     Q_OBJECT
 
@@ -849,4 +855,4 @@ class rtimvMainWindow : public QWidget, public rtimvBase
 
 
 
-#endif // rtimvMainWindow_hpp
+#endif // rtimvMainWindow_hpp_inc

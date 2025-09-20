@@ -21,6 +21,8 @@
 
 #include "rtimvBaseObject.hpp"
 
+#define RTIMV_BASE rtimvBase
+
 /// The base class for rtimv functions
 /** Manages access to images based on specified format and protocol.  On each image update this
  * colors the image according to the current configuration.
@@ -69,13 +71,13 @@ class rtimvBase : public mx::app::application
     /// Basic c'tor.  Does not startup the images.
     /** startup should be called with the list of keys.
      */
-    rtimvBase( );
+    rtimvBase();
 
     /// Image c'tor, starts up the images.
     /** startup should not be called.
      */
     rtimvBase( const std::vector<std::string> &shkeys ///< [in] The shmim keys used to access the images.
-                );
+    );
 
     /// @}
 
@@ -127,6 +129,12 @@ class rtimvBase : public mx::app::application
      * @{
      */
 
+    /// Check if main image is currently connected to a source
+    /**
+     * \returns current value of m_connected
+     */
+    bool connected();
+
     /// Configure the image sources and start checking for updates.
     /**
      */
@@ -142,6 +150,20 @@ class rtimvBase : public mx::app::application
         m_connected = true;
     }
 
+    ///@}
+
+    /** @name Image Status
+     * @{
+    */
+    /// Check if the main image is currently valid.
+    /** An image is valid if it was supplied on command line, and if the image itself returns true from valid().
+     *
+     * \returns true if valid
+     * \returns false otherwise
+     */
+    bool imageValid();
+
+
     /// Check if an image is currently valid.
     /** An image is valid if it was supplied on command line, and if the image itself returns true from valid().
      *
@@ -149,6 +171,55 @@ class rtimvBase : public mx::app::application
      * \returns false otherwise
      */
     bool imageValid( size_t n /**< [in] the image number */ );
+
+    /// Get the main image acquisition time.
+    /**
+     * \returns acquisition time of the main image (m_images[0]) if valid
+     * \returns 0 if not valid
+     */
+    double imageTime();
+
+    /// Get image acquisition time.
+    /**
+     * \returns acquisition time of the image if valid
+     * \returns 0 if not valid
+     */
+    double imageTime( size_t n /**< [in] the image number */ );
+
+    /// Get the main image FPS estimate.
+    /**
+     * \returns FPS estimate of the main image (m_images[0]) if valid
+     * \returns 0 if not valid
+     */
+    double fpsEst();
+
+    /// Get image FPS estimate.
+    /**
+     * \returns FPS estimate of the image if valid
+     * \returns 0 if not valid
+     */
+    double fpsEst( size_t n /**< [in] the image number */ );
+
+    /// Get the name of an image
+    /**
+     * \returns the name if valid
+     * \returns an empty string if not valid
+     */
+    std::string imageName(size_t n /**< [in] the image number */);
+
+    /// Get the cube image number
+    /**
+     * \returns the image number if valid
+     * \returns 0 if not valid
+     */
+    uint32_t imageNo(size_t n /**< [in] the image number */);
+
+    /// Get info for an image
+    /**
+     * \returns the info vector if valid
+     * \returns and empty vector if not valid
+     */
+    std::vector<std::string> info( size_t n /**< [in] the image number */);
 
     ///@}
 
@@ -199,17 +270,18 @@ class rtimvBase : public mx::app::application
 
     /// Get the number of y pixels
     /**
-     * \returns the current vvalue of m_ny
+     * \returns the current value of m_ny
      */
     uint32_t ny();
 
     /// Get the number of images
     /**
-     * \returns the current vvalue of m_nz
+     * \returns the current value of m_nz
      */
     uint32_t nz();
 
     /// @}
+
 
     /** @name Image Update - Data
      *
@@ -735,12 +807,18 @@ class rtimvBase : public mx::app::application
 
     /*** Real Time Controls ***/
   protected:
-    bool RealTimeEnabled{ true };  ///< Controls whether rtimvBase is using real-time data.
-    bool RealTimeStopped{ false }; ///< Set when user temporarily freezes real-time data viewing.
+    bool m_realTimeStopped{ false }; ///< Set when user temporarily freezes real-time data viewing.
 
   public:
-    void set_RealTimeEnabled( int );
-    void set_RealTimeStopped( int );
+
+    /// Get whether real-time is being used
+    /**
+     * \returns the current value of m_realTimeStopped.
+     */
+    bool realTimeStopped();
+
+    /// Set whether to temporarily freeze real-time data viewing
+    void realTimeStopped( bool rts /**< [in] the new value for m_realTimeStopped */ );
 
     virtual void updateFPS(); ///< Called whenever the displayed image updates its FPS.
     virtual void updateAge(); ///< Called whenever the displayed image updates its Age.

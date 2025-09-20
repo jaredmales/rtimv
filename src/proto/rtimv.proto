@@ -5,6 +5,8 @@ package remote_rtimv;
 service rtimv
 {
     rpc Configure(Config) returns (ConfigResult);
+
+    rpc ImagePlease(ImageRequest) returns (Image);
 }
 
 message Config
@@ -17,5 +19,25 @@ message ConfigResult
     int32 result = 1;
 }
 
+message ImageRequest
+{
+}
+
+enum ImageStatus
+{
+    IMAGE_STATUS_VALID = 0;
+    IMAGE_STATUS_NO_IMAGE = 1;
+    IMAGE_STATUS_TIMEOUT = 2;
+    IMAGE_STATUS_NOT_CONFIGURED = 3;
+    IMAGE_STATUS_ERROR = 4;
+}
+
+message Image
+{
+    ImageStatus status = 1;
+    double atime = 2;
+    double fps = 3;
+    bytes image = 4;
+}
 
 

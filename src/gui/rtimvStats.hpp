@@ -15,7 +15,8 @@
 #include "ui_rtimvStats.h"
 
 #define RTIMV_BASE_QWIDGET
-#include "rtimvBase.hpp"
+
+#include RTIMV_BASE_INCLUDE
 
 class rtimvStats;
 
@@ -42,7 +43,7 @@ class rtimvStats : public QDialog
 
   public:
     /// Constructor
-    rtimvStats( rtimvBase *imv, ///< [in] The rtimv instance this is connected to
+    rtimvStats( RTIMV_BASE *imv, ///< [in] The rtimv instance this is connected to
                 std::shared_mutex *calMutex,
                 QWidget *Parent = nullptr,            ///< [in] [optional] Qt parent widget
                 Qt::WindowFlags f = Qt::WindowFlags() ///< [in] [optional] Qt flags for this widget
@@ -52,7 +53,7 @@ class rtimvStats : public QDialog
     ~rtimvStats();
 
   protected:
-    rtimvBase *m_imv{ nullptr }; ///< The rtimv instance this is connected to
+    RTIMV_BASE *m_imv{ nullptr }; ///< The rtimv instance this is connected to
 
     std::shared_mutex *m_calMutex{ nullptr };
 
@@ -83,10 +84,10 @@ class rtimvStats : public QDialog
 
     float m_dataMedian{ 0 }; ///< The median value in the data
 
-    int m_regionChanged{
-        0 };                 ///< Flag indicating that the region has changed, either size, location, or the data itself
-    int m_statsChanged{ 0 }; ///< Flag indicating that the statistics have changed
-    int m_dieNow{ 0 };       ///< Flag indicating that the stats thread should exit
+    int m_regionChanged{ 0 }; /**< Flag indicating that the region has changed,
+                                   either size, location, or the data itself*/
+    int m_statsChanged{ 0 };  ///< Flag indicating that the statistics have changed
+    int m_dieNow{ 0 };        ///< Flag indicating that the stats thread should exit
 
     std::mutex m_dataMutex; ///< Mutex for updating the local image (m_imdata).
 

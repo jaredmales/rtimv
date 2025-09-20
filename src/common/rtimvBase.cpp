@@ -274,6 +274,11 @@ void rtimvBase::loadConfig()
     config( m_applySatMask, "masksat" );
 }
 
+bool rtimvBase::connected()
+{
+    return m_connected;
+}
+
 void rtimvBase::startup( const std::vector<std::string> &shkeys )
 {
     m_images.resize( 4, nullptr );
@@ -375,7 +380,11 @@ void rtimvBase::startup( const std::vector<std::string> &shkeys )
         m_applySatMask = true;
     }
 
+}
 
+bool rtimvBase::imageValid()
+{
+    return imageValid(0);
 }
 
 bool rtimvBase::imageValid( size_t n )
@@ -391,6 +400,66 @@ bool rtimvBase::imageValid( size_t n )
     }
 
     return m_images[n]->valid();
+}
+
+double rtimvBase::imageTime()
+{
+    return imageTime(0);
+}
+
+double rtimvBase::imageTime( size_t n )
+{
+    if(!imageValid(n))
+    {
+        return 0;
+    }
+
+    return m_images[n]->imageTime();
+}
+
+double rtimvBase::fpsEst()
+{
+    return fpsEst(0);
+}
+
+double rtimvBase::fpsEst( size_t n )
+{
+    if(!imageValid(n))
+    {
+        return 0;
+    }
+
+    return m_images[n]->fpsEst();
+}
+
+std::string rtimvBase::imageName( size_t n )
+{
+    if(!imageValid(n))
+    {
+        return std::string();
+    }
+
+    return m_images[n]->imageName();
+}
+
+uint32_t rtimvBase::imageNo( size_t n )
+{
+    if(!imageValid(n))
+    {
+        return 0;
+    }
+
+    return m_images[n]->imageNo();
+}
+
+std::vector<std::string> rtimvBase::info( size_t n )
+{
+    if(!imageValid(n))
+    {
+        return std::vector<std::string>();
+    }
+
+    return m_images[n]->info();
 }
 
 void rtimvBase::mtxL_setImsize( uint32_t x, uint32_t y, uint32_t z, const uniqueLockT &lock )
@@ -1488,16 +1557,16 @@ void rtimvBase::mtxL_setColorBoxActive( bool usba, const sharedLockT &lock )
     mtxL_postSetColorBoxActive( usba, lock );
 }
 
-void rtimvBase::set_RealTimeEnabled( int rte )
+bool rtimvBase::realTimeStopped()
 {
-    RealTimeEnabled = ( rte != 0 );
+    return m_realTimeStopped;
 }
 
-void rtimvBase::set_RealTimeStopped( int rts )
+void rtimvBase::realTimeStopped( bool rts )
 {
-    RealTimeStopped = ( rts != 0 );
+    m_realTimeStopped = rts;
 
-    if( RealTimeStopped )
+    if( m_realTimeStopped )
     {
         m_foundation->m_imageTimer.stop();
     }
