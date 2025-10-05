@@ -4,7 +4,7 @@
 #include <sys/stat.h>
 #include <iostream>
 
-#ifdef RTIMV_MILK
+#ifdef MXLIB_MILK
 
 shmimImage::shmimImage( std::mutex *mut ) : rtimvImage( mut )
 {
@@ -367,4 +367,4 @@ float shmimImage::fpsEst()
     return m_fpsEst;
 }
 
-#endif // RTIMV_MILK
+#endif // MXLIB_MILK

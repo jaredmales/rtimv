@@ -7,14 +7,15 @@
 
 #ifndef rtimv_shmimImage_hpp
 #define rtimv_shmimImage_hpp
-#ifdef RTIMV_MILK
+
+#ifdef MXLIB_MILK
+
     #include "../rtimvImage.hpp"
     #include "pixaccess.hpp"
 
 /// rtimvImage interface to a milk shared memory stream on the local computer.
 struct shmimImage : public rtimvImage
 {
-
     Q_OBJECT
 
   protected:
@@ -176,5 +177,6 @@ struct shmimImage : public rtimvImage
     float fpsEst();
 };
 
-#endif // RTIMV_MILK
+#endif // MXLIB_MILK
+
 #endif // rtimv_shmimImage_hpp

@@ -86,12 +86,21 @@ set( commonsrcs src/common/rtimvBaseObject.cpp
                              src/common/images/fitsImage.cpp
                              src/common/images/fitsDirectory.cpp)
 
-
-
 add_library(commonlib OBJECT ${commonsrcs})
 
+list(FIND MXLIB_CFLAGS "-DMXLIB_MILK" MXLIB_HAS_MILK)
+
+if(NOT(MXLIB_HAS_MILK EQUAL -1))
+    message(STATUS "enabling MILK")
+    target_compile_definitions(commonlib PUBLIC MXLIB_MILK)
+else()
+    message(STATUS "not using MILK")
+endif()
 
 target_link_libraries(commonlib PUBLIC Qt5::Widgets)
+target_link_libraries(commonlib PUBLIC PkgConfig::MXLIB)
+target_link_libraries(commonlib PUBLIC PkgConfig::LIBZMQ)
+target_link_libraries(commonlib PUBLIC -lxrif)
 
 
 ############################################
@@ -117,9 +126,6 @@ target_include_directories(rtimv PRIVATE src/librtimv
 
 target_link_libraries(rtimv PRIVATE commonlib)
 target_link_libraries(rtimv PRIVATE rtimv-shared)
-target_link_libraries(rtimv PRIVATE PkgConfig::MXLIB)
-target_link_libraries(rtimv PRIVATE PkgConfig::LIBZMQ)
-target_link_libraries(rtimv PRIVATE -lxrif)
 
 install (TARGETS rtimv DESTINATION bin)
 
@@ -151,9 +157,6 @@ protobuf_generate(TARGET rtimvServer LANGUAGE grpc PLUGIN "protoc-gen-grpc=/usr/
 
 target_link_libraries(rtimvServer PRIVATE commonlib)
 target_link_libraries(rtimvServer PRIVATE rtimv-shared)
-target_link_libraries(rtimvServer PRIVATE PkgConfig::MXLIB)
-target_link_libraries(rtimvServer PRIVATE PkgConfig::LIBZMQ)
-target_link_libraries(rtimvServer PRIVATE -lxrif)
 target_link_libraries(rtimvServer PRIVATE protobuf::libprotobuf)
 target_link_libraries(rtimvServer PRIVATE PkgConfig::GRPCPP)
 target_link_libraries(rtimvServer PRIVATE -lgrpc++_reflection)

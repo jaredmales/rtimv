@@ -21,9 +21,17 @@ class rtimvServerThread : public QThread, public rtimvBase
   protected:
 
     std::string m_uri; ///< The URI for this thread as a server client
-    std::string m_configFile; ///< The configuration file
+
+    std::vector<std::string> * m_argv {nullptr}; /**< The command line argv.  This is set in the constructor, and destroyed
+                                                      after configure is called.*/
 
     bool m_newImage {false}; ///< Flag indicating a new image is ready after the last render.
+
+    int m_quality {50}; ///< The JPEG quality factor (0-100).  Default is 50.
+
+    double m_lastRequest {0}; ///< The time of the last request for an image
+
+    bool m_asleep {false};
 
   public:
 
@@ -31,6 +39,12 @@ class rtimvServerThread : public QThread, public rtimvBase
 
     rtimvServerThread( const std::string & uri,
                        const std::string & configFile,
+                       QObject *parent = nullptr
+                     );
+
+     rtimvServerThread( const std::string & uri,
+                       const std::vector<std::string> * argv, /**< The argv vector.  Takes ownership and will `delete` once
+                                                                   configuration is complete */
                        QObject *parent = nullptr
                      );
 
@@ -68,6 +82,37 @@ signals:
     void mtxuL_render(std::string * image);
 
     bool newImage();
+
+    int quality();
+
+    void quality(int q);
+
+    double lastRequest();
+
+    void lastRequest(double lr);
+
+    double sinceLastRequest();
+
+    bool asleep();
+
+signals:
+
+    void gotosleep();
+
+    void awaken();
+
+public:
+
+    void emit_gotosleep();
+
+    void emit_awaken();
+
+public slots:
+
+    void sleep();
+
+    void wakeup();
+
 };
 
 

@@ -2,25 +2,43 @@
 #include <QBuffer>
 
 rtimvServerThread::rtimvServerThread( const std::string &uri, const std::string &configFile, QObject *parent )
-    : QThread( parent ), m_uri( uri ), m_configFile( configFile )
+    : QThread( parent ), m_uri( uri )
 {
     m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; // Tells mx::application to look for this env var.
-    
+
+    m_imageTimeout = 100;
+
+    connect(this, SIGNAL(gotosleep()), this, SLOT(sleep()));
+    connect(this, SIGNAL(awaken()), this, SLOT(wakeup()));
+
+    lastRequest(-1); //set to now
+
+    m_argv = new std::vector<std::string>( { "rst", "-c", configFile } );
+
 }
 
 rtimvServerThread::~rtimvServerThread()
 {
+    if(m_argv)
+    {
+        delete m_argv;
+    }
 }
 
 void rtimvServerThread::configure()
 {
-
-    std::vector<std::string> argvstr( { "rst", "-c", m_configFile } );
-    std::vector<const char *> argv( argvstr.size() + 1, NULL );
-    for( size_t index = 0; index < argvstr.size(); ++index )
+    if(!m_argv)
     {
-        argv[index] = argvstr[index].c_str();
     }
+
+    std::vector<const char *> argv( m_argv->size() + 1, NULL );
+    for( size_t index = 0; index < m_argv->size(); ++index )
+    {
+        argv[index] = (*m_argv)[index].c_str();
+    }
+
+    delete m_argv;
+    m_argv = nullptr;
 
     m_configured = 0;
     try
@@ -38,6 +56,7 @@ void rtimvServerThread::configure()
 void rtimvServerThread::onConnect()
 {
     m_connected = true;
+    m_asleep = false;
 }
 
 void rtimvServerThread::mtxL_postSetImsize( const uniqueLockT &lock )
@@ -88,7 +107,8 @@ void rtimvServerThread::mtxuL_render( std::string *image )
     QBuffer buffer( &renderedImage );
     buffer.open( QIODevice::WriteOnly );
 
-    m_qim->save( &buffer, "jpeg", 75 );
+    int m_quality = 50;
+    m_qim->save( &buffer, "jpeg", m_quality );
 
     *image = renderedImage.toStdString();
 
@@ -98,4 +118,63 @@ void rtimvServerThread::mtxuL_render( std::string *image )
 bool rtimvServerThread::newImage()
 {
     return m_newImage;
+}
+
+int rtimvServerThread::quality()
+{
+    return m_quality;
+}
+
+void rtimvServerThread::quality( int q )
+{
+    m_quality = q;
+}
+
+double rtimvServerThread::lastRequest()
+{
+    return m_lastRequest;
+}
+
+void rtimvServerThread::lastRequest( double lr )
+{
+    if( lr < 0 )
+    {
+        lr = mx::sys::get_curr_time();
+    }
+
+    m_lastRequest = lr;
+}
+
+double rtimvServerThread::sinceLastRequest()
+{
+    double now = mx::sys::get_curr_time();
+
+    return now - m_lastRequest;
+}
+
+bool rtimvServerThread::asleep()
+{
+    return m_asleep;
+}
+
+void rtimvServerThread::emit_gotosleep()
+{
+    emit gotosleep();
+}
+
+void rtimvServerThread::emit_awaken()
+{
+    emit awaken();
+}
+
+void rtimvServerThread::sleep()
+{
+    m_foundation->m_imageTimer.stop();
+    m_asleep = true;
+}
+
+void rtimvServerThread::wakeup()
+{
+    m_foundation->m_imageTimer.start();
+    m_asleep = false;
 }

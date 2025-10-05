@@ -53,15 +53,94 @@ void rtimvServer::startServer()
 
     // Finally assemble the server.
     std::unique_ptr<Server> server( builder.BuildAndStart() );
-    std::cout << "Server listening on " << server_address << std::endl;
+    std::cout << "Server listening on " << server_address << '\n';
 
-    // Wait for the server to shutdown. Note that some other thread must be
-    // responsible for shutting down the server for this call to ever return.
-    server->Wait();
+    while( 1 )
+    {
+        // We need a shared lock b/c we're iterating and accessing the threads
+        sharedLockT slock( m_clientMutex );
+
+        auto client = m_clients.begin();
+        while( client != m_clients.end() )
+        {
+            auto imageTh = client->second;
+
+            if( imageTh == nullptr )
+            {
+                std::cerr << "got nullptr\n";
+
+                // get key, give up shared mutex, get exclusive lock, then delete using key lookup.
+
+                std::string key = client->first;
+
+                slock.unlock();
+
+                uniqueLockT ulock( m_clientMutex );
+
+                client = m_clients.find( key );
+                m_clients.erase( client );
+
+                break; // give up mutex and start loop over
+            }
+            else
+            {
+                double slr = imageTh->sinceLastRequest();
+
+                if( slr > m_clientDisconnect )
+                {
+                    // get key,
+                    std::string ckey = client->first; // save this b/c it's going away
+
+                    // give up shared mutex,
+                    slock.unlock();
+                    // so we can get exclusive lock,
+                    uniqueLockT ulock( m_clientMutex );
+                    // Now reset client in case something changed curing the re-lock
+                    client = m_clients.find( ckey );
+
+                    imageTh = client->second;
+
+                    imageTh->quit();
+
+                    if( !imageTh->wait( 1000 ) )
+                    {
+                        std::cerr << "QThread for client " << ckey << " didn't quit.  Terminating.\n";
+                        imageTh->terminate();
+                    }
+
+                    imageTh->deleteLater();
+                    m_clients.erase( client );
+
+                    std::cerr << "Client " << ckey << " disconnected.\n";
+
+                    break; // give up mutex and start loop over
+                }
+                else if( slr > m_clientSleep )
+                {
+                    if( !imageTh->asleep() )
+                    {
+                        imageTh->emit_gotosleep();
+                        std::cerr << "Client " << client->first << " put to sleep\n";
+                    }
+                }
+            }
+
+            ++client;
+        }
+
+        if( slock.owns_lock() )
+        {
+            slock.unlock();
+        }
+
+        mx::sys::sleep( 1 );
+    }
 }
 
 ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context, const Config *config, ConfigResult *result )
 {
+    // We don't lock client mutex here b/c we are just checking count and don't access the values.
+
     if( m_clients.count( context->peer() ) > 0 )
     {
         std::cerr << "Attempt to reconfigure " << context->peer() << '\n';
@@ -70,7 +149,28 @@ ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context, cons
     }
     else
     {
-        configSpec *cspec = new configSpec( context->peer(), config->file() );
+        configSpec *cspec = new configSpec( context->peer());
+
+        cspec->m_config = config->file();
+        cspec->m_imageKey = config->imagekey();
+        cspec->m_darkKey = config->darkkey();
+        cspec->m_maskKey = config->maskkey();
+        cspec->m_satMaskKey = config->satmaskkey();
+
+        if(config->updatefps() > 0)
+        {
+            cspec->m_updateFPS = config->updatefps();
+        }
+
+        if(config->updatetimeout() > 0)
+        {
+            cspec->m_updateTimeout = config->updatetimeout();
+        }
+
+
+
+
+
 
         emit gotConfigure( cspec );
 
@@ -79,6 +179,20 @@ ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context, cons
         while( m_clients.count( context->peer() ) == 0 )
         {
             sleep( 1 );
+        }
+
+        // now we need a shared lock b/c we access the thread
+        sharedLockT lock( m_clientMutex );
+
+        // Now check that it wasn't deleted while we waited for lock:
+        if( m_clients.count( context->peer() ) == 0 )
+        {
+            std::cerr << "thread wires crossed during configure\n";
+
+            ServerUnaryReactor *reactor = context->DefaultReactor();
+            reactor->Finish( Status::OK );
+
+            return reactor;
         }
 
         while( m_clients[context->peer()]->m_configured == 0 )
@@ -107,9 +221,12 @@ rtimvServer::ImagePlease( CallbackServerContext *context, const ImageRequest *re
 {
     ServerUnaryReactor *reactor = context->DefaultReactor();
 
+    // We need a shared lock b/c we access the thread
+    sharedLockT slock( m_clientMutex );
+
     if( m_clients.count( context->peer() ) == 0 )
     {
-        std::cerr << "Client not configured " << context->peer() << '\n';
+        std::cerr << "Client " << context->peer() << " not configured\n";
 
         reply->set_status( remote_rtimv::IMAGE_STATUS_NOT_CONFIGURED );
         std::string *im = new std::string;
@@ -131,6 +248,14 @@ rtimvServer::ImagePlease( CallbackServerContext *context, const ImageRequest *re
         return reactor;
     }
 
+    imageTh->lastRequest( -1 ); // sets to now
+
+    if( imageTh->asleep() )
+    {
+        imageTh->emit_awaken();
+        std::cerr << "Client " << context->peer() << " woken up\n";
+    }
+
     // Check if image has been found
     if( !imageTh->connected() )
     {
@@ -142,10 +267,17 @@ rtimvServer::ImagePlease( CallbackServerContext *context, const ImageRequest *re
         return reactor;
     }
 
-    float m_waitTimeout = 1;
-    int m_waitSleep = 100;
+    int maxWaits;
 
-    int maxWaits = m_waitTimeout / ( m_waitSleep / 1000. ) + 1;
+    if( m_waitSleep <= 0 ) // prevent an infinite busy
+    {
+        maxWaits = 1;
+    }
+    else
+    {
+        maxWaits = m_waitTimeout / ( m_waitSleep / 1000. ) + 1;
+    }
+
     int nwaits = 0;
     while( imageTh->newImage() == false && nwaits < maxWaits )
     {
@@ -159,17 +291,23 @@ rtimvServer::ImagePlease( CallbackServerContext *context, const ImageRequest *re
         std::string *im = new std::string;
         reply->set_allocated_image( im );
 
+        imageTh->lastRequest( -1 ); // sets to now, again b/c of wait
+
         reactor->Finish( Status::OK );
         return reactor;
     }
 
     // Now we can render the latest image and send it
     std::string *im = new std::string;
+
     imageTh->mtxuL_render( im );
+
+    imageTh->lastRequest( -1 ); // sets to now, again b/c of wait
 
     reply->set_status( remote_rtimv::IMAGE_STATUS_VALID );
     reply->set_atime( imageTh->imageTime() );
-    reply->set_fps( imageTh->fpsEst());
+    reply->set_fps( imageTh->fpsEst() );
+
     reply->set_allocated_image( im );
 
     reactor->Finish( Status::OK );
@@ -179,15 +317,45 @@ rtimvServer::ImagePlease( CallbackServerContext *context, const ImageRequest *re
 
 void rtimvServer::doConfigure( configSpec *cspec )
 {
-    rtimvServerThread *imageTh = new rtimvServerThread( cspec->m_uri, cspec->m_config );
-    m_clients.insert( clientT( cspec->m_uri, imageTh ) );
-
+    std::string uri = cspec->m_uri;
+    std::string config = cspec->m_config;
     delete cspec;
+
+    { // mutex scope
+
+        // Get a unique lock on clients to insert
+        uniqueLockT ulock( m_clientMutex );
+
+        if( m_clients.count( uri ) > 0 )
+        {
+            std::cerr << "error: client " << uri << " already configured\n";
+            return;
+        }
+
+        rtimvServerThread *imageTh = new rtimvServerThread( uri, config );
+
+        m_clients.insert( clientT( uri, imageTh ) );
+
+        ///\todo check errors on insert!
+    }
+
+    // Now switch to a shared lock for thread access
+    sharedLockT slock( m_clientMutex );
+
+    rtimvServerThread *imageTh = m_clients[uri]; // previous imageTh inside mutex scope
 
     imageTh->configure();
 
     if( imageTh->m_configured == 1 )
     {
         imageTh->start();
+        imageTh->lastRequest( -1 ); // sets to now
+
+        std::cerr << "Client " << uri << " configured\n";
+    }
+    else
+    {
+        std::cerr << "Client " << uri << " configuration failed\n";
+        ///\todo should we delete here?
     }
 }

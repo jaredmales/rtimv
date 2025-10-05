@@ -21,7 +21,6 @@
  */
 struct fitsImage : public rtimvImage
 {
-
     Q_OBJECT
 
   protected:

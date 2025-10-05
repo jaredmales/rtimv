@@ -2,7 +2,7 @@
 #define ImageStruct_hpp
 
 // milk includes
-#ifdef RTIMV_MILK
+#ifdef MXLIB_MILK
     #include <ImageStreamIO/ImageStreamIO.h>
     #include <ImageStreamIO/ImageStruct.h>
 #else

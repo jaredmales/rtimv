@@ -79,6 +79,8 @@ class rtimvBase : public mx::app::application
     rtimvBase( const std::vector<std::string> &shkeys ///< [in] The shmim keys used to access the images.
     );
 
+    ~rtimvBase();
+
     /// @}
 
     /** @name Configuration

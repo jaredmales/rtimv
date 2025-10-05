@@ -7,11 +7,31 @@ service rtimv
     rpc Configure(Config) returns (ConfigResult);
 
     rpc ImagePlease(ImageRequest) returns (Image);
+
+    rpc ColorBox(Box) returns (Image);
+
+    rpc GetPixel(Coord) returns(Pixel);
+
+    rpc StatsBox(Box) returns(Pixel);
 }
 
 message Config
 {
     string file = 1;
+    string imageKey = 2;
+    string darkKey = 3;
+    string maskKey = 4;
+    string satMaskKey = 5;
+    float updateFPS = 6;
+    uint32 updateTimeout = 7;
+    float updateCubeFPS = 8;
+    bool autoscale = 9;
+    bool darksub = 10;
+    float satLevel = 11;
+    bool masksat = 12;
+    bool mzmqAlways = 13;
+    string mzmqServer = 14;
+    uint32 mzmqPort = 15;
 }
 
 message ConfigResult
@@ -40,4 +60,19 @@ message Image
     bytes image = 4;
 }
 
+message Coord
+{
+    uint32 x = 1;
+    uint32 y = 2;
+}
 
+message Pixel
+{
+    float value = 1;
+}
+
+message Box
+{
+    Coord upperLeft = 1;
+    Coord lowerRight = 2;
+}

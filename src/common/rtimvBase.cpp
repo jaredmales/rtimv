@@ -3,7 +3,7 @@
 
 #include <cmath>
 
-#ifdef RTIMV_MILK
+#ifdef MXLIB_MILK
     #include "images/shmimImage.hpp"
 #endif
 
@@ -23,6 +23,23 @@ rtimvBase::rtimvBase( const std::vector<std::string> &shkeys )
 {
     startup( shkeys );
     m_foundation = new rtimvBaseObject( this, nullptr );
+}
+
+rtimvBase::~rtimvBase()
+{
+    for(size_t n = 0; n < m_images.size(); ++n)
+    {
+        if(m_images[n])
+        {
+            m_images[n]->deleteLater();
+        }
+    }
+
+    if(m_foundation)
+    {
+        m_foundation->deleteLater();
+    }
+
 }
 
 void rtimvBase::setupConfig()
@@ -349,7 +366,7 @@ void rtimvBase::startup( const std::vector<std::string> &shkeys )
                 else
                 {
                     // clang-format off
-                    #ifdef RTIMV_MILK
+                    #ifdef MXLIB_MILK
                         // If we get here we try to interpret as an ImageStreamIO image
                         shmimImage *si = new shmimImage( &m_rawMutex );
                         m_images[i] = (rtimvImage *)si;
@@ -1159,9 +1176,13 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
                     }
                 }
             }
+
+            //post calibration call here
         }
 
     } // mutex scope -- lock and rawlock release
+
+    //if(!skipColorize())
     { // mutex scope
 
         sharedLockT lock( m_calMutex );
