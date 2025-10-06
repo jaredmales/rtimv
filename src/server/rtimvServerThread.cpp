@@ -13,6 +13,8 @@ rtimvServerThread::rtimvServerThread( const std::string &uri, const std::string 
 
     lastRequest(-1); //set to now
 
+    std::cerr << "I am: " << uri << " with " << configFile << '\n';
+
     m_argv = new std::vector<std::string>( { "rst", "-c", configFile } );
 
 }
@@ -37,20 +39,23 @@ void rtimvServerThread::configure()
         argv[index] = (*m_argv)[index].c_str();
     }
 
-    delete m_argv;
-    m_argv = nullptr;
-
     m_configured = 0;
     try
     {
         setup( argv.size() - 1, const_cast<char **>( argv.data() ) );
         m_configured = 1;
         m_foundation->m_imageTimer.start( m_imageTimeout );
+
+        //Here we're done with it.
+        delete m_argv;
+        m_argv = nullptr;
     }
     catch( ... )
     {
         m_configured = -1;
     }
+
+    
 }
 
 void rtimvServerThread::onConnect()

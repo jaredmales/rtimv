@@ -167,10 +167,11 @@ ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context, cons
             cspec->m_updateTimeout = config->updatetimeout();
         }
 
+        
 
-
-
-
+        
+        std::cerr << "Configuring client " << context->peer() << ":\n";
+        std::cerr << "    file: " << cspec->m_config << '\n';
 
         emit gotConfigure( cspec );
 
