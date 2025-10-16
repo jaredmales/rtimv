@@ -12,7 +12,7 @@ rtimvServer::rtimvServer( int argc, char **argv, QObject *Parent ) : QObject( Pa
         exit( 0 );
     }
 
-    connect( this, SIGNAL( gotConfigure( configSpec * ) ), this, SLOT( doConfigure( configSpec * ) ) );
+    connect( this, SIGNAL( gotConfigure( const configSpec * ) ), this, SLOT( doConfigure( const configSpec * ) ) );
 
     m_serverThread = QThread::create( [this]() { startServer(); } );
     if( m_serverThread )
@@ -149,30 +149,7 @@ ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context, cons
     }
     else
     {
-        configSpec *cspec = new configSpec( context->peer());
-
-        cspec->m_config = config->file();
-        cspec->m_imageKey = config->imagekey();
-        cspec->m_darkKey = config->darkkey();
-        cspec->m_maskKey = config->maskkey();
-        cspec->m_satMaskKey = config->satmaskkey();
-
-        if(config->updatefps() > 0)
-        {
-            cspec->m_updateFPS = config->updatefps();
-        }
-
-        if(config->updatetimeout() > 0)
-        {
-            cspec->m_updateTimeout = config->updatetimeout();
-        }
-
-        
-
-        
-        std::cerr << "Configuring client " << context->peer() << ":\n";
-        std::cerr << "    file: " << cspec->m_config << '\n';
-
+        configSpec *cspec = new configSpec( context->peer(), config );
         emit gotConfigure( cspec );
 
         // Now we wait for configuration to finish
@@ -196,12 +173,12 @@ ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context, cons
             return reactor;
         }
 
-        while( m_clients[context->peer()]->m_configured == 0 )
+        while( m_clients[context->peer()]->configured() == 0 )
         {
             sleep( 1 );
         }
 
-        if( m_clients[context->peer()]->m_configured == 1 )
+        if( m_clients[context->peer()]->configured() == 1 )
         {
             result->set_result( 0 );
         }
@@ -316,10 +293,178 @@ rtimvServer::ImagePlease( CallbackServerContext *context, const ImageRequest *re
     return reactor;
 }
 
-void rtimvServer::doConfigure( configSpec *cspec )
+ServerUnaryReactor *
+rtimvServer::GetPixel( CallbackServerContext *context, const Coord *request, Pixel *reply )
+{
+    ServerUnaryReactor *reactor = context->DefaultReactor();
+
+    // We need a shared lock b/c we access the thread
+    sharedLockT slock( m_clientMutex );
+
+    if( m_clients.count( context->peer() ) == 0 )
+    {
+        std::cerr << "Client " << context->peer() << " not configured\n";
+
+        reply->set_valid(false);
+        reply->set_value(0);
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+
+    rtimvServerThread *imageTh = m_clients[context->peer()];
+
+    if( imageTh == nullptr ) // Something has gone wrong. Here we expect the client to reconnect
+    {
+        reply->set_valid(false);
+        reply->set_value(0);
+        reactor->Finish( Status::OK ); // maybe send something else?
+        return reactor;
+    }
+
+    imageTh->lastRequest( -1 ); // sets to now
+
+    if( imageTh->asleep() )
+    {
+        imageTh->emit_awaken();
+        std::cerr << "Client " << context->peer() << " woken up\n";
+    }
+
+    // Check if image has been found
+    if( !imageTh->connected() )
+    {
+        reply->set_valid(false);
+        reply->set_value(0);
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+
+    uint32_t x = request->x();
+    uint32_t y = request->y();
+
+    if(x > imageTh->nx() -1 || y > imageTh->ny() - 1)
+    {
+        reply->set_valid(false);
+        reply->set_value(0);
+        reactor->Finish( Status::OK ); // maybe send something else?
+        return reactor;
+    }
+
+    float val = imageTh->calPixel(x,y);
+
+    reply->set_valid(true);
+    reply->set_value(val);
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
+
+void rtimvServer::doConfigure( const configSpec *cspec )
 {
     std::string uri = cspec->m_uri;
-    std::string config = cspec->m_config;
+
+    std::shared_ptr<std::vector<std::string>> argv = std::make_shared<std::vector<std::string>>();
+
+    argv->push_back( "rst" );
+
+    if( cspec->m_config.file() != "" )
+    {
+        argv->push_back( "-c" );
+        argv->push_back( cspec->m_config.file() );
+    }
+
+    if( cspec->m_config.image_key() != "" )
+    {
+        argv->push_back( "--image.key" );
+        argv->push_back( cspec->m_config.image_key() );
+    }
+
+    if( cspec->m_config.dark_key() != "" )
+    {
+        argv->push_back( "--dark.key" );
+        argv->push_back( cspec->m_config.dark_key() );
+    }
+
+    if( cspec->m_config.mask_key() != "" )
+    {
+        argv->push_back( "--mask.key" );
+        argv->push_back( cspec->m_config.mask_key() );
+    }
+
+    if( cspec->m_config.sat_mask_key() != "" )
+    {
+        argv->push_back( "--satMask.key" );
+        argv->push_back( cspec->m_config.sat_mask_key() );
+    }
+
+    if( cspec->m_config.update_fps_set() )
+    {
+        argv->push_back( "--update.fps" );
+        argv->push_back( std::to_string( cspec->m_config.update_fps() ) );
+    }
+
+    if( cspec->m_config.update_timeout_set() )
+    {
+        argv->push_back( "--update.timeout" );
+        argv->push_back( std::to_string( cspec->m_config.update_timeout() ) );
+    }
+
+    if( cspec->m_config.update_cube_fps_set() )
+    {
+        argv->push_back( "--update.cubeFPS" );
+        argv->push_back( std::to_string( cspec->m_config.update_cube_fps() ) );
+    }
+
+    if( cspec->m_config.autoscale_set() )
+    {
+        if( cspec->m_config.autoscale() )
+        {
+            argv->push_back( "--autoscale" );
+        }
+    }
+
+    if( cspec->m_config.darksub_set() )
+    {
+        if( cspec->m_config.darksub() )
+        {
+            argv->push_back( "--darksub" );
+        }
+    }
+
+    if( cspec->m_config.satlevel_set() )
+    {
+        argv->push_back( "--satLevel" );
+        argv->push_back( std::to_string( cspec->m_config.satlevel() ) );
+    }
+
+    if( cspec->m_config.mask_sat_set() )
+    {
+        if( cspec->m_config.mask_sat() )
+        {
+            argv->push_back( "--masksat" );
+        }
+    }
+
+    if( cspec->m_config.mzmq_always_set() )
+    {
+        if( cspec->m_config.mzmq_always() )
+        {
+            argv->push_back( "--mzmq.always" );
+        }
+    }
+
+    if( cspec->m_config.mzmq_server() != "" )
+    {
+        argv->push_back( "--mzmq.server" );
+        argv->push_back( cspec->m_config.mzmq_server() );
+    }
+
+    if( cspec->m_config.mzmq_port_set() )
+    {
+        argv->push_back( "--mzmq.port" );
+        argv->push_back( std::to_string(cspec->m_config.mzmq_port()) );
+    }
+
     delete cspec;
 
     { // mutex scope
@@ -333,7 +478,7 @@ void rtimvServer::doConfigure( configSpec *cspec )
             return;
         }
 
-        rtimvServerThread *imageTh = new rtimvServerThread( uri, config );
+        rtimvServerThread *imageTh = new rtimvServerThread( uri, argv ); //takes ownership of argv
 
         m_clients.insert( clientT( uri, imageTh ) );
 
@@ -347,7 +492,7 @@ void rtimvServer::doConfigure( configSpec *cspec )
 
     imageTh->configure();
 
-    if( imageTh->m_configured == 1 )
+    if( imageTh->configured() == 1 )
     {
         imageTh->start();
         imageTh->lastRequest( -1 ); // sets to now

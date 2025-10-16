@@ -16,45 +16,15 @@
 
 #include <mx/app/application.hpp>
 
-#include "rtimvImage.hpp"
-#include "colorMaps.hpp"
-
 #include "rtimvBaseObject.hpp"
 
-#define RTIMV_BASE rtimvBase
+#define RTIMV_BASE rtimvClientBase
 
-/// The base class for rtimv functions
-/** Manages access to images based on specified format and protocol.  On each image update this
- * colors the image according to the current configuration.
- *
- * Access to calibrated image data is protected by \ref m_calMutex, which is a protected member.
- * Functions which depend on/require the mutex to be in a certain state are prefixed with
- * - `mtxL_` if the mutex should be locked
- * - `mtxUL_` if the mutex should be unlocked.
- * Such functions often also take the mutex as an argument and verify that the mutex is in the correct state.
- * Calling an `mtxL_` function with the mutex unlocked will result in concurrency bugs and crashes. Attempting to
- * lock \ref m_calMutex from within a call to such a function will result in a deadlock.
- * Note that a `mtxUL_` function likely locks the mutex, so calling it with the mutex locked may
- * result in a deadlock.
- *
- * There is also \ref m_rawMutex which protects access to the raw image data.  This normally will not need to be
- * used by derived classes.
- *
- * This class is pure virtual.  The following virtual functions must be implemented in derived classes:
- * - \ref virtual void mtxL_postSetImsize( const uniqueLockT &lock )
- * - \ref virtual void mtxL_postRecolor( const uniqueLockT &lock )
- * - \ref virtual void mtxL_postRecolor( const sharedLockT &lock )
- * - \ref virtual void mtxL_postChangeImdata( const sharedLockT &lock )
- * - \ref virtual void post_zoomLevel()
- * - \ref virtual void mtxL_postSetColorBoxActive( bool usba, const sharedLockT &lock )
- *
- * Additional optional virtual functions that may be implemented are:
- * - \ref virtual void onConnect()
- * - \ref virtual void updateFPS();
- * - \ref virtual void updateAge();
- * - \ref virtual void updateNC();
- */
-class rtimvBase : public mx::app::application
+#include "rtimv.grpc.pb.h"
+
+/// The base class for rtimvClient functions
+
+class rtimvClientBase : public mx::app::application
 {
 
   public:
@@ -69,9 +39,11 @@ class rtimvBase : public mx::app::application
      */
 
     /// Basic c'tor.  Does not startup the images.
-    rtimvBase();
+    /** startup should be called with the list of keys.
+     */
+    rtimvClientBase();
 
-    ~rtimvBase();
+    ~rtimvClientBase();
 
     /// @}
 
@@ -80,7 +52,10 @@ class rtimvBase : public mx::app::application
      *  The mx::app::application interface for command line and config files.
      * @{
      */
+
     virtual void setupConfig();
+
+    virtual void loadStandardConfig();
 
     virtual void loadConfig();
 
@@ -94,26 +69,8 @@ class rtimvBase : public mx::app::application
      */
 
   protected:
-    /// The images to be displayed
-    /** By index:
-     * - 0 is the main image.
-     * - 1 is the dark image which is (optionally) subtracted from the main image.
-     * - 2 is the mask image which is (optionally) multiplied by the dark-subtracted image.  Normally a 1/0 image.
-     * - 3 is the saturation mask which (optionally) denotes which pixels to turn the saturation color.
-     */
-    std::vector<rtimvImage *> m_images;
-
     /// Flag used to indicate that the main image, m_images[0], is connected to its first image
     bool m_connected{ false };
-
-    /// Flag to indicate that the milkzmq protocol should be used for all ImageStremIO images
-    bool m_mzmqAlways{ false };
-
-    /// Default milkzmq server to use, if set this overrides default "localhost" in \ref mzmqImage
-    std::string m_mzmqServer;
-
-    /// Default milkzmq server to use, if set this overrides default "5556" in \ref mzmqImage
-    int m_mzmqPort{ 0 };
 
     ///@}
 
@@ -129,11 +86,10 @@ class rtimvBase : public mx::app::application
      */
     bool connected();
 
-    /// Configure the image sources and start checking for updates.
+    /// Connect to the server and start getting images
     /**
      */
-    void startup( const std::vector<std::string> &shkeys /**< [in] The keys used to access
-                                                         the images (see \ref m_images)*/ );
+    void startup( remote_rtimv::Config & configReq );
 
     /// Function called on connection
     /**
@@ -149,6 +105,7 @@ class rtimvBase : public mx::app::application
     /** @name Image Status
      * @{
     */
+
     /// Check if the main image is currently valid.
     /** An image is valid if it was supplied on command line, and if the image itself returns true from valid().
      *
@@ -417,47 +374,6 @@ class rtimvBase : public mx::app::application
      * @{
      */
   public:
-    /// The fuction pointer type for accessing pixels with calibrations applied.
-    typedef float ( *pixelF )( rtimvBase *, size_t );
-
-    /// Returns a pointer to the static pixel value calculation function for the current calibration configuration
-    /** Calibration configuration includes the value of m_subtractDark, m_applyMask.
-     *
-     * \returns a pointer to one of pixel_noCal, pixel_subDark, pixel_applyMask, pixel_subDarkApplyMask.
-     */
-    pixelF rawPixel();
-
-    /// Access pixels with no calibrations applied.
-    /**
-     * \returns the value of pixel idx
-     */
-    static float pixel_noCal( rtimvBase *imv, ///< [in] the rtimvBase instance to access
-                              size_t idx      ///< [in] the linear pixel number to access
-    );
-
-    /// Access pixels with dark subtraction applied.
-    /**
-     * \returns the value of pixel idx after dark subtraction
-     */
-    static float pixel_subDark( rtimvBase *imv, ///< [in] the rtimvBase instance to access
-                                size_t idx      ///< [in] the linear pixel number to access
-    );
-
-    /// Access pixels with the mask applied.
-    /**
-     * \returns the value of pixel idx after applying the mask
-     */
-    static float pixel_applyMask( rtimvBase *imv, ///< [in] the rtimvBase instance to access
-                                  size_t idx      ///< [in] the linear pixel number to access
-    );
-
-    /// Access pixels with dark subtraction and masking applied.
-    /**
-     * \returns the value of pixel idx after subtracting the dark and applying the mask
-     */
-    static float pixel_subDarkApplyMask( rtimvBase *imv, ///< [in] the rtimvBase instance to access
-                                         size_t idx      ///< [in] the linear pixel number to access
-    );
 
     /// Get the value of a calibrated pixel
     /**
@@ -465,13 +381,6 @@ class rtimvBase : public mx::app::application
      */
     float calPixel( uint32_t x, /**< [in] the x coordinate of the pixel */
                     uint32_t y /**< [in] the y coordinate of the pixel */ );
-
-    /// Get the value of a pixel in the saturation mask
-    /**
-     * \returns the value of the (x,y) pixel in \ref m_satData
-     */
-    uint8_t satPixel( uint32_t x, /**< [in] the x coordinate of the pixel */
-                      uint32_t y /**< [in] the y coordinate of the pixel */ );
 
     ///@}
 
@@ -493,23 +402,11 @@ class rtimvBase : public mx::app::application
         cbStretches_max
     };
 
-  protected:
-    int m_minColor{ 0 }; ///< The minimum index to use for the color table.
-
-    int m_maxColor{ 253 }; ///< The maximum index to use for the color table.
-
-    int m_maskColor{ 254 }; ///< The index in the color table to use for the mask color.
-
-    int m_satColor{ 255 }; ///< The index in the color table to use for the saturation color.
-
-    int m_nanColor{ 254 }; ///< The index in the color table to use for nans and infinities.
-
     int colorbar_mode{ minmaxglobal };
     int m_cbStretch{ stretchLinear };
 
     int current_colorbar{ colorbarBone };
 
-    QColor warning_color;
 
   public:
     enum colorbars
@@ -553,17 +450,6 @@ class rtimvBase : public mx::app::application
     void set_cbStretch( int );
     int get_cbStretch();
 
-    pixelIndexF pixelIndex();
-
-    static int pixelIndex_linear( float d );
-
-    static int pixelIndex_log( float d );
-
-    static int pixelIndex_pow( float d );
-
-    static int pixelIndex_sqrt( float d );
-
-    static int pixelIndex_square( float d );
 
     ///@}
 
@@ -574,10 +460,6 @@ class rtimvBase : public mx::app::application
 
   protected:
     /*** Color Map ***/
-    float m_mindat; ///< The minimum data value used for scaling
-
-    float m_maxdat; ///< The maximum data valuse used for scaling
-
     bool m_autoScale{ false };
 
   public:

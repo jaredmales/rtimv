@@ -1,43 +1,44 @@
 #include "rtimvServerThread.hpp"
 #include <QBuffer>
 
-rtimvServerThread::rtimvServerThread( const std::string &uri, const std::string &configFile, QObject *parent )
+rtimvServerThread::rtimvServerThread( const std::string &uri,
+                                      std::shared_ptr<std::vector<std::string>> argv,
+                                      QObject *parent )
     : QThread( parent ), m_uri( uri )
 {
     m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; // Tells mx::application to look for this env var.
 
     m_imageTimeout = 100;
 
-    connect(this, SIGNAL(gotosleep()), this, SLOT(sleep()));
-    connect(this, SIGNAL(awaken()), this, SLOT(wakeup()));
+    connect( this, SIGNAL( gotosleep() ), this, SLOT( sleep() ) );
+    connect( this, SIGNAL( awaken() ), this, SLOT( wakeup() ) );
 
-    lastRequest(-1); //set to now
+    lastRequest( -1 ); // set to now
 
-    std::cerr << "I am: " << uri << " with " << configFile << '\n';
+    std::cerr << "I am: " << uri << '\n';
 
-    m_argv = new std::vector<std::string>( { "rst", "-c", configFile } );
-
+    m_argv = argv;
 }
 
 rtimvServerThread::~rtimvServerThread()
 {
-    if(m_argv)
-    {
-        delete m_argv;
-    }
 }
 
 void rtimvServerThread::configure()
 {
-    if(!m_argv)
+    if( !m_argv )
     {
+        m_configured = -1;
+        return;
     }
 
     std::vector<const char *> argv( m_argv->size() + 1, NULL );
     for( size_t index = 0; index < m_argv->size(); ++index )
     {
-        argv[index] = (*m_argv)[index].c_str();
+        argv[index] = (*m_argv )[index].c_str();
     }
+
+    m_argv = nullptr;
 
     m_configured = 0;
     try
@@ -45,17 +46,16 @@ void rtimvServerThread::configure()
         setup( argv.size() - 1, const_cast<char **>( argv.data() ) );
         m_configured = 1;
         m_foundation->m_imageTimer.start( m_imageTimeout );
-
-        //Here we're done with it.
-        delete m_argv;
-        m_argv = nullptr;
     }
     catch( ... )
     {
         m_configured = -1;
     }
+}
 
-    
+int rtimvServerThread::configured()
+{
+    return m_configured;
 }
 
 void rtimvServerThread::onConnect()

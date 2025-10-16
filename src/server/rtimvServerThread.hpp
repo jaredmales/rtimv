@@ -13,48 +13,39 @@ using namespace mx::app;
 
 #define RTIMV_DEBUG_BREADCRUMB
 
-
 class rtimvServerThread : public QThread, public rtimvBase
 {
     Q_OBJECT
 
   protected:
-
     std::string m_uri; ///< The URI for this thread as a server client
 
-    std::vector<std::string> * m_argv {nullptr}; /**< The command line argv.  This is set in the constructor, and destroyed
-                                                      after configure is called.*/
+    std::shared_ptr<std::vector<std::string>> m_argv; /**< The command line argv.  This is set in the constructor, and
+                                                      destroyed after configure is called.*/
 
-    bool m_newImage {false}; ///< Flag indicating a new image is ready after the last render.
+    bool m_newImage{ false }; ///< Flag indicating a new image is ready after the last render.
 
-    int m_quality {50}; ///< The JPEG quality factor (0-100).  Default is 50.
+    int m_quality{ 50 }; ///< The JPEG quality factor (0-100).  Default is 50.
 
-    double m_lastRequest {0}; ///< The time of the last request for an image
+    double m_lastRequest{ 0 }; ///< The time of the last request for an image
 
-    bool m_asleep {false};
+    bool m_asleep{ false };
+
+    int m_configured{ 0 }; ///< 0 is unconfigured, 1 is configured, -1 is configuration error
 
   public:
-
-    int m_configured {0}; ///< 0 is unconfigured, 1 is configured, -1 is configuration error
-
-    rtimvServerThread( const std::string & uri,
-                       const std::string & configFile,
-                       QObject *parent = nullptr
-                     );
-
-     rtimvServerThread( const std::string & uri,
-                       const std::vector<std::string> * argv, /**< The argv vector.  Takes ownership and will `delete` once
-                                                                   configuration is complete */
-                       QObject *parent = nullptr
-                     );
+    rtimvServerThread( const std::string &uri,                         /**< [in] client uri */
+                       std::shared_ptr<std::vector<std::string>> argv, /**< [in] The argv vector. */
+                       QObject *parent = nullptr                       /**< [in] [opt] the parent of this thread */
+    );
 
     ~rtimvServerThread();
 
-    void configure( );
+    void configure();
 
-    //void run() override;
+    int configured();
 
-signals:
+  signals:
     void rendered();
 
   public:
@@ -66,55 +57,51 @@ signals:
     virtual void post_zoomLevel();
 
   private:
-    ///Generic implementation of postRecolor
-    template<class lockT>
-    void mtxL_postRecolorImpl(const lockT & lock /**<[in] a mutex lock which is locked*/);
+    /// Generic implementation of postRecolor
+    template <class lockT>
+    void mtxL_postRecolorImpl( const lockT &lock /**<[in] a mutex lock which is locked*/ );
 
   public:
-    virtual void mtxL_postRecolor( const uniqueLockT &lock /**<[in] a unique mutex lock which is locked*/);
+    virtual void mtxL_postRecolor( const uniqueLockT &lock /**<[in] a unique mutex lock which is locked*/ );
 
-    virtual void mtxL_postRecolor( const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/);
+    virtual void mtxL_postRecolor( const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/ );
 
-    virtual void mtxL_postChangeImdata( const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/);
+    virtual void mtxL_postChangeImdata( const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/ );
 
-    virtual void mtxL_postSetColorBoxActive(  bool usba, const sharedLockT &lock );
+    virtual void mtxL_postSetColorBoxActive( bool usba, const sharedLockT &lock );
 
-    void mtxuL_render(std::string * image);
+    void mtxuL_render( std::string *image );
 
     bool newImage();
 
     int quality();
 
-    void quality(int q);
+    void quality( int q );
 
     double lastRequest();
 
-    void lastRequest(double lr);
+    void lastRequest( double lr );
 
     double sinceLastRequest();
 
     bool asleep();
 
-signals:
+  signals:
 
     void gotosleep();
 
     void awaken();
 
-public:
-
+  public:
     void emit_gotosleep();
 
     void emit_awaken();
 
-public slots:
+  public slots:
 
     void sleep();
 
     void wakeup();
-
 };
-
-
 
 #endif // rtimvServerThread_hpp

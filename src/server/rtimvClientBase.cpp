@@ -19,25 +19,55 @@ rtimvBase::rtimvBase()
     m_foundation = new rtimvBaseObject( this, nullptr );
 }
 
+rtimvBase::rtimvBase( const std::vector<std::string> &shkeys )
+{
+    startup( shkeys );
+    m_foundation = new rtimvBaseObject( this, nullptr );
+}
+
 rtimvBase::~rtimvBase()
 {
-    for(size_t n = 0; n < m_images.size(); ++n)
+    for( size_t n = 0; n < m_images.size(); ++n )
     {
-        if(m_images[n])
+        if( m_images[n] )
         {
             m_images[n]->deleteLater();
         }
     }
 
-    if(m_foundation)
+    if( m_foundation )
     {
         m_foundation->deleteLater();
     }
-
 }
 
 void rtimvBase::setupConfig()
 {
+    //-c --config is setup in mx::application::loadStandardConfig
+
+    config.add( "localConfig",
+                "l",
+                "localConfig",
+                mx::app::argType::Required,
+                "",
+                "localConfig",
+                false,
+                "string",
+                "A local configuration file." );
+
+    config.add( "server",
+                "S",
+                "server",
+                mx::app::argType::Required,
+                "",
+                "server",
+                false,
+                "string",
+                "IP address of the rtimv grpc server." );
+
+    config.add(
+        "port", "P", "port", mx::app::argType::Required, "", "port", false, "int", "Port of the rtimv grpc server." );
+
     config.add( "image.key",
                 "",
                 "image.key",
@@ -185,89 +215,133 @@ void rtimvBase::setupConfig()
                 "specific port specified in a key." );
 }
 
+void rtimvBase::loadStandardConfig()
+{
+    config( m_configPathCL, "localConfig" );
+    m_configPathCL = m_configPathCLBase + m_configPathCL;
+}
+
 void rtimvBase::loadConfig()
 {
-    std::string imKey;
-    std::string darkKey;
-
-    std::string flatKey;
-
-    std::string maskKey;
+    remote_rtimv::Config configReq;
 
     std::string satMaskKey;
 
     std::vector<std::string> keys;
 
-    // Set up milkzmq
-    config( m_mzmqAlways, "mzmq.always" );
-    config( m_mzmqServer, "mzmq.server" );
-    config( m_mzmqPort, "mzmq.port" );
+    if( config.isSet( "config" ) )
+    {
+        std::string configFile;
+        config( configFile, "config" );
+        configReq.set_file( configFile );
+    }
 
-    // Check for use of deprecated shmim_name keyword by itself, but use key if available
-    config( imKey, "image.key" );
+    if( config.isSet( "image.key" ) )
+    {
+        std::string imKey;
+        config( imKey, "image.key" );
+        configReq.set_image_key( imKey );
+    }
 
-    config( darkKey, "dark.key" );
+    if( config.isSet( "dark.key" ) )
+    {
+        std::string darkKey;
+        config( darkKey, "dark.key" );
+        configReq.set_dark_key( darkKey );
+    }
 
-    config( maskKey, "mask.key" );
+    if( config.isSet( "flat.key" ) )
+    {
+        std::string flatKey;
+        config( flatKey, "flat.key" );
+        configReq.set_mask_key( flatKey );
+    }
 
-    config( satMaskKey, "satMask.key" );
+    if( config.isSet( "mask.key" ) )
+    {
+        std::string maskKey;
+        config( maskKey, "mask.key" );
+        configReq.set_mask_key( maskKey );
+    }
 
-    // Populate the key vector, a "" means no image specified
-    keys.resize( 4 );
-
-    if( imKey != "" )
-        keys[0] = imKey;
-    if( darkKey != "" )
-        keys[1] = darkKey;
-    if( maskKey != "" )
-        keys[2] = maskKey;
-    if( satMaskKey != "" )
-        keys[3] = satMaskKey;
+    if( config.isSet( "satMask.key" ) )
+    {
+        std::string satMaskKey;
+        config( satMaskKey, "satMask.key" );
+        configReq.set_sat_mask_key( satMaskKey );
+    }
 
     // The command line always overrides the config
     if( config.nonOptions.size() > 0 )
-        keys[0] = config.nonOptions[0];
+    {
+        configReq.set_image_key(config.nonOptions[0]);
+    }
+
     if( config.nonOptions.size() > 1 )
-        keys[1] = config.nonOptions[1];
+    {
+        configReq.set_dark_key(config.nonOptions[1]);
+        darkKey = config.nonOptions[1]
+    }
+
     if( config.nonOptions.size() > 2 )
-        keys[2] = config.nonOptions[2];
+    {
+        configReq.set_mask_key(config.nonOptions[2]);
+    }
+
     if( config.nonOptions.size() > 3 )
-        keys[3] = config.nonOptions[3];
+    {
+        configReq.set_flat_key(config.nonOptions[3])
+    }
 
-    startup( keys );
+    if( config.nonOptions.size() > 4 )
+    {
+        configReq.set_sat_mask_key(config.nonOptions[4])
+    }
 
-    if( m_images[0] == nullptr )
+
+    if( configReq.image_key() == "" )
     {
         if( doHelp )
         {
             help();
 
-            throw std::runtime_error("help");
+            throw std::runtime_error( "help" );
         }
         else
         {
-            throw std::runtime_error("rtimv: No valid image specified so cowardly refusing to start.  Use -h for help.");
+            throw std::runtime_error( "rtimv: No valid image specified so cowardly "
+                                      "refusing to start.  Use -h for help." );
         }
-
     }
 
     // Now load remaining options, respecting coded defaults.
 
-    //get timeouts.
-    float fps = -999;
-    config( fps, "update.fps" );
-
-    if( fps > 0 ) //fps sets m_imageTimeout
+    // get timeouts.
+    if(config.isSet("update.fps"))
     {
-        m_imageTimeout = std::round( 1000. / fps );
+        float fps = -999;
+        config( fps, "update.fps" );
+
+        if( fps > 0 ) // fps sets m_imageTimeout
+        {
+            configReq.set_update_timeout(std::round( 1000. / fps ));
+            configReq.set_update_timeout_set(true);
+        }
     }
 
-    //but update.timeout can override it
-    config( m_imageTimeout, "update.timeout" );
+    // but update.timeout can override it
+    if(config.isSet("update.timeout"))
+    {
+        uint32_t updateTimeout;
+        config( updateTimeout, "update.timeout" );
+        configReq.set_update_timeout(updateTimeout);
+        configReq.set_update_timeout_set(true);
+    }
+
     config( m_cubeFPS, "update.cubeFPS" );
 
-    //Now set the actual timeouts
-    cubeFPS(m_cubeFPS);
+    // Now set the actual timeouts
+    cubeFPS( m_cubeFPS );
 
     config( m_autoScale, "autoscale" );
     config( m_subtractDark, "darksub" );
@@ -283,6 +357,13 @@ void rtimvBase::loadConfig()
 
     // except turn it off if requested
     config( m_applySatMask, "masksat" );
+
+    // Set up milkzmq
+    config( m_mzmqAlways, "mzmq.always" );
+    config( m_mzmqServer, "mzmq.server" );
+    config( m_mzmqPort, "mzmq.port" );
+
+    configReq.set_file( configFile );
 }
 
 bool rtimvBase::connected()
@@ -290,112 +371,33 @@ bool rtimvBase::connected()
     return m_connected;
 }
 
-void rtimvBase::startup( const std::vector<std::string> &shkeys )
+void rtimvBase::startup( remote_rtimv::Config configReq )
 {
-    m_images.resize( 4, nullptr );
+    // Container for the data we expect from the server.
+    ConfigResult result;
 
-    for( size_t i = 0; i < m_images.size(); ++i )
+    // Context for the client. It could be used to convey extra information to
+    // the server and/or tweak certain RPC behaviors.
+    ClientContext context;
+
+    // The actual RPC.
+    Status status = stub_->Configure( &context, configReq, &result );
+
+    // Act upon its status.
+    if( status.ok() )
     {
-        if( shkeys.size() > i )
-        {
-            if( shkeys[i] != "" )
-            {
-                // safely accept several different common fits extensions
-                bool isFits = false;
-                if( shkeys[i].size() > 4 )
-                {
-                    if( shkeys[i].rfind( ".fit" ) == shkeys[i].size() - 4 ||
-                        shkeys[i].rfind( ".FIT" ) == shkeys[i].size() - 4 )
-                    {
-                        isFits = true;
-                    }
-                }
-                if( shkeys[i].size() > 5 && !isFits )
-                {
-                    if( shkeys[i].rfind( ".fits" ) == shkeys[i].size() - 5 ||
-                        shkeys[i].rfind( ".FITS" ) == shkeys[i].size() - 5 )
-                    {
-                        isFits = true;
-                    }
-                }
-
-                bool isDirectory = false;
-
-                if( !isFits )
-                {
-                    if( shkeys[i][shkeys[i].size() - 1] == '/' )
-                    {
-                        isDirectory = true;
-                    }
-                }
-
-                if( isFits )
-                {
-                    fitsImage *fi = new fitsImage( &m_rawMutex );
-                    m_images[i] = (rtimvImage *)fi;
-                }
-                else if( isDirectory )
-                {
-                    fitsDirectory *fd = new fitsDirectory( &m_rawMutex );
-                    m_images[i] = (rtimvImage *)fd;
-                }
-                else if( shkeys[i].find( '@' ) != std::string::npos || shkeys[i].find( ':' ) != std::string::npos ||
-                         m_mzmqAlways == true )
-                {
-                    mzmqImage *mi = new mzmqImage( &m_rawMutex );
-
-                    // change defaults
-                    if( m_mzmqServer != "" )
-                    {
-                        mi->imageServer( m_mzmqServer );
-                    }
-
-                    if( m_mzmqPort != 0 )
-                    {
-                        mi->imagePort( m_mzmqPort );
-                    }
-
-                    m_images[i] = (rtimvImage *)mi;
-                }
-                else
-                {
-                    // clang-format off
-                    #ifdef MXLIB_MILK
-                        // If we get here we try to interpret as an ImageStreamIO image
-                        shmimImage *si = new shmimImage( &m_rawMutex );
-                        m_images[i] = (rtimvImage *)si;
-                    #else
-                        qFatal( "Unrecognized image key format" );
-                    #endif
-                    //  clang-format on
-                }
-
-                m_images[i]->imageKey( shkeys[i] ); // Set the key
-            }
-        }
+        return result.result();
     }
-
-    // Turn on features if images exist:
-    if( m_images[1] != nullptr )
+    else
     {
-        m_subtractDark = true;
+        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        return -1;
     }
-
-    if( m_images[2] != nullptr )
-    {
-        m_applyMask = true;
-    }
-
-    if( m_images[3] != nullptr )
-    {
-        m_applySatMask = true;
-    }
-
 }
 
 bool rtimvBase::imageValid()
 {
-    return imageValid(0);
+    return imageValid( 0 );
 }
 
 bool rtimvBase::imageValid( size_t n )
@@ -415,12 +417,12 @@ bool rtimvBase::imageValid( size_t n )
 
 double rtimvBase::imageTime()
 {
-    return imageTime(0);
+    return imageTime( 0 );
 }
 
 double rtimvBase::imageTime( size_t n )
 {
-    if(!imageValid(n))
+    if( !imageValid( n ) )
     {
         return 0;
     }
@@ -430,12 +432,12 @@ double rtimvBase::imageTime( size_t n )
 
 double rtimvBase::fpsEst()
 {
-    return fpsEst(0);
+    return fpsEst( 0 );
 }
 
 double rtimvBase::fpsEst( size_t n )
 {
-    if(!imageValid(n))
+    if( !imageValid( n ) )
     {
         return 0;
     }
@@ -445,7 +447,7 @@ double rtimvBase::fpsEst( size_t n )
 
 std::string rtimvBase::imageName( size_t n )
 {
-    if(!imageValid(n))
+    if( !imageValid( n ) )
     {
         return std::string();
     }
@@ -455,7 +457,7 @@ std::string rtimvBase::imageName( size_t n )
 
 uint32_t rtimvBase::imageNo( size_t n )
 {
-    if(!imageValid(n))
+    if( !imageValid( n ) )
     {
         return 0;
     }
@@ -465,7 +467,7 @@ uint32_t rtimvBase::imageNo( size_t n )
 
 std::vector<std::string> rtimvBase::info( size_t n )
 {
-    if(!imageValid(n))
+    if( !imageValid( n ) )
     {
         return std::vector<std::string>();
     }
@@ -1171,12 +1173,12 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
                 }
             }
 
-            //post calibration call here
+            // post calibration call here
         }
 
     } // mutex scope -- lock and rawlock release
 
-    //if(!skipColorize())
+    // if(!skipColorize())
     { // mutex scope
 
         sharedLockT lock( m_calMutex );

@@ -8,30 +8,50 @@ service rtimv
 
     rpc ImagePlease(ImageRequest) returns (Image);
 
-    rpc ColorBox(Box) returns (Image);
-
     rpc GetPixel(Coord) returns(Pixel);
 
+    rpc ColorBox(Box) returns (MindatMaxdat);
+
     rpc StatsBox(Box) returns(Pixel);
+
 }
 
 message Config
 {
     string file = 1;
-    string imageKey = 2;
-    string darkKey = 3;
-    string maskKey = 4;
-    string satMaskKey = 5;
-    float updateFPS = 6;
-    uint32 updateTimeout = 7;
-    float updateCubeFPS = 8;
-    bool autoscale = 9;
-    bool darksub = 10;
-    float satLevel = 11;
-    bool masksat = 12;
-    bool mzmqAlways = 13;
-    string mzmqServer = 14;
-    uint32 mzmqPort = 15;
+    string image_key = 2;
+    string dark_key = 3;
+    string flat_key = 4;
+    string mask_key = 5;
+    string sat_mask_key = 6;
+
+// change numbers
+
+    bool update_timeout_set = 9;
+    uint32 update_timeout = 10;
+
+    bool update_cube_fps_set = 11;
+    float update_cube_fps = 12;
+
+    bool autoscale_set = 13;
+    bool autoscale = 14;
+
+    bool darksub_set = 15;
+    bool darksub = 16;
+
+    bool satlevel_set = 17;
+    float satlevel = 18;
+
+    bool mask_sat_set = 19;
+    bool mask_sat = 20;
+
+    bool mzmq_always_set = 21;
+    bool mzmq_always = 22;
+
+    string mzmq_server = 23;
+
+    bool mzmq_port_set = 24;
+    uint32 mzmq_port = 25;
 }
 
 message ConfigResult
@@ -68,7 +88,14 @@ message Coord
 
 message Pixel
 {
-    float value = 1;
+    bool valid = 1;
+    float value = 2;
+}
+
+message MindatMaxdat
+{
+    float mindat = 1;
+    float maxdat = 2;
 }
 
 message Box

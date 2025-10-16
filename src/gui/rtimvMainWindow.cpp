@@ -1290,12 +1290,19 @@ void rtimvMainWindow::mtxTry_colorBoxMoved( StretchBox *sb )
     sharedLockT lock( m_calMutex );
 
     if( !m_colorBox )
+    {
         return;
+    }
+
     if( !m_qpmi )
+    {
         return;
+    }
 
     if( !colorBoxActive )
+    {
         return;
+    }
 
     QRectF newr = sb->rect();
 
