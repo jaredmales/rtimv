@@ -97,6 +97,15 @@ else()
     message(STATUS "not using MILK")
 endif()
 
+list(FIND MXLIB_CFLAGS "-DHAVE_CUDA" ISIO_HAS_CUDA)
+
+if(NOT(ISIO_HAS_CUDA EQUAL -1))
+    message(STATUS "enabling CUDA for MILK")
+    target_compile_definitions(commonlib PUBLIC HAVE_CUDA)
+else()
+    message(STATUS "not using CUDA for MILK")
+endif()
+
 target_link_libraries(commonlib PUBLIC Qt5::Widgets)
 target_link_libraries(commonlib PUBLIC PkgConfig::MXLIB)
 target_link_libraries(commonlib PUBLIC PkgConfig::LIBZMQ)

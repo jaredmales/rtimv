@@ -397,11 +397,11 @@ void rtimvServer::doConfigure( const configSpec *cspec )
         argv->push_back( cspec->m_config.sat_mask_key() );
     }
 
-    if( cspec->m_config.update_fps_set() )
+    /*if( cspec->m_config.update_fps_set() )
     {
         argv->push_back( "--update.fps" );
         argv->push_back( std::to_string( cspec->m_config.update_fps() ) );
-    }
+    }*/
 
     if( cspec->m_config.update_timeout_set() )
     {
