@@ -14,7 +14,7 @@ CONFIG(release, debug|release) {
 
 #CONFIG += c++14
 
-QMAKE_CXXFLAGS += -std=c++20
+QMAKE_CXXFLAGS += -std=c++20 -fPIC
 
 CONFIG += -O3
 
