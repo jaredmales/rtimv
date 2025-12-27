@@ -1827,10 +1827,10 @@ void rtimvMainWindow::addUserLine()
     else
         w = zny / 4;
 
-    auto it = m_userLines.insert( new StretchLine( ui.graphicsView->xCen() - w / 2,
-                                                   ui.graphicsView->yCen() - w / 2,
-                                                   ui.graphicsView->xCen() + w / 2,
-                                                   ui.graphicsView->yCen() + w / 2 ) );
+    auto it = m_userLines.insert( new StretchLine( ui.graphicsView->xCen(),
+                                                   ui.graphicsView->yCen(),
+                                                   ui.graphicsView->xCen() + w,
+                                                   ui.graphicsView->yCen() + w ) );
 
     StretchLine *sl = *it.first;
 
