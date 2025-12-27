@@ -859,6 +859,8 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
                     }
                 }
             }
+
+            //Also copy out mask to m_mask if valid
         }
 
     } // mutex scope -- lock and rawlock release
@@ -879,6 +881,8 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
         imdat_max = -std::numeric_limits<float>::max();
 
         float imval;
+
+        //get mask function that is just 1 if not valid, otherwise goes into m_mask
 
         for( uint32_t j = 0; j < m_ny; ++j )
         {
@@ -932,6 +936,14 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
                 {
                     imval = calPixel( i, j );
 
+                    /*if(valid(2))
+                    {
+                       if(_pixel_mask(i,j)) // no get a mask function, that just returns 1 if not valid
+                       {
+                          continue;
+                       }
+                    }
+                    */
                     if( !std::isfinite( imval ) )
                     {
                         continue;
