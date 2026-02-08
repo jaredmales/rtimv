@@ -14,7 +14,7 @@
 
 #include "ui_rtimvStats.h"
 
-#define RTIMV_BASE_QWIDGET
+//#define RTIMV_BASE_QWIDGET
 
 #include RTIMV_BASE_INCLUDE
 
@@ -30,7 +30,7 @@ class StatsThread : public QThread
 
 /// Class to manage calculating statistics in the designated image region
 /** Copies the data in the region to a local array.  While less efficient than not doing so,
- * this is done to avoid problems if the image goes away while the stats calculations are occuring.
+ * this is done to avoid problems if the image goes away while the stats calculations are occurring.
  */
 class rtimvStats : public QDialog
 {

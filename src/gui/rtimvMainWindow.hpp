@@ -51,6 +51,7 @@
 
 class rtimvControlPanel;
 
+//#define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
 
 class rtimvMainWindow : public QWidget, public RTIMV_BASE

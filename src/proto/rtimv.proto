@@ -6,11 +6,13 @@ service rtimv
 {
     rpc Configure(Config) returns (ConfigResult);
 
+    rpc LoadColorbar(Colorbar) returns (ColorbarLightness);
+
     rpc ImagePlease(ImageRequest) returns (Image);
 
     rpc GetPixel(Coord) returns(Pixel);
 
-    rpc ColorBox(Box) returns (MindatMaxdat);
+//    rpc ColorBox(Box) returns (MindatMaxdat);
 
     rpc StatsBox(Box) returns(Pixel);
 
@@ -59,6 +61,19 @@ message ConfigResult
     int32 result = 1;
 }
 
+//Send a request to set the colorbar.
+// If -1 is sent, then this is a query to get the current color bar.
+message Colorbar
+{
+    int32 colorbar = 1;
+}
+
+message ColorbarLightness
+{
+    int32 colorbar = 1; // The colorbar for which this lightness vector applies
+    bytes lightness = 2; // The lightness vector for the colorbar
+}
+
 message ImageRequest
 {
 }
@@ -75,9 +90,24 @@ enum ImageStatus
 message Image
 {
     ImageStatus status = 1;
-    double atime = 2;
-    double fps = 3;
-    bytes image = 4;
+
+    uint32 nx = 10; // x-size of source image (not size of jpeg)
+    uint32 ny = 11; // y-size of source image (not size of jpeg)
+    uint32 nz = 12; // z-size of source image
+
+    uint32 no = 20; // image number within the cube
+
+    double atime = 30; // acquisition time of source image
+    double fps = 31; // FPS of stream (measured)
+
+    bytes image = 100; // The image data
+
+    uint32 saturated = 105; // The number of saturated pixels
+
+    float min_image_data = 110;
+    float max_image_data = 111;
+    float min_scale_data = 112;
+    float max_scale_data = 113;
 }
 
 message Coord
@@ -92,11 +122,6 @@ message Pixel
     float value = 2;
 }
 
-message MindatMaxdat
-{
-    float mindat = 1;
-    float maxdat = 2;
-}
 
 message Box
 {

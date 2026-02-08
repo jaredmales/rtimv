@@ -1,38 +1,18 @@
-#include "rtimvBase.hpp"
-#include "rtimvBaseObject.hpp"
-
-#include <cmath>
-
-#ifdef MXLIB_MILK
-    #include "images/shmimImage.hpp"
-#endif
-
-#include "images/fitsImage.hpp"
-#include "images/fitsDirectory.hpp"
-#include "images/mzmqImage.hpp"
+#include "rtimvClientBase.hpp"
 
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
 
-rtimvBase::rtimvBase()
+rtimvClientBase::rtimvClientBase()
 {
     m_foundation = new rtimvBaseObject( this, nullptr );
 }
 
-rtimvBase::rtimvBase( const std::vector<std::string> &shkeys )
+rtimvClientBase::~rtimvClientBase()
 {
-    startup( shkeys );
-    m_foundation = new rtimvBaseObject( this, nullptr );
-}
-
-rtimvBase::~rtimvBase()
-{
-    for( size_t n = 0; n < m_images.size(); ++n )
+    if( m_configReq )
     {
-        if( m_images[n] )
-        {
-            m_images[n]->deleteLater();
-        }
+        delete m_configReq;
     }
 
     if( m_foundation )
@@ -41,10 +21,8 @@ rtimvBase::~rtimvBase()
     }
 }
 
-void rtimvBase::setupConfig()
+void rtimvClientBase::setupConfig()
 {
-    //-c --config is setup in mx::application::loadStandardConfig
-
     config.add( "localConfig",
                 "l",
                 "localConfig",
@@ -215,91 +193,94 @@ void rtimvBase::setupConfig()
                 "specific port specified in a key." );
 }
 
-void rtimvBase::loadStandardConfig()
+void rtimvClientBase::loadStandardConfig()
 {
     config( m_configPathCL, "localConfig" );
     m_configPathCL = m_configPathCLBase + m_configPathCL;
 }
 
-void rtimvBase::loadConfig()
+void rtimvClientBase::loadConfig()
 {
-    remote_rtimv::Config configReq;
+    if( m_configReq )
+    {
+        delete m_configReq;
+    }
 
-    std::string satMaskKey;
-
-    std::vector<std::string> keys;
+    m_configReq = new remote_rtimv::Config;
 
     if( config.isSet( "config" ) )
     {
         std::string configFile;
         config( configFile, "config" );
-        configReq.set_file( configFile );
+        m_configReq->set_file( configFile );
     }
+
+    config( m_server, "server" );
+    config( m_port, "port" );
 
     if( config.isSet( "image.key" ) )
     {
         std::string imKey;
         config( imKey, "image.key" );
-        configReq.set_image_key( imKey );
+        m_configReq->set_image_key( imKey );
     }
 
     if( config.isSet( "dark.key" ) )
     {
         std::string darkKey;
         config( darkKey, "dark.key" );
-        configReq.set_dark_key( darkKey );
+        m_configReq->set_dark_key( darkKey );
     }
 
     if( config.isSet( "flat.key" ) )
     {
         std::string flatKey;
         config( flatKey, "flat.key" );
-        configReq.set_mask_key( flatKey );
+        m_configReq->set_mask_key( flatKey );
     }
 
     if( config.isSet( "mask.key" ) )
     {
         std::string maskKey;
         config( maskKey, "mask.key" );
-        configReq.set_mask_key( maskKey );
+        m_configReq->set_mask_key( maskKey );
     }
 
     if( config.isSet( "satMask.key" ) )
     {
         std::string satMaskKey;
         config( satMaskKey, "satMask.key" );
-        configReq.set_sat_mask_key( satMaskKey );
+        m_configReq->set_sat_mask_key( satMaskKey );
     }
 
     // The command line always overrides the config
     if( config.nonOptions.size() > 0 )
     {
-        configReq.set_image_key(config.nonOptions[0]);
+        m_configReq->set_image_key( config.nonOptions[0] );
     }
 
     if( config.nonOptions.size() > 1 )
     {
-        configReq.set_dark_key(config.nonOptions[1]);
-        darkKey = config.nonOptions[1]
+        m_configReq->set_dark_key( config.nonOptions[1] );
+        // darkKey = config.nonOptions[1]
     }
 
     if( config.nonOptions.size() > 2 )
     {
-        configReq.set_mask_key(config.nonOptions[2]);
+        m_configReq->set_mask_key( config.nonOptions[2] );
     }
 
     if( config.nonOptions.size() > 3 )
     {
-        configReq.set_flat_key(config.nonOptions[3])
+        m_configReq->set_flat_key( config.nonOptions[3] );
     }
 
     if( config.nonOptions.size() > 4 )
     {
-        configReq.set_sat_mask_key(config.nonOptions[4])
+        m_configReq->set_sat_mask_key( config.nonOptions[4] );
     }
 
-
-    if( configReq.image_key() == "" )
+    if( m_configReq->file() == "" && m_configReq->image_key() == "" )
     {
         if( doHelp )
         {
@@ -309,7 +290,7 @@ void rtimvBase::loadConfig()
         }
         else
         {
-            throw std::runtime_error( "rtimv: No valid image specified so cowardly "
+            throw std::runtime_error( "rtimv: No remote config file or valid image specified, so chickening out and "
                                       "refusing to start.  Use -h for help." );
         }
     }
@@ -317,71 +298,126 @@ void rtimvBase::loadConfig()
     // Now load remaining options, respecting coded defaults.
 
     // get timeouts.
-    if(config.isSet("update.fps"))
+    if( config.isSet( "update.fps" ) )
     {
         float fps = -999;
         config( fps, "update.fps" );
 
         if( fps > 0 ) // fps sets m_imageTimeout
         {
-            configReq.set_update_timeout(std::round( 1000. / fps ));
-            configReq.set_update_timeout_set(true);
+            m_configReq->set_update_timeout( std::round( 1000. / fps ) );
+            m_configReq->set_update_timeout_set( true );
         }
     }
 
     // but update.timeout can override it
-    if(config.isSet("update.timeout"))
+    if( config.isSet( "update.timeout" ) )
     {
         uint32_t updateTimeout;
         config( updateTimeout, "update.timeout" );
-        configReq.set_update_timeout(updateTimeout);
-        configReq.set_update_timeout_set(true);
+        m_configReq->set_update_timeout( updateTimeout );
+        m_configReq->set_update_timeout_set( true );
     }
 
-    config( m_cubeFPS, "update.cubeFPS" );
-
-    // Now set the actual timeouts
-    cubeFPS( m_cubeFPS );
-
-    config( m_autoScale, "autoscale" );
-    config( m_subtractDark, "darksub" );
-
-    float satLevelDefault = m_satLevel;
-    config( m_satLevel, "satLevel" );
-
-    // If we set a sat level or mask, apply it
-    if( m_satLevel != satLevelDefault || satMaskKey != "" )
+    if( config.isSet( "update.cubeFPS" ) )
     {
-        m_applySatMask = true;
+        float cubeFPS;
+        config( cubeFPS, "update.cubeFPS" );
+        m_configReq->set_update_cube_fps( cubeFPS );
+        m_configReq->set_update_cube_fps_set( true );
     }
 
-    // except turn it off if requested
-    config( m_applySatMask, "masksat" );
+    if( config.isSet( "autoscale" ) )
+    {
+        bool autoscale;
+        config( autoscale, "autoscale" );
+        m_configReq->set_autoscale( autoscale );
+        m_configReq->set_autoscale_set( true );
+    }
+
+    if( config.isSet( "darksub" ) )
+    {
+        bool darksub;
+        config( darksub, "darksub" );
+        m_configReq->set_darksub( darksub );
+        m_configReq->set_darksub_set( true );
+    }
+
+    if( config.isSet( "satLevel" ) )
+    {
+        float satlevel;
+        config( satlevel, "satLevel" );
+        m_configReq->set_satlevel( satlevel );
+        m_configReq->set_satlevel_set( true );
+    }
+
+    if( config.isSet( "masksat" ) )
+    {
+        bool masksat;
+        config( masksat, "masksat" );
+        m_configReq->set_mask_sat( masksat );
+        m_configReq->set_mask_sat_set( true );
+    }
 
     // Set up milkzmq
-    config( m_mzmqAlways, "mzmq.always" );
-    config( m_mzmqServer, "mzmq.server" );
-    config( m_mzmqPort, "mzmq.port" );
 
-    configReq.set_file( configFile );
+    if( config.isSet( "mzmq.always" ) )
+    {
+        bool mzmqalways;
+        config( mzmqalways, "mzmq.always" );
+        m_configReq->set_mzmq_always( mzmqalways );
+        m_configReq->set_mzmq_always_set( true );
+    }
+
+    if( config.isSet( "mzmq.server" ) )
+    {
+        std::string mzmqServer;
+        config( mzmqServer, "mzmq.server" );
+        m_configReq->set_mzmq_server( mzmqServer );
+    }
+
+    if( config.isSet( "mzmq.port" ) )
+    {
+        uint32_t port;
+        config( port, "mzmq.port" );
+        m_configReq->set_mzmq_port( port );
+        m_configReq->set_mzmq_port_set( true );
+    }
+
+    std::string target_str = std::format( "{}:{}", m_server, m_port );
+
+    std::shared_ptr<grpc::Channel> channel( grpc::CreateChannel( target_str, grpc::InsecureChannelCredentials() ) );
+    stub_ = remote_rtimv::rtimv::NewStub( channel );
 }
 
-bool rtimvBase::connected()
+void rtimvClientBase::startup()
+{
+    Configure();
+
+    m_foundation->emit_ImageNeeded();
+}
+
+bool rtimvClientBase::connected()
 {
     return m_connected;
 }
 
-void rtimvBase::startup( remote_rtimv::Config configReq )
+int rtimvClientBase::Configure()
 {
+    if( !m_configReq )
+    {
+        return -1;
+    }
+
     // Container for the data we expect from the server.
-    ConfigResult result;
+    remote_rtimv::ConfigResult result;
 
     // Context for the client. It could be used to convey extra information to
     // the server and/or tweak certain RPC behaviors.
-    ClientContext context;
+    grpc::ClientContext context;
 
     // The actual RPC.
-    Status status = stub_->Configure( &context, configReq, &result );
+    grpc::Status status = stub_->Configure( &context, *m_configReq, &result );
 
     // Act upon its status.
     if( status.ok() )
@@ -395,1021 +431,543 @@ void rtimvBase::startup( remote_rtimv::Config configReq )
     }
 }
 
-bool rtimvBase::imageValid()
+using namespace std::chrono_literals;
+
+void rtimvClientBase::ImagePlease()
 {
-    return imageValid( 0 );
+    std::lock_guard<std::mutex> lock( m_imageRequestMutex );
+
+    if( m_imageRequestPending )
+    {
+        std::cerr << "bug: in ImagePlease but imageRequestPending is true " << __FILE__ << ' ' << __LINE__ << '\n';
+        return;
+    }
+
+    if( m_ImagePleaseContext )
+    {
+        std::cerr << "bug: in ImagePlease but ImagePleaseContext is allocated " << __FILE__ << ' ' << __LINE__ << '\n';
+        return;
+    }
+
+    m_ImagePleaseContext = new grpc::ClientContext;
+
+    // The actual RPC.
+    stub_->async()->ImagePlease( m_ImagePleaseContext,
+                                 &m_grpcImageRequest,
+                                 &m_grpcImage,
+                                 [this]( grpc::Status status ) { this->ImagePlease_callback( status ); } );
+
+    m_imageRequestPending = true;
 }
 
-bool rtimvBase::imageValid( size_t n )
+void rtimvClientBase::ImageReceived()
 {
-    if( n >= m_images.size() )
-    {
-        return false;
+    uint32_t nx, ny, nz;
+    float fpsEst;
+    double imageTime;
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_imageRequestMutex );
+
+        if( m_imageRequestPending )
+        {
+            std::cerr << "bug: in ImageRecieved but imageRequestPending is true " << __FILE__ << ' ' << __LINE__
+                      << '\n';
+            return;
+        }
+
+        nx = m_grpcImage.nx();
+        ny = m_grpcImage.ny();
+        nz = m_grpcImage.nz();
+
+        // Always have at least one pixel
+        if( nx == 0 )
+        {
+            nx = 1;
+        }
+
+        if( ny == 0 )
+        {
+            ny = 1;
+        }
+
+        if( nz == 0 )
+        {
+            nz = 1;
+        }
+
+        if( !m_qim )
+        {
+            m_qim = new QImage;
+        }
+
+        m_qim->loadFromData(
+            reinterpret_cast<const uchar *>( m_grpcImage.image().data() ), m_grpcImage.image().size(), "jpeg" );
+
+        imageTime = m_grpcImage.atime();
+        fpsEst = m_grpcImage.fps();
     }
 
-    if( m_images[n] == nullptr )
+    std::shared_mutex dummy; // Used just to satisfy the requirement, not needed
+    uniqueLockT ulock( dummy );
+
+    if( m_qim->width() != nx || m_qim->height() != ny )
     {
-        return false;
     }
 
-    return m_images[n]->valid();
-}
+    bool resized = false;
 
-double rtimvBase::imageTime()
-{
-    return imageTime( 0 );
-}
-
-double rtimvBase::imageTime( size_t n )
-{
-    if( !imageValid( n ) )
-    {
-        return 0;
-    }
-
-    return m_images[n]->imageTime();
-}
-
-double rtimvBase::fpsEst()
-{
-    return fpsEst( 0 );
-}
-
-double rtimvBase::fpsEst( size_t n )
-{
-    if( !imageValid( n ) )
-    {
-        return 0;
-    }
-
-    return m_images[n]->fpsEst();
-}
-
-std::string rtimvBase::imageName( size_t n )
-{
-    if( !imageValid( n ) )
-    {
-        return std::string();
-    }
-
-    return m_images[n]->imageName();
-}
-
-uint32_t rtimvBase::imageNo( size_t n )
-{
-    if( !imageValid( n ) )
-    {
-        return 0;
-    }
-
-    return m_images[n]->imageNo();
-}
-
-std::vector<std::string> rtimvBase::info( size_t n )
-{
-    if( !imageValid( n ) )
-    {
-        return std::vector<std::string>();
-    }
-
-    return m_images[n]->info();
-}
-
-void rtimvBase::mtxL_setImsize( uint32_t x, uint32_t y, uint32_t z, const uniqueLockT &lock )
-{
-    assert( lock.owns_lock() );
-
-    // Always have at least one pixel
-    if( x == 0 )
-    {
-        x = 1;
-    }
-
-    if( y == 0 )
-    {
-        y = 1;
-    }
-
-    if( z == 0 )
-    {
-        z = 1;
-    }
-
-    m_nz = z;
+    m_nz = nz;
     m_foundation->emit_nzUpdated( m_nz );
 
-    if( m_nx != x || m_ny != y || m_calData == 0 || m_qim == 0 )
+    if( nx != m_nx || ny != m_ny )
+    {
+        m_nx = nx;
+        m_ny = ny;
+        mtxL_postSetImsize( ulock );
+
+        resized = true;
+    }
+
+    m_fpsEst = fpsEst;
+    m_imageTime = imageTime;
+
+    mtxL_postRecolor( ulock );
+
+    ulock.unlock();
+    sharedLockT slock( dummy );
+    mtxL_postChangeImdata( slock );
+
+    if( resized )
+    {
+        // Always switch to zoom 1 after a resize occurs
+        zoomLevel( 1 );
+    }
+
+    updateFPS();
+
+    // We always go on and get the next one
+    m_foundation->emit_ImageNeeded();
+}
+
+void rtimvClientBase::ImagePlease_callback( grpc::Status status )
+{
+    int action = -1;
+
+    {
+        std::lock_guard<std::mutex> lock( m_imageRequestMutex );
+
+        if( !m_imageRequestPending )
+        {
+            std::cerr << "bug: in ImagePlease_callback but imageRequestPending is false " << __FILE__ << ' ' << __LINE__
+                      << '\n';
+            return;
+        }
+
+        // Act upon its status.
+        if( status.ok() )
+        {
+            if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_VALID )
+            {
+                action = 0;
+            }
+            else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_NO_IMAGE )
+            {
+                action = 1;
+            }
+            else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_TIMEOUT )
+            {
+                action = 1;
+            }
+            else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_NOT_CONFIGURED )
+            {
+                // reconfigure
+            }
+            else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_ERROR )
+            {
+                // reconnect
+            }
+        }
+        else
+        {
+            // reconnect
+            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+            // return -1;
+        }
+
+        delete m_ImagePleaseContext;
+        m_ImagePleaseContext = nullptr;
+
+        m_imageRequestPending = false;
+    }
+
+    if( action == 0 )
+    {
+        m_foundation->emit_ImageWaiting();
+    }
+    else if( action == 1 )
+    {
+        m_foundation->emit_ImageNeeded();
+    }
+}
+
+bool rtimvClientBase::imageValid()
+{
+    return true;
+}
+
+bool rtimvClientBase::imageValid( size_t n )
+{
+    return true;
+}
+
+double rtimvClientBase::imageTime()
+{
+    return m_imageTime;
+}
+
+double rtimvClientBase::imageTime( size_t n )
+{
+    if( n == 0 )
+    {
+        return m_imageTime;
+    }
+
+    // get from server?
+    return 0;
+}
+
+double rtimvClientBase::fpsEst()
+{
+    return m_fpsEst;
+}
+
+double rtimvClientBase::fpsEst( size_t n )
+{
+    if( n == 0 )
+    {
+        return m_fpsEst;
+    }
+
+    // get from server?
+    return 0;
+}
+
+std::string rtimvClientBase::imageName( size_t n )
+{
+    // get from server?
+    return "";
+}
+
+uint32_t rtimvClientBase::imageNo( size_t n )
+{
+    // get from server?
+    return 0;
+}
+
+std::vector<std::string> rtimvClientBase::info( size_t n )
+{
+    // get from server (maybe once and cache?)
+    return std::vector<std::string>( { "" } );
+}
+
+void rtimvClientBase::mtxL_setImsize( uint32_t x, uint32_t y, uint32_t z, const uniqueLockT &lock )
+{
+
+    m_nz = z;
+    // m_foundation->emit_nzUpdated( m_nz );
+
+    if( m_nx != x || m_ny != y )
     {
         m_nx = x;
         m_ny = y;
-
-        if( m_calData != nullptr )
-        {
-            delete[] m_calData;
-            m_calData = nullptr;
-        }
-
-        if( m_satData != nullptr )
-        {
-            delete[] m_satData;
-            m_satData = nullptr;
-        }
-
-        m_calData = new float[m_nx * m_ny];
-        m_satData = new uint8_t[m_nx * m_ny];
-
-        if( m_qim != nullptr )
-        {
-            delete m_qim;
-            m_qim = nullptr;
-        }
-
-        m_qim = new QImage( m_nx, m_ny, QImage::Format_Indexed8 );
-
-        mtxL_load_colorbar( current_colorbar, false, lock ); // have to load into newly created image
 
         mtxL_postSetImsize( lock );
     }
 }
 
-uint32_t rtimvBase::nx()
+uint32_t rtimvClientBase::nx()
 {
     return m_nx;
 }
 
-uint32_t rtimvBase::ny()
+uint32_t rtimvClientBase::ny()
 {
     return m_ny;
 }
 
-uint32_t rtimvBase::nz()
+uint32_t rtimvClientBase::nz()
 {
     return m_nz;
 }
 
-void rtimvBase::setCurrImageTimeout()
+void rtimvClientBase::cubeMode( bool cm )
 {
-    int cubeTimeout;
-    int currImageTimeout;
-
-    if( m_desiredCubeFPS <= 0 || m_nz <= 1 )
-    {
-        m_foundation->m_cubeTimer.stop();
-
-        if( m_nz <= 1 )
-        {
-            m_foundation->m_cubeFrameUpdateTimer.stop();
-        }
-        else
-        {
-            m_foundation->m_cubeFrameUpdateTimer.start( 250 );
-        }
-
-        m_cubeFPS = 0;
-
-        m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
-
-        currImageTimeout = m_imageTimeout;
-    }
-    else // it's a cube, cube mode is on, and FPS > 0
-    {
-        // First get our wish
-        cubeTimeout = std::round( 1000. / ( m_desiredCubeFPS * m_cubeFPSMult ) );
-
-        if( cubeTimeout < 1 )
-        {
-            cubeTimeout = 1;
-        }
-
-        if( cubeTimeout <= m_imageTimeout )
-        {
-            // Report reality
-            m_cubeFPS = ( 1000.0 / cubeTimeout ) / m_cubeFPSMult;
-            currImageTimeout = cubeTimeout;
-        }
-        else
-        {
-            // Now get reality with imageTimeout
-            int f = std::round( ( 1.0 * cubeTimeout ) / m_imageTimeout );
-            if( f <= 0 )
-            {
-                f = 1;
-            }
-
-            // Report reality
-            m_cubeFPS = ( 1000.0 / ( f * m_imageTimeout ) ) / m_cubeFPSMult;
-
-            // Implement reality
-            cubeTimeout = std::round( 1000. / ( m_cubeFPS * m_cubeFPSMult ) );
-            currImageTimeout = m_imageTimeout;
-        }
-
-        if( m_cubeMode )
-        {
-            m_foundation->m_cubeTimer.start( cubeTimeout );
-            m_foundation->m_cubeFrameUpdateTimer.start( 250 );
-        }
-        else
-        {
-            m_cubeFPS = 0;
-            m_foundation->m_cubeTimer.stop();
-        }
-
-        m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
-    }
-
-    if( currImageTimeout == m_currImageTimeout ) // Don't interrupt if not needed
-    {
-        return;
-    }
-
-    m_currImageTimeout = currImageTimeout;
-
-    m_foundation->m_imageTimer.stop();
-
-    for( size_t i = 0; i < m_images.size(); ++i )
-    {
-        if( m_images[i] != nullptr )
-        {
-            m_images[i]->timeout( m_currImageTimeout ); // just for fps calculations
-        }
-    }
-
-    m_foundation->m_imageTimer.start( m_currImageTimeout );
+    // send to server
 }
 
-void rtimvBase::imageTimeout( int to )
+void rtimvClientBase::cubeFPS( float fps )
 {
-    m_imageTimeout = to;
-
-    setCurrImageTimeout();
+    // send to server
 }
 
-void rtimvBase::cubeMode( bool cm )
+void rtimvClientBase::cubeFPSMult( float mult )
 {
-    m_cubeMode = cm;
-
-    setCurrImageTimeout();
-
-    m_foundation->emit_cubeModeUpdated( m_cubeMode );
+    // send to server
 }
 
-void rtimvBase::cubeFPS( float fps )
-{
-    if( fps < 0 )
-    {
-        fps = 0;
-    }
-    m_desiredCubeFPS = fps;
-    setCurrImageTimeout();
-
-    m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
-}
-
-void rtimvBase::cubeFPSMult( float mult )
-{
-    m_cubeFPSMult = mult;
-    setCurrImageTimeout();
-    m_foundation->emit_cubeFPSMultUpdated( m_cubeFPSMult );
-}
-
-void rtimvBase::cubeDir( int dir )
+void rtimvClientBase::cubeDir( int dir )
 {
     m_cubeDir = dir;
-    m_foundation->emit_cubeDirUpdated( m_cubeDir );
+    // m_foundation->emit_cubeDirUpdated( m_cubeDir );
 }
 
-void rtimvBase::cubeFrame( uint32_t fno )
+void rtimvClientBase::cubeFrame( uint32_t fno )
 {
-    if( m_images[0] != nullptr )
-    {
-        m_images[0]->imageNo( fno );
-    }
+    // send to server
 }
 
-void rtimvBase::cubeFrameDelta( int32_t dfno )
+void rtimvClientBase::cubeFrameDelta( int32_t dfno )
 {
-    if( m_images[0] != nullptr )
-    {
-        m_images[0]->deltaImageNo( dfno );
-    }
+    // send to server
 }
 
-void rtimvBase::updateImages()
+void rtimvClientBase::updateImages()
 {
-    int doupdate = RTIMVIMAGE_NOUPDATE;
-    int supportUpdate = RTIMVIMAGE_NOUPDATE;
-
-    if( m_images[0] != nullptr )
+    // If we aren't waiting on an image yet, sent ImagePlease
+    /*if( !m_imageWaiting )
     {
-        doupdate = m_images[0]->update();
-    }
-
-    for( size_t i = 1; i < m_images.size(); ++i )
-    {
-        if( m_images[i] != nullptr )
-        {
-            int sU = m_images[i]->update();
-            if( sU > supportUpdate ) // Do an update if any support image needs an update
-            {
-                supportUpdate = sU;
-            }
-        }
-    }
-
-    ///\todo onConnect may need to wait a sec to let things settle.
-    if( doupdate >= RTIMVIMAGE_IMUPDATE || supportUpdate >= RTIMVIMAGE_IMUPDATE )
-    {
-        mtxUL_changeImdata( true );
-
-        if( doupdate >= RTIMVIMAGE_IMUPDATE && m_images[0]->nz() > 1 )
-        {
-            updateCubeFrame();
-        }
-
-        if( !m_connected && doupdate >= RTIMVIMAGE_IMUPDATE ) // this will only trigger onConnect on the main image
-        {
-            if( m_images[0]->nz() > 1 )
-            {
-                cubeMode( m_images[0]->defaultCubeMode() );
-            }
-
-            onConnect();
-        }
-    }
-
-    if( !m_connected )
-    {
-        updateNC();
-        return;
-    }
-
-    if( doupdate == RTIMVIMAGE_FPSUPDATE )
-    {
-        updateFPS();
-    }
-
-    if( doupdate == RTIMVIMAGE_AGEUPDATE )
-    {
-        updateAge();
-    }
+        ImagePlease();
+    }*/
 }
 
-void rtimvBase::updateCube()
+void rtimvClientBase::updateCube()
 {
-    if( m_images[0] != nullptr )
-    {
-        if( m_cubeDir >= 0 )
-        {
-            m_images[0]->incImageNo();
-        }
-        else
-        {
-            m_images[0]->decImageNo();
-        }
-    }
+    // send to server
 }
 
-void rtimvBase::updateCubeFrame()
+void rtimvClientBase::updateCubeFrame()
 {
-    m_foundation->emit_cubeFrameUpdated( m_images[0]->imageNo() );
+    // m_foundation->emit_cubeFrameUpdated( imageNo() );
 }
 
-int rtimvBase::imageTimeout()
+void rtimvClientBase::imageTimeout( int to )
+{
+    // send to server
+}
+
+int rtimvClientBase::imageTimeout()
 {
     return m_imageTimeout;
 }
 
-rtimvBase::pixelF rtimvBase::rawPixel()
+void rtimvClientBase::subtractDark( bool sd )
 {
-    pixelF _pixel = nullptr;
+    // send to server
+}
 
-    if( m_images[0] == nullptr )
-    {
-        return _pixel; // no valid base image
-    }
+bool rtimvClientBase::subtractDark()
+{
+    return m_subtractDark;
+}
 
-    if( m_images[0]->valid() )
+void rtimvClientBase::applyMask( bool amsk )
+{
+    // send to server
+}
+
+bool rtimvClientBase::applyMask()
+{
+    return m_applyMask;
+}
+
+void rtimvClientBase::applySatMask( bool asmsk )
+{
+    // send to server
+}
+
+bool rtimvClientBase::applySatMask()
+{
+    return m_applySatMask;
+}
+
+float rtimvClientBase::calPixel( uint32_t x, uint32_t y )
+{
+    // Data we are sending to the server.
+    remote_rtimv::Coord request;
+    request.set_x( x );
+    request.set_y( y );
+
+    // Container for the data we expect from the server.
+    remote_rtimv::Pixel pixel;
+
+    // Context for the client. It could be used to convey extra information to
+    // the server and/or tweak certain RPC behaviors.
+    grpc::ClientContext context;
+
+    // The actual RPC.
+    grpc::Status status = stub_->GetPixel( &context, request, &pixel );
+
+    // Act upon its status.
+    if( status.ok() )
     {
-        _pixel = &pixel_noCal; // default if there is a valid base image.
+        if( !pixel.valid() )
+        {
+            return 0;
+        }
+
+        return pixel.value();
     }
     else
     {
-        return _pixel; // no valid base image
+        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        return 0;
     }
+}
 
-    if( m_subtractDark == true && m_applyMask == false )
+rtimv::colorbar rtimvClientBase::colorbar()
+{
+    return m_colorbar;
+}
+
+void rtimvClientBase::colormode( rtimv::colormode mode )
+{
+    m_colormode = mode;
+}
+
+rtimv::colormode rtimvClientBase::colormode()
+{
+    return m_colormode;
+}
+
+void rtimvClientBase::stretch( rtimv::stretch ct )
+{
+    m_stretch = ct;
+}
+
+rtimv::stretch rtimvClientBase::stretch()
+{
+    return m_stretch;
+}
+
+void rtimvClientBase::minScaleData( float md )
+{
+    // send to server
+}
+
+float rtimvClientBase::minScaleData()
+{
+    // get from server
+    return 0;
+}
+
+void rtimvClientBase::maxScaleData( float md )
+{
+    // send to server
+}
+
+float rtimvClientBase::maxScaleData()
+{
+    // get from server
+    return 0;
+}
+
+void rtimvClientBase::bias( float b )
+{
+    // send to server
+}
+
+float rtimvClientBase::bias()
+{
+    // get from server
+    return 0;
+}
+
+void rtimvClientBase::bias_rel( float br )
+{
+    // send to server
+}
+
+float rtimvClientBase::bias_rel()
+{
+    // get from server
+    return 0;
+}
+
+void rtimvClientBase::contrast( float c )
+{
+    // send to server
+}
+
+float rtimvClientBase::contrast()
+{
+    // get from server
+    return 0;
+}
+
+float rtimvClientBase::contrast_rel()
+{
+    // get from server
+    return 0;
+}
+
+void rtimvClientBase::contrast_rel( float cr )
+{
+    // send to server
+}
+
+uint8_t rtimvClientBase::lightness( int x, int y )
+{
+    if( !m_qim )
     {
-        if( m_images[1] == nullptr )
-        {
-            return _pixel;
-        }
-
-        if( m_images[1]->nx() != m_images[0]->nx() || m_images[1]->ny() != m_images[0]->ny() )
-        {
-            return _pixel;
-        }
-
-        if( m_images[0]->valid() && m_images[1]->valid() )
-        {
-            _pixel = &pixel_subDark;
-        }
+        return 0;
     }
 
-    if( m_subtractDark == false && m_applyMask == true )
-    {
-        if( m_images[2] == nullptr )
-            return _pixel;
-
-        if( m_images[2]->nx() != m_images[0]->nx() || m_images[2]->ny() != m_images[0]->ny() )
-            return _pixel;
-
-        if( m_images[0]->valid() && m_images[2]->valid() )
-            _pixel = &pixel_applyMask;
-    }
-
-    if( m_subtractDark == true && m_applyMask == true )
-    {
-
-        if( m_images[1] == nullptr && m_images[2] == nullptr )
-            return _pixel;
-        else if( m_images[2] == nullptr )
-        {
-            if( m_images[1]->nx() != m_images[0]->nx() || m_images[1]->ny() != m_images[0]->ny() )
-                return _pixel;
-            if( m_images[1]->valid() )
-                _pixel = &pixel_subDark;
-        }
-        else if( m_images[1] == nullptr )
-        {
-            if( m_images[2]->nx() != m_images[0]->nx() || m_images[2]->ny() != m_images[0]->ny() )
-                return _pixel;
-            if( m_images[2]->valid() )
-                _pixel = &pixel_applyMask;
-        }
-        else
-        {
-            if( m_images[1]->nx() != m_images[0]->nx() || m_images[1]->ny() != m_images[0]->ny() )
-                return _pixel;
-            if( m_images[2]->nx() != m_images[0]->nx() || m_images[2]->ny() != m_images[0]->ny() )
-                return _pixel;
-            if( m_images[1]->valid() && m_images[2]->valid() )
-                _pixel = &pixel_subDarkApplyMask;
-        }
-    }
-
-    return _pixel;
+    return m_qim->pixelColor( x, y ).lightness();
 }
 
-float rtimvBase::pixel_noCal( rtimvBase *imv, size_t idx )
-{
-    return imv->m_images[0]->pixel( idx );
-}
-
-float rtimvBase::pixel_subDark( rtimvBase *imv, size_t idx )
-{
-    return imv->m_images[0]->pixel( idx ) - imv->m_images[1]->pixel( idx );
-}
-
-float rtimvBase::pixel_applyMask( rtimvBase *imv, size_t idx )
-{
-    return imv->m_images[0]->pixel( idx ) * imv->m_images[2]->pixel( idx );
-}
-
-float rtimvBase::pixel_subDarkApplyMask( rtimvBase *imv, size_t idx )
-{
-    return ( imv->m_images[0]->pixel( idx ) - imv->m_images[1]->pixel( idx ) ) * imv->m_images[2]->pixel( idx );
-}
-
-float rtimvBase::calPixel( uint32_t x, uint32_t y )
-{
-    return m_calData[y * m_nx + x];
-}
-
-uint8_t rtimvBase::satPixel( uint32_t x, uint32_t y )
-{
-    return m_satData[y * m_nx + x];
-}
-
-// https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color/56678483#56678483
-template <typename realT>
-realT sRGBtoLinRGB( int rgb )
-{
-    realT V = ( (realT)rgb ) / 255.0;
-
-    if( V <= 0.0405 )
-        return V / 12.92;
-
-    return pow( ( V + 0.055 ) / 1.055, 2.4 );
-}
-
-template <typename realT>
-realT linRGBtoLuminance( realT linR, realT linG, realT linB )
-{
-    return 0.2126 * linR + 0.7152 * linG + 0.0722 * linB;
-}
-
-template <typename realT>
-realT pLightness( realT lum )
-{
-    if( lum <= static_cast<realT>( 216 ) / static_cast<realT>( 24389 ) )
-    {
-        return lum * static_cast<realT>( 24389 ) / static_cast<realT>( 27 );
-    }
-
-    return pow( lum, static_cast<realT>( 1 ) / static_cast<realT>( 3 ) ) * 116 - 16;
-}
-
-void rtimvBase::set_cbStretch( int ct )
-{
-    if( ct < 0 || ct >= cbStretches_max )
-    {
-        ct = stretchLinear;
-    }
-
-    m_cbStretch = ct;
-}
-
-int rtimvBase::get_cbStretch()
-{
-    return m_cbStretch;
-}
-
-void rtimvBase::mindat( float md )
-{
-    m_mindat = md;
-}
-
-float rtimvBase::mindat()
-{
-    return m_mindat;
-}
-
-void rtimvBase::maxdat( float md )
-{
-    m_maxdat = md;
-}
-
-float rtimvBase::maxdat()
-{
-    return m_maxdat;
-}
-
-void rtimvBase::bias( float b )
-{
-    float cont = contrast();
-
-    mindat( b - 0.5 * cont );
-    maxdat( b + 0.5 * cont );
-}
-
-float rtimvBase::bias()
-{
-    return 0.5 * ( m_maxdat + m_mindat );
-}
-
-void rtimvBase::bias_rel( float br )
-{
-    float cont = contrast();
-
-    mindat( imdat_min + br * ( imdat_max - imdat_min ) - 0.5 * cont );
-    maxdat( imdat_min + br * ( imdat_max - imdat_min ) + 0.5 * cont );
-}
-
-float rtimvBase::bias_rel()
-{
-    return 0.5 * ( m_maxdat + m_mindat ) / ( m_maxdat - m_mindat );
-}
-
-void rtimvBase::contrast( float c )
-{
-    float b = bias();
-    mindat( b - 0.5 * c );
-    maxdat( b + 0.5 * c );
-}
-
-float rtimvBase::contrast()
-{
-    return m_maxdat - m_mindat;
-}
-
-float rtimvBase::contrast_rel()
-{
-    return ( imdat_max - imdat_min ) / ( m_maxdat - m_mindat );
-}
-
-void rtimvBase::contrast_rel( float cr )
-{
-    float b = bias();
-    mindat( b - .5 * ( imdat_max - imdat_min ) / cr );
-    maxdat( b + .5 * ( imdat_max - imdat_min ) / cr );
-}
-
-// Produce a value nominally between 0 and 1, though depending on the range it could be > 1.
-#define NORMALIZE_PIXVAL( pixval, mindat, maxdat )                                                                     \
-    pixval = ( pixval - mindat ) / ( (float)( maxdat - mindat ) );                                                     \
-    if( pixval < 0 )                                                                                                   \
-    {                                                                                                                  \
-        return 0;                                                                                                      \
-    }
-
-// Clamp pixval to <= 1 and scale to the colorbar range
-#define SCALE_PIXVAL_RETURN( pixval, mincol, maxcol )                                                                  \
-    if( pixval > 1. )                                                                                                  \
-    {                                                                                                                  \
-        pixval = 1.;                                                                                                   \
-    }                                                                                                                  \
-                                                                                                                       \
-    return mincol + pixval * ( maxcol - mincol ) + 0.5;
-
-int calcPixIndex_linear( float pixval, float mindat, float maxdat, int mincol, int maxcol )
-{
-    NORMALIZE_PIXVAL( pixval, mindat, maxdat );
-
-    SCALE_PIXVAL_RETURN( pixval, mincol, maxcol );
-}
-
-int calcPixIndex_log( float pixval, float mindat, float maxdat, int mincol, int maxcol )
-{
-    static float a = 1000;
-    static float log10_a = log10( a );
-
-    NORMALIZE_PIXVAL( pixval, mindat, maxdat );
-
-    pixval = log10( pixval * a + 1 ) / log10_a;
-
-    SCALE_PIXVAL_RETURN( pixval, mincol, maxcol );
-}
-
-int calcPixIndex_pow( float pixval, float mindat, float maxdat, int mincol, int maxcol )
-{
-    static float a = 1000;
-
-    NORMALIZE_PIXVAL( pixval, mindat, maxdat );
-
-    pixval = ( pow( a, pixval ) ) / a;
-
-    SCALE_PIXVAL_RETURN( pixval, mincol, maxcol );
-}
-
-int calcPixIndex_sqrt( float pixval, float mindat, float maxdat, int mincol, int maxcol )
-{
-    NORMALIZE_PIXVAL( pixval, mindat, maxdat );
-
-    pixval = sqrt( pixval );
-
-    SCALE_PIXVAL_RETURN( pixval, mincol, maxcol );
-}
-
-int calcPixIndex_square( float pixval, float mindat, float maxdat, int mincol, int maxcol )
-{
-    NORMALIZE_PIXVAL( pixval, mindat, maxdat );
-
-    pixval = pixval * pixval;
-
-    SCALE_PIXVAL_RETURN( pixval, mincol, maxcol );
-}
-
-void rtimvBase::mtxUL_changeImdata( bool newdata )
-{
-    RTIMV_DEBUG_BREADCRUMB
-
-    if( m_amChangingimdata && !newdata ) // this means we're already in this function!
-    {
-        return;
-    }
-
-    bool resized = false;
-
-    { // mutex scope
-
-        // Get a unique lock on the cal data to allow us to delete it and overwrite it
-        std::unique_lock<std::shared_mutex> lock( m_calMutex );
-
-        // Also lock the raw data for the size checks to make sure it doesn't change out from under us
-        std::unique_lock<std::mutex> rawlock( m_rawMutex );
-
-        // Check again in case it changed while we were waiting on the lock
-        if( !imageValid( 0 ) || ( m_amChangingimdata && !newdata ) )
-        {
-            return;
-        }
-
-        m_amChangingimdata = true;
-
-        // Here we realize we need to resize
-        if( m_images[0]->nx() != m_nx || m_images[0]->ny() != m_ny || !m_qim )
-        {
-            RTIMV_DEBUG_BREADCRUMB
-
-            mtxL_setImsize( m_images[0]->nx(), m_images[0]->ny(), m_images[0]->nz(), lock );
-
-            RTIMV_DEBUG_BREADCRUMB
-
-            resized = true;
-        }
-
-        RTIMV_DEBUG_BREADCRUMB
-
-        // If it's new data we copy it to m_calData
-        if( resized || newdata )
-        {
-            RTIMV_DEBUG_BREADCRUMB
-
-            // Get the pixel calculating function
-            float ( *_pixel )( rtimvBase *, size_t ) = rawPixel();
-
-            if( _pixel == nullptr )
-            {
-                m_amChangingimdata = false;
-
-                return;
-            }
-
-            RTIMV_DEBUG_BREADCRUMB
-
-            if( m_nx != m_images[0]->nx() || m_ny != m_images[0]->ny() )
-            {
-                m_amChangingimdata = false;
-                return;
-            }
-
-            RTIMV_DEBUG_BREADCRUMB
-
-            m_saturated = 0;
-            for( uint64_t n = 0; n < m_nx * m_ny; ++n )
-            {
-                // Check for saturation
-                if( pixel_noCal( this, n ) >= m_satLevel )
-                {
-                    m_satData[n] = 1;
-                    ++m_saturated;
-                }
-                else
-                {
-                    m_satData[n] = 0;
-                }
-
-                // Fill in calibrated value
-                m_calData[n] = _pixel( this, n );
-            }
-
-            RTIMV_DEBUG_BREADCRUMB
-
-            // Now check the sat image itself
-            if( imageValid( 3 ) )
-            {
-                if( m_nx == m_images[3]->nx() && m_ny == m_images[3]->ny() )
-                {
-                    for( uint64_t n = 0; n < m_nx * m_ny; ++n )
-                    {
-                        if( m_images[3]->pixel( n ) > 0 && m_satData[n] == 0 )
-                        {
-                            m_satData[n] = 1;
-                            ++m_saturated;
-                        }
-                        // don't set 0 b/c it would override m_satLevel
-                    }
-                }
-            }
-
-            // post calibration call here
-        }
-
-    } // mutex scope -- lock and rawlock release
-
-    // if(!skipColorize())
-    { // mutex scope
-
-        sharedLockT lock( m_calMutex );
-        RTIMV_DEBUG_BREADCRUMB
-
-        // At this point the raw data has been copied out to calData.
-        // We have released the raw data mutex (rawlock).
-        // We shared_lock the caldata mutex to make sure a subsequent call
-        // from a different thread doesn't delete m_calData.
-        // This could be forced by newdata
-
-        RTIMV_DEBUG_BREADCRUMB
-
-        imdat_min = std::numeric_limits<float>::max();
-        imdat_max = -std::numeric_limits<float>::max();
-
-        float imval;
-
-        for( uint32_t j = 0; j < m_ny; ++j )
-        {
-            for( uint32_t i = 0; i < m_nx; ++i )
-            {
-                imval = calPixel( i, j );
-
-                if( !std::isfinite( imval ) )
-                {
-                    continue;
-                }
-
-                if( imval > imdat_max )
-                {
-                    imdat_max = imval;
-                }
-
-                if( imval < imdat_min )
-                {
-                    imdat_min = imval;
-                }
-            }
-        }
-
-        RTIMV_DEBUG_BREADCRUMB
-
-        if( !std::isfinite( imdat_max ) || !std::isfinite( imdat_min ) )
-        {
-            // It should be impossible for them to be infinite by themselves unless it's all NaNs.
-            imdat_max = 0;
-            imdat_min = 0;
-        }
-
-        if( ( resized || ( newdata && m_autoScale ) ) && !colorBoxActive )
-        {
-            mindat( imdat_min );
-            maxdat( imdat_max );
-        }
-        else if( colorBoxActive )
-        {
-            normalizeColorBox();
-
-            m_colorBox_min = std::numeric_limits<float>::max();
-            m_colorBox_max = -std::numeric_limits<float>::max();
-
-            float imval;
-
-            for( uint32_t j = m_colorBox_j0; j <= m_colorBox_j1; ++j )
-            {
-                for( uint32_t i = m_colorBox_i0; i <= m_colorBox_i1; ++i )
-                {
-                    imval = calPixel( i, j );
-
-                    if( !std::isfinite( imval ) )
-                    {
-                        continue;
-                    }
-
-                    if( imval < m_colorBox_min )
-                    {
-                        m_colorBox_min = imval;
-                    }
-                    if( imval > m_colorBox_max )
-                    {
-                        m_colorBox_max = imval;
-                    }
-                }
-            }
-
-            if( !std::isfinite( m_colorBox_max ) || !std::isfinite( m_colorBox_min ) )
-            {
-                // It should be impossible for them to be infinite by themselves unless it's all NaNs in the box.
-                m_colorBox_max = 0;
-                m_colorBox_min = 0;
-            }
-
-            if( resized || ( newdata && m_autoScale ) )
-            {
-                mindat( m_colorBox_min );
-                maxdat( m_colorBox_max );
-            }
-        }
-
-        RTIMV_DEBUG_BREADCRUMB
-
-        if( !m_qim )
-        {
-            m_amChangingimdata = false;
-            return;
-        }
-
-        RTIMV_DEBUG_BREADCRUMB
-
-        mtxL_recolor( lock );
-
-        mtxL_postChangeImdata( lock );
-
-        if( resized )
-        {
-            // Always switch to zoom 1 after a resize occurs
-            zoomLevel( 1 );
-        }
-
-        RTIMV_DEBUG_BREADCRUMB
-
-    } // mutex scope. - at this point we're done with calData
-
-    RTIMV_DEBUG_BREADCRUMB
-
-    m_amChangingimdata = false;
-
-} // void rtimvBase::mtxUL_changeImdata(bool newdata)
-
-void rtimvBase::mtxL_recolor()
-{
-    /* Here is where we color the qImage*/
-
-    // Get the color index calculating function
-    int ( *_index )( float, float, float, int, int );
-    switch( m_cbStretch )
-    {
-    case stretchLog:
-        _index = calcPixIndex_log;
-        break;
-    case stretchPow:
-        _index = calcPixIndex_pow;
-        break;
-    case stretchSqrt:
-        _index = calcPixIndex_sqrt;
-        break;
-    case stretchSquare:
-        _index = calcPixIndex_square;
-        break;
-    default:
-        _index = calcPixIndex_linear;
-    }
-
-    if( m_mindat == m_maxdat )
-    {
-        float imval;
-        for( uint32_t i = 0; i < m_ny; ++i )
-        {
-            for( uint32_t j = 0; j < m_nx; ++j )
-            {
-                imval = calPixel( j, i );
-                if( !std::isfinite( imval ) )
-                {
-                    m_qim->setPixel( j, m_ny - i - 1, m_nanColor );
-                    continue;
-                }
-
-                m_qim->setPixel( j, m_ny - i - 1, 0 );
-            }
-        }
-    }
-    else
-    {
-        float imval;
-        for( uint32_t i = 0; i < m_ny; ++i )
-        {
-            for( uint32_t j = 0; j < m_nx; ++j )
-            {
-                imval = calPixel( j, i );
-
-                if( !std::isfinite( imval ) )
-                {
-                    m_qim->setPixel( j, m_ny - i - 1, m_nanColor );
-                    continue;
-                }
-
-                int idxVal = _index( imval, m_mindat, m_maxdat, m_minColor, m_maxColor );
-                m_qim->setPixel( j, m_ny - i - 1, idxVal );
-            }
-        }
-    }
-
-    RTIMV_DEBUG_BREADCRUMB
-
-    if( m_applySatMask )
-    {
-        for( uint32_t j = 0; j < m_ny; ++j )
-        {
-            for( uint32_t i = 0; i < m_nx; ++i )
-            {
-                if( satPixel( i, j ) == 1 )
-                {
-                    m_qim->setPixel( i, m_ny - j - 1, m_satColor );
-                }
-            }
-        }
-    }
-
-    RTIMV_DEBUG_BREADCRUMB
-}
-
-void rtimvBase::mtxL_recolor( const uniqueLockT &lock )
+void rtimvClientBase::mtxL_recolor( const sharedLockT &lock )
 {
     assert( lock.owns_lock() );
 
-    mtxL_recolor();
+    // send to server
 
-    mtxL_postRecolor( lock );
+    /* Unlike rtimvBase, we don't call mtxL_postRecolor( lock )
+       because that will get called when the new image is retrieved
+    */
 }
 
-void rtimvBase::mtxL_recolor( const sharedLockT &lock )
+uint32_t rtimvClientBase::saturated()
 {
-    assert( lock.owns_lock() );
-
-    mtxL_recolor();
-
-    mtxL_postRecolor( lock );
+    return m_saturated;
 }
 
-void rtimvBase::zoomLevel( float zl )
+float rtimvClientBase::minImageData()
+{
+    return m_minImageData;
+}
+
+float rtimvClientBase::maxImageData()
+{
+    return m_maxImageData;
+}
+
+float rtimvClientBase::zoomLevel()
+{
+    return m_zoomLevel;
+}
+
+float rtimvClientBase::zoomLevelMin()
+{
+    return m_zoomLevelMin;
+}
+
+float rtimvClientBase::zoomLevelMax()
+{
+    return m_zoomLevelMax;
+}
+
+void rtimvClientBase::zoomLevel( float zl )
 {
     if( zl < m_zoomLevelMin )
     {
@@ -1430,180 +988,79 @@ void rtimvBase::zoomLevel( float zl )
     RTIMV_DEBUG_BREADCRUMB
 }
 
-void rtimvBase::normalizeColorBox()
+void rtimvClientBase::colorBox_i0( int64_t i0 )
 {
-    if( m_colorBox_i0 < 0 )
-    {
-        m_colorBox_i0 = 0;
-    }
-    else if( m_colorBox_i0 >= (int64_t)m_nx - 1 )
-    {
-        m_colorBox_i0 = (int64_t)m_nx - 2;
-    }
-
-    if( m_colorBox_i1 < 0 )
-    {
-        m_colorBox_i1 = 0;
-    }
-    else if( m_colorBox_i1 >= (int64_t)m_nx - 1 )
-    {
-        m_colorBox_i1 = m_nx - 2;
-    }
-
-    if( m_colorBox_i0 > m_colorBox_i1 )
-    {
-        std::swap( m_colorBox_i0, m_colorBox_i1 );
-    }
-
-    if( m_colorBox_j0 < 0 )
-    {
-        m_colorBox_j0 = 0;
-    }
-    else if( m_colorBox_j0 >= (int64_t)m_ny - 1 )
-    {
-        m_colorBox_j0 = (int64_t)m_ny - 2;
-    }
-
-    if( m_colorBox_j1 <= 0 )
-    {
-        m_colorBox_j1 = 0;
-    }
-    else if( m_colorBox_j1 >= (int64_t)m_ny - 1 )
-    {
-        m_colorBox_j1 = (int64_t)m_ny - 2;
-    }
-
-    if( m_colorBox_j0 > m_colorBox_j1 )
-    {
-        std::swap( m_colorBox_j0, m_colorBox_j1 );
-    }
+    // send to server
 }
 
-void rtimvBase::colorBox_i0( int64_t i0 )
+int64_t rtimvClientBase::colorBox_i0()
 {
-    m_colorBox_i0 = i0;
+    // get from server
+    return 0;
 }
 
-int64_t rtimvBase::colorBox_i0()
+void rtimvClientBase::colorBox_i1( int64_t i1 )
 {
-    return m_colorBox_i0;
+    // send to server
 }
 
-void rtimvBase::colorBox_i1( int64_t i1 )
+int64_t rtimvClientBase::colorBox_i1()
 {
-    m_colorBox_i1 = i1;
+    // get from server
+    return 0;
 }
 
-int64_t rtimvBase::colorBox_i1()
+void rtimvClientBase::colorBox_j0( int64_t j0 )
 {
-    return m_colorBox_i1;
+    // send to server
 }
 
-void rtimvBase::colorBox_j0( int64_t j0 )
+int64_t rtimvClientBase::colorBox_j0()
 {
-    m_colorBox_j0 = j0;
+    // get from server
+    return 0;
 }
 
-int64_t rtimvBase::colorBox_j0()
+void rtimvClientBase::colorBox_j1( int64_t j1 )
 {
-    return m_colorBox_j0;
+    // send to server
 }
 
-void rtimvBase::colorBox_j1( int64_t j1 )
+int64_t rtimvClientBase::colorBox_j1()
 {
-    m_colorBox_j1 = j1;
+    // get from server
+    return 0;
 }
 
-int64_t rtimvBase::colorBox_j1()
-{
-    return m_colorBox_j1;
-}
-
-void rtimvBase::mtxL_setColorBoxActive( bool usba, const sharedLockT &lock )
+void rtimvClientBase::mtxL_setColorBoxActive( bool usba, const sharedLockT &lock )
 {
     assert( lock.owns_lock() );
 
-    if( usba )
-    {
-        float imval;
-
-        normalizeColorBox();
-
-        m_colorBox_min = std::numeric_limits<float>::max();
-        m_colorBox_max = -std::numeric_limits<float>::max();
-
-        for( int i = m_colorBox_i0; i <= m_colorBox_i1; i++ )
-        {
-            for( int j = m_colorBox_j0; j <= m_colorBox_j1; j++ )
-            {
-                imval = calPixel( i, j );
-
-                if( !std::isfinite( imval ) )
-                {
-                    continue;
-                }
-
-                if( imval < m_colorBox_min )
-                    m_colorBox_min = imval;
-                if( imval > m_colorBox_max )
-                    m_colorBox_max = imval;
-            }
-        }
-
-        if( m_colorBox_min == std::numeric_limits<float>::max() &&
-            m_colorBox_max == -std::numeric_limits<float>::max() ) // If all nans
-        {
-            m_colorBox_min = 0;
-            m_colorBox_max = 0;
-        }
-
-        mindat( m_colorBox_min );
-        maxdat( m_colorBox_max );
-
-        set_colorbar_mode( minmaxbox );
-    }
-    else
-    {
-        set_colorbar_mode( minmaxglobal );
-    }
-
-    colorBoxActive = usba;
-
-    mtxL_recolor( lock );
-
-    mtxL_postSetColorBoxActive( usba, lock );
+    // send to server
 }
 
-bool rtimvBase::realTimeStopped()
+bool rtimvClientBase::realTimeStopped()
 {
-    return m_realTimeStopped;
+    // get from server
+    return false;
 }
 
-void rtimvBase::realTimeStopped( bool rts )
+void rtimvClientBase::realTimeStopped( bool rts )
 {
-    m_realTimeStopped = rts;
-
-    if( m_realTimeStopped )
-    {
-        m_foundation->m_imageTimer.stop();
-    }
-    else
-    {
-        m_foundation->m_imageTimer.start( m_imageTimeout );
-    }
+    // send to server
 }
 
-void rtimvBase::updateFPS()
+void rtimvClientBase::updateFPS()
 {
     return;
 }
 
-void rtimvBase::updateAge()
+void rtimvClientBase::updateAge()
 {
     return;
 }
 
-void rtimvBase::updateNC()
+void rtimvClientBase::updateNC()
 {
     return;
 }

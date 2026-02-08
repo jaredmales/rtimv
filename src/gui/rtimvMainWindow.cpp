@@ -1,7 +1,7 @@
 
 #include "rtimvMainWindow.hpp"
 
-rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::WindowFlags f ) : QWidget(Parent, f)
+rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::WindowFlags f ) : QWidget( Parent, f )
 {
 
     m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; // Tells mx::application to look for this env var.
@@ -35,9 +35,9 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
 
     m_nullMouseCoords = true;
 
-    mindat( 400 );
+    minScaleData( 400 );
 
-    maxdat( 600 );
+    maxScaleData( 600 );
 
     m_targetVisible = false;
 
@@ -45,7 +45,6 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
     m_cenLineHorz = 0;
 
     imStats = 0;
-    m_foundation->m_imageTimer.start( m_imageTimeout );
 
     m_northArrow = m_qgs->addLine( QLineF( 512, 400, 512, 624 ), QColor( ui.graphicsView->gageFontColor() ) );
     m_northArrowTip = m_qgs->addLine( QLineF( 512, 400, 536, 424 ), QColor( ui.graphicsView->gageFontColor() ) );
@@ -87,19 +86,26 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
 
     QDir pluginsDir = QDir( QCoreApplication::applicationDirPath() );
 
-#if defined( Q_OS_WIN )
+    // clang-format off
+    #if defined( Q_OS_WIN ) // clang-format on
+
     if( pluginsDir.dirName().toLower() == "debug" || pluginsDir.dirName().toLower() == "release" )
     {
         pluginsDir.cdUp();
     }
-#elif defined( Q_OS_MAC )
+
+    // clang-format off
+    #elif defined( Q_OS_MAC ) // clang-format on
+
     if( pluginsDir.dirName() == "MacOS" )
     {
         pluginsDir.cdUp();
         pluginsDir.cdUp();
         pluginsDir.cdUp();
     }
-#endif
+
+    // clang-format off
+    #endif // clang-format on
 
     if( pluginsDir.cd( "plugins" ) )
     {
@@ -129,6 +135,10 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
     }
 
     setWindowTitle( m_title.c_str() );
+
+    startup();
+
+
 }
 
 rtimvMainWindow::~rtimvMainWindow()
@@ -173,7 +183,6 @@ void rtimvMainWindow::setupConfig()
                 false,
                 "float",
                 "The fractional y-coordinate of the target, 0<= y <=1" );
-
 
     config.add( "mouse.pointerCoords",
                 "",
@@ -295,7 +304,7 @@ void rtimvMainWindow::loadConfig()
 
     if( imageValid() )
     {
-        m_title = imageName(0);
+        m_title = imageName( 0 );
     }
 
     // Now load remaining options, respecting coded defaults.
@@ -397,7 +406,7 @@ void rtimvMainWindow::post_zoomLevel()
 
     ui.graphicsView->screenZoom( m_screenZoom );
 
-    transform.scale( m_zoomLevel * m_screenZoom, m_zoomLevel * m_screenZoom );
+    transform.scale( zoomLevel() * m_screenZoom, zoomLevel() * m_screenZoom );
 
     ui.graphicsView->setTransform( transform );
 
@@ -415,32 +424,32 @@ void rtimvMainWindow::post_zoomLevel()
 
     if( m_statsBox )
     {
-        m_statsBox->setPenWidth( m_userItemLineWidth / m_screenZoom / m_zoomLevel );
-        m_statsBox->setEdgeTol( m_userItemEdgeTol / m_screenZoom / m_zoomLevel );
+        m_statsBox->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
+        m_statsBox->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
     }
 
     if( m_colorBox )
     {
-        m_colorBox->setPenWidth( m_userItemLineWidth / m_screenZoom / m_zoomLevel );
-        m_colorBox->setEdgeTol( m_userItemEdgeTol / m_screenZoom / m_zoomLevel );
+        m_colorBox->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
+        m_colorBox->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
     }
 
     for( auto &ubit : m_userBoxes )
     {
-        ubit->setPenWidth( m_userItemLineWidth / m_screenZoom / m_zoomLevel );
-        ubit->setEdgeTol( m_userItemEdgeTol / m_screenZoom / m_zoomLevel );
+        ubit->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
+        ubit->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
     }
 
     for( auto &ucit : m_userCircles )
     {
-        ucit->setPenWidth( m_userItemLineWidth / m_screenZoom / m_zoomLevel );
-        ucit->setEdgeTol( m_userItemEdgeTol / m_screenZoom / m_zoomLevel );
+        ucit->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
+        ucit->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
     }
 
     for( auto &ulit : m_userLines )
     {
-        ulit->setPenWidth( m_userItemLineWidth / m_screenZoom / m_zoomLevel );
-        ulit->setEdgeTol( m_userItemEdgeTol / m_screenZoom / m_zoomLevel );
+        ulit->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
+        ulit->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
     }
 
     RTIMV_DEBUG_BREADCRUMB
@@ -450,7 +459,7 @@ void rtimvMainWindow::post_zoomLevel()
     RTIMV_DEBUG_BREADCRUMB
 
     char zlstr[16];
-    snprintf( zlstr, 16, "%0.1fx", m_zoomLevel );
+    snprintf( zlstr, 16, "%0.1fx", zoomLevel() );
     ui.graphicsView->zoomText( zlstr );
 
     RTIMV_DEBUG_BREADCRUMB
@@ -460,8 +469,8 @@ void rtimvMainWindow::post_zoomLevel()
     RTIMV_DEBUG_BREADCRUMB
 }
 
-template<class lockT>
-void rtimvMainWindow::mtxL_postRecolorImpl(const lockT & lock)
+template <class lockT>
+void rtimvMainWindow::mtxL_postRecolorImpl( const lockT &lock )
 {
     RTIMV_DEBUG_BREADCRUMB
 
@@ -480,7 +489,7 @@ void rtimvMainWindow::mtxL_postRecolorImpl(const lockT & lock)
         m_qpmi = m_qgs->addPixmap( m_qpm );
 
         // So we need to initialize the viewport center, etc.
-        // center();
+        // center();postRecolor
         mtxL_setViewCen( .5, .5, lock );
         post_zoomLevel();
 
@@ -503,12 +512,12 @@ void rtimvMainWindow::mtxL_postRecolorImpl(const lockT & lock)
 
 void rtimvMainWindow::mtxL_postRecolor( const uniqueLockT &lock )
 {
-    mtxL_postRecolorImpl(lock);
+    mtxL_postRecolorImpl( lock );
 }
 
 void rtimvMainWindow::mtxL_postRecolor( const sharedLockT &lock )
 {
-    mtxL_postRecolorImpl(lock);
+    mtxL_postRecolorImpl( lock );
 }
 
 void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT &lock )
@@ -518,7 +527,7 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT &lock )
     RTIMV_DEBUG_BREADCRUMB
 
     // We're mutexed when we get here
-    if( m_saturated && !m_applySatMask )
+    if( saturated() && !applySatMask() )
     {
         ui.graphicsView->warningText( "Saturated!" );
     }
@@ -529,22 +538,52 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT &lock )
 
     RTIMV_DEBUG_BREADCRUMB
 
+    if( !m_qpmi )
+    {
+        return;
+    }
+
+    RTIMV_DEBUG_BREADCRUMB
+
     if( m_borderBox )
+    {
         m_qpmi->stackBefore( m_borderBox );
+    }
+
     if( m_colorBox )
+    {
         m_qpmi->stackBefore( m_colorBox );
+    }
+
     if( m_statsBox )
+    {
         m_qpmi->stackBefore( m_statsBox );
+    }
+
     if( m_objCenH )
+    {
         m_qpmi->stackBefore( m_objCenH );
+    }
+
     if( m_objCenV )
+    {
         m_qpmi->stackBefore( m_objCenV );
+    }
+
     if( m_lineHead )
+    {
         m_qpmi->stackBefore( m_lineHead );
+    }
+
     if( m_northArrow )
+    {
         m_qpmi->stackBefore( m_northArrow );
+    }
+
     if( m_northArrowTip )
+    {
         m_qpmi->stackBefore( m_northArrowTip );
+    }
 
     RTIMV_DEBUG_BREADCRUMB
 
@@ -553,7 +592,10 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT &lock )
         if( imcp->ViewViewMode == ViewViewEnabled )
         {
             if( !imcp->qpmi_view )
+            {
                 imcp->qpmi_view = imcp->qgs_view->addPixmap( m_qpm );
+            }
+
             imcp->qpmi_view->setPixmap( m_qpm );
 
             imcp->qpmi_view->stackBefore( imcp->viewLineVert );
@@ -582,7 +624,7 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT &lock )
 
     if( m_connected ) // first time through this won't be true
     {
-        if( imageValid(0) ) // really can't be true if connected
+        if( imageValid( 0 ) ) // really can't be false if connected
         {
             if( nz() > 1 && m_cubeCtrl == nullptr ) // new image is cube for first time
             {
@@ -611,7 +653,7 @@ void rtimvMainWindow::launchCubeCtrl()
 {
     if( m_cubeCtrl == nullptr )
     {
-        uint32_t fno = imageNo(0);
+        uint32_t fno = imageNo( 0 );
 
         m_cubeCtrl = new cubeCtrl( m_cubeMode,
                                    m_cubeFPS,
@@ -641,7 +683,8 @@ void rtimvMainWindow::launchCubeCtrl()
         connect( m_foundation, SIGNAL( cubeFrameUpdated( uint32_t ) ), m_cubeCtrl, SLOT( cubeFrame( uint32_t ) ) );
         connect( m_cubeCtrl, SIGNAL( cubeFrameUpdated( uint32_t ) ), m_foundation, SLOT( cubeFrame( uint32_t ) ) );
 
-        connect( m_cubeCtrl, SIGNAL( cubeFrameDeltaUpdated( int32_t ) ), m_foundation, SLOT( cubeFrameDelta( int32_t ) ) );
+        connect(
+            m_cubeCtrl, SIGNAL( cubeFrameDeltaUpdated( int32_t ) ), m_foundation, SLOT( cubeFrameDelta( int32_t ) ) );
 
         connect( this, SIGNAL( autoScaleUpdated( bool ) ), m_cubeCtrl, SLOT( autoScale( bool ) ) );
         connect( m_cubeCtrl, SIGNAL( autoScaleUpdated( bool ) ), this, SLOT( autoScale( bool ) ) );
@@ -689,22 +732,22 @@ void rtimvMainWindow::centerNorthArrow()
     if( m_northArrow && m_northArrowTip )
     {
         m_northArrow->setLine( ui.graphicsView->xCen(),
-                               ui.graphicsView->yCen() - .1 * m_ny / m_zoomLevel,
+                               ui.graphicsView->yCen() - .1 * m_ny / zoomLevel(),
                                ui.graphicsView->xCen(),
-                               ui.graphicsView->yCen() + .1 * m_ny / m_zoomLevel );
+                               ui.graphicsView->yCen() + .1 * m_ny / zoomLevel() );
 
         m_northArrow->setTransformOriginPoint( QPointF( ui.graphicsView->xCen(), ui.graphicsView->yCen() ) );
 
         m_northArrowTip->setLine(
             QLineF( ui.graphicsView->xCen(),
-                    ui.graphicsView->yCen() - .1 * m_ny / m_zoomLevel,
-                    ui.graphicsView->xCen() + .02 * m_nx / m_zoomLevel,
-                    ui.graphicsView->yCen() - .1 * m_ny / m_zoomLevel + .012 * m_ny / m_zoomLevel ) );
+                    ui.graphicsView->yCen() - .1 * m_ny / zoomLevel(),
+                    ui.graphicsView->xCen() + .02 * m_nx / zoomLevel(),
+                    ui.graphicsView->yCen() - .1 * m_ny / zoomLevel() + .012 * m_ny / zoomLevel() ) );
         m_northArrowTip->setTransformOriginPoint( QPointF( ui.graphicsView->xCen(), ui.graphicsView->yCen() ) );
 
         QPen qp = m_northArrow->pen();
 
-        float wid = 5 / ( m_zoomLevel * m_screenZoom );
+        float wid = 5 / ( zoomLevel() * m_screenZoom );
         if( wid > 3 )
             wid = 3;
         qp.setWidth( wid );
@@ -767,19 +810,19 @@ void rtimvMainWindow::freezeRealTime()
 
 void rtimvMainWindow::reStretch()
 {
-    if( get_colorbar_mode() == user )
+    if( colormode() == rtimv::colormode::user )
     {
-        set_colorbar_mode( minmaxglobal );
+        colormode( rtimv::colormode::minmaxglobal );
     }
-    else if( get_colorbar_mode() == minmaxglobal )
+    else if( colormode() == rtimv::colormode::minmaxglobal )
     {
-        mindat( get_imdat_min() );
-        maxdat( get_imdat_max() );
+        minScaleData( minImageData() );
+        maxScaleData( maxImageData() );
     }
-    else if( get_colorbar_mode() == minmaxbox )
+    else if( colormode() == rtimv::colormode::minmaxbox )
     {
-        mindat( m_colorBox_min );
-        maxdat( m_colorBox_max );
+        minScaleData( m_colorBox_min );
+        maxScaleData( m_colorBox_max );
     }
 
     sharedLockT lock( m_calMutex );
@@ -803,16 +846,16 @@ void rtimvMainWindow::change_center( bool movezoombox )
         imcp->viewLineVert->setLine( ui.graphicsView->xCen(), 0, ui.graphicsView->xCen(), m_ny );
         imcp->viewLineHorz->setLine( 0, ui.graphicsView->yCen(), m_nx, ui.graphicsView->yCen() );
 
-        if( m_zoomLevel <= 1.0 )
+        if( zoomLevel() <= 1.0 )
             imcp->viewBox->setVisible( false );
         else
         {
             imcp->viewBox->setVisible( true );
             if( movezoombox )
             {
-                QPointF tmpp = imcp->viewBox->mapFromParent( ui.graphicsView->xCen() - .5 * m_nx / m_zoomLevel,
-                                                             ui.graphicsView->yCen() - .5 * m_ny / m_zoomLevel );
-                imcp->viewBox->setRect( tmpp.x(), tmpp.y(), m_nx / m_zoomLevel, m_ny / m_zoomLevel );
+                QPointF tmpp = imcp->viewBox->mapFromParent( ui.graphicsView->xCen() - .5 * m_nx / zoomLevel(),
+                                                             ui.graphicsView->yCen() - .5 * m_ny / zoomLevel() );
+                imcp->viewBox->setRect( tmpp.x(), tmpp.y(), m_nx / zoomLevel(), m_ny / zoomLevel() );
             }
         }
         imcp->ui.viewView->centerOn( .5 * m_nx, .5 * m_ny );
@@ -941,7 +984,9 @@ void rtimvMainWindow::mtxL_updateMouseCoords( const sharedLockT &lock )
     int64_t idx_x, idx_y; // image size are uint32_t, so this allows signed comparison without overflow issues
 
     if( !m_qpmi )
+    {
         return;
+    }
 
     if( ui.graphicsView->mouseViewX() < 0 || ui.graphicsView->mouseViewY() < 0 )
     {
@@ -1023,10 +1068,10 @@ void rtimvMainWindow::mtxL_updateMouseCoords( const sharedLockT &lock )
         float dbias = dx / ui.graphicsView->viewport()->width();
         float dcontrast = -1. * dy / ui.graphicsView->viewport()->height();
 
-        bias( biasStart + dbias * .5 * ( imdat_max + imdat_min ) );
-        contrast( contrastStart + dcontrast * ( imdat_max - imdat_min ) );
-        if( !m_amChangingimdata )
-            mtxL_recolor( lock );
+        bias( biasStart + dbias * .5 * ( maxImageData() + minImageData() ) );
+        contrast( contrastStart + dcontrast * ( maxImageData() - minImageData() ) );
+
+        mtxL_recolor( lock );
     }
 
 } // rtimvMainWindow::mtxL_updateMouseCoords
@@ -1373,7 +1418,7 @@ void rtimvMainWindow::colorBoxRemove( StretchBox *sb )
     }
 
     colorBoxActive = false;
-    set_colorbar_mode( minmaxglobal );
+    colormode( rtimv::colormode::minmaxglobal );
 
     m_colorBox->disconnect();
     disconnect( m_colorBox );
@@ -1509,8 +1554,8 @@ void rtimvMainWindow::addUserBox()
 {
     float w;
 
-    float znx = m_nx / m_zoomLevel;
-    float zny = m_ny / m_zoomLevel;
+    float znx = m_nx / zoomLevel();
+    float zny = m_ny / zoomLevel();
     if( znx < zny )
         w = znx / 4;
     else
@@ -1522,9 +1567,9 @@ void rtimvMainWindow::addUserBox()
     StretchBox *sb = *it.first;
 
     sb->setPenColor( "lime" );
-    sb->setPenWidth( m_userItemLineWidth / m_screenZoom / m_zoomLevel );
+    sb->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
 
-    sb->setEdgeTol( m_userItemEdgeTol / m_screenZoom / m_zoomLevel );
+    sb->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
 
     sb->setMaintainCenter( true );
     sb->setStretchable( true );
@@ -1670,8 +1715,8 @@ void rtimvMainWindow::addUserCircle()
 {
     float w;
 
-    float znx = m_nx / m_zoomLevel;
-    float zny = m_ny / m_zoomLevel;
+    float znx = m_nx / zoomLevel();
+    float zny = m_ny / zoomLevel();
     if( znx < zny )
         w = znx / 4;
     else
@@ -1683,8 +1728,8 @@ void rtimvMainWindow::addUserCircle()
     StretchCircle *sc = *it.first;
 
     sc->setPenColor( "lime" );
-    sc->setEdgeTol( m_userItemEdgeTol / m_screenZoom / m_zoomLevel );
-    sc->setPenWidth( m_userItemLineWidth / m_screenZoom / m_zoomLevel );
+    sc->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
+    sc->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
 
     sc->setStretchable( true );
     sc->setVisible( true );
@@ -1820,23 +1865,21 @@ void rtimvMainWindow::addUserLine()
 {
     float w;
 
-    float znx = m_nx / m_zoomLevel;
-    float zny = m_ny / m_zoomLevel;
+    float znx = m_nx / zoomLevel();
+    float zny = m_ny / zoomLevel();
     if( znx < zny )
         w = znx / 4;
     else
         w = zny / 4;
 
-    auto it = m_userLines.insert( new StretchLine( ui.graphicsView->xCen(),
-                                                   ui.graphicsView->yCen(),
-                                                   ui.graphicsView->xCen() + w,
-                                                   ui.graphicsView->yCen() + w ) );
+    auto it = m_userLines.insert( new StretchLine(
+        ui.graphicsView->xCen(), ui.graphicsView->yCen(), ui.graphicsView->xCen() + w, ui.graphicsView->yCen() + w ) );
 
     StretchLine *sl = *it.first;
 
     sl->setPenColor( "lime" );
-    sl->setEdgeTol( m_userItemEdgeTol / m_screenZoom / m_zoomLevel );
-    sl->setPenWidth( m_userItemLineWidth / m_screenZoom / m_zoomLevel );
+    sl->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
+    sl->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
 
     sl->setStretchable( true );
     sl->setVisible( true );
@@ -1895,7 +1938,7 @@ void rtimvMainWindow::userLineHead( StretchLine *sl )
 
     m_lineHead->setPen( sl->pen() );
 
-    float w = m_userLineHeadRad / m_screenZoom / m_zoomLevel;
+    float w = m_userLineHeadRad / m_screenZoom / zoomLevel();
 
     float lhx = sl->line().x1() - w;
     float lhy = sl->line().y1() - w;
@@ -2353,9 +2396,9 @@ void rtimvMainWindow::toggleColorBoxOn()
     {
         float w;
         if( m_nx < m_ny )
-            w = ( m_nx / m_zoomLevel ) / 4;
+            w = ( m_nx / zoomLevel() ) / 4;
         else
-            w = ( m_ny / m_zoomLevel ) / 4;
+            w = ( m_ny / zoomLevel() ) / 4;
 
         colorBox_i0( 0.5 * (m_nx)-w / 2 );
         colorBox_i1( colorBox_i0() + w );
@@ -2365,8 +2408,8 @@ void rtimvMainWindow::toggleColorBoxOn()
         m_colorBox = new StretchBox( colorBox_i0(), colorBox_j0(), w, w );
 
         m_colorBox->setPenColor( RTIMV_DEF_COLORBOXCOLOR );
-        m_colorBox->setPenWidth( m_userItemLineWidth / m_screenZoom / m_zoomLevel );
-        m_colorBox->setEdgeTol( m_userItemEdgeTol / m_screenZoom / m_zoomLevel );
+        m_colorBox->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
+        m_colorBox->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
 
         m_colorBox->setVisible( false );
         m_colorBox->setStretchable( true );
@@ -2422,8 +2465,8 @@ void rtimvMainWindow::toggleStatsBox()
 
         m_statsBox = new StretchBox( 0.5 * (m_nx)-w / 2, 0.5 * (m_ny)-w / 2, w, w );
         m_statsBox->setPenColor( RTIMV_DEF_STATSBOXCOLOR );
-        m_statsBox->setPenWidth( m_userItemLineWidth / m_screenZoom / m_zoomLevel );
-        m_statsBox->setEdgeTol( m_userItemEdgeTol / m_screenZoom / m_zoomLevel );
+        m_statsBox->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
+        m_statsBox->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
 
         m_statsBox->setVisible( false );
         m_statsBox->setStretchable( true );
@@ -2521,8 +2564,9 @@ void rtimvMainWindow::toggleFPSGage()
 
 void rtimvMainWindow::setDarkSub( bool ds )
 {
-    m_subtractDark = ds;
-    if( m_subtractDark )
+    subtractDark( ds );
+
+    if( subtractDark() )
     {
         ui.graphicsView->zoomText( "dark sub. on" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
@@ -2532,8 +2576,6 @@ void rtimvMainWindow::setDarkSub( bool ds )
         ui.graphicsView->zoomText( "dark sub. off" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
     }
-
-    mtxUL_changeImdata( true ); //have to trigger refresh of cal data
 }
 
 void rtimvMainWindow::toggleDarkSub()
@@ -2546,13 +2588,13 @@ void rtimvMainWindow::toggleDarkSub()
     {
         return setDarkSub( true );
     }
-
 }
 
 void rtimvMainWindow::setApplyMask( bool am )
 {
-    m_applyMask = am;
-    if( m_applyMask )
+    applyMask( am );
+
+    if( applyMask() )
     {
         ui.graphicsView->zoomText( "mask on" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
@@ -2562,8 +2604,6 @@ void rtimvMainWindow::setApplyMask( bool am )
         ui.graphicsView->zoomText( "mask off" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
     }
-
-    mtxUL_changeImdata( true ); //have to trigger refresh of cal data
 }
 
 void rtimvMainWindow::toggleApplyMask()
@@ -2576,13 +2616,13 @@ void rtimvMainWindow::toggleApplyMask()
     {
         return setApplyMask( true );
     }
-
 }
 
 void rtimvMainWindow::setApplySatMask( bool as )
 {
-    m_applySatMask = as;
-    if( m_applySatMask )
+    applySatMask( as );
+
+    if( applySatMask() )
     {
         ui.graphicsView->zoomText( "sat mask on" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
@@ -2592,13 +2632,11 @@ void rtimvMainWindow::setApplySatMask( bool as )
         ui.graphicsView->zoomText( "sat mask off" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
     }
-
-    mtxUL_changeImdata( true ); //have to trigger refresh of cal data
 }
 
 void rtimvMainWindow::toggleApplySatMask()
 {
-    if( m_applySatMask )
+    if( applySatMask() )
     {
         return setApplySatMask( false );
     }
@@ -2610,18 +2648,18 @@ void rtimvMainWindow::toggleApplySatMask()
 
 void rtimvMainWindow::toggleLogLinear()
 {
-    int s = get_cbStretch();
+    rtimv::stretch s = stretch();
 
-    if( s == stretchLog )
+    if( s == rtimv::stretch::log )
     {
-        set_cbStretch( stretchLinear );
+        stretch( rtimv::stretch::linear );
         ui.graphicsView->zoomText( "linear stretch" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
         reStretch();
     }
     else
     {
-        set_cbStretch( stretchLog );
+        stretch( rtimv::stretch::log );
         ui.graphicsView->zoomText( "log stretch" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
         reStretch();
@@ -2702,9 +2740,9 @@ std::string rtimvMainWindow::generateInfo()
     info += "\n";
     info += "Images:\n";
     //      "01234567890123456789012345678901234567890123456789012345678901234567890123456789
-    if( imageValid(0) )
+    if( imageValid( 0 ) )
     {
-        std::vector<std::string> iinfo = RTIMV_BASE::info(0);
+        std::vector<std::string> iinfo = RTIMV_BASE::info( 0 );
         if( iinfo.size() > 0 )
         {
             info += "  image:   " + iinfo[0] + "\n";
@@ -2719,9 +2757,9 @@ std::string rtimvMainWindow::generateInfo()
     {
         info += "  image:   \n";
     }
-    if( imageValid(1) )
+    if( imageValid( 1 ) )
     {
-        std::vector<std::string> iinfo = RTIMV_BASE::info(1);
+        std::vector<std::string> iinfo = RTIMV_BASE::info( 1 );
         if( iinfo.size() > 0 )
         {
             info += "  dark:    " + iinfo[0] + "\n";
@@ -2736,9 +2774,9 @@ std::string rtimvMainWindow::generateInfo()
     {
         info += "  dark:    \n";
     }
-    if( imageValid(2) )
+    if( imageValid( 2 ) )
     {
-        std::vector<std::string> iinfo = RTIMV_BASE::info(2);
+        std::vector<std::string> iinfo = RTIMV_BASE::info( 2 );
         if( iinfo.size() > 0 )
         {
             info += "  mask:    " + iinfo[0] + "\n";
@@ -2753,9 +2791,9 @@ std::string rtimvMainWindow::generateInfo()
     {
         info += "  mask:    \n";
     }
-    if( imageValid(3) )
+    if( imageValid( 3 ) )
     {
-        std::vector<std::string> iinfo = RTIMV_BASE::info(3);
+        std::vector<std::string> iinfo = RTIMV_BASE::info( 3 );
         if( iinfo.size() > 0 )
         {
             info += "  sat-mask: " + iinfo[0] + "\n";
@@ -2856,11 +2894,11 @@ void rtimvMainWindow::setBorderBox()
         return;
 
     float w, h;
-    w = m_nx / m_zoomLevel;
-    h = m_ny / m_zoomLevel;
+    w = m_nx / zoomLevel();
+    h = m_ny / zoomLevel();
 
     // Change pen so it looks right relative to size of pixels
-    float pw = ( m_warningBorderWidth / m_screenZoom ) / m_zoomLevel;
+    float pw = ( m_warningBorderWidth / m_screenZoom ) / zoomLevel();
 
     m_borderBox->setPenWidth( pw );
 
@@ -2923,9 +2961,14 @@ void rtimvMainWindow::mtxL_fontLuminance( QTextEdit *qte, const sharedLockT &loc
         mxlr = m_nx - 1;
 
     if( mxul == 0 && myul == 0 && mxlr == 0 && mylr == 0 )
+    {
         return;
+    }
+
     if( mxul == mxlr || myul == mylr )
+    {
         return;
+    }
 
     double avgLum = 0;
     int N = 0;
@@ -2933,7 +2976,7 @@ void rtimvMainWindow::mtxL_fontLuminance( QTextEdit *qte, const sharedLockT &loc
     {
         for( unsigned y = myul; y <= mylr; ++y )
         {
-            avgLum += pow( m_lightness[m_qim->pixelIndex( x, y )], m_lumPwr );
+            avgLum += pow( lightness( x, y ), m_lumPwr );
             ++N;
         }
     }
@@ -2941,7 +2984,9 @@ void rtimvMainWindow::mtxL_fontLuminance( QTextEdit *qte, const sharedLockT &loc
     avgLum = pow( avgLum, 1.0 / m_lumPwr );
 
     if( print )
+    {
         std::cerr << "avgLum: " << avgLum << "\n";
+    }
 
     if( avgLum <= m_lumThresh )
     {

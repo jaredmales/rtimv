@@ -21,23 +21,13 @@ using grpc::ServerBuilder;
 using grpc::ServerUnaryReactor;
 using grpc::Status;
 
-using remote_rtimv::Config;
-using remote_rtimv::ConfigResult;
-using remote_rtimv::Image;
-using remote_rtimv::ImageRequest;
-
-using remote_rtimv::Coord;
-using remote_rtimv::Pixel;
-
-using remote_rtimv::rtimv;
-
 #include <mx/app/application.hpp>
 
 #include "rtimvServerThread.hpp"
 
 #define RTIMV_DEBUG_BREADCRUMB
 
-class rtimvServer : public QObject, public mx::app::application, public rtimv::CallbackService
+class rtimvServer : public QObject, public mx::app::application, public remote_rtimv::rtimv::CallbackService
 {
     Q_OBJECT
 
@@ -73,7 +63,7 @@ public:
     {
         std::string m_uri; ///< The URI of the client
 
-        Config m_config;
+        remote_rtimv::Config m_config;
 
         /*std::string m_config; ///< The configuration file to read for this client
 
@@ -105,7 +95,7 @@ public:
 
         uint32_t m_port {0};
 */
-        configSpec( const std::string uri, const Config * config ) : m_uri( uri )
+        configSpec( const std::string uri, const remote_rtimv::Config * config ) : m_uri( uri )
         {
             if(config)
             {
@@ -133,13 +123,13 @@ public:
     std::unordered_map<std::string, rtimvServerThread *> m_clients;
 
     ServerUnaryReactor *
-    Configure( CallbackServerContext *context, const Config *request, ConfigResult *reply ) override;
+    Configure( CallbackServerContext *context, const remote_rtimv::Config *request, remote_rtimv::ConfigResult *reply ) override;
 
     ServerUnaryReactor *
-    ImagePlease( CallbackServerContext *context, const ImageRequest *request, Image *reply ) override;
+    ImagePlease( CallbackServerContext *context, const remote_rtimv::ImageRequest *request, remote_rtimv::Image *reply ) override;
 
     ServerUnaryReactor *
-    GetPixel( CallbackServerContext *context, const Coord *request, Pixel *reply ) override;
+    GetPixel( CallbackServerContext *context, const remote_rtimv::Coord *request, remote_rtimv::Pixel *reply ) override;
 
   signals:
 

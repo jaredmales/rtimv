@@ -88,6 +88,8 @@ set( commonsrcs src/common/rtimvBaseObject.cpp
 
 add_library(commonlib OBJECT ${commonsrcs})
 
+target_compile_options(commonlib PRIVATE -DRTIMV_BASE=rtimvBase -DRTIMV_BASE_INCLUDE="rtimvBase.hpp")
+
 list(FIND MXLIB_CFLAGS "-DMXLIB_MILK" MXLIB_HAS_MILK)
 
 if(NOT(MXLIB_HAS_MILK EQUAL -1))
@@ -140,12 +142,16 @@ install (TARGETS rtimv DESTINATION bin)
 
 
 ############################################
-# rtimvServer
+# Progobuf for rtimvServer & rtimvClient
 ############################################
 
 find_package(Protobuf)
 #pkg_check_modules(GRPC REQUIRED IMPORTED_TARGET grpc)
 pkg_check_modules(GRPCPP REQUIRED IMPORTED_TARGET grpc++)
+
+############################################
+# rtimvServer
+############################################
 
 if(Protobuf_FOUND AND GRPCPP_FOUND)
 
@@ -170,6 +176,55 @@ target_link_libraries(rtimvServer PRIVATE protobuf::libprotobuf)
 target_link_libraries(rtimvServer PRIVATE PkgConfig::GRPCPP)
 target_link_libraries(rtimvServer PRIVATE -lgrpc++_reflection)
 
-install (TARGETS rtimv DESTINATION bin)
+install (TARGETS rtimvServer DESTINATION bin)
+
+endif() #(Protobuf_FOUND AND GRPCPP_FOUND)
+
+############################################
+# rtimvClient
+#
+# This does not use commonlib, as it needs to change the RTIMV_BASE
+############################################
+
+if(Protobuf_FOUND AND GRPCPP_FOUND )
+
+    add_executable(rtimvClient src/server/rtimvClientBase.cpp
+                               src/server/rtimvClientMain.cpp
+                               src/common/rtimvBaseObject.cpp
+                               src/proto/rtimv.proto
+                               src/gui/rtimvMainWindow.cpp
+              src/gui/rtimvControlPanel.cpp
+              src/gui/rtimvStats.cpp
+              src/gui/cubeCtrl.cpp
+              res/rtimv.qrc)
+
+    target_compile_options(rtimvClient PRIVATE -DRTIMV_BASE=rtimvClientBase -DRTIMV_BASE_INCLUDE="rtimvClientBase.hpp" -DRTIMV_GRPC)
+
+    target_include_directories(rtimvClient PRIVATE src/librtimv
+                                                   src/common
+                                                   src/server
+                                                   src/gui
+                                                   ${CMAKE_CURRENT_BINARY_DIR}/proto )
+
+    make_directory(${CMAKE_CURRENT_BINARY_DIR}/proto)
+    protobuf_generate(TARGET rtimvClient APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS src/proto/rtimv.proto)
+    protobuf_generate(TARGET rtimvClient LANGUAGE grpc PLUGIN "protoc-gen-grpc=/usr/bin/grpc_cpp_plugin" GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS src/proto/rtimv.proto)
+
+    if(NOT(MXLIB_HAS_MILK EQUAL -1))
+        target_compile_definitions(rtimvClient PUBLIC MXLIB_MILK)
+    endif()
+
+    if(NOT(ISIO_HAS_CUDA EQUAL -1))
+        target_compile_definitions(rtimvClient PUBLIC HAVE_CUDA)
+    endif()
+
+    target_link_libraries(rtimvClient PRIVATE rtimv-shared)
+    target_link_libraries(rtimvClient PRIVATE protobuf::libprotobuf)
+    target_link_libraries(rtimvClient PRIVATE PkgConfig::GRPCPP)
+    target_link_libraries(rtimvClient PRIVATE -lgrpc++_reflection)
+    target_link_libraries(rtimvClient PUBLIC Qt5::Widgets)
+    target_link_libraries(rtimvClient PUBLIC PkgConfig::MXLIB)
+
+    install (TARGETS rtimvClient DESTINATION bin)
 
 endif() #(Protobuf_FOUND AND GRPCPP_FOUND)

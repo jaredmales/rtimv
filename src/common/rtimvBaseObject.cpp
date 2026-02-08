@@ -1,12 +1,30 @@
 #include "rtimvBaseObject.hpp"
 
-#include "rtimvBase.hpp"
+// #include "rtimvBase.hpp"
 
-rtimvBaseObject::rtimvBaseObject( rtimvBase *parent, QObject *QParent ) : QObject( QParent ), m_parent( parent )
+// This file defines the base class, and must also define the RTIMV_BASE class
+// Example:
+// -DRTIMV_BASE_INCLUDE="rtimvBase.hpp"
+//
+// where "rtimvBase.hpp" includes:
+// #define RTIMV_BASE rtimvBase
+//
+#include RTIMV_BASE_INCLUDE
+
+rtimvBaseObject::rtimvBaseObject( RTIMV_BASE *parent, QObject *QParent ) : QObject( QParent ), m_parent( parent )
 {
     connect( &m_imageTimer, SIGNAL( timeout() ), this, SLOT( updateImages() ) );
     connect( &m_cubeTimer, SIGNAL( timeout() ), this, SLOT( updateCube() ) );
     connect( &m_cubeFrameUpdateTimer, SIGNAL( timeout() ), this, SLOT( updateCubeFrame() ) );
+
+    // clang-format off
+    #ifdef RTIMV_GRPC
+
+    connect( this, SIGNAL(ImageNeeded()), this, SLOT(ImagePlease()));
+    connect( this, SIGNAL(ImageWaiting()), this, SLOT(ImageReceived()));
+
+    #endif
+    // clang-format on
 }
 
 void rtimvBaseObject::emit_nzUpdated( uint32_t n )
@@ -138,3 +156,49 @@ void rtimvBaseObject::updateCubeFrame()
 
     m_parent->updateCubeFrame();
 }
+
+
+void rtimvBaseObject::emit_ImageNeeded()
+{
+    emit ImageNeeded();
+}
+
+void rtimvBaseObject::emit_ImageWaiting()
+{
+    emit ImageWaiting();
+}
+
+
+void rtimvBaseObject::ImagePlease()
+{
+    // clang-format off
+    #ifdef RTIMV_GRPC
+
+    if( !m_parent )
+    {
+        return;
+    }
+
+    m_parent->ImagePlease();
+
+    #endif
+    // clang-format on
+}
+
+void rtimvBaseObject::ImageReceived()
+{
+    // clang-format off
+    #ifdef RTIMV_GRPC
+
+    if( !m_parent )
+    {
+        return;
+    }
+
+    m_parent->ImageReceived();
+
+    #endif
+    // clang-format on
+
+}
+

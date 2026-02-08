@@ -14,7 +14,7 @@ void StatsThread::run()
     m_imvs->statsThread();
 }
 
-rtimvStats::rtimvStats( rtimvBase *imv, std::shared_mutex *calMutex, QWidget *Parent, Qt::WindowFlags f )
+rtimvStats::rtimvStats( RTIMV_BASE *imv, std::shared_mutex *calMutex, QWidget *Parent, Qt::WindowFlags f )
     : QDialog( Parent, f )
 {
     ui.setupUi( this );

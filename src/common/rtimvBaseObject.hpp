@@ -10,17 +10,16 @@
 #include <QTimer>
 
 // forward
-class rtimvBase;
+class RTIMV_BASE;
 
 struct rtimvBaseObject : public QObject
 {
     Q_OBJECT
 
-private:
-    rtimvBase *m_parent {nullptr};
+  private:
+    RTIMV_BASE *m_parent{ nullptr };
 
   public:
-
     QTimer m_imageTimer; ///< When this times out rtimvBase checks for a new image.
 
     QTimer m_cubeTimer; ///< When this times out rtimvBase increments the cube frame number.
@@ -29,7 +28,7 @@ private:
 
     rtimvBaseObject() = delete;
 
-    rtimvBaseObject( rtimvBase *parent, QObject *QParent );
+    rtimvBaseObject( RTIMV_BASE *parent, QObject *QParent );
 
     /// Update the number of images in the cube
     void emit_nzUpdated( uint32_t n /**< [in] the current number of images in the cube */ );
@@ -102,7 +101,26 @@ private:
 
     /// Calls the parent's rtimvBase::updateCubeFrame()
     void updateCubeFrame();
-};
 
+//GRPC Stuff:
+
+  public:
+    void emit_ImageNeeded();
+
+    void emit_ImageWaiting();
+
+  signals:
+
+    void ImageNeeded();
+
+    void ImageWaiting();
+
+  public slots:
+
+    void ImagePlease();
+
+    void ImageReceived();
+
+};
 
 #endif // rtimv_rtimvBase_hpp

@@ -137,7 +137,9 @@ void rtimvServer::startServer()
     }
 }
 
-ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context, const Config *config, ConfigResult *result )
+ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context,
+                                            const remote_rtimv::Config *config,
+                                            remote_rtimv::ConfigResult *result )
 {
     // We don't lock client mutex here b/c we are just checking count and don't access the values.
 
@@ -194,8 +196,9 @@ ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context, cons
     return reactor;
 }
 
-ServerUnaryReactor *
-rtimvServer::ImagePlease( CallbackServerContext *context, const ImageRequest *request, Image *reply )
+ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
+                                              const remote_rtimv::ImageRequest *request,
+                                              remote_rtimv::Image *reply )
 {
     ServerUnaryReactor *reactor = context->DefaultReactor();
 
@@ -283,10 +286,22 @@ rtimvServer::ImagePlease( CallbackServerContext *context, const ImageRequest *re
     imageTh->lastRequest( -1 ); // sets to now, again b/c of wait
 
     reply->set_status( remote_rtimv::IMAGE_STATUS_VALID );
+    reply->set_nx( imageTh->nx() );
+    reply->set_ny( imageTh->ny() );
+    reply->set_nz( imageTh->nz() );
+    reply->set_no( imageTh->imageNo( 0 ) );
+
     reply->set_atime( imageTh->imageTime() );
     reply->set_fps( imageTh->fpsEst() );
 
     reply->set_allocated_image( im );
+
+    reply->set_saturated( imageTh->saturated() );
+
+    reply->set_min_image_data( imageTh->minImageData() );
+    reply->set_max_image_data( imageTh->maxImageData() );
+    reply->set_min_scale_data( imageTh->minScaleData() );
+    reply->set_max_scale_data( imageTh->maxScaleData() );
 
     reactor->Finish( Status::OK );
 
@@ -294,7 +309,7 @@ rtimvServer::ImagePlease( CallbackServerContext *context, const ImageRequest *re
 }
 
 ServerUnaryReactor *
-rtimvServer::GetPixel( CallbackServerContext *context, const Coord *request, Pixel *reply )
+rtimvServer::GetPixel( CallbackServerContext *context, const remote_rtimv::Coord *request, remote_rtimv::Pixel *reply )
 {
     ServerUnaryReactor *reactor = context->DefaultReactor();
 
@@ -305,8 +320,8 @@ rtimvServer::GetPixel( CallbackServerContext *context, const Coord *request, Pix
     {
         std::cerr << "Client " << context->peer() << " not configured\n";
 
-        reply->set_valid(false);
-        reply->set_value(0);
+        reply->set_valid( false );
+        reply->set_value( 0 );
         reactor->Finish( Status::OK );
         return reactor;
     }
@@ -315,8 +330,8 @@ rtimvServer::GetPixel( CallbackServerContext *context, const Coord *request, Pix
 
     if( imageTh == nullptr ) // Something has gone wrong. Here we expect the client to reconnect
     {
-        reply->set_valid(false);
-        reply->set_value(0);
+        reply->set_valid( false );
+        reply->set_value( 0 );
         reactor->Finish( Status::OK ); // maybe send something else?
         return reactor;
     }
@@ -332,8 +347,8 @@ rtimvServer::GetPixel( CallbackServerContext *context, const Coord *request, Pix
     // Check if image has been found
     if( !imageTh->connected() )
     {
-        reply->set_valid(false);
-        reply->set_value(0);
+        reply->set_valid( false );
+        reply->set_value( 0 );
         reactor->Finish( Status::OK );
         return reactor;
     }
@@ -341,23 +356,22 @@ rtimvServer::GetPixel( CallbackServerContext *context, const Coord *request, Pix
     uint32_t x = request->x();
     uint32_t y = request->y();
 
-    if(x > imageTh->nx() -1 || y > imageTh->ny() - 1)
+    if( x > imageTh->nx() - 1 || y > imageTh->ny() - 1 )
     {
-        reply->set_valid(false);
-        reply->set_value(0);
+        reply->set_valid( false );
+        reply->set_value( 0 );
         reactor->Finish( Status::OK ); // maybe send something else?
         return reactor;
     }
 
-    float val = imageTh->calPixel(x,y);
+    float val = imageTh->calPixel( x, y );
 
-    reply->set_valid(true);
-    reply->set_value(val);
+    reply->set_valid( true );
+    reply->set_value( val );
 
     reactor->Finish( Status::OK );
     return reactor;
 }
-
 
 void rtimvServer::doConfigure( const configSpec *cspec )
 {
@@ -456,7 +470,7 @@ void rtimvServer::doConfigure( const configSpec *cspec )
     if( cspec->m_config.mzmq_port_set() )
     {
         argv->push_back( "--mzmq.port" );
-        argv->push_back( std::to_string(cspec->m_config.mzmq_port()) );
+        argv->push_back( std::to_string( cspec->m_config.mzmq_port() ) );
     }
 
     delete cspec;
@@ -472,7 +486,7 @@ void rtimvServer::doConfigure( const configSpec *cspec )
             return;
         }
 
-        rtimvServerThread *imageTh = new rtimvServerThread( uri, argv ); //takes ownership of argv
+        rtimvServerThread *imageTh = new rtimvServerThread( uri, argv ); // takes ownership of argv
 
         m_clients.insert( clientT( uri, imageTh ) );
 
