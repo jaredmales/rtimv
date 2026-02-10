@@ -56,12 +56,10 @@ class rtimvServerThread : public QThread, public rtimvBase
 
     virtual void post_zoomLevel();
 
-  private:
-    /// Generic implementation of postRecolor
-    template <class lockT>
-    void mtxL_postRecolorImpl( const lockT &lock /**<[in] a mutex lock which is locked*/ );
-
   public:
+
+    void mtxUL_recolor();
+
     virtual void mtxL_postRecolor( const uniqueLockT &lock /**<[in] a unique mutex lock which is locked*/ );
 
     virtual void mtxL_postRecolor( const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/ );

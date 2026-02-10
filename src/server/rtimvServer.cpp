@@ -167,10 +167,10 @@ ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context,
         // Now check that it wasn't deleted while we waited for lock:
         if( m_clients.count( context->peer() ) == 0 )
         {
-            std::cerr << "thread wires crossed during configure\n";
+            //thread wires crossed during configure
 
             ServerUnaryReactor *reactor = context->DefaultReactor();
-            reactor->Finish( Status::OK );
+            reactor->Finish( grpc::Status(grpc::INTERNAL, "sorry") );
 
             return reactor;
         }
@@ -196,6 +196,134 @@ ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context,
     return reactor;
 }
 
+ServerUnaryReactor *rtimvServer::SetColormode( CallbackServerContext *context,
+                                               const remote_rtimv::ColormodeRequest *request,
+                                               remote_rtimv::ColormodeResponse *reply )
+{
+    ServerUnaryReactor *reactor = context->DefaultReactor();
+
+    // We need a shared lock b/c we access the thread
+    sharedLockT slock( m_clientMutex );
+
+    if( m_clients.count( context->peer() ) == 0 )
+    {
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "not configured" ) );
+        return reactor;
+    }
+
+    rtimvServerThread *imageTh = m_clients[context->peer()];
+
+    if( imageTh == nullptr ) // Something has gone wrong. Here we expect the client to reconnect
+    {
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "reconnect" ) );
+        return reactor;
+    }
+
+    imageTh->lastRequest( -1 ); // sets to now
+
+    if( imageTh->asleep() )
+    {
+        imageTh->emit_awaken();
+        std::cerr << "Client " << context->peer() << " woken up\n";
+    }
+
+    if( request->colormode() == remote_rtimv::COLORMODE_GLOBAL )
+    {
+        imageTh->colormode( rtimv::colormode::minmaxglobal );
+    }
+    else if( request->colormode() == remote_rtimv::COLORMODE_BOX )
+    {
+        imageTh->colormode( rtimv::colormode::minmaxbox );
+    }
+    else if( request->colormode() == remote_rtimv::COLORMODE_USER )
+    {
+        imageTh->colormode( rtimv::colormode::user );
+    }
+    else
+    {
+        reactor->Finish( grpc::Status( grpc::INVALID_ARGUMENT, "invalid color mode" ) );
+        return reactor;
+    }
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::SetMinScale( CallbackServerContext *context,
+                                              const remote_rtimv::ScaleRequest *request,
+                                              remote_rtimv::ScaleResponse *reply )
+{
+    ServerUnaryReactor *reactor = context->DefaultReactor();
+
+    // We need a shared lock b/c we access the thread
+    sharedLockT slock( m_clientMutex );
+
+    if( m_clients.count( context->peer() ) == 0 )
+    {
+        grpc::Status status( grpc::FAILED_PRECONDITION, "not configured" );
+        reactor->Finish( status );
+        return reactor;
+    }
+
+    rtimvServerThread *imageTh = m_clients[context->peer()];
+
+    if( imageTh == nullptr ) // Something has gone wrong. Here we expect the client to reconnect
+    {
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "reconnect" ) );
+        return reactor;
+    }
+
+    imageTh->lastRequest( -1 ); // sets to now
+
+    if( imageTh->asleep() )
+    {
+        imageTh->emit_awaken();
+        std::cerr << "Client " << context->peer() << " woken up\n";
+    }
+
+    imageTh->minScaleData( request->value() );
+
+    reactor->Finish( Status::OK ); // maybe send something else?
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::SetMaxScale( CallbackServerContext *context,
+                                              const remote_rtimv::ScaleRequest *request,
+                                              remote_rtimv::ScaleResponse *reply )
+{
+    ServerUnaryReactor *reactor = context->DefaultReactor();
+
+    // We need a shared lock b/c we access the thread
+    sharedLockT slock( m_clientMutex );
+
+    if( m_clients.count( context->peer() ) == 0 )
+    {
+        reactor->Finish( grpc::Status(grpc::FAILED_PRECONDITION, "not configured") );
+        return reactor;
+    }
+
+    rtimvServerThread *imageTh = m_clients[context->peer()];
+
+    if( imageTh == nullptr ) // Something has gone wrong. Here we expect the client to reconnect
+    {
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "reconnect" ) );
+        return reactor;
+    }
+
+    imageTh->lastRequest( -1 ); // sets to now
+
+    if( imageTh->asleep() )
+    {
+        imageTh->emit_awaken();
+        std::cerr << "Client " << context->peer() << " woken up\n";
+    }
+
+    imageTh->maxScaleData( request->value() );
+
+    reactor->Finish( Status::OK ); // maybe send something else?
+    return reactor;
+}
+
 ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
                                               const remote_rtimv::ImageRequest *request,
                                               remote_rtimv::Image *reply )
@@ -207,13 +335,7 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
 
     if( m_clients.count( context->peer() ) == 0 )
     {
-        std::cerr << "Client " << context->peer() << " not configured\n";
-
-        reply->set_status( remote_rtimv::IMAGE_STATUS_NOT_CONFIGURED );
-        std::string *im = new std::string;
-        reply->set_allocated_image( im );
-
-        reactor->Finish( Status::OK );
+        reactor->Finish( grpc::Status(grpc::FAILED_PRECONDITION, "not configured") );
         return reactor;
     }
 
@@ -221,11 +343,7 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
 
     if( imageTh == nullptr ) // Something has gone wrong. Here we expect the client to reconnect
     {
-        reply->set_status( remote_rtimv::IMAGE_STATUS_ERROR );
-        std::string *im = new std::string;
-        reply->set_allocated_image( im );
-
-        reactor->Finish( Status::OK ); // maybe send something else?
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "reconnect" ) ); // maybe send something else?
         return reactor;
     }
 
@@ -303,6 +421,19 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
     reply->set_min_scale_data( imageTh->minScaleData() );
     reply->set_max_scale_data( imageTh->maxScaleData() );
 
+    if( imageTh->colormode() == rtimv::colormode::minmaxglobal )
+    {
+        reply->set_colormode( remote_rtimv::COLORMODE_GLOBAL );
+    }
+    else if( imageTh->colormode() == rtimv::colormode::minmaxbox )
+    {
+        reply->set_colormode( remote_rtimv::COLORMODE_BOX );
+    }
+    else if( imageTh->colormode() == rtimv::colormode::user )
+    {
+        reply->set_colormode( remote_rtimv::COLORMODE_USER );
+    }
+
     reactor->Finish( Status::OK );
 
     return reactor;
@@ -318,11 +449,7 @@ rtimvServer::GetPixel( CallbackServerContext *context, const remote_rtimv::Coord
 
     if( m_clients.count( context->peer() ) == 0 )
     {
-        std::cerr << "Client " << context->peer() << " not configured\n";
-
-        reply->set_valid( false );
-        reply->set_value( 0 );
-        reactor->Finish( Status::OK );
+        reactor->Finish( grpc::Status(grpc::FAILED_PRECONDITION, "not configured") );
         return reactor;
     }
 
@@ -330,9 +457,7 @@ rtimvServer::GetPixel( CallbackServerContext *context, const remote_rtimv::Coord
 
     if( imageTh == nullptr ) // Something has gone wrong. Here we expect the client to reconnect
     {
-        reply->set_valid( false );
-        reply->set_value( 0 );
-        reactor->Finish( Status::OK ); // maybe send something else?
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "reconnect" ) ); // maybe send something else?
         return reactor;
     }
 
@@ -370,6 +495,100 @@ rtimvServer::GetPixel( CallbackServerContext *context, const remote_rtimv::Coord
     reply->set_value( val );
 
     reactor->Finish( Status::OK );
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::ColorBox( CallbackServerContext *context,
+                                           const remote_rtimv::Box *request,
+                                           remote_rtimv::MinvalMaxval *reply )
+{
+    ServerUnaryReactor *reactor = context->DefaultReactor();
+
+    // We need a shared lock b/c we access the thread
+    sharedLockT slock( m_clientMutex );
+
+    if( m_clients.count( context->peer() ) == 0 )
+    {
+        reactor->Finish( grpc::Status(grpc::FAILED_PRECONDITION, "not configured") );
+        return reactor;
+    }
+
+    rtimvServerThread *imageTh = m_clients[context->peer()];
+
+    if( imageTh == nullptr ) // Something has gone wrong. Here we expect the client to reconnect
+    {
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "reconnect" ) ); // maybe send something else?
+        return reactor;
+    }
+
+    imageTh->lastRequest( -1 ); // sets to now
+
+    if( imageTh->asleep() )
+    {
+        imageTh->emit_awaken();
+        std::cerr << "Client " << context->peer() << " woken up\n";
+    }
+
+    // Check if image has been found
+    if( !imageTh->connected() )
+    {
+        reply->set_valid( false );
+        reply->set_min( 0 );
+        reply->set_max( 0 );
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+
+    imageTh->colorBox_i0( request->upper_left().x() );
+    imageTh->colorBox_j0( request->upper_left().y() );
+
+    imageTh->colorBox_i1( request->lower_right().x() );
+    imageTh->colorBox_j1( request->lower_right().y() );
+
+    imageTh->mtxUL_setColorBoxActive( true );
+
+    reply->set_valid( true );
+    reply->set_min( imageTh->colorBox_min() );
+    reply->set_max( imageTh->colorBox_max() );
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::Recolor( CallbackServerContext *context,
+                                          const remote_rtimv::RecolorRequest *request,
+                                          remote_rtimv::RecolorResponse *reply )
+{
+    ServerUnaryReactor *reactor = context->DefaultReactor();
+
+    // We need a shared lock b/c we access the thread
+    sharedLockT slock( m_clientMutex );
+
+    if( m_clients.count( context->peer() ) == 0 )
+    {
+        reactor->Finish( grpc::Status(grpc::FAILED_PRECONDITION, "not configured") );
+        return reactor;
+    }
+
+    rtimvServerThread *imageTh = m_clients[context->peer()];
+
+    if( imageTh == nullptr ) // Something has gone wrong. Here we expect the client to reconnect
+    {
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "reconnect" ) );
+        return reactor;
+    }
+
+    imageTh->lastRequest( -1 ); // sets to now
+
+    if( imageTh->asleep() )
+    {
+        imageTh->emit_awaken();
+        std::cerr << "Client " << context->peer() << " woken up\n";
+    }
+
+    imageTh->mtxUL_recolor();
+
+    reactor->Finish( Status::OK ); // maybe send something else?
     return reactor;
 }
 

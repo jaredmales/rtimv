@@ -483,6 +483,11 @@ protected:
 
   protected:
     /*** Color Map ***/
+
+    float m_minScaleData {0}; ///< The minimum data value used for scaling
+
+    float m_maxScaleData {0}; ///< The maximum data valuse used for scaling
+
     bool m_autoScale{ false };
 
   public:
@@ -592,8 +597,8 @@ protected:
 
     /* Image Stats */
   protected:
-    float m_minImageData; ///< The minimum value of the calibrated image data
-    float m_maxImageData; ///< The maximum value of the calibrated image data
+    float m_minImageData {0}; ///< The minimum value of the calibrated image data
+    float m_maxImageData {0}; ///< The maximum value of the calibrated image data
 
   public:
     uint32_t saturated();
@@ -641,7 +646,7 @@ protected:
      * @{
      */
   protected:
-    int colorBoxActive{ 0 };
+    bool m_colorBoxActive{ false };
 
   private:
     // ImageStreamIO images are sized in uint32_t, so we need these big enough for signed comparisons without wraparound
@@ -667,9 +672,13 @@ protected:
     void colorBox_j1( int64_t j1 );
     int64_t colorBox_j1();
 
-    int getcolorBoxActive()
+    float colorBox_min();
+
+    float colorBox_max();
+
+    bool colorBoxActive()
     {
-        return colorBoxActive;
+        return m_colorBoxActive;
     }
 
     /// Change whether the color box is active

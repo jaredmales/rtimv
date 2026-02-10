@@ -566,9 +566,9 @@ class rtimvBase : public mx::app::application
 
   protected:
     /*** Color Map ***/
-    float m_minScaleData; ///< The minimum data value used for scaling
+    float m_minScaleData {0}; ///< The minimum data value used for scaling
 
-    float m_maxScaleData; ///< The maximum data valuse used for scaling
+    float m_maxScaleData {0}; ///< The maximum data valuse used for scaling
 
     bool m_autoScale{ false };
 
@@ -771,7 +771,7 @@ class rtimvBase : public mx::app::application
      * @{
      */
   protected:
-    int colorBoxActive{ 0 };
+    bool m_colorBoxActive{ false };
 
   private:
     // ImageStreamIO images are sized in uint32_t, so we need these big enough for signed comparisons without wraparound
@@ -799,10 +799,20 @@ class rtimvBase : public mx::app::application
     void colorBox_j1( int64_t j1 );
     int64_t colorBox_j1();
 
-    int getcolorBoxActive()
+    float colorBox_min();
+
+    float colorBox_max();
+
+    bool colorBoxActive()
     {
-        return colorBoxActive;
+        return m_colorBoxActive;
     }
+
+    /// Change whether the color box is active
+    /** This will lock the m_calMutex
+     *
+    */
+    void mtxUL_setColorBoxActive( bool usba /**< [in] the new state of color box active */);
 
     /// Change whether the color box is active
     void mtxL_setColorBoxActive( bool usba /**< [in] the new state of color box active */,

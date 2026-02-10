@@ -814,7 +814,8 @@ void rtimvMainWindow::reStretch()
     {
         colormode( rtimv::colormode::minmaxglobal );
     }
-    else if( colormode() == rtimv::colormode::minmaxglobal )
+
+    if( colormode() == rtimv::colormode::minmaxglobal )
     {
         minScaleData( minImageData() );
         maxScaleData( maxImageData() );
@@ -1344,7 +1345,7 @@ void rtimvMainWindow::mtxTry_colorBoxMoved( StretchBox *sb )
         return;
     }
 
-    if( !colorBoxActive )
+    if( !colorBoxActive() )
     {
         return;
     }
@@ -1359,25 +1360,27 @@ void rtimvMainWindow::mtxTry_colorBoxMoved( StretchBox *sb )
     colorBox_j0( (int64_t)m_ny - (int64_t)( np2.y() + .5 ) );
     colorBox_j1( (int64_t)m_ny - (int64_t)np.y() );
 
+    mtxL_setColorBoxActive( true, lock ); // recalcs and recolors.
+
     char tmp[256];
     char valMin[64];
     char valMax[64];
-    if( fabs( m_colorBox_min ) < 1e-1 )
+    if( fabs( colorBox_min() ) < 1e-1 )
     {
-        snprintf( valMin, sizeof( valMin ), "%0.04g", m_colorBox_min );
+        snprintf( valMin, sizeof( valMin ), "%0.04g", colorBox_min() );
     }
     else
     {
-        snprintf( valMin, sizeof( valMin ), "%0.02f", m_colorBox_min );
+        snprintf( valMin, sizeof( valMin ), "%0.02f", colorBox_min() );
     }
 
-    if( fabs( m_colorBox_max ) < 1e-1 )
+    if( fabs( colorBox_max() ) < 1e-1 )
     {
-        snprintf( valMax, sizeof( valMax ), "%0.04g", m_colorBox_max );
+        snprintf( valMax, sizeof( valMax ), "%0.04g", colorBox_max() );
     }
     else
     {
-        snprintf( valMax, sizeof( valMax ), "%0.02f", m_colorBox_max );
+        snprintf( valMax, sizeof( valMax ), "%0.02f", colorBox_max() );
     }
 
     snprintf( tmp, 256, "min: %s\nmax: %s", valMin, valMax );
@@ -1389,7 +1392,7 @@ void rtimvMainWindow::mtxTry_colorBoxMoved( StretchBox *sb )
 
     mtxL_fontLuminance( ui.graphicsView->userItemSize(), lock );
 
-    mtxL_setColorBoxActive( true, lock ); // recalcs and recolors.
+
 }
 
 void rtimvMainWindow::mtxTry_colorBoxSelected( StretchBox *sb )
@@ -1417,7 +1420,7 @@ void rtimvMainWindow::colorBoxRemove( StretchBox *sb )
         return;
     }
 
-    colorBoxActive = false;
+    m_colorBoxActive=false;
     colormode( rtimv::colormode::minmaxglobal );
 
     m_colorBox->disconnect();
@@ -2380,7 +2383,7 @@ void rtimvMainWindow::mtxUL_center()
 
 void rtimvMainWindow::toggleColorBox()
 {
-    if( !colorBoxActive || !m_colorBox )
+    if( !colorBoxActive() || !m_colorBox )
     {
         toggleColorBoxOn();
     }
@@ -2396,9 +2399,13 @@ void rtimvMainWindow::toggleColorBoxOn()
     {
         float w;
         if( m_nx < m_ny )
+        {
             w = ( m_nx / zoomLevel() ) / 4;
+        }
         else
+        {
             w = ( m_ny / zoomLevel() ) / 4;
+        }
 
         colorBox_i0( 0.5 * (m_nx)-w / 2 );
         colorBox_i1( colorBox_i0() + w );

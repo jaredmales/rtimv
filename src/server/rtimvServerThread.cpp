@@ -73,22 +73,25 @@ void rtimvServerThread::post_zoomLevel()
 {
 }
 
-template <class lockT>
-void rtimvServerThread::mtxL_postRecolorImpl( const lockT &lock )
+void rtimvServerThread::mtxUL_recolor()
+{
+    sharedLockT lock(m_calMutex);
+
+    mtxL_recolor(lock);
+}
+
+void rtimvServerThread::mtxL_postRecolor( const uniqueLockT &lock )
 {
     static_cast<void>( lock );
 
     m_newImage = true;
 }
 
-void rtimvServerThread::mtxL_postRecolor( const uniqueLockT &lock )
-{
-    mtxL_postRecolorImpl( lock );
-}
-
 void rtimvServerThread::mtxL_postRecolor( const sharedLockT &lock )
 {
-    mtxL_postRecolorImpl( lock );
+    static_cast<void>( lock );
+
+    m_newImage = true;
 }
 
 void rtimvServerThread::mtxL_postChangeImdata( const sharedLockT &lock )

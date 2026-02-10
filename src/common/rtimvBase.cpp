@@ -1307,12 +1307,12 @@ void rtimvBase::mtxUL_changeImdata()
             m_minImageData = 0;
         }
 
-        if( ( resized || m_autoScale ) && !colorBoxActive )
+        if( ( resized || m_autoScale ) && !m_colorBoxActive )
         {
             minScaleData( m_minImageData );
             maxScaleData( m_maxImageData );
         }
-        else if( colorBoxActive )
+        else if( m_colorBoxActive )
         {
             normalizeColorBox();
 
@@ -1629,6 +1629,24 @@ int64_t rtimvBase::colorBox_j1()
     return m_colorBox_j1;
 }
 
+float rtimvBase::colorBox_min()
+{
+    return m_colorBox_min;
+}
+
+float rtimvBase::colorBox_max()
+{
+    return m_colorBox_max;
+}
+
+void rtimvBase::mtxUL_setColorBoxActive( bool usba )
+{
+    sharedLockT lock(m_calMutex);
+
+    mtxL_setColorBoxActive(usba, lock);
+}
+
+
 void rtimvBase::mtxL_setColorBoxActive( bool usba, const sharedLockT &lock )
 {
     assert( lock.owns_lock() );
@@ -1654,9 +1672,13 @@ void rtimvBase::mtxL_setColorBoxActive( bool usba, const sharedLockT &lock )
                 }
 
                 if( imval < m_colorBox_min )
+                {
                     m_colorBox_min = imval;
+                }
                 if( imval > m_colorBox_max )
+                {
                     m_colorBox_max = imval;
+                }
             }
         }
 
@@ -1677,7 +1699,7 @@ void rtimvBase::mtxL_setColorBoxActive( bool usba, const sharedLockT &lock )
         colormode( rtimv::colormode::minmaxglobal );
     }
 
-    colorBoxActive = usba;
+    m_colorBoxActive = usba;
 
     RTIMV_DEBUG_BREADCRUMB
 

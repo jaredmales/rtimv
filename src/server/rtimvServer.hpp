@@ -31,8 +31,7 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
 {
     Q_OBJECT
 
-public:
-
+  public:
     /// Type of mutex lock used for insertion and deletion
     typedef std::unique_lock<std::shared_mutex> uniqueLockT;
 
@@ -42,7 +41,7 @@ public:
   protected:
     float m_waitTimeout = 1; ///< Time to wait for a new image to be ready before timing out, in s.  Default is 1 s.
 
-    int m_waitSleep = 100;   ///< Time to sleep while waiting for a new image, in ms.  Default is 100 ms.
+    int m_waitSleep = 100; ///< Time to sleep while waiting for a new image, in ms.  Default is 100 ms.
 
     float m_clientSleep{ 5 }; /**< Time in seconds after which a thread with no requests will be put
                                     to sleep.  Default is 10 s.*/
@@ -57,7 +56,6 @@ public:
     std::shared_mutex m_clientMutex;
 
   public:
-
     /// Container for client configuration information during connections
     struct configSpec
     {
@@ -95,16 +93,14 @@ public:
 
         uint32_t m_port {0};
 */
-        configSpec( const std::string uri, const remote_rtimv::Config * config ) : m_uri( uri )
+        configSpec( const std::string uri, const remote_rtimv::Config *config ) : m_uri( uri )
         {
-            if(config)
+            if( config )
             {
                 m_config = *config;
             }
         }
     };
-
-
 
     rtimvServer( int argc, char **argv, QObject *Parent = nullptr );
 
@@ -122,14 +118,36 @@ public:
     typedef std::unordered_map<std::string, rtimvServerThread *>::value_type clientT;
     std::unordered_map<std::string, rtimvServerThread *> m_clients;
 
-    ServerUnaryReactor *
-    Configure( CallbackServerContext *context, const remote_rtimv::Config *request, remote_rtimv::ConfigResult *reply ) override;
+    ServerUnaryReactor *Configure( CallbackServerContext *context,
+                                   const remote_rtimv::Config *request,
+                                   remote_rtimv::ConfigResult *reply ) override;
 
-    ServerUnaryReactor *
-    ImagePlease( CallbackServerContext *context, const remote_rtimv::ImageRequest *request, remote_rtimv::Image *reply ) override;
+    ServerUnaryReactor *SetColormode( CallbackServerContext *context,
+                                      const remote_rtimv::ColormodeRequest *request,
+                                      remote_rtimv::ColormodeResponse *reply ) override;
+
+    ServerUnaryReactor *SetMinScale( CallbackServerContext *context,
+                                     const remote_rtimv::ScaleRequest *request,
+                                     remote_rtimv::ScaleResponse *reply ) override;
+
+    ServerUnaryReactor *SetMaxScale( CallbackServerContext *context,
+                                     const remote_rtimv::ScaleRequest *request,
+                                     remote_rtimv::ScaleResponse *reply ) override;
+
+    ServerUnaryReactor *ImagePlease( CallbackServerContext *context,
+                                     const remote_rtimv::ImageRequest *request,
+                                     remote_rtimv::Image *reply ) override;
 
     ServerUnaryReactor *
     GetPixel( CallbackServerContext *context, const remote_rtimv::Coord *request, remote_rtimv::Pixel *reply ) override;
+
+    ServerUnaryReactor *ColorBox( CallbackServerContext *context,
+                                  const remote_rtimv::Box *request,
+                                  remote_rtimv::MinvalMaxval *reply ) override;
+
+    ServerUnaryReactor *Recolor( CallbackServerContext *context,
+                                 const remote_rtimv::RecolorRequest *request,
+                                 remote_rtimv::RecolorResponse *reply ) override;
 
   signals:
 

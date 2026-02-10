@@ -6,13 +6,23 @@ service rtimv
 {
     rpc Configure(Config) returns (ConfigResult);
 
-    rpc LoadColorbar(Colorbar) returns (ColorbarLightness);
+    rpc SetColorbar(CurrentColorbar) returns (CurrentColorbar);
+
+    rpc SetColormode(ColormodeRequest) returns (ColormodeResponse);
+
+    rpc SetColorstretch(CurrentColorstretch) returns (CurrentColorstretch);
+
+    rpc SetMinScale(ScaleRequest) returns (ScaleResponse);
+
+    rpc SetMaxScale(ScaleRequest) returns (ScaleResponse);
 
     rpc ImagePlease(ImageRequest) returns (Image);
 
     rpc GetPixel(Coord) returns(Pixel);
 
-//    rpc ColorBox(Box) returns (MindatMaxdat);
+    rpc ColorBox(Box) returns (MinvalMaxval);
+
+    rpc Recolor(RecolorRequest) returns (RecolorResponse);
 
     rpc StatsBox(Box) returns(Pixel);
 
@@ -61,17 +71,67 @@ message ConfigResult
     int32 result = 1;
 }
 
-//Send a request to set the colorbar.
-// If -1 is sent, then this is a query to get the current color bar.
-message Colorbar
+enum Colorbar
 {
-    int32 colorbar = 1;
+    COLORBAR_UKNOWN = 0;
+    COLORBAR_GREY = 1;
+    COLORBAR_JET = 2;
+    COLORBAR_HOT = 3;
+    COLORBAR_BONE = 4;
+    COLORBAR_RED = 5;
+    COLORBAR_GREEN = 6;
+    COLORBAR_BLUE = 7;
 }
 
-message ColorbarLightness
+// A message specifying the color bar.
+// If COLORBAR_UNKNOWN is sent as a request, then this is a query to get the current color bar.
+message CurrentColorbar
 {
-    int32 colorbar = 1; // The colorbar for which this lightness vector applies
-    bytes lightness = 2; // The lightness vector for the colorbar
+    Colorbar colorbar = 1;
+}
+
+enum Colormode
+{
+    COLORMODE_UNKNOWN = 0;
+    COLORMODE_GLOBAL = 1;
+    COLORMODE_BOX = 2;
+    COLORMODE_USER = 3;
+}
+
+// A message specifying the color mode.
+message ColormodeRequest
+{
+    Colormode colormode = 1;
+}
+
+message ColormodeResponse
+{
+}
+
+enum Colorstretch
+{
+    COLORSTRETCH_UKNOWN = 0;
+    COLORSTRETCH_LINEAR = 1;
+    COLORSTRETCH_LOG = 2;
+    COLORSTRETCH_POW = 3;
+    COLORSTRETCH_SQRT = 4;
+    COLORSTRETCH_SQUARE = 5;
+}
+
+// A message specifying the color stretch.
+// If COLORSTRETCH_UNKNOWN is sent as a request, then this is a query to get the current color stretch.
+message CurrentColorstretch
+{
+    Colorstretch colorstretch = 1;
+}
+
+message ScaleRequest
+{
+    float value = 2;
+}
+
+message ScaleResponse
+{
 }
 
 message ImageRequest
@@ -108,6 +168,8 @@ message Image
     float max_image_data = 111;
     float min_scale_data = 112;
     float max_scale_data = 113;
+
+    Colormode colormode = 115;
 }
 
 message Coord
@@ -116,15 +178,30 @@ message Coord
     uint32 y = 2;
 }
 
+
 message Pixel
 {
     bool valid = 1;
     float value = 2;
 }
 
+message MinvalMaxval
+{
+    bool valid = 1;
+    float max = 2;
+    float min = 3;
+}
 
 message Box
 {
-    Coord upperLeft = 1;
-    Coord lowerRight = 2;
+    Coord upper_left = 1;
+    Coord lower_right = 2;
+}
+
+message RecolorRequest
+{
+}
+
+message RecolorResponse
+{
 }
