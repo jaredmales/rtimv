@@ -646,7 +646,7 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     void savingState( rtimv::savingState ss );
 
   public:
-    virtual void mtxL_postSetColorBoxActive( bool usba, const sharedLockT &lock );
+    virtual void mtxL_postColormode( rtimv::colormode m, const sharedLockT &lock );
 
   protected:
     bool m_showLoopStat{ false };

@@ -66,7 +66,7 @@ class rtimvServerThread : public QThread, public rtimvBase
 
     virtual void mtxL_postChangeImdata( const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/ );
 
-    virtual void mtxL_postSetColorBoxActive( bool usba, const sharedLockT &lock );
+    virtual void mtxL_postColormode( rtimv::colormode m, const sharedLockT &lock );
 
     void mtxuL_render( std::string *image );
 

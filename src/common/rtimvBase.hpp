@@ -360,7 +360,6 @@ class rtimvBase : public mx::app::application
      * @{
      */
   public:
-
     /// Check all images for updates
     /** This is called on m_imageTimer expiration.
      */
@@ -503,13 +502,10 @@ class rtimvBase : public mx::app::application
 
     ///@}
 
-    /** @name Colorbar Selection
+    /** @name Color Bar
      *
      * @{
      */
-
-  public:
-    typedef int ( *pixelIndexF )( float );
 
   protected:
     int m_minColor{ 0 }; ///< The minimum index to use for the color table.
@@ -524,26 +520,187 @@ class rtimvBase : public mx::app::application
 
     QColor warning_color;
 
+    /// The current color bar
     rtimv::colorbar m_colorbar{ rtimv::colorbar::bone };
 
-    rtimv::colormode m_colormode{ rtimv::colormode::minmaxglobal };
-
-    rtimv::stretch m_stretch{ rtimv::stretch::linear };
-
+  private:
+    /// Actual implementation of loading the color bar
+    void mtxL_load_colorbarImpl( rtimv::colorbar cb /**< [in] the new color bar */ );
 
   public:
-    template <typename lockT>
-    void mtxL_load_colorbar( rtimv::colorbar cb, bool update, const lockT &lock );
+    /// Set the color bar
+    /**
+     * This loads the color bar specified and (optionally) updates the image
+     */
+    void mtxL_load_colorbar( rtimv::colorbar cb,     /**< [in] the new color bar */
+                             bool update,            /**< [in] whether or not to update the image*/
+                             const uniqueLockT &lock /**< [in] a lock on m_calMutex */
+    );
+
+    /// Set the color bar
+    /**
+     * This loads the color bar specified and (optionally) updates the image
+     */
+    void mtxL_load_colorbar( rtimv::colorbar cb,     /**< [in] the new color bar */
+                             bool update,            /**< [in] whether or not to update the image*/
+                             const sharedLockT &lock /**< [in] a lock on m_calMutex */
+    );
 
     rtimv::colorbar colorbar();
 
-    void colormode( rtimv::colormode mode );
+    ///@}
 
+    /** @name Color Mode - data
+     *
+     * @{
+     */
+
+  protected:
+    rtimv::colormode m_colormode{ rtimv::colormode::minmaxglobal };
+
+    ///@}
+
+    /** @name Color Mode
+     *
+     * The color mode defines what sets the min and max for the stretch.
+     *
+     * @{
+     */
+  public:
+    /// Set the color mode
+    /**
+     * This version locks the m_calMutex. Then calls \ref mtxL_colormode, which results in a recolor.
+     * If the mode is \ref rtimv::colorbar::minmaxbox this also
+     * calculates the box min/max.
+     *
+     */
+    void mtxUL_colormode( rtimv::colormode mode /**< [in] the new colormode */ );
+
+    /// Set the color mode
+    /**
+     * This results in a recolor. If the mode is \ref rtimv::colorbar::minmaxbox this also
+     * calculates the box min/max.
+     *
+     */
+    void mtxL_colormode( rtimv::colormode mode, /**< [in] the new colormode */
+                         const sharedLockT &lock /**<[in] a shared mutex lock which is locked on m_calMutex*/ );
+
+    /// Get the current color mode
     rtimv::colormode colormode();
 
+    /// Take actions after the color box active state is changed
+    virtual void
+    mtxL_postColormode( rtimv::colormode mode /**< [in] the new colormode */,
+                        const sharedLockT &lock /**<[in] a shared mutex lock which is locked on m_calMutex*/ ) = 0;
+
+    ///@}
+
+    /** @name Color Box - Data
+     *
+     * @{
+     */
+
+  private:
+    // ImageStreamIO images are sized in uint32_t, so these are big enough for signed comparisons without wraparound
+
+    /// The color box upper left corner x coordinate
+    int64_t m_colorBox_i0;
+
+    /// The color box upper left corner y coordinate
+    int64_t m_colorBox_i1;
+
+    /// The color box lower right corner x coordinate
+    int64_t m_colorBox_j0;
+
+    /// The color box lower right corner y coordinate
+    int64_t m_colorBox_j1;
+
+    /// Adjusts the color box coordinates to ensure they are valid
+    void normalizeColorBox();
+
+  protected:
+    /// The minimum calibrated value in the color box
+    float m_colorBox_max;
+
+    /// The maximum calibrated value in the color box
+    float m_colorBox_min;
+
+    ///@}
+
+    /** @name Color Box
+     *
+     * @{
+     */
+  public:
+    /// Set the color box upper left corner x coordinate
+    void colorBox_i0( int64_t i0 /**< [in] the new  */ );
+
+    /// Get the color box upper left corner x coordinate
+    /**
+     * \returns m_colorBox_i0
+     */
+    int64_t colorBox_i0();
+
+    /// Set the color box upper left corner y coordinate
+    void colorBox_j0( int64_t j0 /**< [in] the new  */ );
+
+    /// Get the color box upper left corner y coordinate
+    /**
+     * \returns m_colorBox_j0
+     */
+    int64_t colorBox_j0();
+
+    /// Set the color box lower right corner x coordinate
+    void colorBox_i1( int64_t i1 /**< [in] the new  */ );
+
+    /// Get the color box lower right corner x coordinate
+    /**
+     * \returns m_colorBox_i1
+     */
+    int64_t colorBox_i1();
+
+    /// Set the color box lower right corner y coordinate
+    void colorBox_j1( int64_t j1 /**< [in] the new  */ );
+
+    /// Get the color box lower right corner y coordinate
+    /**
+     * \returns m_colorBox_j1
+     */
+    int64_t colorBox_j1();
+
+    /// Get the minimum calibrated value in the color box
+    /**
+     * \returns m_colorBox_min
+     */
+    float colorBox_min();
+
+    /// Get the maximum calibrated value in the color box
+    /**
+     * \returns m_colorBox_max
+     */
+    float colorBox_max();
+
+    ///@}
+
+    /** @name Color Stretch - Data
+     *
+     * @{
+     */
+  protected:
+    rtimv::stretch m_stretch{ rtimv::stretch::linear };
+
+    ///@}
+
+    /** @name Color Stretch
+     *
+     * @{
+     */
+  public:
     void stretch( rtimv::stretch );
 
     rtimv::stretch stretch();
+
+    typedef int ( *pixelIndexF )( float );
 
     pixelIndexF pixelIndex();
 
@@ -566,9 +723,9 @@ class rtimvBase : public mx::app::application
 
   protected:
     /*** Color Map ***/
-    float m_minScaleData {0}; ///< The minimum data value used for scaling
+    float m_minScaleData{ 0 }; ///< The minimum data value used for scaling
 
-    float m_maxScaleData {0}; ///< The maximum data valuse used for scaling
+    float m_maxScaleData{ 0 }; ///< The maximum data valuse used for scaling
 
     bool m_autoScale{ false };
 
@@ -597,6 +754,9 @@ class rtimvBase : public mx::app::application
 
     float contrast_rel();
 
+    /// Restretch the image based on the current colormode.
+    void mtxUL_reStretch();
+
     ///@}
 
     /** @name Image Filtering
@@ -619,7 +779,6 @@ class rtimvBase : public mx::app::application
     std::vector<uint8_t> m_lightness; ///< The perceived lightness values of the colormap RGB values
 
   private:
-
     /// An internal mutex to track if image data is being changed
     /**
      * This is used to avoid unecessary/redundant recolors
@@ -627,18 +786,16 @@ class rtimvBase : public mx::app::application
     std::mutex m_changingImData;
 
   public:
-
     /// Get a reference the lightness data
-    const std::vector<uint8_t> & lightness();
+    const std::vector<uint8_t> &lightness();
 
     /// Get the lightness for a specific index
-    uint8_t lightness( size_t n /**< [in] the color table index */);
+    uint8_t lightness( size_t n /**< [in] the color table index */ );
 
     /// Get the lightness for a pixel
     uint8_t lightness( int x, /**< [in] the x location of the pixel */
-                      int y /**< [in] the y location of the pixel */
-                    );
-
+                       int y  /**< [in] the y location of the pixel */
+    );
 
     /// Updates the QImage and basic statistics after a new image.
     void mtxUL_changeImdata();
@@ -655,14 +812,14 @@ class rtimvBase : public mx::app::application
     void mtxL_recolorImpl();
 
   public:
-    /// Perform a recolor when \ref m_calMutex is in unique lock
+    /// Perform a recolor when \ref m_calMutex is not yet locked
     /**
-     * Calls \ref mtxL_recolorImpl()
+     * This takes a shared lock on \ref m_calMutex then calls \ref mtxL_recolor()
      *
      */
-    //void mtxL_recolor( const uniqueLockT &lock );
+    void mtxUL_recolor();
 
-    /// Perform a recolor with \ref m_calMutex is in shared lock
+    /// Perform a recolor with \ref m_calMutex i in shared lock
     /**
      * Calls \ref mtxL_recolorImpl()
      *
@@ -766,65 +923,6 @@ class rtimvBase : public mx::app::application
     void zoomLevel( float zl );
     virtual void post_zoomLevel() = 0;
 
-    /** @name A User Defined Region
-     *
-     * @{
-     */
-  protected:
-    bool m_colorBoxActive{ false };
-
-  private:
-    // ImageStreamIO images are sized in uint32_t, so we need these big enough for signed comparisons without wraparound
-    int64_t m_colorBox_i0;
-    int64_t m_colorBox_i1;
-    int64_t m_colorBox_j0;
-    int64_t m_colorBox_j1;
-
-    void normalizeColorBox();
-
-  protected:
-    float m_colorBox_max;
-    float m_colorBox_min;
-
-  public:
-    void colorBox_i0( int64_t i0 );
-    int64_t colorBox_i0();
-
-    void colorBox_i1( int64_t i1 );
-    int64_t colorBox_i1();
-
-    void colorBox_j0( int64_t j0 );
-    int64_t colorBox_j0();
-
-    void colorBox_j1( int64_t j1 );
-    int64_t colorBox_j1();
-
-    float colorBox_min();
-
-    float colorBox_max();
-
-    bool colorBoxActive()
-    {
-        return m_colorBoxActive;
-    }
-
-    /// Change whether the color box is active
-    /** This will lock the m_calMutex
-     *
-    */
-    void mtxUL_setColorBoxActive( bool usba /**< [in] the new state of color box active */);
-
-    /// Change whether the color box is active
-    void mtxL_setColorBoxActive( bool usba /**< [in] the new state of color box active */,
-                                 const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/ );
-
-    /// Take actions after the color box active state is changed
-    virtual void
-    mtxL_postSetColorBoxActive( bool usba /**< [in] the new state of color box active */,
-                                const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/ ) = 0;
-
-    ///@}
-
     /*** Real Time Controls ***/
   protected:
     bool m_realTimeStopped{ false }; ///< Set when user temporarily freezes real-time data viewing.
@@ -843,120 +941,5 @@ class rtimvBase : public mx::app::application
     virtual void updateAge(); ///< Called whenever the displayed image updates its Age.
     virtual void updateNC();  ///< Update the display while not connected.
 };
-
-template <typename lockT>
-void rtimvBase::mtxL_load_colorbar( rtimv::colorbar cb, bool update, const lockT &lock )
-{
-    assert( lock.owns_lock() );
-
-    if( !m_qim )
-    {
-        return;
-    }
-
-    m_colorbar = cb;
-    switch( cb )
-    {
-    case rtimv::colorbar::jet:
-        m_minColor = 0;
-        m_maxColor = load_colorbar_jet( m_qim );
-        m_maskColor = m_maxColor + 1;
-        m_satColor = m_maxColor + 2;
-        m_nanColor = m_maskColor;
-        warning_color = QColor( "white" );
-        break;
-    case rtimv::colorbar::hot:
-        m_minColor = 0;
-        m_maxColor = load_colorbar_hot( m_qim );
-        m_maskColor = m_maxColor + 1;
-        m_satColor = m_maxColor + 2;
-        m_nanColor = m_maskColor;
-        warning_color = QColor( "cyan" );
-        break;
-    case rtimv::colorbar::bone:
-        m_minColor = 0;
-        m_maxColor = load_colorbar_bone( m_qim );
-        m_maskColor = m_maxColor + 1;
-        m_satColor = m_maxColor + 2;
-        m_nanColor = m_maskColor;
-        warning_color = QColor( "red" );
-        break;
-    case rtimv::colorbar::red:
-        m_minColor = 0;
-        m_maxColor = 253;
-        m_maskColor = m_maxColor + 1;
-        m_satColor = m_maxColor + 2;
-        m_nanColor = m_maskColor;
-        for( int i = m_minColor; i <= m_maxColor; i++ )
-        {
-            int c = ( ( (float)i ) / 253. * 255. ) + 0.5;
-            m_qim->setColor( i, qRgb( c, 0, 0 ) );
-        }
-        m_qim->setColor( 254, qRgb( 0, 0, 0 ) );
-        m_qim->setColor( 255, qRgb( 0, 255, 0 ) );
-        warning_color = QColor( "red" );
-        break;
-    case rtimv::colorbar::green:
-        m_minColor = 0;
-        m_maxColor = 253;
-        m_maskColor = m_maxColor + 1;
-        m_satColor = m_maxColor + 2;
-        m_nanColor = m_maskColor;
-        for( int i = m_minColor; i <= m_maxColor; i++ )
-        {
-            int c = ( ( (float)i ) / 253. * 255. ) + 0.5;
-            m_qim->setColor( i, qRgb( 0, c, 0 ) );
-        }
-        m_qim->setColor( 254, qRgb( 0, 0, 0 ) );
-        m_qim->setColor( 255, qRgb( 255, 0, 0 ) );
-        warning_color = QColor( "red" );
-        break;
-    case rtimv::colorbar::blue:
-        m_minColor = 0;
-        m_maxColor = 253;
-        m_maskColor = m_maxColor + 1;
-        m_satColor = m_maxColor + 2;
-        m_nanColor = m_maskColor;
-        for( int i = m_minColor; i <= m_maxColor; i++ )
-        {
-            int c = ( ( (float)i ) / 253. * 255. ) + 0.5;
-            m_qim->setColor( i, qRgb( 0, 0, c ) );
-        }
-        m_qim->setColor( 254, qRgb( 0, 0, 0 ) );
-        m_qim->setColor( 255, qRgb( 255, 0, 0 ) );
-        warning_color = QColor( "red" );
-        break;
-    default:
-        m_colorbar = rtimv::colorbar::grey;
-        m_minColor = 0;
-        m_maxColor = 253;
-        m_maskColor = m_maxColor + 1;
-        m_satColor = m_maxColor + 2;
-        m_nanColor = m_maskColor;
-        for( int i = m_minColor; i <= m_maxColor; i++ )
-        {
-            int c = ( ( (float)i ) / 253. * 255. ) + 0.5;
-            m_qim->setColor( i, qRgb( c, c, c ) );
-        }
-        m_qim->setColor( 254, qRgb( 0, 0, 0 ) );
-        m_qim->setColor( 255, qRgb( 255, 0, 0 ) );
-
-        warning_color = QColor( "red" );
-        break;
-    }
-
-    m_lightness.resize( 256 );
-
-    for( int n = 0; n < 256; ++n )
-    {
-        m_lightness[n] = QColor( m_qim->color( n ) ).lightness();
-    }
-
-    if( update )
-    {
-        mtxL_recolorImpl();
-        mtxL_postRecolor( lock );
-    }
-}
 
 #endif // rtimv_rtimvBase_hpp

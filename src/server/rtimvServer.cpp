@@ -229,15 +229,15 @@ ServerUnaryReactor *rtimvServer::SetColormode( CallbackServerContext *context,
 
     if( request->colormode() == remote_rtimv::COLORMODE_GLOBAL )
     {
-        imageTh->colormode( rtimv::colormode::minmaxglobal );
+        imageTh->mtxUL_colormode( rtimv::colormode::minmaxglobal );
     }
     else if( request->colormode() == remote_rtimv::COLORMODE_BOX )
     {
-        imageTh->colormode( rtimv::colormode::minmaxbox );
+        imageTh->mtxUL_colormode( rtimv::colormode::minmaxbox );
     }
     else if( request->colormode() == remote_rtimv::COLORMODE_USER )
     {
-        imageTh->colormode( rtimv::colormode::user );
+        imageTh->mtxUL_colormode( rtimv::colormode::user );
     }
     else
     {
@@ -319,6 +319,43 @@ ServerUnaryReactor *rtimvServer::SetMaxScale( CallbackServerContext *context,
     }
 
     imageTh->maxScaleData( request->value() );
+
+    reactor->Finish( Status::OK ); // maybe send something else?
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::Restretch( CallbackServerContext *context,
+                                              const remote_rtimv::RestretchRequest *request,
+                                              remote_rtimv::RestretchResponse *reply )
+{
+    ServerUnaryReactor *reactor = context->DefaultReactor();
+
+    // We need a shared lock b/c we access the thread
+    sharedLockT slock( m_clientMutex );
+
+    if( m_clients.count( context->peer() ) == 0 )
+    {
+        reactor->Finish( grpc::Status(grpc::FAILED_PRECONDITION, "not configured") );
+        return reactor;
+    }
+
+    rtimvServerThread *imageTh = m_clients[context->peer()];
+
+    if( imageTh == nullptr ) // Something has gone wrong. Here we expect the client to reconnect
+    {
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "reconnect" ) );
+        return reactor;
+    }
+
+    imageTh->lastRequest( -1 ); // sets to now
+
+    if( imageTh->asleep() )
+    {
+        imageTh->emit_awaken();
+        std::cerr << "Client " << context->peer() << " woken up\n";
+    }
+
+    imageTh->mtxUL_reStretch();
 
     reactor->Finish( Status::OK ); // maybe send something else?
     return reactor;
@@ -421,18 +458,15 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
     reply->set_min_scale_data( imageTh->minScaleData() );
     reply->set_max_scale_data( imageTh->maxScaleData() );
 
-    if( imageTh->colormode() == rtimv::colormode::minmaxglobal )
-    {
-        reply->set_colormode( remote_rtimv::COLORMODE_GLOBAL );
-    }
-    else if( imageTh->colormode() == rtimv::colormode::minmaxbox )
-    {
-        reply->set_colormode( remote_rtimv::COLORMODE_BOX );
-    }
-    else if( imageTh->colormode() == rtimv::colormode::user )
-    {
-        reply->set_colormode( remote_rtimv::COLORMODE_USER );
-    }
+    reply->set_colorbar(rtimv::colorbar2grpc(imageTh->colorbar()));
+
+    reply->set_colormode(rtimv::colormode2grpc(imageTh->colormode()));
+
+    reply->set_colorstretch(rtimv::stretch2grpc(imageTh->stretch()));
+
+    reply->set_subtract_dark(imageTh->subtractDark());
+    reply->set_apply_mask(imageTh->applyMask());
+    reply->set_apply_sat_mask(imageTh->applySatMask());
 
     reactor->Finish( Status::OK );
 
@@ -545,7 +579,7 @@ ServerUnaryReactor *rtimvServer::ColorBox( CallbackServerContext *context,
     imageTh->colorBox_i1( request->lower_right().x() );
     imageTh->colorBox_j1( request->lower_right().y() );
 
-    imageTh->mtxUL_setColorBoxActive( true );
+    imageTh->mtxUL_colormode( rtimv::colormode::minmaxbox );
 
     reply->set_valid( true );
     reply->set_min( imageTh->colorBox_min() );

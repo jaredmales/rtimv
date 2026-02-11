@@ -16,6 +16,8 @@ service rtimv
 
     rpc SetMaxScale(ScaleRequest) returns (ScaleResponse);
 
+    rpc Restretch(RestretchRequest) returns (RestretchResponse);
+
     rpc ImagePlease(ImageRequest) returns (Image);
 
     rpc GetPixel(Coord) returns(Pixel);
@@ -73,7 +75,7 @@ message ConfigResult
 
 enum Colorbar
 {
-    COLORBAR_UKNOWN = 0;
+    COLORBAR_UNKNOWN = 0;
     COLORBAR_GREY = 1;
     COLORBAR_JET = 2;
     COLORBAR_HOT = 3;
@@ -110,7 +112,7 @@ message ColormodeResponse
 
 enum Colorstretch
 {
-    COLORSTRETCH_UKNOWN = 0;
+    COLORSTRETCH_UNKNOWN = 0;
     COLORSTRETCH_LINEAR = 1;
     COLORSTRETCH_LOG = 2;
     COLORSTRETCH_POW = 3;
@@ -134,6 +136,14 @@ message ScaleResponse
 {
 }
 
+message RestretchRequest
+{
+}
+
+message RestretchResponse
+{
+}
+
 message ImageRequest
 {
 }
@@ -151,8 +161,8 @@ message Image
 {
     ImageStatus status = 1;
 
-    uint32 nx = 10; // x-size of source image (not size of jpeg)
-    uint32 ny = 11; // y-size of source image (not size of jpeg)
+    uint32 nx = 10; // x-size of source image
+    uint32 ny = 11; // y-size of source image
     uint32 nz = 12; // z-size of source image
 
     uint32 no = 20; // image number within the cube
@@ -169,7 +179,14 @@ message Image
     float min_scale_data = 112;
     float max_scale_data = 113;
 
-    Colormode colormode = 115;
+    Colorbar  colorbar = 115;
+    Colormode colormode = 120;
+    Colorstretch colorstretch = 125;
+
+    bool subtract_dark = 150;
+//    bool apply_flat = 155;
+    bool apply_mask = 160;
+    bool apply_sat_mask = 165;
 }
 
 message Coord
@@ -177,7 +194,6 @@ message Coord
     uint32 x = 1;
     uint32 y = 2;
 }
-
 
 message Pixel
 {

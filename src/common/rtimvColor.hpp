@@ -40,6 +40,7 @@ enum class colormode
     user
 };
 
+
 } //namespace rtimv
 
 #endif // rtimv_rtimvColor_hpp

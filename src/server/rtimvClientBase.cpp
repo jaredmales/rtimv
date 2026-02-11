@@ -1,4 +1,5 @@
 #include "rtimvClientBase.hpp"
+#include "rtimvColorGRPC.hpp"
 
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
@@ -468,7 +469,14 @@ void rtimvClientBase::ImageReceived()
     float fpsEst;
     double imageTime;
     float minsc, maxsc, minim, maxim;
-    int colormode;
+
+    remote_rtimv::Colorbar colorbar;
+    remote_rtimv::Colormode colormode;
+    remote_rtimv::Colorstretch stretch;
+
+    bool subtractDark;
+    bool applyMask;
+    bool applySatMask;
 
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
@@ -516,7 +524,13 @@ void rtimvClientBase::ImageReceived()
         minsc = m_grpcImage.min_scale_data();
         maxsc = m_grpcImage.max_scale_data();
 
+        colorbar = m_grpcImage.colorbar();
         colormode = m_grpcImage.colormode();
+        stretch = m_grpcImage.colorstretch();
+
+        subtractDark = m_grpcImage.subtract_dark();
+        applyMask = m_grpcImage.apply_mask();
+        applySatMask = m_grpcImage.apply_sat_mask();
     }
 
     std::shared_mutex dummy; // Used just to satisfy the requirement, not needed
@@ -548,18 +562,13 @@ void rtimvClientBase::ImageReceived()
     m_minScaleData = minsc;
     m_maxScaleData = maxsc;
 
-    if(colormode == remote_rtimv::COLORMODE_GLOBAL)
-    {
-        m_colormode = rtimv::colormode::minmaxglobal;
-    }
-    else if(colormode == remote_rtimv::COLORMODE_BOX)
-    {
-        m_colormode = rtimv::colormode::minmaxbox;
-    }
-    else if(colormode == remote_rtimv::COLORMODE_USER)
-    {
-        m_colormode = rtimv::colormode::user;
-    }
+    m_colorbar = rtimv::grpc2colorbar( colorbar );
+    m_colormode = rtimv::grpc2colormode( colormode );
+    m_stretch = rtimv::grpc2stretch( stretch );
+
+    m_subtractDark = subtractDark;
+    m_applyMask = applyMask;
+    m_applySatMask = applySatMask;
 
     mtxL_postRecolor( ulock );
 
@@ -855,58 +864,151 @@ float rtimvClientBase::calPixel( uint32_t x, uint32_t y )
     }
 }
 
+void rtimvClientBase::mtxL_load_colorbarImpl( rtimv::colorbar cb )
+{
+}
+
+void rtimvClientBase::mtxL_load_colorbar( rtimv::colorbar cb, bool update, const uniqueLockT &lock )
+{
+}
+
+void rtimvClientBase::mtxL_load_colorbar( rtimv::colorbar cb, bool update, const sharedLockT &lock )
+{
+}
 rtimv::colorbar rtimvClientBase::colorbar()
 {
     return m_colorbar;
 }
 
-void rtimvClientBase::colormode( rtimv::colormode mode )
+void rtimvClientBase::mtxUL_colormode( rtimv::colormode m )
 {
-    // Data we are sending to the server.
-    remote_rtimv::ColormodeRequest request;
+    sharedLockT lock( m_calMutex );
 
-    if( mode == rtimv::colormode::minmaxglobal )
+    mtxL_colormode( m, lock );
+}
+
+void rtimvClientBase::mtxL_colormode( rtimv::colormode m, const sharedLockT &lock )
+{
+    assert( lock.owns_lock() );
+
+    if( m == rtimv::colormode::minmaxbox )
     {
-        request.set_colormode( remote_rtimv::COLORMODE_GLOBAL );
-    }
-    else if( mode == rtimv::colormode::minmaxbox )
-    {
-        request.set_colormode( remote_rtimv::COLORMODE_BOX );
-    }
-    else if( mode == rtimv::colormode::user )
-    {
-        request.set_colormode( remote_rtimv::COLORMODE_USER );
+        // Data we are sending to the server.
+        remote_rtimv::Box request;
+
+        remote_rtimv::Coord *ul = new remote_rtimv::Coord;
+        ul->set_x( m_colorBox_i0 );
+        ul->set_y( m_colorBox_j0 );
+        request.set_allocated_upper_left( ul );
+
+        remote_rtimv::Coord *lr = new remote_rtimv::Coord;
+        lr->set_x( m_colorBox_i1 );
+        lr->set_y( m_colorBox_j1 );
+        request.set_allocated_lower_right( lr );
+
+        // Container for the data we expect from the server.
+        remote_rtimv::MinvalMaxval vals;
+
+        // Context for the client. It could be used to convey extra information to
+        // the server and/or tweak certain RPC behaviors.
+        grpc::ClientContext context;
+
+        // The actual RPC.
+        grpc::Status status = stub_->ColorBox( &context, request, &vals );
+
+        // Act upon its status.
+        if( !status.ok() )
+        {
+            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+            return;
+        }
+
+        if( !vals.valid() )
+        {
+            return;
+        }
+
+        m_colorBox_min = vals.min();
+        m_colorBox_max = vals.max();
     }
     else
     {
-        request.set_colormode( remote_rtimv::COLORMODE_UNKNOWN );
+        // Data we are sending to the server.
+        remote_rtimv::ColormodeRequest request;
+
+        request.set_colormode( rtimv::colormode2grpc( m ) );
+
+        remote_rtimv::ColormodeResponse response;
+
+        grpc::ClientContext context;
+
+        // The actual RPC.
+        grpc::Status status = stub_->SetColormode( &context, request, &response );
+
+        // Act upon its status.
+        if( !status.ok() )
+        {
+            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+            return;
+        }
     }
 
-    // Container for the data we expect from the server.
-    remote_rtimv::ColormodeResponse response;
-
-    // Context for the client. It could be used to convey extra information to
-    // the server and/or tweak certain RPC behaviors.
-    grpc::ClientContext context;
-
-    // The actual RPC.
-    grpc::Status status = stub_->SetColormode( &context, request, &response );
-
-    // Act upon its status.
-    if( status.ok() )
-    {
-        return;
-    }
-    else
-    {
-        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
-        return;
-    }
+    mtxL_postColormode( m, lock );
 }
 
 rtimv::colormode rtimvClientBase::colormode()
 {
     return m_colormode;
+}
+
+void rtimvClientBase::colorBox_i0( int64_t i0 )
+{
+    m_colorBox_i0 = i0;
+}
+
+int64_t rtimvClientBase::colorBox_i0()
+{
+    return m_colorBox_i0;
+}
+
+void rtimvClientBase::colorBox_i1( int64_t i1 )
+{
+    m_colorBox_i1 = i1;
+}
+
+int64_t rtimvClientBase::colorBox_i1()
+{
+    return m_colorBox_i1;
+}
+
+void rtimvClientBase::colorBox_j0( int64_t j0 )
+{
+    m_colorBox_j0 = j0;
+}
+
+int64_t rtimvClientBase::colorBox_j0()
+{
+    return m_colorBox_j0;
+}
+
+void rtimvClientBase::colorBox_j1( int64_t j1 )
+{
+    m_colorBox_j1 = j1;
+}
+
+int64_t rtimvClientBase::colorBox_j1()
+{
+    return m_colorBox_j1;
+}
+
+float rtimvClientBase::colorBox_min()
+{
+    return m_colorBox_min;
+}
+
+float rtimvClientBase::colorBox_max()
+{
+    return m_colorBox_max;
 }
 
 void rtimvClientBase::stretch( rtimv::stretch ct )
@@ -991,7 +1093,6 @@ void rtimvClientBase::bias( float b )
 
     minScaleData( b - 0.5 * cont );
     maxScaleData( b + 0.5 * cont );
-
 }
 
 float rtimvClientBase::bias()
@@ -1036,6 +1137,32 @@ void rtimvClientBase::contrast_rel( float cr )
     maxScaleData( b + .5 * ( m_maxImageData - m_minImageData ) / cr );
 }
 
+void rtimvClientBase::mtxUL_reStretch()
+{
+    // Data we are sending to the server.
+    remote_rtimv::RestretchRequest request;
+
+    remote_rtimv::RestretchResponse response;
+
+    // Context for the client. It could be used to convey extra information to
+    // the server and/or tweak certain RPC behaviors.
+    grpc::ClientContext context;
+
+    // The actual RPC.
+    grpc::Status status = stub_->Restretch( &context, request, &response );
+
+    // Act upon its status.
+    if( status.ok() )
+    {
+        return;
+    }
+    else
+    {
+        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        return;
+    }
+}
+
 uint8_t rtimvClientBase::lightness( int x, int y )
 {
     if( !m_qim )
@@ -1044,6 +1171,12 @@ uint8_t rtimvClientBase::lightness( int x, int y )
     }
 
     return m_qim->pixelColor( x, y ).lightness();
+}
+
+void rtimvClientBase::mtxUL_recolor()
+{
+    sharedLockT lock( m_calMutex );
+    mtxL_recolor( lock );
 }
 
 void rtimvClientBase::mtxL_recolor( const sharedLockT &lock )
@@ -1123,121 +1256,6 @@ void rtimvClientBase::zoomLevel( float zl )
     post_zoomLevel();
 
     RTIMV_DEBUG_BREADCRUMB
-}
-
-void rtimvClientBase::colorBox_i0( int64_t i0 )
-{
-    m_colorBox_i0 = i0;
-}
-
-int64_t rtimvClientBase::colorBox_i0()
-{
-    return m_colorBox_i0;
-}
-
-void rtimvClientBase::colorBox_i1( int64_t i1 )
-{
-    m_colorBox_i1 = i1;
-}
-
-int64_t rtimvClientBase::colorBox_i1()
-{
-    return m_colorBox_i1;
-}
-
-void rtimvClientBase::colorBox_j0( int64_t j0 )
-{
-    m_colorBox_j0 = j0;
-}
-
-int64_t rtimvClientBase::colorBox_j0()
-{
-    return m_colorBox_j0;
-}
-
-void rtimvClientBase::colorBox_j1( int64_t j1 )
-{
-    m_colorBox_j1 = j1;
-}
-
-int64_t rtimvClientBase::colorBox_j1()
-{
-    return m_colorBox_j1;
-}
-
-float rtimvClientBase::colorBox_min()
-{
-    return m_colorBox_min;
-}
-
-float rtimvClientBase::colorBox_max()
-{
-    return m_colorBox_max;
-}
-
-void rtimvClientBase::mtxL_setColorBoxActive( bool usba, const sharedLockT &lock )
-{
-    assert( lock.owns_lock() );
-
-    if( usba )
-    {
-        // Data we are sending to the server.
-        remote_rtimv::Box request;
-
-        remote_rtimv::Coord *ul = new remote_rtimv::Coord;
-        ul->set_x( m_colorBox_i0 );
-        ul->set_y( m_colorBox_j0 );
-        request.set_allocated_upper_left( ul );
-
-        remote_rtimv::Coord *lr = new remote_rtimv::Coord;
-        lr->set_x( m_colorBox_i1 );
-        lr->set_y( m_colorBox_j1 );
-        request.set_allocated_lower_right( lr );
-
-        // Container for the data we expect from the server.
-        remote_rtimv::MinvalMaxval vals;
-
-        // Context for the client. It could be used to convey extra information to
-        // the server and/or tweak certain RPC behaviors.
-        grpc::ClientContext context;
-
-        // The actual RPC.
-        grpc::Status status = stub_->ColorBox( &context, request, &vals );
-
-        // Act upon its status.
-        if( status.ok() )
-        {
-            if( !vals.valid() )
-            {
-                return;
-            }
-
-            m_colorBox_min = vals.min();
-            m_colorBox_max = vals.max();
-
-            m_colorBoxActive = true;
-
-            if(colormode() != rtimv::colormode::minmaxbox)
-            {
-                colormode( rtimv::colormode::minmaxbox );
-            }
-            return;
-        }
-        else
-        {
-            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
-            return;
-        }
-    }
-    else
-    {
-        if(colormode() != rtimv::colormode::minmaxglobal)
-        {
-            colormode( rtimv::colormode::minmaxglobal );
-        }
-
-        m_colorBoxActive = false;
-    }
 }
 
 bool rtimvClientBase::realTimeStopped()

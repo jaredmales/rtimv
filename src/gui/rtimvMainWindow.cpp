@@ -810,24 +810,7 @@ void rtimvMainWindow::freezeRealTime()
 
 void rtimvMainWindow::reStretch()
 {
-    if( colormode() == rtimv::colormode::user )
-    {
-        colormode( rtimv::colormode::minmaxglobal );
-    }
-
-    if( colormode() == rtimv::colormode::minmaxglobal )
-    {
-        minScaleData( minImageData() );
-        maxScaleData( maxImageData() );
-    }
-    else if( colormode() == rtimv::colormode::minmaxbox )
-    {
-        minScaleData( m_colorBox_min );
-        maxScaleData( m_colorBox_max );
-    }
-
-    sharedLockT lock( m_calMutex );
-    mtxL_recolor( lock );
+    mtxUL_reStretch();
 }
 
 void rtimvMainWindow::setPointerOverZoom( float poz )
@@ -1345,8 +1328,9 @@ void rtimvMainWindow::mtxTry_colorBoxMoved( StretchBox *sb )
         return;
     }
 
-    if( !colorBoxActive() )
+    if( colormode() != rtimv::colormode::minmaxbox )
     {
+        std::cerr << "bug: got colorbar moved but not in color box mode\n";
         return;
     }
 
@@ -1360,7 +1344,7 @@ void rtimvMainWindow::mtxTry_colorBoxMoved( StretchBox *sb )
     colorBox_j0( (int64_t)m_ny - (int64_t)( np2.y() + .5 ) );
     colorBox_j1( (int64_t)m_ny - (int64_t)np.y() );
 
-    mtxL_setColorBoxActive( true, lock ); // recalcs and recolors.
+    mtxL_colormode( rtimv::colormode::minmaxbox, lock ); // recalcs and recolors.
 
     char tmp[256];
     char valMin[64];
@@ -1420,8 +1404,7 @@ void rtimvMainWindow::colorBoxRemove( StretchBox *sb )
         return;
     }
 
-    m_colorBoxActive=false;
-    colormode( rtimv::colormode::minmaxglobal );
+    mtxUL_colormode( rtimv::colormode::minmaxglobal );
 
     m_colorBox->disconnect();
     disconnect( m_colorBox );
@@ -2166,13 +2149,27 @@ void rtimvMainWindow::savingState( rtimv::savingState ss )
     }
 }
 
-void rtimvMainWindow::mtxL_postSetColorBoxActive( bool usba, const sharedLockT &lock )
+void rtimvMainWindow::mtxL_postColormode ( rtimv::colormode m, const sharedLockT &lock )
 {
     assert( lock.owns_lock() );
 
-    if( m_colorBox )
+    if( m == rtimv::colormode::minmaxbox )
     {
-        m_colorBox->setVisible( usba );
+        if(m_colorBox)
+        {
+            m_colorBox->setVisible( true );
+        }
+        else
+        {
+            std::cerr << "bug: set colormode to box but no color box allocated\n";
+        }
+    }
+    else
+    {
+        if(m_colorBox)
+        {
+            m_colorBox->setVisible( false );
+        }
     }
 }
 
@@ -2250,7 +2247,7 @@ void rtimvMainWindow::keyPressEvent( QKeyEvent *ke )
             break;
         case Qt::Key_R:
             if( key == 'r' )
-                return reStretch();
+                return mtxUL_reStretch();
             break;
         case Qt::Key_S:
             if( key == 's' )
@@ -2383,7 +2380,7 @@ void rtimvMainWindow::mtxUL_center()
 
 void rtimvMainWindow::toggleColorBox()
 {
-    if( !colorBoxActive() || !m_colorBox )
+    if( colormode() != rtimv::colormode::minmaxbox || !m_colorBox )
     {
         toggleColorBoxOn();
     }
@@ -2435,9 +2432,7 @@ void rtimvMainWindow::toggleColorBoxOn()
 
     m_colorBox->setVisible( true );
 
-    sharedLockT lock( m_calMutex );
-    mtxL_setColorBoxActive( true, lock );
-    lock.unlock();
+    mtxUL_colormode( rtimv::colormode::minmaxbox );
 
     ui.graphicsView->zoomText( "color box scale" );
     mtxTry_fontLuminance( ui.graphicsView->zoomText() );
@@ -2452,9 +2447,7 @@ void rtimvMainWindow::toggleColorBoxOff()
 
     m_colorBox->setVisible( false );
 
-    sharedLockT lock( m_calMutex );
-    mtxL_setColorBoxActive( false, lock );
-    lock.unlock();
+    mtxUL_colormode( rtimv::colormode::minmaxglobal);
 
     ui.graphicsView->zoomText( "global scale" );
     mtxTry_fontLuminance( ui.graphicsView->zoomText() );
@@ -2662,14 +2655,14 @@ void rtimvMainWindow::toggleLogLinear()
         stretch( rtimv::stretch::linear );
         ui.graphicsView->zoomText( "linear stretch" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
-        reStretch();
+        mtxUL_reStretch();
     }
     else
     {
         stretch( rtimv::stretch::log );
         ui.graphicsView->zoomText( "log stretch" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
-        reStretch();
+        mtxUL_reStretch();
     }
 }
 

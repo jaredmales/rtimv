@@ -24,6 +24,7 @@ using grpc::Status;
 #include <mx/app/application.hpp>
 
 #include "rtimvServerThread.hpp"
+#include "rtimvColorGRPC.hpp"
 
 #define RTIMV_DEBUG_BREADCRUMB
 
@@ -133,6 +134,10 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
     ServerUnaryReactor *SetMaxScale( CallbackServerContext *context,
                                      const remote_rtimv::ScaleRequest *request,
                                      remote_rtimv::ScaleResponse *reply ) override;
+
+    ServerUnaryReactor *Restretch( CallbackServerContext *context,
+                                   const remote_rtimv::RestretchRequest *request,
+                                   remote_rtimv::RestretchResponse *reply ) override;
 
     ServerUnaryReactor *ImagePlease( CallbackServerContext *context,
                                      const remote_rtimv::ImageRequest *request,

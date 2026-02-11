@@ -101,9 +101,9 @@ void rtimvServerThread::mtxL_postChangeImdata( const sharedLockT &lock )
     RTIMV_DEBUG_BREADCRUMB
 }
 
-void rtimvServerThread::mtxL_postSetColorBoxActive( bool usba, const sharedLockT &lock )
+void rtimvServerThread::mtxL_postColormode( rtimv::colormode m, const sharedLockT &lock )
 {
-    static_cast<void>( usba );
+    static_cast<void>( m );
     static_cast<void>( lock );
 }
 

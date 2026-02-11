@@ -17,10 +17,6 @@ rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, std::shared_mutex *cal
     setupCombos();
     ui.tabWidget->setCurrentIndex( 0 );
 
-    IgnoreZoomSliderChange = false;
-    IgnoremaxdatSliderChange = false;
-    IgnoremindatSliderChange = false;
-
     qgs_view = new QGraphicsScene();
     qgs_empty = new QGraphicsScene();
 
@@ -77,24 +73,24 @@ void rtimvControlPanel::setupMode()
 
 void rtimvControlPanel::setupCombos()
 {
-    ui.scaleModeCombo->insertItem( static_cast<int>(rtimv::colormode::minmaxglobal), "Min/Max Global" );
-    ui.scaleModeCombo->insertItem( static_cast<int>(rtimv::colormode::minmaxbox), "Min/Max Box" );
-    ui.scaleModeCombo->insertItem( static_cast<int>(rtimv::colormode::user), "User" );
-    ui.scaleModeCombo->setCurrentIndex( static_cast<int>(rtimv::colormode::user) );
+    ui.scaleModeCombo->insertItem( static_cast<int>( rtimv::colormode::minmaxglobal ), "Min/Max Global" );
+    ui.scaleModeCombo->insertItem( static_cast<int>( rtimv::colormode::minmaxbox ), "Min/Max Box" );
+    ui.scaleModeCombo->insertItem( static_cast<int>( rtimv::colormode::user ), "User" );
+    ui.scaleModeCombo->setCurrentIndex( static_cast<int>( rtimv::colormode::user ) );
 
-    ui.scaleTypeCombo->insertItem( static_cast<int>(rtimv::stretch::linear), "Linear" );
-    ui.scaleTypeCombo->insertItem( static_cast<int>(rtimv::stretch::log), "Log" );
-    ui.scaleTypeCombo->insertItem( static_cast<int>(rtimv::stretch::pow), "Power" );
-    ui.scaleTypeCombo->insertItem( static_cast<int>(rtimv::stretch::sqrt), "Square Root" );
-    ui.scaleTypeCombo->insertItem( static_cast<int>(rtimv::stretch::square), "Squared" );
+    ui.scaleTypeCombo->insertItem( static_cast<int>( rtimv::stretch::linear ), "Linear" );
+    ui.scaleTypeCombo->insertItem( static_cast<int>( rtimv::stretch::log ), "Log" );
+    ui.scaleTypeCombo->insertItem( static_cast<int>( rtimv::stretch::pow ), "Power" );
+    ui.scaleTypeCombo->insertItem( static_cast<int>( rtimv::stretch::sqrt ), "Square Root" );
+    ui.scaleTypeCombo->insertItem( static_cast<int>( rtimv::stretch::square ), "Squared" );
 
-    ui.colorbarCombo->insertItem( static_cast<int>(rtimv::colorbar::grey), "Grey" );
-    ui.colorbarCombo->insertItem( static_cast<int>(rtimv::colorbar::jet), "Jet" );
-    ui.colorbarCombo->insertItem( static_cast<int>(rtimv::colorbar::hot), "Hot" );
-    ui.colorbarCombo->insertItem( static_cast<int>(rtimv::colorbar::bone), "Bone" );
-    ui.colorbarCombo->insertItem( static_cast<int>(rtimv::colorbar::red), "Red" );
-    ui.colorbarCombo->insertItem( static_cast<int>(rtimv::colorbar::green), "Green" );
-    ui.colorbarCombo->insertItem( static_cast<int>(rtimv::colorbar::blue), "Blue" );
+    ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::grey ), "Grey" );
+    ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::jet ), "Jet" );
+    ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::hot ), "Hot" );
+    ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::bone ), "Bone" );
+    ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::red ), "Red" );
+    ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::green ), "Green" );
+    ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::blue ), "Blue" );
 
     ui.pointerViewModecomboBox->insertItem( PointerViewEnabled, "Enabled" );
     ui.pointerViewModecomboBox->insertItem( PointerViewOnPress, "On mouse press" );
@@ -104,52 +100,8 @@ void rtimvControlPanel::setupCombos()
 
 void rtimvControlPanel::init_panel()
 {
-    IgnoreZoomSliderChange = true;
-    update_ZoomSlider();
-    IgnoreZoomSliderChange = false;
-    update_ZoomEntry();
 
-    update_xycenEntry();
-    update_whEntry();
-
-    //    if(imv->get_abs_fixed())
-    //    {
-    //       ui.absfixedButton->setEnabled(false);
-    //       ui.relfixedButton->setEnabled(true);
-    //    }
-    //    else
-    //    {
-    //       ui.absfixedButton->setEnabled(true);
-    //       ui.relfixedButton->setEnabled(false);
-    //    }
-
-    IgnoremindatSliderChange = true;
-    update_mindatSlider();
-    IgnoremindatSliderChange = false;
-    update_mindatEntry();
-    update_mindatEntry();
-
-    IgnoremaxdatSliderChange = true;
-    update_maxdatSlider();
-    IgnoremaxdatSliderChange = false;
-    update_maxdatEntry();
-    update_maxdatEntry();
-
-    IgnorebiasSliderChange = true;
-    update_biasSlider();
-    IgnorebiasSliderChange = false;
-    update_biasEntry();
-    update_biasRelEntry();
-
-    IgnorecontrastSliderChange = true;
-    update_contrastSlider();
-    IgnorecontrastSliderChange = false;
-    update_contrastEntry();
-    update_contrastRelEntry();
-
-    ui.scaleTypeCombo->setCurrentIndex( static_cast<int>(imv->stretch()) );
-    ui.scaleModeCombo->setCurrentIndex( static_cast<int>(imv->colormode()) );
-    ui.colorbarCombo->setCurrentIndex( static_cast<int>(imv->colorbar()) );
+    update_panel();
 
     // initialize the button state for coordinate displays
     showToolTipCoordsChanged( imv->showToolTipCoords() );
@@ -164,123 +116,103 @@ void rtimvControlPanel::init_panel()
 
 void rtimvControlPanel::update_panel()
 {
-    IgnoreZoomSliderChange = true;
     update_ZoomSlider();
-    IgnoreZoomSliderChange = false;
     update_ZoomEntry();
 
     update_xycenEntry();
     update_whEntry();
 
-    // if(imv->get_abs_fixed())
-    //{
-    update_mindatRelEntry();
-    update_maxdatRelEntry();
-    update_biasRelEntry();
-    update_contrastRelEntry();
-    //}
-    // else
-    //{
     update_mindatEntry();
     update_maxdatEntry();
     update_biasEntry();
     update_contrastEntry();
-    //}
-    IgnoremindatSliderChange = true;
+
     update_mindatSlider();
-    IgnoremindatSliderChange = false;
 
-    IgnoremaxdatSliderChange = true;
     update_maxdatSlider();
-    IgnoremaxdatSliderChange = false;
 
-    IgnorebiasSliderChange = true;
     update_biasSlider();
-    IgnorebiasSliderChange = false;
 
-    IgnorecontrastSliderChange = true;
     update_contrastSlider();
-    IgnorecontrastSliderChange = false;
 
-    ui.scaleTypeCombo->setCurrentIndex( static_cast<int>(imv->stretch()) );
-    ui.scaleModeCombo->setCurrentIndex( static_cast<int>(imv->colormode()) );
-    ui.colorbarCombo->setCurrentIndex( static_cast<int>(imv->colorbar()) );
+    ui.scaleTypeCombo->blockSignals( true );
+    ui.scaleTypeCombo->setCurrentIndex( static_cast<int>( imv->stretch() ) );
+    ui.scaleTypeCombo->blockSignals( false );
+
+    ui.scaleModeCombo->blockSignals( true );
+    ui.scaleModeCombo->setCurrentIndex( static_cast<int>( imv->colormode() ) );
+    ui.scaleModeCombo->blockSignals( false );
+
+    ui.colorbarCombo->blockSignals( true );
+    ui.colorbarCombo->setCurrentIndex( static_cast<int>( imv->colorbar() ) );
+    ui.colorbarCombo->blockSignals( false );
 }
 
 void rtimvControlPanel::update_ZoomSlider()
 {
+    ui.ZoomSlider->blockSignals( true );
     ui.ZoomSlider->setSliderPosition(
         (int)( ( imv->zoomLevel() - imv->zoomLevelMin() ) / ( imv->zoomLevelMax() - imv->zoomLevelMin() ) *
                    ( ui.ZoomSlider->maximum() - ui.ZoomSlider->minimum() ) +
                .5 ) );
+    ui.ZoomSlider->blockSignals( false );
 }
 
 void rtimvControlPanel::update_ZoomEntry()
 {
     char newz[10];
     sprintf( newz, "%4.2f", imv->zoomLevel() );
+
+    ui.ZoomEntry->blockSignals( true );
     ui.ZoomEntry->setText( newz );
+    ui.ZoomEntry->blockSignals( false );
 }
 
 void rtimvControlPanel::on_ZoomSlider_valueChanged( int value )
 {
     double zl;
-    if( !IgnoreZoomSliderChange )
-    {
-        zl = imv->zoomLevelMin() +
-             ( (double)value / ( (double)ui.ZoomSlider->maximum() - (double)ui.ZoomSlider->minimum() ) ) *
-                 ( imv->zoomLevelMax() - imv->zoomLevelMin() );
-        imv->zoomLevel( zl );
-    }
+    zl = imv->zoomLevelMin() +
+         ( (double)value / ( (double)ui.ZoomSlider->maximum() - (double)ui.ZoomSlider->minimum() ) ) *
+             ( imv->zoomLevelMax() - imv->zoomLevelMin() );
+    imv->zoomLevel( zl );
+
     update_ZoomEntry();
 }
 
 void rtimvControlPanel::on_Zoom1_clicked()
 {
     imv->zoomLevel( 1.0 );
-    IgnoreZoomSliderChange = true;
     update_ZoomSlider();
-    IgnoreZoomSliderChange = false;
 }
 
 void rtimvControlPanel::on_Zoom2_clicked()
 {
     imv->zoomLevel( 2.0 );
-    IgnoreZoomSliderChange = true;
     update_ZoomSlider();
-    IgnoreZoomSliderChange = false;
 }
 
 void rtimvControlPanel::on_Zoom4_clicked()
 {
     imv->zoomLevel( 4.0 );
-    IgnoreZoomSliderChange = true;
     update_ZoomSlider();
-    IgnoreZoomSliderChange = false;
 }
 
 void rtimvControlPanel::on_Zoom8_clicked()
 {
     imv->zoomLevel( 8.0 );
-    IgnoreZoomSliderChange = true;
     update_ZoomSlider();
-    IgnoreZoomSliderChange = false;
 }
 
 void rtimvControlPanel::on_Zoom16_clicked()
 {
     imv->zoomLevel( 16.0 );
-    IgnoreZoomSliderChange = true;
     update_ZoomSlider();
-    IgnoreZoomSliderChange = false;
 }
 
 void rtimvControlPanel::on_ZoomEntry_editingFinished()
 {
     imv->zoomLevel( ui.ZoomEntry->text().toDouble() );
-    IgnoreZoomSliderChange = true;
     update_ZoomSlider();
-    IgnoreZoomSliderChange = false;
 }
 
 void rtimvControlPanel::on_overZoom1_clicked()
@@ -328,13 +260,19 @@ void ::rtimvControlPanel::update_xycenEntry()
 
     if( !ui.xcenEntry->hasFocus() )
     {
-        snprintf( tmps, 10, "%.1f", imv->get_xcen() ); //*imv->nx());
+        snprintf( tmps, 10, "%.1f", imv->get_xcen() );
+
+        ui.xcenEntry->blockSignals( true );
         ui.xcenEntry->setText( tmps );
+        ui.xcenEntry->blockSignals( false );
     }
     if( !ui.ycenEntry->hasFocus() )
     {
-        snprintf( tmps, 10, "%.1f", imv->get_ycen() ); //*imv->ny());
+        snprintf( tmps, 10, "%.1f", imv->get_ycen() );
+
+        ui.ycenEntry->blockSignals( true );
         ui.ycenEntry->setText( tmps );
+        ui.ycenEntry->blockSignals( false );
     }
 }
 
@@ -344,13 +282,19 @@ void rtimvControlPanel::update_whEntry()
     if( !ui.widthEntry->hasFocus() )
     {
         snprintf( tmps, 10, "%.1f", ( (double)imv->nx() ) / imv->zoomLevel() );
+
+        ui.widthEntry->blockSignals( true );
         ui.widthEntry->setText( tmps );
+        ui.widthEntry->blockSignals( false );
     }
 
     if( !ui.heightEntry->hasFocus() )
     {
         snprintf( tmps, 10, "%.1f", ( (double)imv->ny() ) / imv->zoomLevel() );
+
+        ui.heightEntry->blockSignals( true );
         ui.heightEntry->setText( tmps );
+        ui.heightEntry->blockSignals( false );
     }
 }
 
@@ -464,19 +408,29 @@ void rtimvControlPanel::updateMouseCoords( double x, double y, double v )
     {
         char tmpr[15];
         sprintf( tmpr, "%8.2f", x );
+
+        ui.TextCoordX->blockSignals( true );
         ui.TextCoordX->setText( tmpr );
+        ui.TextCoordX->blockSignals( false );
 
         sprintf( tmpr, "%8.2f", y );
+
+        ui.TextCoordY->blockSignals( true );
         ui.TextCoordY->setText( tmpr );
+        ui.TextCoordY->blockSignals( false );
 
         sprintf( tmpr, "%8.2f", v );
+
+        ui.TextPixelVal->blockSignals( true );
         ui.TextPixelVal->setText( tmpr );
+        ui.TextPixelVal->blockSignals( false );
 
         if( PointerViewEmpty && PointerViewMode == PointerViewEnabled )
         {
             ui.pointerView->setScene( imv->get_qgs() );
             PointerViewEmpty = false;
         }
+
         ui.pointerView->centerOn( x, y );
     }
 }
@@ -487,9 +441,18 @@ void rtimvControlPanel::nullMouseCoords()
     {
         ui.pointerView->setScene( qgs_empty );
         PointerViewEmpty = true;
+
+        ui.TextCoordX->blockSignals( true );
         ui.TextCoordX->setText( "" );
+        ui.TextCoordX->blockSignals( false );
+
+        ui.TextCoordY->blockSignals( true );
         ui.TextCoordY->setText( "" );
+        ui.TextCoordY->blockSignals( false );
+
+        ui.TextPixelVal->blockSignals( true );
         ui.TextPixelVal->setText( "" );
+        ui.TextPixelVal->blockSignals( false );
     }
 }
 
@@ -575,16 +538,15 @@ void rtimvControlPanel::set_pointerViewCen( QPointF mp )
 
 void rtimvControlPanel::on_scaleTypeCombo_activated( int ct )
 {
-    imv->stretch( static_cast<rtimv::stretch>(ct) );
+    imv->stretch( static_cast<rtimv::stretch>( ct ) );
 
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->mtxL_recolor( lock );
+    imv->mtxUL_recolor();
 }
 
 void rtimvControlPanel::on_colorbarCombo_activated( int cb )
 {
     std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->mtxL_load_colorbar( static_cast<rtimv::colorbar>(cb), true, lock );
+    imv->mtxL_load_colorbar( static_cast<rtimv::colorbar>( cb ), true, lock );
 }
 
 void rtimvControlPanel::update_mindatSlider()
@@ -596,9 +558,9 @@ void rtimvControlPanel::update_mindatSlider()
                      ( ui.mindatSlider->maximum() - ui.mindatSlider->minimum() ) +
                  .5 );
 
-    IgnoremindatSliderChange = true;
+    ui.mindatSlider->blockSignals( true );
     ui.mindatSlider->setSliderPosition( pos );
-    IgnoremindatSliderChange = false;
+    ui.mindatSlider->blockSignals( false );
 }
 
 void rtimvControlPanel::update_mindatEntry()
@@ -607,7 +569,10 @@ void rtimvControlPanel::update_mindatEntry()
     if( !ui.mindatEntry->hasFocus() )
     {
         sprintf( tmps, "%14.1f", imv->minScaleData() );
+
+        ui.mindatEntry->blockSignals( true );
         ui.mindatEntry->setText( tmps );
+        ui.mindatEntry->blockSignals( false );
     }
 }
 
@@ -616,23 +581,30 @@ void rtimvControlPanel::update_mindatRelEntry()
     char tmps[15];
     if( !ui.mindatRelEntry->hasFocus() )
     {
-        sprintf(
-            tmps, "%5.3f", ( imv->minScaleData() - imv->minImageData() ) / ( imv->maxImageData() - imv->minImageData() ) );
+        sprintf( tmps,
+                 "%5.3f",
+                 ( imv->minScaleData() - imv->minImageData() ) / ( imv->maxImageData() - imv->minImageData() ) );
+
+        ui.mindatRelEntry->blockSignals( true );
         ui.mindatRelEntry->setText( tmps );
+        ui.mindatRelEntry->blockSignals( false );
     }
 }
 
 void rtimvControlPanel::update_maxdatSlider()
 {
-    int pos;
-    pos = (int)( ui.maxdatSlider->minimum() +
-                 ( imv->maxScaleData() - imv->minImageData() ) / ( imv->maxImageData() - imv->minImageData() ) *
-                     ( ui.maxdatSlider->maximum() - ui.maxdatSlider->minimum() ) +
-                 .5 );
+    if( !ui.maxdatSlider->hasFocus() )
+    {
+        int pos;
+        pos = (int)( ui.maxdatSlider->minimum() +
+                     ( imv->maxScaleData() - imv->minImageData() ) / ( imv->maxImageData() - imv->minImageData() ) *
+                         ( ui.maxdatSlider->maximum() - ui.maxdatSlider->minimum() ) +
+                     .5 );
 
-    IgnoremaxdatSliderChange = true;
-    ui.maxdatSlider->setSliderPosition( pos );
-    IgnoremaxdatSliderChange = false;
+        ui.maxdatSlider->blockSignals( true );
+        ui.maxdatSlider->setSliderPosition( pos );
+        ui.maxdatSlider->blockSignals( false );
+    }
 }
 
 ////
@@ -643,7 +615,10 @@ void rtimvControlPanel::update_maxdatEntry()
     if( !ui.maxdatEntry->hasFocus() )
     {
         sprintf( tmps, "%14.1f", imv->maxScaleData() );
+
+        ui.maxdatEntry->blockSignals( true );
         ui.maxdatEntry->setText( tmps );
+        ui.maxdatEntry->blockSignals( false );
     }
 }
 
@@ -652,24 +627,31 @@ void rtimvControlPanel::update_maxdatRelEntry()
     char tmps[15];
     if( !ui.maxdatRelEntry->hasFocus() )
     {
-        sprintf(
-            tmps, "%5.3f", ( imv->maxScaleData() - imv->minImageData() ) / ( imv->maxImageData() - imv->minImageData() ) );
+        sprintf( tmps,
+                 "%5.3f",
+                 ( imv->maxScaleData() - imv->minImageData() ) / ( imv->maxImageData() - imv->minImageData() ) );
+
+        ui.maxdatRelEntry->blockSignals( true );
         ui.maxdatRelEntry->setText( tmps );
+        ui.maxdatRelEntry->blockSignals( false );
     }
 }
 
 void rtimvControlPanel::update_biasSlider()
 {
-    int pos;
-    pos = (int)( ui.biasSlider->minimum() +
-                 ( .5 * ( imv->maxScaleData() + imv->minScaleData() ) - imv->minImageData() ) /
-                     ( imv->maxImageData() - imv->minImageData() ) *
-                     ( ui.biasSlider->maximum() - ui.biasSlider->minimum() ) +
-                 .5 );
+    if( !ui.biasSlider->hasFocus() )
+    {
+        int pos;
+        pos = (int)( ui.biasSlider->minimum() +
+                     ( .5 * ( imv->maxScaleData() + imv->minScaleData() ) - imv->minImageData() ) /
+                         ( imv->maxImageData() - imv->minImageData() ) *
+                         ( ui.biasSlider->maximum() - ui.biasSlider->minimum() ) +
+                     .5 );
 
-    IgnorebiasSliderChange = true;
-    ui.biasSlider->setSliderPosition( pos );
-    IgnorebiasSliderChange = false;
+        ui.biasSlider->blockSignals( true );
+        ui.biasSlider->setSliderPosition( pos );
+        ui.biasSlider->blockSignals( false );
+    }
 }
 
 void rtimvControlPanel::update_biasEntry()
@@ -678,7 +660,10 @@ void rtimvControlPanel::update_biasEntry()
     if( !ui.biasEntry->hasFocus() )
     {
         sprintf( tmps, "%14.1f", 0.5 * ( imv->maxScaleData() + imv->minScaleData() ) );
+
+        ui.biasEntry->blockSignals( true );
         ui.biasEntry->setText( tmps );
+        ui.biasEntry->blockSignals( false );
     }
 }
 
@@ -691,7 +676,10 @@ void rtimvControlPanel::update_biasRelEntry()
                  "%5.3f",
                  ( 0.5 * ( imv->maxScaleData() + imv->minScaleData() ) - imv->minImageData() ) /
                      ( imv->maxImageData() - imv->minImageData() ) );
+
+        ui.biasRelEntry->blockSignals( true );
         ui.biasRelEntry->setText( tmps );
+        ui.biasRelEntry->blockSignals( false );
     }
 }
 
@@ -703,9 +691,9 @@ void rtimvControlPanel::update_contrastSlider()
                      ( ui.biasSlider->maximum() - ui.biasSlider->minimum() ) +
                  .5 );
 
-    IgnorecontrastSliderChange = true;
+    ui.contrastSlider->blockSignals( true );
     ui.contrastSlider->setSliderPosition( pos );
-    IgnorecontrastSliderChange = false;
+    ui.contrastSlider->blockSignals( false );
 }
 
 void rtimvControlPanel::update_contrastEntry()
@@ -714,7 +702,10 @@ void rtimvControlPanel::update_contrastEntry()
     if( !ui.contrastEntry->hasFocus() )
     {
         sprintf( tmps, "%14.1f", ( imv->maxScaleData() - imv->minScaleData() ) );
+
+        ui.contrastEntry->blockSignals( true );
         ui.contrastEntry->setText( tmps );
+        ui.contrastEntry->blockSignals( false );
     }
 }
 
@@ -723,213 +714,105 @@ void rtimvControlPanel::update_contrastRelEntry()
     char tmps[15];
     if( !ui.contrastRelEntry->hasFocus() )
     {
-        sprintf( tmps, "%5.1f", imv->maxImageData() - imv->minImageData() / ( imv->maxScaleData() - imv->minScaleData() ) );
+        sprintf(
+            tmps, "%5.1f", imv->maxImageData() - imv->minImageData() / ( imv->maxScaleData() - imv->minScaleData() ) );
+
+        ui.contrastRelEntry->blockSignals( true );
         ui.contrastRelEntry->setText( tmps );
+        ui.contrastRelEntry->blockSignals( false );
     }
 }
 
 void rtimvControlPanel::on_scaleModeCombo_activated( int index )
 {
-    if( static_cast<rtimv::colormode>(index) == rtimv::colormode::minmaxglobal )
+    if( static_cast<rtimv::colormode>( index ) == rtimv::colormode::minmaxglobal )
     {
-        std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-
-        imv->colormode( rtimv::colormode::minmaxglobal );
-        imv->maxScaleData( imv->maxImageData() );
-        imv->minScaleData( imv->minImageData() );
-
-        imv->mtxL_setColorBoxActive( false, lock );
-
-        update_mindatEntry();
-        update_maxdatEntry();
-        update_biasEntry();
-        update_contrastEntry();
-        update_mindatRelEntry();
-        update_maxdatRelEntry();
-        update_biasRelEntry();
-        update_contrastRelEntry();
+        imv->mtxUL_colormode( rtimv::colormode::minmaxglobal );
     }
-    else if( static_cast<rtimv::colormode>(index) == rtimv::colormode::user )
+    else if( static_cast<rtimv::colormode>( index ) == rtimv::colormode::user )
     {
-        std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-        imv->colormode( rtimv::colormode::user );
-        imv->mtxL_setColorBoxActive( false, lock );
+        imv->mtxUL_colormode( rtimv::colormode::user );
     }
-    else if( static_cast<rtimv::colormode>(index) == rtimv::colormode::minmaxbox )
+    else if( static_cast<rtimv::colormode>( index ) == rtimv::colormode::minmaxbox )
     {
         imv->toggleColorBoxOn();
-
-        update_mindatEntry();
-        update_maxdatEntry();
-        update_biasEntry();
-        update_contrastEntry();
-        update_mindatRelEntry();
-        update_maxdatRelEntry();
-        update_biasRelEntry();
-        update_contrastRelEntry();
     }
     else
     {
-        std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-        imv->mtxL_setColorBoxActive( false, lock );
+        imv->mtxUL_colormode( rtimv::colormode::minmaxglobal );
     }
 }
 
 void rtimvControlPanel::on_mindatSlider_valueChanged( int value )
 {
-    if( !IgnoremindatSliderChange )
-    {
-        double sc = ( (double)( value - ui.mindatSlider->minimum() ) ) /
-                    ( (double)( ui.mindatSlider->maximum() - ui.mindatSlider->minimum() ) );
-        imv->minScaleData( imv->minImageData() + ( imv->maxImageData() - imv->minImageData() ) * sc );
+    double sc = ( (double)( value - ui.mindatSlider->minimum() ) ) /
+                ( (double)( ui.mindatSlider->maximum() - ui.mindatSlider->minimum() ) );
 
-        std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-        imv->colormode( rtimv::colormode::user );
-        imv->mtxL_setColorBoxActive( false, lock );
-        lock.unlock();
+    imv->minScaleData( imv->minImageData() + ( imv->maxImageData() - imv->minImageData() ) * sc );
 
-        ui.scaleModeCombo->setCurrentIndex( SCALEMODE_USER );
-
-        update_mindatEntry();
-        update_biasEntry();
-        update_contrastEntry();
-    }
+    imv->mtxUL_colormode( rtimv::colormode::user );
 }
 
 void rtimvControlPanel::on_mindatEntry_editingFinished()
 {
     imv->minScaleData( ui.mindatEntry->text().toDouble() );
-    update_mindatEntry();
-    update_biasEntry();
-    update_contrastEntry();
-    update_mindatSlider();
-    update_biasSlider();
-    update_contrastSlider();
 
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->colormode( rtimv::colormode::user );
-    imv->mtxL_setColorBoxActive( false, lock );
-    lock.unlock();
-
-    ui.scaleModeCombo->setCurrentIndex( SCALEMODE_USER );
+    imv->mtxUL_colormode( rtimv::colormode::user );
 }
 
 void rtimvControlPanel::on_maxdatSlider_valueChanged( int value )
 {
-    if( !IgnoremaxdatSliderChange )
-    {
-        double sc = ( (double)( value - ui.maxdatSlider->minimum() ) ) /
-                    ( (double)( ui.maxdatSlider->maximum() - ui.maxdatSlider->minimum() ) );
-        imv->maxScaleData( imv->minImageData() + ( imv->maxImageData() - imv->minImageData() ) * sc );
+    double sc = ( (double)( value - ui.maxdatSlider->minimum() ) ) /
+                ( (double)( ui.maxdatSlider->maximum() - ui.maxdatSlider->minimum() ) );
 
-        std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-        imv->colormode( rtimv::colormode::user );
-        imv->mtxL_setColorBoxActive( false, lock );
+    imv->maxScaleData( imv->minImageData() + ( imv->maxImageData() - imv->minImageData() ) * sc );
 
-        lock.unlock();
-
-        ui.scaleModeCombo->setCurrentIndex( SCALEMODE_USER );
-
-        update_maxdatEntry();
-        update_biasEntry();
-        update_contrastEntry();
-    }
+    imv->mtxUL_colormode( rtimv::colormode::user );
 }
 
 void rtimvControlPanel::on_maxdatEntry_editingFinished()
 {
     imv->maxScaleData( ui.maxdatEntry->text().toDouble() );
-    update_maxdatEntry();
-    update_biasEntry();
-    update_maxdatSlider();
-    update_biasSlider();
 
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->colormode( rtimv::colormode::user );
-    imv->mtxL_setColorBoxActive( false, lock );
-    lock.unlock();
+    imv->mtxUL_colormode( rtimv::colormode::user );
 
-    ui.scaleModeCombo->setCurrentIndex( SCALEMODE_USER );
 }
 
 void rtimvControlPanel::on_biasSlider_valueChanged( int value )
 {
-    if( !IgnorebiasSliderChange )
-    {
-        double bias = ( (double)( value - ui.biasSlider->minimum() ) ) /
-                      ( (double)( ui.biasSlider->maximum() - ui.biasSlider->minimum() ) );
-        imv->bias_rel( bias );
+    double bias = ( (double)( value - ui.biasSlider->minimum() ) ) /
+                  ( (double)( ui.biasSlider->maximum() - ui.biasSlider->minimum() ) );
 
-        std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-        imv->colormode( rtimv::colormode::user );
-        imv->mtxL_setColorBoxActive( false, lock );
+    imv->bias_rel( bias );
 
-        lock.unlock();
-
-        ui.scaleModeCombo->setCurrentIndex( SCALEMODE_USER );
-
-        update_mindatEntry();
-        update_maxdatEntry();
-        update_biasEntry();
-        update_contrastEntry();
-    }
+    imv->mtxUL_colormode( rtimv::colormode::user );
 }
 
 void rtimvControlPanel::on_biasEntry_editingFinished()
 {
     imv->bias( ui.biasEntry->text().toDouble() );
 
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->colormode( rtimv::colormode::user );
-    imv->mtxL_setColorBoxActive( false, lock );
-    lock.unlock();
-
-    ui.scaleModeCombo->setCurrentIndex( SCALEMODE_USER );
-
-    update_mindatEntry();
-    update_maxdatEntry();
-    update_biasEntry();
-    update_contrastEntry();
+    imv->mtxUL_colormode( rtimv::colormode::user );
 }
 
 void rtimvControlPanel::on_contrastSlider_valueChanged( int value )
 {
-    if( !IgnorecontrastSliderChange )
-    {
-        double cont = ( (double)( value - ui.contrastSlider->minimum() ) ) /
-                      ( (double)( ui.contrastSlider->maximum() - ui.contrastSlider->minimum() ) );
-        cont = cont * ( imv->maxImageData() - imv->minImageData() );
-        imv->contrast( cont );
+    double cont = ( (double)( value - ui.contrastSlider->minimum() ) ) /
+                  ( (double)( ui.contrastSlider->maximum() - ui.contrastSlider->minimum() ) );
 
-        std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-        imv->colormode( rtimv::colormode::user );
-        imv->mtxL_setColorBoxActive( false, lock );
-        lock.unlock();
+    cont = cont * ( imv->maxImageData() - imv->minImageData() );
 
-        ui.scaleModeCombo->setCurrentIndex( SCALEMODE_USER );
+    imv->contrast( cont );
 
-        update_mindatEntry();
-        update_maxdatEntry();
-        update_biasEntry();
-        update_contrastEntry();
-    }
+    imv->mtxUL_colormode( rtimv::colormode::user );
 }
 
 void rtimvControlPanel::on_contrastEntry_editingFinished()
 {
     imv->contrast( ui.contrastEntry->text().toDouble() );
 
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->colormode( rtimv::colormode::user );
-    imv->mtxL_setColorBoxActive( false, lock );
-    lock.unlock();
+    imv->mtxUL_colormode( rtimv::colormode::user );
 
-    ui.scaleModeCombo->setCurrentIndex( SCALEMODE_USER );
-
-    update_mindatEntry();
-    update_maxdatEntry();
-    update_biasEntry();
-    update_contrastEntry();
 }
 
 void rtimvControlPanel::on_imtimerspinBox_valueChanged( int to )

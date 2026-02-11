@@ -34,9 +34,6 @@ class rtimvControlPanel : public QWidget
     void update_panel();
 
     /*** Zoom Controls ***/
-  protected:
-    bool IgnoreZoomSliderChange;
-
   public:
     void update_ZoomSlider();
     void update_ZoomEntry();
@@ -115,11 +112,10 @@ class rtimvControlPanel : public QWidget
     void viewBoxMoved( const QRectF &newcen );
 
     /*** Color Controls ***/
-    void setScaleMode( int sm )
+    /*void setScaleMode( int sm )
     {
-        std::cerr << "seeting scale mode\n";
         ui.scaleModeCombo->setCurrentIndex( sm );
-    }
+    }*/
 
   protected slots:
     void on_scaleTypeCombo_activated( int );
@@ -127,22 +123,18 @@ class rtimvControlPanel : public QWidget
 
     /* scale controls */
   protected:
-    bool IgnoremindatSliderChange;
     void update_mindatSlider();
     void update_mindatEntry();
     void update_mindatRelEntry();
 
-    bool IgnoremaxdatSliderChange;
     void update_maxdatSlider();
     void update_maxdatEntry();
     void update_maxdatRelEntry();
 
-    bool IgnorebiasSliderChange;
     void update_biasSlider();
     void update_biasEntry();
     void update_biasRelEntry();
 
-    bool IgnorecontrastSliderChange;
     void update_contrastSlider();
     void update_contrastEntry();
     void update_contrastRelEntry();

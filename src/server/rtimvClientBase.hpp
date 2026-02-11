@@ -119,15 +119,15 @@ class rtimvClientBase : public mx::app::application
     /// Context for the ImagePlease rpc.
     /** This has to stay alive until the rpc finishes and can not be reused
      *
-    */
-    grpc::ClientContext *m_ImagePleaseContext {nullptr};
+     */
+    grpc::ClientContext *m_ImagePleaseContext{ nullptr };
 
     /// Configure the server
     /**
      */
     int Configure();
 
-protected:
+  protected:
     std::mutex m_imageRequestMutex;
 
     bool m_imageRequestPending{ false };
@@ -136,15 +136,14 @@ protected:
 
     remote_rtimv::Image m_grpcImage;
 
-public:
+  public:
     /// Request an image from the server
     void ImagePlease();
 
     /// Process a received image
     void ImageReceived();
 
-
-protected:
+  protected:
     /// Handle an ImagePlease response from the server
     void ImagePlease_callback( grpc::Status status );
 
@@ -164,11 +163,10 @@ protected:
     /** @name Image Status - Data
      * @{
      */
-protected:
-
+  protected:
     float m_fpsEst;
 
-    double m_imageTime {0};
+    double m_imageTime{ 0 };
 
     ///@}
 
@@ -448,28 +446,183 @@ protected:
 
     ///@}
 
-    /** @name Colorbar Selection
+    /** @name Color Bar
      *
      * @{
      */
 
     rtimv::colorbar m_colorbar{ rtimv::colorbar::bone };
 
-    rtimv::colormode m_colormode{ rtimv::colormode::minmaxglobal };
-
-    rtimv::stretch m_stretch{ rtimv::stretch::linear };
+  private:
+    /// Actual implementation of loading the color bar
+    void mtxL_load_colorbarImpl( rtimv::colorbar cb /**< [in] the new color bar */ );
 
   public:
-    template <typename lockT>
-    void mtxL_load_colorbar( rtimv::colorbar cb, bool update, const lockT &lock )
-    {}
+    /// Set the color bar
+    /**
+     * This loads the color bar specified and (optionally) updates the image
+     */
+    void mtxL_load_colorbar( rtimv::colorbar cb,     /**< [in] the new color bar */
+                             bool update,            /**< [in] whether or not to update the image*/
+                             const uniqueLockT &lock /**< [in] a lock on m_calMutex */
+    );
+
+    /// Set the color bar
+    /**
+     * This loads the color bar specified and (optionally) updates the image
+     */
+    void mtxL_load_colorbar( rtimv::colorbar cb,     /**< [in] the new color bar */
+                             bool update,            /**< [in] whether or not to update the image*/
+                             const sharedLockT &lock /**< [in] a lock on m_calMutex */
+    );
 
     rtimv::colorbar colorbar();
 
-    void colormode( rtimv::colormode mode );
+    ///@}
 
+    /** @name Color Mode - data
+     *
+     * @{
+     */
+
+  protected:
+    rtimv::colormode m_colormode{ rtimv::colormode::minmaxglobal };
+
+    ///@}
+
+    /** @name Color Mode
+     *
+     * The color mode defines what sets the min and max for the stretch.
+     *
+     * @{
+     */
+  public:
+    /// Set the color mode
+    /**
+     * This version locks the m_calMutex. Then calls \ref mtxL_colormode, which results in a recolor.
+     * If the mode is \ref rtimv::colorbar::minmaxbox this also
+     * calculates the box min/max.
+     *
+     */
+    void mtxUL_colormode( rtimv::colormode mode /**< [in] the new colormode */ );
+
+    /// Set the color mode
+    /**
+     * This results in a recolor. If the mode is \ref rtimv::colorbar::minmaxbox this also
+     * calculates the box min/max.
+     *
+     */
+    void mtxL_colormode( rtimv::colormode mode, /**< [in] the new colormode */
+                         const sharedLockT &lock /**<[in] a shared mutex lock which is locked on m_calMutex*/ );
+
+    /// Get the current color mode
     rtimv::colormode colormode();
 
+    /// Take actions after the color box active state is changed
+    virtual void
+    mtxL_postColormode( rtimv::colormode mode /**< [in] the new colormode */,
+                        const sharedLockT &lock /**<[in] a shared mutex lock which is locked on m_calMutex*/ ) = 0;
+
+    ///@}
+
+    /** @name Color Box - Data
+     *
+     * @{
+     */
+
+  private:
+    // ImageStreamIO images are sized in uint32_t, so these are big enough for signed comparisons without wraparound
+
+    /// The color box upper left corner x coordinate
+    int64_t m_colorBox_i0;
+
+    /// The color box upper left corner y coordinate
+    int64_t m_colorBox_i1;
+
+    /// The color box lower right corner x coordinate
+    int64_t m_colorBox_j0;
+
+    /// The color box lower right corner y coordinate
+    int64_t m_colorBox_j1;
+
+  protected:
+    /// The minimum calibrated value in the color box
+    float m_colorBox_max;
+
+    /// The maximum calibrated value in the color box
+    float m_colorBox_min;
+
+    ///@}
+
+    /** @name Color Box
+     *
+     * @{
+     */
+  public:
+    /// Set the color box upper left corner x coordinate
+    void colorBox_i0( int64_t i0 /**< [in] the new  */ );
+
+    /// Get the color box upper left corner x coordinate
+    /**
+     * \returns m_colorBox_i0
+     */
+    int64_t colorBox_i0();
+
+    /// Set the color box upper left corner y coordinate
+    void colorBox_j0( int64_t j0 /**< [in] the new  */ );
+
+    /// Get the color box upper left corner y coordinate
+    /**
+     * \returns m_colorBox_j0
+     */
+    int64_t colorBox_j0();
+
+    /// Set the color box lower right corner x coordinate
+    void colorBox_i1( int64_t i1 /**< [in] the new  */ );
+
+    /// Get the color box lower right corner x coordinate
+    /**
+     * \returns m_colorBox_i1
+     */
+    int64_t colorBox_i1();
+
+    /// Set the color box lower right corner y coordinate
+    void colorBox_j1( int64_t j1 /**< [in] the new  */ );
+
+    /// Get the color box lower right corner y coordinate
+    /**
+     * \returns m_colorBox_j1
+     */
+    int64_t colorBox_j1();
+
+    /// Get the minimum calibrated value in the color box
+    /**
+     * \returns m_colorBox_min
+     */
+    float colorBox_min();
+
+    /// Get the maximum calibrated value in the color box
+    /**
+     * \returns m_colorBox_max
+     */
+    float colorBox_max();
+
+    ///@}
+
+    /** @name Color Stretch - Data
+     *
+     * @{
+     */
+  protected:
+    rtimv::stretch m_stretch{ rtimv::stretch::linear };
+
+    ///@}
+
+    /** @name Color Stretch
+     *
+     * @{
+     */
+  public:
     void stretch( rtimv::stretch );
 
     rtimv::stretch stretch();
@@ -484,9 +637,9 @@ protected:
   protected:
     /*** Color Map ***/
 
-    float m_minScaleData {0}; ///< The minimum data value used for scaling
+    float m_minScaleData{ 0 }; ///< The minimum data value used for scaling
 
-    float m_maxScaleData {0}; ///< The maximum data valuse used for scaling
+    float m_maxScaleData{ 0 }; ///< The maximum data valuse used for scaling
 
     bool m_autoScale{ false };
 
@@ -515,6 +668,8 @@ protected:
 
     float contrast_rel();
 
+    void mtxUL_reStretch();
+
     ///@}
 
     /** @name Image Filtering
@@ -540,9 +695,15 @@ protected:
                        int y  /**< [in] the y location of the pixel */
     );
 
+    /// Perform a recolor when \ref m_calMutex is not yet locked
+    /**
+     * This takes a shared lock on \ref m_calMutex then calls \ref mtxL_recolor()
+     *
+     */
+    void mtxUL_recolor();
+
     /// Perform a recolor when \ref m_calMutex is in shared lock
     /**
-     * Calls \ref mtxL_recolor()
      *
      */
     void mtxL_recolor( const sharedLockT &lock );
@@ -558,7 +719,7 @@ protected:
      *
      * Note that the two version of this differ only in the state of the mutex lock, which is necessary due to
      * the different circumstances under which an image is recolored.  Derived classes
-     * will normally want to implement a single function using a template.
+     * will normally want to implement a single function.
      */
     virtual void mtxL_postRecolor( const uniqueLockT &lock /**<[in] a unique mutex lock which is locked*/ ) = 0;
 
@@ -597,8 +758,8 @@ protected:
 
     /* Image Stats */
   protected:
-    float m_minImageData {0}; ///< The minimum value of the calibrated image data
-    float m_maxImageData {0}; ///< The maximum value of the calibrated image data
+    float m_minImageData{ 0 }; ///< The minimum value of the calibrated image data
+    float m_maxImageData{ 0 }; ///< The maximum value of the calibrated image data
 
   public:
     uint32_t saturated();
@@ -617,7 +778,6 @@ protected:
 
     /*** Abstract Zoom ***/
   protected:
-
     float m_zoomLevel{ 1 };
 
     float m_zoomLevelMin{ 1 };
@@ -625,7 +785,6 @@ protected:
     float m_zoomLevelMax{ 64 };
 
   public:
-
     /// Get the current zoom level
     float zoomLevel();
 
@@ -640,59 +799,6 @@ protected:
 
     /// Carry out any needed display actions after setting zoom level
     virtual void post_zoomLevel() = 0;
-
-    /** @name A User Defined Region
-     *
-     * @{
-     */
-  protected:
-    bool m_colorBoxActive{ false };
-
-  private:
-    // ImageStreamIO images are sized in uint32_t, so we need these big enough for signed comparisons without wraparound
-    int64_t m_colorBox_i0;
-    int64_t m_colorBox_i1;
-    int64_t m_colorBox_j0;
-    int64_t m_colorBox_j1;
-
-  protected:
-    float m_colorBox_max;
-    float m_colorBox_min;
-
-  public:
-    void colorBox_i0( int64_t i0 );
-    int64_t colorBox_i0();
-
-    void colorBox_i1( int64_t i1 );
-    int64_t colorBox_i1();
-
-    void colorBox_j0( int64_t j0 );
-    int64_t colorBox_j0();
-
-    void colorBox_j1( int64_t j1 );
-    int64_t colorBox_j1();
-
-    float colorBox_min();
-
-    float colorBox_max();
-
-    bool colorBoxActive()
-    {
-        return m_colorBoxActive;
-    }
-
-    /// Change whether the color box is active
-    void mtxL_setColorBoxActive( bool usba /**< [in] the new state of color box active */,
-                                 const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/ );
-
-    /// Take actions after the color box active state is changed
-    virtual void
-    mtxL_postSetColorBoxActive( bool usba /**< [in] the new state of color box active */,
-                                const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/ ) // = 0;
-    {
-    }
-
-    ///@}
 
     /*** Real Time Controls ***/
   protected:

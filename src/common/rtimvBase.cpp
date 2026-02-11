@@ -936,33 +936,136 @@ uint8_t rtimvBase::satPixel( uint32_t x, uint32_t y )
     return m_satData[y * m_nx + x];
 }
 
-// https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color/56678483#56678483
-template <typename realT>
-realT sRGBtoLinRGB( int rgb )
+void rtimvBase::mtxL_load_colorbarImpl( rtimv::colorbar cb)
 {
-    realT V = ( (realT)rgb ) / 255.0;
-
-    if( V <= 0.0405 )
-        return V / 12.92;
-
-    return pow( ( V + 0.055 ) / 1.055, 2.4 );
-}
-
-template <typename realT>
-realT linRGBtoLuminance( realT linR, realT linG, realT linB )
-{
-    return 0.2126 * linR + 0.7152 * linG + 0.0722 * linB;
-}
-
-template <typename realT>
-realT pLightness( realT lum )
-{
-    if( lum <= static_cast<realT>( 216 ) / static_cast<realT>( 24389 ) )
+    if( !m_qim )
     {
-        return lum * static_cast<realT>( 24389 ) / static_cast<realT>( 27 );
+        return;
     }
 
-    return pow( lum, static_cast<realT>( 1 ) / static_cast<realT>( 3 ) ) * 116 - 16;
+    m_colorbar = cb;
+    switch( cb )
+    {
+    case rtimv::colorbar::jet:
+        m_minColor = 0;
+        m_maxColor = load_colorbar_jet( m_qim );
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        warning_color = QColor( "white" );
+        break;
+    case rtimv::colorbar::hot:
+        m_minColor = 0;
+        m_maxColor = load_colorbar_hot( m_qim );
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        warning_color = QColor( "cyan" );
+        break;
+    case rtimv::colorbar::bone:
+        m_minColor = 0;
+        m_maxColor = load_colorbar_bone( m_qim );
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        warning_color = QColor( "red" );
+        break;
+    case rtimv::colorbar::red:
+        m_minColor = 0;
+        m_maxColor = 253;
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        for( int i = m_minColor; i <= m_maxColor; i++ )
+        {
+            int c = ( ( (float)i ) / 253. * 255. ) + 0.5;
+            m_qim->setColor( i, qRgb( c, 0, 0 ) );
+        }
+        m_qim->setColor( 254, qRgb( 0, 0, 0 ) );
+        m_qim->setColor( 255, qRgb( 0, 255, 0 ) );
+        warning_color = QColor( "red" );
+        break;
+    case rtimv::colorbar::green:
+        m_minColor = 0;
+        m_maxColor = 253;
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        for( int i = m_minColor; i <= m_maxColor; i++ )
+        {
+            int c = ( ( (float)i ) / 253. * 255. ) + 0.5;
+            m_qim->setColor( i, qRgb( 0, c, 0 ) );
+        }
+        m_qim->setColor( 254, qRgb( 0, 0, 0 ) );
+        m_qim->setColor( 255, qRgb( 255, 0, 0 ) );
+        warning_color = QColor( "red" );
+        break;
+    case rtimv::colorbar::blue:
+        m_minColor = 0;
+        m_maxColor = 253;
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        for( int i = m_minColor; i <= m_maxColor; i++ )
+        {
+            int c = ( ( (float)i ) / 253. * 255. ) + 0.5;
+            m_qim->setColor( i, qRgb( 0, 0, c ) );
+        }
+        m_qim->setColor( 254, qRgb( 0, 0, 0 ) );
+        m_qim->setColor( 255, qRgb( 255, 0, 0 ) );
+        warning_color = QColor( "red" );
+        break;
+    default:
+        m_colorbar = rtimv::colorbar::grey;
+        m_minColor = 0;
+        m_maxColor = 253;
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        for( int i = m_minColor; i <= m_maxColor; i++ )
+        {
+            int c = ( ( (float)i ) / 253. * 255. ) + 0.5;
+            m_qim->setColor( i, qRgb( c, c, c ) );
+        }
+        m_qim->setColor( 254, qRgb( 0, 0, 0 ) );
+        m_qim->setColor( 255, qRgb( 255, 0, 0 ) );
+
+        warning_color = QColor( "red" );
+        break;
+    }
+
+    m_lightness.resize( 256 );
+
+    for( int n = 0; n < 256; ++n )
+    {
+        m_lightness[n] = QColor( m_qim->color( n ) ).lightness();
+    }
+}
+
+void rtimvBase::mtxL_load_colorbar( rtimv::colorbar cb, bool update, const uniqueLockT &lock )
+{
+    assert( lock.owns_lock() );
+
+    mtxL_load_colorbarImpl(cb);
+
+    if( update )
+    {
+        mtxL_recolorImpl();
+        mtxL_postRecolor( lock );
+    }
+}
+
+void rtimvBase::mtxL_load_colorbar( rtimv::colorbar cb, bool update, const sharedLockT &lock )
+{
+    assert( lock.owns_lock() );
+
+    mtxL_load_colorbarImpl(cb);
+
+    if( update )
+    {
+        mtxL_recolorImpl();
+        mtxL_postRecolor( lock );
+    }
 }
 
 rtimv::colorbar rtimvBase::colorbar()
@@ -970,14 +1073,134 @@ rtimv::colorbar rtimvBase::colorbar()
     return m_colorbar;
 }
 
-void rtimvBase::colormode( rtimv::colormode mode )
+void rtimvBase::mtxUL_colormode( rtimv::colormode m )
 {
-    m_colormode = mode;
+    sharedLockT lock(m_calMutex);
+
+    mtxL_colormode(m, lock);
+}
+
+void rtimvBase::mtxL_colormode( rtimv::colormode m, const sharedLockT &lock )
+{
+    assert( lock.owns_lock() );
+
+    if( m == rtimv::colormode::minmaxbox )
+    {
+        float imval;
+
+        normalizeColorBox();
+
+        m_colorBox_min = std::numeric_limits<float>::max();
+        m_colorBox_max = -std::numeric_limits<float>::max();
+
+        for( int i = m_colorBox_i0; i <= m_colorBox_i1; i++ )
+        {
+            for( int j = m_colorBox_j0; j <= m_colorBox_j1; j++ )
+            {
+                imval = calPixel( i, j );
+
+                if( !std::isfinite( imval ) )
+                {
+                    continue;
+                }
+
+                if( imval < m_colorBox_min )
+                {
+                    m_colorBox_min = imval;
+                }
+                if( imval > m_colorBox_max )
+                {
+                    m_colorBox_max = imval;
+                }
+            }
+        }
+
+        if( m_colorBox_min == std::numeric_limits<float>::max() &&
+            m_colorBox_max == -std::numeric_limits<float>::max() ) // If all nans
+        {
+            m_colorBox_min = 0;
+            m_colorBox_max = 0;
+        }
+
+        minScaleData( m_colorBox_min );
+        maxScaleData( m_colorBox_max );
+
+        m_colormode = rtimv::colormode::minmaxbox;
+
+        RTIMV_DEBUG_BREADCRUMB
+
+    }
+    else
+    {
+        m_colormode = m;
+    }
+
+    mtxL_recolorImpl();
+
+    RTIMV_DEBUG_BREADCRUMB
+
+    mtxL_postRecolor( lock );
+
+    RTIMV_DEBUG_BREADCRUMB
+
+    mtxL_postColormode( m, lock );
+
+    RTIMV_DEBUG_BREADCRUMB
 }
 
 rtimv::colormode rtimvBase::colormode()
 {
     return m_colormode;
+}
+
+void rtimvBase::colorBox_i0( int64_t i0 )
+{
+    m_colorBox_i0 = i0;
+}
+
+int64_t rtimvBase::colorBox_i0()
+{
+    return m_colorBox_i0;
+}
+
+void rtimvBase::colorBox_j0( int64_t j0 )
+{
+    m_colorBox_j0 = j0;
+}
+
+int64_t rtimvBase::colorBox_j0()
+{
+    return m_colorBox_j0;
+}
+
+void rtimvBase::colorBox_j1( int64_t j1 )
+{
+    m_colorBox_j1 = j1;
+}
+
+void rtimvBase::colorBox_i1( int64_t i1 )
+{
+    m_colorBox_i1 = i1;
+}
+
+int64_t rtimvBase::colorBox_i1()
+{
+    return m_colorBox_i1;
+}
+
+int64_t rtimvBase::colorBox_j1()
+{
+    return m_colorBox_j1;
+}
+
+float rtimvBase::colorBox_min()
+{
+    return m_colorBox_min;
+}
+
+float rtimvBase::colorBox_max()
+{
+    return m_colorBox_max;
 }
 
 void rtimvBase::stretch( rtimv::stretch ct )
@@ -1058,6 +1281,28 @@ void rtimvBase::contrast_rel( float cr )
     float b = bias();
     minScaleData( b - .5 * ( m_maxImageData - m_minImageData ) / cr );
     maxScaleData( b + .5 * ( m_maxImageData - m_minImageData ) / cr );
+}
+
+void rtimvBase::mtxUL_reStretch()
+{
+    if( colormode() == rtimv::colormode::user )
+    {
+        mtxUL_colormode( rtimv::colormode::minmaxglobal );
+    }
+
+    if( colormode() == rtimv::colormode::minmaxglobal )
+    {
+        minScaleData( minImageData() );
+        maxScaleData( maxImageData() );
+    }
+    else if( colormode() == rtimv::colormode::minmaxbox )
+    {
+        minScaleData( m_colorBox_min );
+        maxScaleData( m_colorBox_max );
+    }
+
+    sharedLockT lock( m_calMutex );
+    mtxL_recolor( lock );
 }
 
 // Produce a value nominally between 0 and 1, though depending on the range it could be > 1.
@@ -1307,12 +1552,12 @@ void rtimvBase::mtxUL_changeImdata()
             m_minImageData = 0;
         }
 
-        if( ( resized || m_autoScale ) && !m_colorBoxActive )
+        if( ( resized || m_autoScale ) && m_colormode != rtimv::colormode::minmaxbox )
         {
             minScaleData( m_minImageData );
             maxScaleData( m_maxImageData );
         }
-        else if( m_colorBoxActive )
+        else if( m_colormode == rtimv::colormode::minmaxbox )
         {
             normalizeColorBox();
 
@@ -1486,6 +1731,12 @@ void rtimvBase::mtxL_recolorImpl()
     RTIMV_DEBUG_BREADCRUMB
 }
 
+void rtimvBase::mtxUL_recolor()
+{
+    sharedLockT lock(m_calMutex);
+    mtxL_recolor(lock);
+}
+
 void rtimvBase::mtxL_recolor( const sharedLockT &lock )
 {
     assert( lock.owns_lock() );
@@ -1589,132 +1840,9 @@ void rtimvBase::normalizeColorBox()
     }
 }
 
-void rtimvBase::colorBox_i0( int64_t i0 )
-{
-    m_colorBox_i0 = i0;
-}
-
-int64_t rtimvBase::colorBox_i0()
-{
-    return m_colorBox_i0;
-}
-
-void rtimvBase::colorBox_i1( int64_t i1 )
-{
-    m_colorBox_i1 = i1;
-}
-
-int64_t rtimvBase::colorBox_i1()
-{
-    return m_colorBox_i1;
-}
-
-void rtimvBase::colorBox_j0( int64_t j0 )
-{
-    m_colorBox_j0 = j0;
-}
-
-int64_t rtimvBase::colorBox_j0()
-{
-    return m_colorBox_j0;
-}
-
-void rtimvBase::colorBox_j1( int64_t j1 )
-{
-    m_colorBox_j1 = j1;
-}
-
-int64_t rtimvBase::colorBox_j1()
-{
-    return m_colorBox_j1;
-}
-
-float rtimvBase::colorBox_min()
-{
-    return m_colorBox_min;
-}
-
-float rtimvBase::colorBox_max()
-{
-    return m_colorBox_max;
-}
-
-void rtimvBase::mtxUL_setColorBoxActive( bool usba )
-{
-    sharedLockT lock(m_calMutex);
-
-    mtxL_setColorBoxActive(usba, lock);
-}
 
 
-void rtimvBase::mtxL_setColorBoxActive( bool usba, const sharedLockT &lock )
-{
-    assert( lock.owns_lock() );
 
-    if( usba )
-    {
-        float imval;
-
-        normalizeColorBox();
-
-        m_colorBox_min = std::numeric_limits<float>::max();
-        m_colorBox_max = -std::numeric_limits<float>::max();
-
-        for( int i = m_colorBox_i0; i <= m_colorBox_i1; i++ )
-        {
-            for( int j = m_colorBox_j0; j <= m_colorBox_j1; j++ )
-            {
-                imval = calPixel( i, j );
-
-                if( !std::isfinite( imval ) )
-                {
-                    continue;
-                }
-
-                if( imval < m_colorBox_min )
-                {
-                    m_colorBox_min = imval;
-                }
-                if( imval > m_colorBox_max )
-                {
-                    m_colorBox_max = imval;
-                }
-            }
-        }
-
-        if( m_colorBox_min == std::numeric_limits<float>::max() &&
-            m_colorBox_max == -std::numeric_limits<float>::max() ) // If all nans
-        {
-            m_colorBox_min = 0;
-            m_colorBox_max = 0;
-        }
-
-        minScaleData( m_colorBox_min );
-        maxScaleData( m_colorBox_max );
-
-        colormode( rtimv::colormode::minmaxbox );
-    }
-    else
-    {
-        colormode( rtimv::colormode::minmaxglobal );
-    }
-
-    m_colorBoxActive = usba;
-
-    RTIMV_DEBUG_BREADCRUMB
-
-    mtxL_recolorImpl();
-
-    RTIMV_DEBUG_BREADCRUMB
-
-    mtxL_postRecolor( lock );
-
-    RTIMV_DEBUG_BREADCRUMB
-
-    mtxL_postSetColorBoxActive( usba, lock );
-
-    RTIMV_DEBUG_BREADCRUMB
-}
 
 bool rtimvBase::realTimeStopped()
 {
