@@ -4,9 +4,32 @@
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
 
+#define SHARED_CONN_LOCK_RET( rv )                                                                                     \
+    sharedLockT connLock( m_connectedMutex );                                                                          \
+    if( !m_connected )                                                                                                 \
+    {                                                                                                                  \
+        return rv;                                                                                                     \
+    }
+
+#define SHARED_CONN_LOCK SHARED_CONN_LOCK_RET( static_cast<void>( 0 ) )
+
+#define REPORT_SERVER_DISCONNECTED                                                                                     \
+    uint64_t connections = m_connections;                                                                              \
+    connLock.unlock();                                                                                                 \
+                                                                                                                       \
+    uniqueLockT lock( m_connectedMutex );                                                                              \
+                                                                                                                       \
+    if( connections == m_connections )                                                                                 \
+    {                                                                                                                  \
+        m_connected = false;                                                                                           \
+                                                                                                                       \
+        std::cerr << "Message from rtimvServer: " << status.error_message() << std::endl;                              \
+    }
+
 rtimvClientBase::rtimvClientBase()
 {
     m_foundation = new rtimvBaseObject( this, nullptr );
+    m_foundation->m_connectionTimer.start(1000);
 }
 
 rtimvClientBase::~rtimvClientBase()
@@ -403,32 +426,63 @@ bool rtimvClientBase::connected()
     return m_connected;
 }
 
-int rtimvClientBase::Configure()
+void rtimvClientBase::reconnect()
 {
-    if( !m_configReq )
+    sharedLockT lock(m_connectedMutex);
+
+    if(m_connected)
     {
-        return -1;
+        return;
     }
 
-    // Container for the data we expect from the server.
-    remote_rtimv::ConfigResult result;
+    lock.unlock();
 
-    // Context for the client. It could be used to convey extra information to
-    // the server and/or tweak certain RPC behaviors.
+    Configure();
+
+    lock.lock();
+
+    // start getting images again
+    if(m_connected)
+    {
+        m_foundation->emit_ImageNeeded();
+    }
+    else
+    {
+        updateAge();
+    }
+}
+
+void rtimvClientBase::Configure()
+{
+    uniqueLockT lock( m_connectedMutex );
+    ++m_connections;
+
+    if( !m_configReq )
+    {
+        m_connected = false;
+        return;
+    }
+
+    remote_rtimv::ConfigResult result;
     grpc::ClientContext context;
 
-    // The actual RPC.
     grpc::Status status = stub_->Configure( &context, *m_configReq, &result );
 
     // Act upon its status.
     if( status.ok() )
     {
-        return result.result();
+        m_connected = true;
+        std::cerr << "rtimvClient connected to: " << m_server << ':' << m_port << '\n';
+        m_connectionFailReported = false;
     }
     else
     {
-        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
-        return -1;
+        m_connected = false;
+        if(!m_connectionFailReported)
+        {
+            std::cerr << "rtimvClient: " << status.error_message() << std::endl;
+            m_connectionFailReported = true;
+        }
     }
 }
 
@@ -438,10 +492,13 @@ void rtimvClientBase::ImagePlease()
 {
     updateAge();
 
+    SHARED_CONN_LOCK
+
     std::lock_guard<std::mutex> lock( m_imageRequestMutex );
 
     if( m_imageRequestPending )
     {
+
         std::cerr << "bug: in ImagePlease but imageRequestPending is true " << __FILE__ << ' ' << __LINE__ << '\n';
         return;
     }
@@ -605,8 +662,7 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
 
         if( !m_imageRequestPending )
         {
-            std::cerr << "bug: in ImagePlease_callback but imageRequestPending is false " << __FILE__ << ' ' << __LINE__
-                      << '\n';
+            std::cerr << "bug: in ImagePlease_callback but imageRequestPending is false \n";
             return;
         }
 
@@ -627,18 +683,16 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_NOT_CONFIGURED )
             {
-                // reconfigure
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_ERROR )
             {
-                // reconnect
             }
         }
         else
         {
-            // reconnect
-            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
-            // return -1;
+            SHARED_CONN_LOCK
+            REPORT_SERVER_DISCONNECTED
+            // don't return here so deallocation happens
         }
 
         delete m_ImagePleaseContext;
@@ -656,6 +710,8 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
         m_foundation->emit_ImageNeeded();
         // updateAge();
     }
+
+    // if action stays -1 we just return
 }
 
 bool rtimvClientBase::imageValid()
@@ -810,6 +866,8 @@ int rtimvClientBase::imageTimeout()
 
 void rtimvClientBase::subtractDark( bool sd )
 {
+    SHARED_CONN_LOCK
+
     remote_rtimv::SubDarkRequest request;
     remote_rtimv::SubDarkResponse response;
     grpc::ClientContext context;
@@ -818,15 +876,9 @@ void rtimvClientBase::subtractDark( bool sd )
 
     grpc::Status status = stub_->SetSubDark( &context, request, &response );
 
-    // Act upon its status.
-    if( status.ok() )
+    if( !status.ok() )
     {
-        return;
-    }
-    else
-    {
-        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
-        return;
+        REPORT_SERVER_DISCONNECTED
     }
 }
 
@@ -837,6 +889,8 @@ bool rtimvClientBase::subtractDark()
 
 void rtimvClientBase::applyMask( bool amsk )
 {
+    SHARED_CONN_LOCK
+
     remote_rtimv::ApplyMaskRequest request;
     remote_rtimv::ApplyMaskResponse response;
     grpc::ClientContext context;
@@ -845,15 +899,9 @@ void rtimvClientBase::applyMask( bool amsk )
 
     grpc::Status status = stub_->SetApplyMask( &context, request, &response );
 
-    // Act upon its status.
-    if( status.ok() )
+    if( !status.ok() )
     {
-        return;
-    }
-    else
-    {
-        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
-        return;
+        REPORT_SERVER_DISCONNECTED
     }
 }
 
@@ -864,6 +912,8 @@ bool rtimvClientBase::applyMask()
 
 void rtimvClientBase::applySatMask( bool asmsk )
 {
+    SHARED_CONN_LOCK
+
     remote_rtimv::ApplySatMaskRequest request;
     remote_rtimv::ApplySatMaskResponse response;
     grpc::ClientContext context;
@@ -872,15 +922,9 @@ void rtimvClientBase::applySatMask( bool asmsk )
 
     grpc::Status status = stub_->SetApplySatMask( &context, request, &response );
 
-    // Act upon its status.
-    if( status.ok() )
+    if( !status.ok() )
     {
-        return;
-    }
-    else
-    {
-        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
-        return;
+        REPORT_SERVER_DISCONNECTED
     }
 }
 
@@ -891,22 +935,17 @@ bool rtimvClientBase::applySatMask()
 
 float rtimvClientBase::calPixel( uint32_t x, uint32_t y )
 {
-    // Data we are sending to the server.
+    SHARED_CONN_LOCK_RET( 0 )
+
     remote_rtimv::Coord request;
+    remote_rtimv::Pixel pixel;
+    grpc::ClientContext context;
+
     request.set_x( x );
     request.set_y( y );
 
-    // Container for the data we expect from the server.
-    remote_rtimv::Pixel pixel;
-
-    // Context for the client. It could be used to convey extra information to
-    // the server and/or tweak certain RPC behaviors.
-    grpc::ClientContext context;
-
-    // The actual RPC.
     grpc::Status status = stub_->GetPixel( &context, request, &pixel );
 
-    // Act upon its status.
     if( status.ok() )
     {
         if( !pixel.valid() )
@@ -918,30 +957,27 @@ float rtimvClientBase::calPixel( uint32_t x, uint32_t y )
     }
     else
     {
-        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        REPORT_SERVER_DISCONNECTED
         return 0;
     }
 }
 
 void rtimvClientBase::mtxL_load_colorbarImpl( rtimv::colorbar cb, bool update )
 {
-    // Data we are sending to the server.
+    SHARED_CONN_LOCK
+
     remote_rtimv::ColorbarRequest request;
+    remote_rtimv::ColorbarResponse response;
+    grpc::ClientContext context;
 
     request.set_colorbar( rtimv::colorbar2grpc( cb ) );
     request.set_update( update );
 
-    remote_rtimv::ColorbarResponse response;
-
-    grpc::ClientContext context;
-
-    // The actual RPC.
     grpc::Status status = stub_->SetColorbar( &context, request, &response );
 
-    // Act upon its status.
     if( !status.ok() )
     {
-        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        REPORT_SERVER_DISCONNECTED
         return;
     }
 }
@@ -976,10 +1012,13 @@ void rtimvClientBase::mtxL_colormode( rtimv::colormode m, const sharedLockT &loc
 {
     assert( lock.owns_lock() );
 
+    SHARED_CONN_LOCK
+
     if( m == rtimv::colormode::minmaxbox )
     {
-        // Data we are sending to the server.
         remote_rtimv::Box request;
+        remote_rtimv::MinvalMaxval vals;
+        grpc::ClientContext context;
 
         remote_rtimv::Coord *ul = new remote_rtimv::Coord;
         ul->set_x( m_colorBox_i0 );
@@ -991,20 +1030,11 @@ void rtimvClientBase::mtxL_colormode( rtimv::colormode m, const sharedLockT &loc
         lr->set_y( m_colorBox_j1 );
         request.set_allocated_lower_right( lr );
 
-        // Container for the data we expect from the server.
-        remote_rtimv::MinvalMaxval vals;
-
-        // Context for the client. It could be used to convey extra information to
-        // the server and/or tweak certain RPC behaviors.
-        grpc::ClientContext context;
-
-        // The actual RPC.
         grpc::Status status = stub_->ColorBox( &context, request, &vals );
 
-        // Act upon its status.
         if( !status.ok() )
         {
-            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+            REPORT_SERVER_DISCONNECTED
             return;
         }
 
@@ -1018,22 +1048,17 @@ void rtimvClientBase::mtxL_colormode( rtimv::colormode m, const sharedLockT &loc
     }
     else
     {
-        // Data we are sending to the server.
         remote_rtimv::ColormodeRequest request;
+        remote_rtimv::ColormodeResponse response;
+        grpc::ClientContext context;
 
         request.set_colormode( rtimv::colormode2grpc( m ) );
 
-        remote_rtimv::ColormodeResponse response;
-
-        grpc::ClientContext context;
-
-        // The actual RPC.
         grpc::Status status = stub_->SetColormode( &context, request, &response );
 
-        // Act upon its status.
         if( !status.ok() )
         {
-            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+            REPORT_SERVER_DISCONNECTED
             return;
         }
     }
@@ -1098,22 +1123,19 @@ float rtimvClientBase::colorBox_max()
 
 void rtimvClientBase::stretch( rtimv::stretch cs )
 {
-    // Data we are sending to the server.
+    SHARED_CONN_LOCK
+
     remote_rtimv::ColorstretchRequest request;
+    remote_rtimv::ColorstretchResponse response;
+    grpc::ClientContext context;
 
     request.set_colorstretch( rtimv::stretch2grpc( cs ) );
 
-    remote_rtimv::ColorstretchResponse response;
-
-    grpc::ClientContext context;
-
-    // The actual RPC.
     grpc::Status status = stub_->SetColorstretch( &context, request, &response );
 
-    // Act upon its status.
     if( !status.ok() )
     {
-        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        REPORT_SERVER_DISCONNECTED
         return;
     }
 }
@@ -1125,28 +1147,23 @@ rtimv::stretch rtimvClientBase::stretch()
 
 void rtimvClientBase::minScaleData( float md )
 {
-    // Data we are sending to the server.
+    SHARED_CONN_LOCK
+
     remote_rtimv::ScaleRequest request;
-
     remote_rtimv::ScaleResponse response;
-
-    // Context for the client. It could be used to convey extra information to
-    // the server and/or tweak certain RPC behaviors.
     grpc::ClientContext context;
 
     request.set_value( md );
 
-    // The actual RPC.
     grpc::Status status = stub_->SetMinScale( &context, request, &response );
 
-    // Act upon its status.
     if( status.ok() )
     {
         return;
     }
     else
     {
-        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        REPORT_SERVER_DISCONNECTED
         return;
     }
 }
@@ -1158,28 +1175,23 @@ float rtimvClientBase::minScaleData()
 
 void rtimvClientBase::maxScaleData( float md )
 {
-    // Data we are sending to the server.
+    SHARED_CONN_LOCK
+
     remote_rtimv::ScaleRequest request;
-
     remote_rtimv::ScaleResponse response;
-
-    // Context for the client. It could be used to convey extra information to
-    // the server and/or tweak certain RPC behaviors.
     grpc::ClientContext context;
 
     request.set_value( md );
 
-    // The actual RPC.
     grpc::Status status = stub_->SetMaxScale( &context, request, &response );
 
-    // Act upon its status.
     if( status.ok() )
     {
         return;
     }
     else
     {
-        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        REPORT_SERVER_DISCONNECTED
         return;
     }
 }
@@ -1239,8 +1251,10 @@ void rtimvClientBase::contrast_rel( float cr )
     maxScaleData( b + .5 * ( m_maxImageData - m_minImageData ) / cr );
 }
 
-void rtimvClientBase::mtxUL_autoScale(bool as )
+void rtimvClientBase::mtxUL_autoScale( bool as )
 {
+    SHARED_CONN_LOCK
+
     remote_rtimv::AutoscaleRequest request;
     remote_rtimv::AutoscaleResponse response;
     grpc::ClientContext context;
@@ -1256,7 +1270,7 @@ void rtimvClientBase::mtxUL_autoScale(bool as )
     }
     else
     {
-        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        REPORT_SERVER_DISCONNECTED
         return;
     }
 }
@@ -1268,6 +1282,8 @@ bool rtimvClientBase::autoScale()
 
 void rtimvClientBase::mtxUL_reStretch()
 {
+    SHARED_CONN_LOCK
+
     remote_rtimv::RestretchRequest request;
     remote_rtimv::RestretchResponse response;
     grpc::ClientContext context;
@@ -1280,7 +1296,7 @@ void rtimvClientBase::mtxUL_reStretch()
     }
     else
     {
-        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        REPORT_SERVER_DISCONNECTED
         return;
     }
 }
@@ -1305,16 +1321,12 @@ void rtimvClientBase::mtxL_recolor( const sharedLockT &lock )
 {
     static_cast<void>( lock );
 
-    // Data we are sending to the server.
+    SHARED_CONN_LOCK
+
     remote_rtimv::RecolorRequest request;
-
     remote_rtimv::RecolorResponse response;
-
-    // Context for the client. It could be used to convey extra information to
-    // the server and/or tweak certain RPC behaviors.
     grpc::ClientContext context;
 
-    // The actual RPC.
     grpc::Status status = stub_->Recolor( &context, request, &response );
 
     // Act upon its status.
@@ -1324,7 +1336,7 @@ void rtimvClientBase::mtxL_recolor( const sharedLockT &lock )
     }
     else
     {
-        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        REPORT_SERVER_DISCONNECTED
         return;
     }
 }

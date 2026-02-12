@@ -1,5 +1,6 @@
 #include "rtimvServer.hpp"
 
+// The boilerplate preparation for responding to an rpc
 #define PREPARE_RPC_REACTOR                                                                                            \
     ServerUnaryReactor *reactor = context->DefaultReactor();                                                           \
                                                                                                                        \
@@ -26,6 +27,7 @@
     {                                                                                                                  \
         imageTh->emit_awaken();                                                                                        \
     }
+
 
 rtimvServer::rtimvServer( int argc, char **argv, QObject *Parent ) : QObject( Parent )
 {

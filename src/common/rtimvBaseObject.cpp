@@ -20,6 +20,7 @@ rtimvBaseObject::rtimvBaseObject( RTIMV_BASE *parent, QObject *QParent ) : QObje
     // clang-format off
     #ifdef RTIMV_GRPC
 
+    connect( &m_connectionTimer, SIGNAL(timeout()), this, SLOT(reconnect()));
     connect( this, SIGNAL(ImageNeeded()), this, SLOT(ImagePlease()));
     connect( this, SIGNAL(ImageWaiting()), this, SLOT(ImageReceived()));
 
@@ -168,6 +169,21 @@ void rtimvBaseObject::emit_ImageWaiting()
     emit ImageWaiting();
 }
 
+void rtimvBaseObject::reconnect()
+{
+    // clang-format off
+    #ifdef RTIMV_GRPC
+
+    if( !m_parent )
+    {
+        return;
+    }
+
+    m_parent->reconnect();
+
+    #endif
+    // clang-format on
+}
 
 void rtimvBaseObject::ImagePlease()
 {

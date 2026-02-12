@@ -26,6 +26,8 @@ struct rtimvBaseObject : public QObject
 
     QTimer m_cubeFrameUpdateTimer; ///< When this times out the current frame number signal is sent.
 
+    QTimer m_connectionTimer; ///< When this times out the GRPC client checks for a disconnection
+
     rtimvBaseObject() = delete;
 
     rtimvBaseObject( RTIMV_BASE *parent, QObject *QParent );
@@ -116,6 +118,8 @@ struct rtimvBaseObject : public QObject
     void ImageWaiting();
 
   public slots:
+
+    void reconnect();
 
     void ImagePlease();
 

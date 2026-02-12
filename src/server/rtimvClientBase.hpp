@@ -96,8 +96,16 @@ class rtimvClientBase : public mx::app::application
      */
 
   protected:
-    /// Flag used to indicate that the main image, m_images[0], is connected to its first image
+    /// Flag used to indicate that the client is connected to the server.  Setting to false triggers an attempt to reconnect.
     bool m_connected{ false };
+
+    /// Counter to track connection attemps.  Used to prevent threads from re-requesting re-connections for the same event.
+    uint64_t m_connections {0};
+
+    /// Flag to prevent repeating connection failure reports.
+    bool m_connectionFailReported {false};
+
+    std::shared_mutex m_connectedMutex;
 
     ///@}
 
@@ -116,16 +124,22 @@ class rtimvClientBase : public mx::app::application
      */
     bool connected();
 
+public slots:
+
+    void reconnect();
+
+protected:
     /// Context for the ImagePlease rpc.
     /** This has to stay alive until the rpc finishes and can not be reused
      *
      */
     grpc::ClientContext *m_ImagePleaseContext{ nullptr };
 
+public:
     /// Configure the server
     /**
      */
-    int Configure();
+    void Configure();
 
   protected:
     std::mutex m_imageRequestMutex;
