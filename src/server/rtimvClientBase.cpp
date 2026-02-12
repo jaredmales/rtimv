@@ -864,17 +864,43 @@ float rtimvClientBase::calPixel( uint32_t x, uint32_t y )
     }
 }
 
-void rtimvClientBase::mtxL_load_colorbarImpl( rtimv::colorbar cb )
+void rtimvClientBase::mtxL_load_colorbarImpl( rtimv::colorbar cb, bool update )
 {
+    // Data we are sending to the server.
+    remote_rtimv::ColorbarRequest request;
+
+    request.set_colorbar( rtimv::colorbar2grpc( cb ) );
+    request.set_update( update );
+
+    remote_rtimv::ColorbarResponse response;
+
+    grpc::ClientContext context;
+
+    // The actual RPC.
+    grpc::Status status = stub_->SetColorbar( &context, request, &response );
+
+    // Act upon its status.
+    if( !status.ok() )
+    {
+        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        return;
+    }
 }
 
 void rtimvClientBase::mtxL_load_colorbar( rtimv::colorbar cb, bool update, const uniqueLockT &lock )
 {
+    assert( lock.owns_lock() );
+
+    mtxL_load_colorbarImpl( cb, update );
 }
 
 void rtimvClientBase::mtxL_load_colorbar( rtimv::colorbar cb, bool update, const sharedLockT &lock )
 {
+    assert( lock.owns_lock() );
+
+    mtxL_load_colorbarImpl( cb, update );
 }
+
 rtimv::colorbar rtimvClientBase::colorbar()
 {
     return m_colorbar;
@@ -1011,9 +1037,26 @@ float rtimvClientBase::colorBox_max()
     return m_colorBox_max;
 }
 
-void rtimvClientBase::stretch( rtimv::stretch ct )
+void rtimvClientBase::stretch( rtimv::stretch cs )
 {
-    m_stretch = ct;
+    // Data we are sending to the server.
+    remote_rtimv::ColorstretchRequest request;
+
+    request.set_colorstretch( rtimv::stretch2grpc( cs ) );
+
+    remote_rtimv::ColorstretchResponse response;
+
+    grpc::ClientContext context;
+
+    // The actual RPC.
+    grpc::Status status = stub_->SetColorstretch( &context, request, &response );
+
+    // Act upon its status.
+    if( !status.ok() )
+    {
+        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        return;
+    }
 }
 
 rtimv::stretch rtimvClientBase::stretch()

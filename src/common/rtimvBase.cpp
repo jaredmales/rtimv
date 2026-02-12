@@ -644,7 +644,6 @@ void rtimvBase::setCurrImageTimeout()
     m_foundation->m_imageTimer.start( m_currImageTimeout );
 }
 
-
 void rtimvBase::imageTimeout( int to )
 {
     m_imageTimeout = to;
@@ -786,7 +785,6 @@ void rtimvBase::updateCubeFrame()
 {
     m_foundation->emit_cubeFrameUpdated( m_images[0]->imageNo() );
 }
-
 
 void rtimvBase::subtractDark( bool sd )
 {
@@ -936,7 +934,7 @@ uint8_t rtimvBase::satPixel( uint32_t x, uint32_t y )
     return m_satData[y * m_nx + x];
 }
 
-void rtimvBase::mtxL_load_colorbarImpl( rtimv::colorbar cb)
+void rtimvBase::mtxL_load_colorbarImpl( rtimv::colorbar cb )
 {
     if( !m_qim )
     {
@@ -1046,7 +1044,7 @@ void rtimvBase::mtxL_load_colorbar( rtimv::colorbar cb, bool update, const uniqu
 {
     assert( lock.owns_lock() );
 
-    mtxL_load_colorbarImpl(cb);
+    mtxL_load_colorbarImpl( cb );
 
     if( update )
     {
@@ -1059,13 +1057,20 @@ void rtimvBase::mtxL_load_colorbar( rtimv::colorbar cb, bool update, const share
 {
     assert( lock.owns_lock() );
 
-    mtxL_load_colorbarImpl(cb);
+    mtxL_load_colorbarImpl( cb );
 
     if( update )
     {
         mtxL_recolorImpl();
         mtxL_postRecolor( lock );
     }
+}
+
+void rtimvBase::mtxUL_load_colorbar( rtimv::colorbar cb, bool update )
+{
+    sharedLockT lock( m_calMutex );
+
+    mtxL_load_colorbar( cb, update, lock );
 }
 
 rtimv::colorbar rtimvBase::colorbar()
@@ -1075,9 +1080,9 @@ rtimv::colorbar rtimvBase::colorbar()
 
 void rtimvBase::mtxUL_colormode( rtimv::colormode m )
 {
-    sharedLockT lock(m_calMutex);
+    sharedLockT lock( m_calMutex );
 
-    mtxL_colormode(m, lock);
+    mtxL_colormode( m, lock );
 }
 
 void rtimvBase::mtxL_colormode( rtimv::colormode m, const sharedLockT &lock )
@@ -1128,7 +1133,6 @@ void rtimvBase::mtxL_colormode( rtimv::colormode m, const sharedLockT &lock )
         m_colormode = rtimv::colormode::minmaxbox;
 
         RTIMV_DEBUG_BREADCRUMB
-
     }
     else
     {
@@ -1733,8 +1737,8 @@ void rtimvBase::mtxL_recolorImpl()
 
 void rtimvBase::mtxUL_recolor()
 {
-    sharedLockT lock(m_calMutex);
-    mtxL_recolor(lock);
+    sharedLockT lock( m_calMutex );
+    mtxL_recolor( lock );
 }
 
 void rtimvBase::mtxL_recolor( const sharedLockT &lock )
@@ -1839,10 +1843,6 @@ void rtimvBase::normalizeColorBox()
         std::swap( m_colorBox_j0, m_colorBox_j1 );
     }
 }
-
-
-
-
 
 bool rtimvBase::realTimeStopped()
 {

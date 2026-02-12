@@ -19,7 +19,7 @@ enum class stretch
     log,    ///< The pixel values are scaled logarithmically between m_minScaleData and m_maxScaleData
     pow,    ///< the pixel values are scaled as \f$ 1000^p/1000 \f$ between m_minScaleData and m_maxScaleData
     sqrt,   ///< the pixel values are scaled as \f$ \sqrt(p) \f$ between m_minScaleData and m_maxScaleData
-    square ///< the pixel values are scaled as \f$ p^2 \f$ between m_minScaleData and m_maxScaleData
+    square  ///< the pixel values are scaled as \f$ p^2 \f$ between m_minScaleData and m_maxScaleData
 };
 
 enum class colorbar
@@ -40,7 +40,6 @@ enum class colormode
     user
 };
 
-
-} //namespace rtimv
+} // namespace rtimv
 
 #endif // rtimv_rtimvColor_hpp

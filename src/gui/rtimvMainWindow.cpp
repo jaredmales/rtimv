@@ -137,8 +137,6 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
     setWindowTitle( m_title.c_str() );
 
     startup();
-
-
 }
 
 rtimvMainWindow::~rtimvMainWindow()
@@ -1375,8 +1373,6 @@ void rtimvMainWindow::mtxTry_colorBoxMoved( StretchBox *sb )
     ui.graphicsView->userItemSizeText( tmp, qr );
 
     mtxL_fontLuminance( ui.graphicsView->userItemSize(), lock );
-
-
 }
 
 void rtimvMainWindow::mtxTry_colorBoxSelected( StretchBox *sb )
@@ -2149,13 +2145,13 @@ void rtimvMainWindow::savingState( rtimv::savingState ss )
     }
 }
 
-void rtimvMainWindow::mtxL_postColormode ( rtimv::colormode m, const sharedLockT &lock )
+void rtimvMainWindow::mtxL_postColormode( rtimv::colormode m, const sharedLockT &lock )
 {
     assert( lock.owns_lock() );
 
     if( m == rtimv::colormode::minmaxbox )
     {
-        if(m_colorBox)
+        if( m_colorBox )
         {
             m_colorBox->setVisible( true );
         }
@@ -2166,7 +2162,7 @@ void rtimvMainWindow::mtxL_postColormode ( rtimv::colormode m, const sharedLockT
     }
     else
     {
-        if(m_colorBox)
+        if( m_colorBox )
         {
             m_colorBox->setVisible( false );
         }
@@ -2447,7 +2443,7 @@ void rtimvMainWindow::toggleColorBoxOff()
 
     m_colorBox->setVisible( false );
 
-    mtxUL_colormode( rtimv::colormode::minmaxglobal);
+    mtxUL_colormode( rtimv::colormode::minmaxglobal );
 
     ui.graphicsView->zoomText( "global scale" );
     mtxTry_fontLuminance( ui.graphicsView->zoomText() );

@@ -6,11 +6,11 @@ service rtimv
 {
     rpc Configure(Config) returns (ConfigResult);
 
-    rpc SetColorbar(CurrentColorbar) returns (CurrentColorbar);
+    rpc SetColorbar(ColorbarRequest) returns (ColorbarResponse);
 
     rpc SetColormode(ColormodeRequest) returns (ColormodeResponse);
 
-    rpc SetColorstretch(CurrentColorstretch) returns (CurrentColorstretch);
+    rpc SetColorstretch(ColorstretchRequest) returns (ColorstretchResponse);
 
     rpc SetMinScale(ScaleRequest) returns (ScaleResponse);
 
@@ -86,10 +86,14 @@ enum Colorbar
 }
 
 // A message specifying the color bar.
-// If COLORBAR_UNKNOWN is sent as a request, then this is a query to get the current color bar.
-message CurrentColorbar
+message ColorbarRequest
 {
     Colorbar colorbar = 1;
+    bool update = 2;
+}
+
+message ColorbarResponse
+{
 }
 
 enum Colormode
@@ -121,10 +125,13 @@ enum Colorstretch
 }
 
 // A message specifying the color stretch.
-// If COLORSTRETCH_UNKNOWN is sent as a request, then this is a query to get the current color stretch.
-message CurrentColorstretch
+message ColorstretchRequest
 {
     Colorstretch colorstretch = 1;
+}
+
+message ColorstretchResponse
+{
 }
 
 message ScaleRequest

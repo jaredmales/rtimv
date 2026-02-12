@@ -167,10 +167,10 @@ ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context,
         // Now check that it wasn't deleted while we waited for lock:
         if( m_clients.count( context->peer() ) == 0 )
         {
-            //thread wires crossed during configure
+            // thread wires crossed during configure
 
             ServerUnaryReactor *reactor = context->DefaultReactor();
-            reactor->Finish( grpc::Status(grpc::INTERNAL, "sorry") );
+            reactor->Finish( grpc::Status( grpc::INTERNAL, "sorry" ) );
 
             return reactor;
         }
@@ -193,6 +193,53 @@ ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context,
     ServerUnaryReactor *reactor = context->DefaultReactor();
     reactor->Finish( Status::OK );
 
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::SetColorbar( CallbackServerContext *context,
+                                              const remote_rtimv::ColorbarRequest *request,
+                                              remote_rtimv::ColorbarResponse *reply )
+{
+    ServerUnaryReactor *reactor = context->DefaultReactor();
+
+    // We need a shared lock b/c we access the thread
+    sharedLockT slock( m_clientMutex );
+
+    if( m_clients.count( context->peer() ) == 0 )
+    {
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "not configured" ) );
+        return reactor;
+    }
+
+    rtimvServerThread *imageTh = m_clients[context->peer()];
+
+    if( imageTh == nullptr ) // Something has gone wrong. Here we expect the client to reconnect
+    {
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "reconnect" ) );
+        return reactor;
+    }
+
+    imageTh->lastRequest( -1 ); // sets to now
+
+    if( imageTh->asleep() )
+    {
+        imageTh->emit_awaken();
+        std::cerr << "Client " << context->peer() << " woken up\n";
+    }
+
+    rtimv::colorbar cb = rtimv::grpc2colorbar( request->colorbar() );
+
+    if( cb != static_cast<rtimv::colorbar>( -1 ) )
+    {
+        imageTh->mtxUL_load_colorbar( cb, request->update() );
+    }
+    else
+    {
+        reactor->Finish( grpc::Status( grpc::INVALID_ARGUMENT, "invalid color bar" ) );
+        return reactor;
+    }
+
+    reactor->Finish( Status::OK );
     return reactor;
 }
 
@@ -227,26 +274,65 @@ ServerUnaryReactor *rtimvServer::SetColormode( CallbackServerContext *context,
         std::cerr << "Client " << context->peer() << " woken up\n";
     }
 
-    if( request->colormode() == remote_rtimv::COLORMODE_GLOBAL )
+    rtimv::colormode cm = rtimv::grpc2colormode( request->colormode() );
+
+    if( cm != static_cast<rtimv::colormode>( -1 ) )
     {
         imageTh->mtxUL_colormode( rtimv::colormode::minmaxglobal );
-    }
-    else if( request->colormode() == remote_rtimv::COLORMODE_BOX )
-    {
-        imageTh->mtxUL_colormode( rtimv::colormode::minmaxbox );
-    }
-    else if( request->colormode() == remote_rtimv::COLORMODE_USER )
-    {
-        imageTh->mtxUL_colormode( rtimv::colormode::user );
+        reactor->Finish( Status::OK );
+        return reactor;
     }
     else
     {
         reactor->Finish( grpc::Status( grpc::INVALID_ARGUMENT, "invalid color mode" ) );
         return reactor;
     }
+}
 
-    reactor->Finish( Status::OK );
-    return reactor;
+ServerUnaryReactor *rtimvServer::SetColorstretch( CallbackServerContext *context,
+                                                  const remote_rtimv::ColorstretchRequest *request,
+                                                  remote_rtimv::ColorstretchResponse *reply )
+{
+    ServerUnaryReactor *reactor = context->DefaultReactor();
+
+    // We need a shared lock b/c we access the thread
+    sharedLockT slock( m_clientMutex );
+
+    if( m_clients.count( context->peer() ) == 0 )
+    {
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "not configured" ) );
+        return reactor;
+    }
+
+    rtimvServerThread *imageTh = m_clients[context->peer()];
+
+    if( imageTh == nullptr ) // Something has gone wrong. Here we expect the client to reconnect
+    {
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "reconnect" ) );
+        return reactor;
+    }
+
+    imageTh->lastRequest( -1 ); // sets to now
+
+    if( imageTh->asleep() )
+    {
+        imageTh->emit_awaken();
+        std::cerr << "Client " << context->peer() << " woken up\n";
+    }
+
+    rtimv::stretch cs = rtimv::grpc2stretch( request->colorstretch() );
+
+    if( cs != static_cast<rtimv::stretch>( -1 ) )
+    {
+        imageTh->stretch( cs );
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+    else
+    {
+        reactor->Finish( grpc::Status( grpc::INVALID_ARGUMENT, "invalid color stretch" ) );
+        return reactor;
+    }
 }
 
 ServerUnaryReactor *rtimvServer::SetMinScale( CallbackServerContext *context,
@@ -298,7 +384,7 @@ ServerUnaryReactor *rtimvServer::SetMaxScale( CallbackServerContext *context,
 
     if( m_clients.count( context->peer() ) == 0 )
     {
-        reactor->Finish( grpc::Status(grpc::FAILED_PRECONDITION, "not configured") );
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "not configured" ) );
         return reactor;
     }
 
@@ -325,8 +411,8 @@ ServerUnaryReactor *rtimvServer::SetMaxScale( CallbackServerContext *context,
 }
 
 ServerUnaryReactor *rtimvServer::Restretch( CallbackServerContext *context,
-                                              const remote_rtimv::RestretchRequest *request,
-                                              remote_rtimv::RestretchResponse *reply )
+                                            const remote_rtimv::RestretchRequest *request,
+                                            remote_rtimv::RestretchResponse *reply )
 {
     ServerUnaryReactor *reactor = context->DefaultReactor();
 
@@ -335,7 +421,7 @@ ServerUnaryReactor *rtimvServer::Restretch( CallbackServerContext *context,
 
     if( m_clients.count( context->peer() ) == 0 )
     {
-        reactor->Finish( grpc::Status(grpc::FAILED_PRECONDITION, "not configured") );
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "not configured" ) );
         return reactor;
     }
 
@@ -372,7 +458,7 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
 
     if( m_clients.count( context->peer() ) == 0 )
     {
-        reactor->Finish( grpc::Status(grpc::FAILED_PRECONDITION, "not configured") );
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "not configured" ) );
         return reactor;
     }
 
@@ -458,15 +544,15 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
     reply->set_min_scale_data( imageTh->minScaleData() );
     reply->set_max_scale_data( imageTh->maxScaleData() );
 
-    reply->set_colorbar(rtimv::colorbar2grpc(imageTh->colorbar()));
+    reply->set_colorbar( rtimv::colorbar2grpc( imageTh->colorbar() ) );
 
-    reply->set_colormode(rtimv::colormode2grpc(imageTh->colormode()));
+    reply->set_colormode( rtimv::colormode2grpc( imageTh->colormode() ) );
 
-    reply->set_colorstretch(rtimv::stretch2grpc(imageTh->stretch()));
+    reply->set_colorstretch( rtimv::stretch2grpc( imageTh->stretch() ) );
 
-    reply->set_subtract_dark(imageTh->subtractDark());
-    reply->set_apply_mask(imageTh->applyMask());
-    reply->set_apply_sat_mask(imageTh->applySatMask());
+    reply->set_subtract_dark( imageTh->subtractDark() );
+    reply->set_apply_mask( imageTh->applyMask() );
+    reply->set_apply_sat_mask( imageTh->applySatMask() );
 
     reactor->Finish( Status::OK );
 
@@ -483,7 +569,7 @@ rtimvServer::GetPixel( CallbackServerContext *context, const remote_rtimv::Coord
 
     if( m_clients.count( context->peer() ) == 0 )
     {
-        reactor->Finish( grpc::Status(grpc::FAILED_PRECONDITION, "not configured") );
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "not configured" ) );
         return reactor;
     }
 
@@ -543,7 +629,7 @@ ServerUnaryReactor *rtimvServer::ColorBox( CallbackServerContext *context,
 
     if( m_clients.count( context->peer() ) == 0 )
     {
-        reactor->Finish( grpc::Status(grpc::FAILED_PRECONDITION, "not configured") );
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "not configured" ) );
         return reactor;
     }
 
@@ -600,7 +686,7 @@ ServerUnaryReactor *rtimvServer::Recolor( CallbackServerContext *context,
 
     if( m_clients.count( context->peer() ) == 0 )
     {
-        reactor->Finish( grpc::Status(grpc::FAILED_PRECONDITION, "not configured") );
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "not configured" ) );
         return reactor;
     }
 

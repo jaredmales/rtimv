@@ -775,7 +775,6 @@ void rtimvControlPanel::on_maxdatEntry_editingFinished()
     imv->maxScaleData( ui.maxdatEntry->text().toDouble() );
 
     imv->mtxUL_colormode( rtimv::colormode::user );
-
 }
 
 void rtimvControlPanel::on_biasSlider_valueChanged( int value )
@@ -812,7 +811,6 @@ void rtimvControlPanel::on_contrastEntry_editingFinished()
     imv->contrast( ui.contrastEntry->text().toDouble() );
 
     imv->mtxUL_colormode( rtimv::colormode::user );
-
 }
 
 void rtimvControlPanel::on_imtimerspinBox_valueChanged( int to )

@@ -455,7 +455,9 @@ class rtimvClientBase : public mx::app::application
 
   private:
     /// Actual implementation of loading the color bar
-    void mtxL_load_colorbarImpl( rtimv::colorbar cb /**< [in] the new color bar */ );
+    void mtxL_load_colorbarImpl( rtimv::colorbar cb, /**< [in] the new color bar */
+                                 bool update         /**< [in] whether or not to update the image*/
+    );
 
   public:
     /// Set the color bar

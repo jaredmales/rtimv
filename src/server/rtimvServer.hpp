@@ -123,9 +123,17 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
                                    const remote_rtimv::Config *request,
                                    remote_rtimv::ConfigResult *reply ) override;
 
+    ServerUnaryReactor *SetColorbar( CallbackServerContext *context,
+                                     const remote_rtimv::ColorbarRequest *request,
+                                     remote_rtimv::ColorbarResponse *reply ) override;
+
     ServerUnaryReactor *SetColormode( CallbackServerContext *context,
                                       const remote_rtimv::ColormodeRequest *request,
                                       remote_rtimv::ColormodeResponse *reply ) override;
+
+    ServerUnaryReactor *SetColorstretch( CallbackServerContext *context,
+                                         const remote_rtimv::ColorstretchRequest *request,
+                                         remote_rtimv::ColorstretchResponse *reply ) override;
 
     ServerUnaryReactor *SetMinScale( CallbackServerContext *context,
                                      const remote_rtimv::ScaleRequest *request,

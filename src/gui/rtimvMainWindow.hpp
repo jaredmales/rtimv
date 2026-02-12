@@ -37,7 +37,6 @@
 
 #include "rtimvStats.hpp"
 
-
 #define SCALEMODE_USER 3
 
 #define PointerViewEnabled 0
@@ -51,7 +50,7 @@
 
 class rtimvControlPanel;
 
-//#define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
+// #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
 
 class rtimvMainWindow : public QWidget, public RTIMV_BASE
@@ -79,16 +78,16 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     virtual void post_zoomLevel();
 
   private:
-    ///Generic implementation of postRecolor
-    template<class lockT>
-    void mtxL_postRecolorImpl(const lockT & lock /**<[in] a mutex lock which is locked*/);
+    /// Generic implementation of postRecolor
+    template <class lockT>
+    void mtxL_postRecolorImpl( const lockT &lock /**<[in] a mutex lock which is locked*/ );
 
   public:
-    virtual void mtxL_postRecolor( const uniqueLockT &lock /**<[in] a unique mutex lock which is locked*/);
+    virtual void mtxL_postRecolor( const uniqueLockT &lock /**<[in] a unique mutex lock which is locked*/ );
 
-    virtual void mtxL_postRecolor( const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/);
+    virtual void mtxL_postRecolor( const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/ );
 
-    virtual void mtxL_postChangeImdata( const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/);
+    virtual void mtxL_postChangeImdata( const sharedLockT &lock /**<[in] a shared mutex lock which is locked*/ );
 
     virtual void updateFPS();
 
@@ -853,7 +852,5 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
                       QEvent *event ///< [in] the event
     );
 };
-
-
 
 #endif // rtimvMainWindow_hpp_inc
