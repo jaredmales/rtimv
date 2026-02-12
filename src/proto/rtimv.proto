@@ -18,6 +18,14 @@ service rtimv
 
     rpc Restretch(RestretchRequest) returns (RestretchResponse);
 
+    rpc SetAutoscale(AutoscaleRequest) returns (AutoscaleResponse);
+
+    rpc SetSubDark(SubDarkRequest) returns (SubDarkResponse);
+
+    rpc SetApplyMask(ApplyMaskRequest) returns (ApplyMaskResponse);
+
+    rpc SetApplySatMask(ApplySatMaskRequest) returns (ApplySatMaskResponse);
+
     rpc ImagePlease(ImageRequest) returns (Image);
 
     rpc GetPixel(Coord) returns(Pixel);
@@ -151,6 +159,42 @@ message RestretchResponse
 {
 }
 
+message AutoscaleRequest
+{
+    bool autoscale = 1;
+}
+
+message AutoscaleResponse
+{
+}
+
+message SubDarkRequest
+{
+    bool subtract_dark = 1;
+}
+
+message SubDarkResponse
+{
+}
+
+message ApplyMaskRequest
+{
+    bool apply_mask = 1;
+}
+
+message ApplyMaskResponse
+{
+}
+
+message ApplySatMaskRequest
+{
+    bool apply_sat_mask = 1;
+}
+
+message ApplySatMaskResponse
+{
+}
+
 message ImageRequest
 {
 }
@@ -189,6 +233,8 @@ message Image
     Colorbar  colorbar = 115;
     Colormode colormode = 120;
     Colorstretch colorstretch = 125;
+
+    bool autoscale = 130;
 
     bool subtract_dark = 150;
 //    bool apply_flat = 155;

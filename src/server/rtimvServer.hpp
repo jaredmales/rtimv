@@ -147,6 +147,22 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
                                    const remote_rtimv::RestretchRequest *request,
                                    remote_rtimv::RestretchResponse *reply ) override;
 
+    ServerUnaryReactor *SetAutoscale( CallbackServerContext *context,
+                                      const remote_rtimv::AutoscaleRequest *request,
+                                      remote_rtimv::AutoscaleResponse *reply ) override;
+
+    ServerUnaryReactor *SetSubDark( CallbackServerContext *context,
+                                    const remote_rtimv::SubDarkRequest *request,
+                                    remote_rtimv::SubDarkResponse *reply ) override;
+
+    ServerUnaryReactor *SetApplyMask( CallbackServerContext *context,
+                                      const remote_rtimv::ApplyMaskRequest *request,
+                                      remote_rtimv::ApplyMaskResponse *reply ) override;
+
+    ServerUnaryReactor *SetApplySatMask( CallbackServerContext *context,
+                                         const remote_rtimv::ApplySatMaskRequest *request,
+                                         remote_rtimv::ApplySatMaskResponse *reply ) override;
+
     ServerUnaryReactor *ImagePlease( CallbackServerContext *context,
                                      const remote_rtimv::ImageRequest *request,
                                      remote_rtimv::Image *reply ) override;

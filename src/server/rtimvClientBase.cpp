@@ -468,12 +468,14 @@ void rtimvClientBase::ImageReceived()
     uint32_t nx, ny, nz;
     float fpsEst;
     double imageTime;
+    uint32_t saturated;
     float minsc, maxsc, minim, maxim;
 
     remote_rtimv::Colorbar colorbar;
     remote_rtimv::Colormode colormode;
     remote_rtimv::Colorstretch stretch;
 
+    bool autoScale;
     bool subtractDark;
     bool applyMask;
     bool applySatMask;
@@ -519,6 +521,8 @@ void rtimvClientBase::ImageReceived()
         imageTime = m_grpcImage.atime();
         fpsEst = m_grpcImage.fps();
 
+        saturated = m_grpcImage.saturated();
+
         minim = m_grpcImage.min_image_data();
         maxim = m_grpcImage.max_image_data();
         minsc = m_grpcImage.min_scale_data();
@@ -527,6 +531,8 @@ void rtimvClientBase::ImageReceived()
         colorbar = m_grpcImage.colorbar();
         colormode = m_grpcImage.colormode();
         stretch = m_grpcImage.colorstretch();
+
+        autoScale = m_grpcImage.autoscale();
 
         subtractDark = m_grpcImage.subtract_dark();
         applyMask = m_grpcImage.apply_mask();
@@ -556,7 +562,7 @@ void rtimvClientBase::ImageReceived()
 
     m_fpsEst = fpsEst;
     m_imageTime = imageTime;
-
+    m_saturated = saturated;
     m_minImageData = minim;
     m_maxImageData = maxim;
     m_minScaleData = minsc;
@@ -565,6 +571,8 @@ void rtimvClientBase::ImageReceived()
     m_colorbar = rtimv::grpc2colorbar( colorbar );
     m_colormode = rtimv::grpc2colormode( colormode );
     m_stretch = rtimv::grpc2stretch( stretch );
+
+    m_autoScale = autoScale;
 
     m_subtractDark = subtractDark;
     m_applyMask = applyMask;
@@ -802,7 +810,24 @@ int rtimvClientBase::imageTimeout()
 
 void rtimvClientBase::subtractDark( bool sd )
 {
-    // send to server
+    remote_rtimv::SubDarkRequest request;
+    remote_rtimv::SubDarkResponse response;
+    grpc::ClientContext context;
+
+    request.set_subtract_dark( sd );
+
+    grpc::Status status = stub_->SetSubDark( &context, request, &response );
+
+    // Act upon its status.
+    if( status.ok() )
+    {
+        return;
+    }
+    else
+    {
+        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        return;
+    }
 }
 
 bool rtimvClientBase::subtractDark()
@@ -812,7 +837,24 @@ bool rtimvClientBase::subtractDark()
 
 void rtimvClientBase::applyMask( bool amsk )
 {
-    // send to server
+    remote_rtimv::ApplyMaskRequest request;
+    remote_rtimv::ApplyMaskResponse response;
+    grpc::ClientContext context;
+
+    request.set_apply_mask( amsk );
+
+    grpc::Status status = stub_->SetApplyMask( &context, request, &response );
+
+    // Act upon its status.
+    if( status.ok() )
+    {
+        return;
+    }
+    else
+    {
+        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        return;
+    }
 }
 
 bool rtimvClientBase::applyMask()
@@ -822,7 +864,24 @@ bool rtimvClientBase::applyMask()
 
 void rtimvClientBase::applySatMask( bool asmsk )
 {
-    // send to server
+    remote_rtimv::ApplySatMaskRequest request;
+    remote_rtimv::ApplySatMaskResponse response;
+    grpc::ClientContext context;
+
+    request.set_apply_sat_mask( asmsk );
+
+    grpc::Status status = stub_->SetApplySatMask( &context, request, &response );
+
+    // Act upon its status.
+    if( status.ok() )
+    {
+        return;
+    }
+    else
+    {
+        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        return;
+    }
 }
 
 bool rtimvClientBase::applySatMask()
@@ -1180,21 +1239,41 @@ void rtimvClientBase::contrast_rel( float cr )
     maxScaleData( b + .5 * ( m_maxImageData - m_minImageData ) / cr );
 }
 
-void rtimvClientBase::mtxUL_reStretch()
+void rtimvClientBase::mtxUL_autoScale(bool as )
 {
-    // Data we are sending to the server.
-    remote_rtimv::RestretchRequest request;
-
-    remote_rtimv::RestretchResponse response;
-
-    // Context for the client. It could be used to convey extra information to
-    // the server and/or tweak certain RPC behaviors.
+    remote_rtimv::AutoscaleRequest request;
+    remote_rtimv::AutoscaleResponse response;
     grpc::ClientContext context;
 
-    // The actual RPC.
-    grpc::Status status = stub_->Restretch( &context, request, &response );
+    request.set_autoscale( as );
+
+    grpc::Status status = stub_->SetAutoscale( &context, request, &response );
 
     // Act upon its status.
+    if( status.ok() )
+    {
+        return;
+    }
+    else
+    {
+        std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+        return;
+    }
+}
+
+bool rtimvClientBase::autoScale()
+{
+    return m_autoScale;
+}
+
+void rtimvClientBase::mtxUL_reStretch()
+{
+    remote_rtimv::RestretchRequest request;
+    remote_rtimv::RestretchResponse response;
+    grpc::ClientContext context;
+
+    grpc::Status status = stub_->Restretch( &context, request, &response );
+
     if( status.ok() )
     {
         return;

@@ -2335,9 +2335,13 @@ void rtimvMainWindow::keyPressEvent( QKeyEvent *ke )
 
 void rtimvMainWindow::autoScale( bool as )
 {
-    m_autoScale = as;
-    emit autoScaleUpdated( m_autoScale );
-    if( m_autoScale )
+
+    mtxUL_autoScale( as );
+
+    //nb can't rely on m_autoScale updating immediately
+    emit autoScaleUpdated( as );
+
+    if( as )
     {
         ui.graphicsView->zoomText( "autoscale on" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );

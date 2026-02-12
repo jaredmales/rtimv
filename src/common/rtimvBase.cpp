@@ -1136,6 +1136,12 @@ void rtimvBase::mtxL_colormode( rtimv::colormode m, const sharedLockT &lock )
     }
     else
     {
+        // We turn off autoscale for user
+        if( m == rtimv::colormode::user )
+        {
+            m_autoScale = false;
+        }
+
         m_colormode = m;
     }
 
@@ -1285,6 +1291,31 @@ void rtimvBase::contrast_rel( float cr )
     float b = bias();
     minScaleData( b - .5 * ( m_maxImageData - m_minImageData ) / cr );
     maxScaleData( b + .5 * ( m_maxImageData - m_minImageData ) / cr );
+}
+
+void rtimvBase::mtxUL_autoScale( bool as )
+{
+    if( as != m_autoScale )
+    {
+        m_autoScale = as;
+
+        // On a change to true we trigger a re-color
+        if( m_autoScale == true )
+        {
+            //This changes us out of user mode
+            if( m_colormode == rtimv::colormode::user )
+            {
+                m_colormode = rtimv::colormode::minmaxglobal;
+            }
+
+            mtxUL_recolor();
+        }
+    }
+}
+
+bool rtimvBase::autoScale()
+{
+    return m_autoScale;
 }
 
 void rtimvBase::mtxUL_reStretch()

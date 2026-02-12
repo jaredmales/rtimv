@@ -670,6 +670,18 @@ class rtimvClientBase : public mx::app::application
 
     float contrast_rel();
 
+    /// Set the auto scale flag
+    /**
+     * The cal mutex must be unlocked before calling
+     */
+    void mtxUL_autoScale(bool as /**< [in] the new value of the auto scale flag */);
+
+    /// Get the auto scale flag value
+    /**
+     * \returns the current value of m_autoScale
+     */
+    bool autoScale();
+
     void mtxUL_reStretch();
 
     ///@}
