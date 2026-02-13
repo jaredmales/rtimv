@@ -34,6 +34,21 @@ rtimvClientBase::rtimvClientBase()
 
 rtimvClientBase::~rtimvClientBase()
 {
+    {
+        std::lock_guard<std::mutex> lock( m_imageRequestMutex );
+        m_shuttingDown = true;
+
+        if( m_ImagePleaseContext )
+        {
+            m_ImagePleaseContext->TryCancel();
+        }
+    }
+
+    {
+        std::unique_lock<std::mutex> lock( m_imageRequestMutex );
+        m_imageRequestCv.wait( lock, [this] { return !m_imageRequestPending; } );
+    }
+
     if( m_configReq )
     {
         delete m_configReq;
@@ -496,6 +511,11 @@ void rtimvClientBase::ImagePlease()
 
     std::lock_guard<std::mutex> lock( m_imageRequestMutex );
 
+    if( m_shuttingDown )
+    {
+        return;
+    }
+
     if( m_imageRequestPending )
     {
 
@@ -522,6 +542,14 @@ void rtimvClientBase::ImagePlease()
 
 void rtimvClientBase::ImageReceived()
 {
+    {
+        std::lock_guard<std::mutex> lock( m_imageRequestMutex );
+        if( m_shuttingDown )
+        {
+            return;
+        }
+    }
+
     uint32_t nx, ny, nz;
     float fpsEst;
     double imageTime;
@@ -656,6 +684,7 @@ void rtimvClientBase::ImageReceived()
 void rtimvClientBase::ImagePlease_callback( grpc::Status status )
 {
     int action = -1;
+    bool shuttingDown = false;
 
     {
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
@@ -699,6 +728,14 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
         m_ImagePleaseContext = nullptr;
 
         m_imageRequestPending = false;
+        shuttingDown = m_shuttingDown;
+    }
+
+    m_imageRequestCv.notify_all();
+
+    if( shuttingDown )
+    {
+        return;
     }
 
     if( action == 0 )

@@ -144,6 +144,10 @@ public:
   protected:
     std::mutex m_imageRequestMutex;
 
+    std::condition_variable m_imageRequestCv;
+
+    bool m_shuttingDown{ false };
+
     bool m_imageRequestPending{ false };
 
     remote_rtimv::ImageRequest m_grpcImageRequest;
