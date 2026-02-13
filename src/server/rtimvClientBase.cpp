@@ -46,7 +46,13 @@ rtimvClientBase::~rtimvClientBase()
 
     {
         std::unique_lock<std::mutex> lock( m_imageRequestMutex );
-        m_imageRequestCv.wait( lock, [this] { return !m_imageRequestPending; } );
+        while( m_imageRequestPending )
+        {
+            if( m_imageRequestCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
+            {
+                std::cerr << "rtimvClient: waiting for ImagePlease callback during shutdown.\n";
+            }
+        }
     }
 
     if( m_configReq )
@@ -501,8 +507,6 @@ void rtimvClientBase::Configure()
     }
 }
 
-using namespace std::chrono_literals;
-
 void rtimvClientBase::ImagePlease()
 {
     updateAge();
@@ -530,6 +534,7 @@ void rtimvClientBase::ImagePlease()
     }
 
     m_ImagePleaseContext = new grpc::ClientContext;
+    m_ImagePleaseContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
 
     // The actual RPC.
     stub_->async()->ImagePlease( m_ImagePleaseContext,
