@@ -29,7 +29,7 @@
 rtimvClientBase::rtimvClientBase()
 {
     m_foundation = new rtimvBaseObject( this, nullptr );
-    m_foundation->m_connectionTimer.start(1000);
+    m_foundation->m_connectionTimer.start( 1000 );
 }
 
 rtimvClientBase::~rtimvClientBase()
@@ -443,9 +443,9 @@ bool rtimvClientBase::connected()
 
 void rtimvClientBase::reconnect()
 {
-    sharedLockT lock(m_connectedMutex);
+    sharedLockT lock( m_connectedMutex );
 
-    if(m_connected)
+    if( m_connected )
     {
         return;
     }
@@ -457,7 +457,7 @@ void rtimvClientBase::reconnect()
     lock.lock();
 
     // start getting images again
-    if(m_connected)
+    if( m_connected )
     {
         m_foundation->emit_ImageNeeded();
     }
@@ -493,7 +493,7 @@ void rtimvClientBase::Configure()
     else
     {
         m_connected = false;
-        if(!m_connectionFailReported)
+        if( !m_connectionFailReported )
         {
             std::cerr << "rtimvClient: " << status.error_message() << std::endl;
             m_connectionFailReported = true;
