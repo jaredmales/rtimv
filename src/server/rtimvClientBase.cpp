@@ -29,11 +29,32 @@
 rtimvClientBase::rtimvClientBase()
 {
     m_foundation = new rtimvBaseObject( this, nullptr );
-    m_foundation->m_connectionTimer.start(1000);
+    m_foundation->m_connectionTimer.start( 1000 );
 }
 
 rtimvClientBase::~rtimvClientBase()
 {
+    {
+        std::lock_guard<std::mutex> lock( m_imageRequestMutex );
+        m_shuttingDown = true;
+
+        if( m_ImagePleaseContext )
+        {
+            m_ImagePleaseContext->TryCancel();
+        }
+    }
+
+    {
+        std::unique_lock<std::mutex> lock( m_imageRequestMutex );
+        while( m_imageRequestPending )
+        {
+            if( m_imageRequestCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
+            {
+                std::cerr << "rtimvClient: waiting for ImagePlease callback during shutdown.\n";
+            }
+        }
+    }
+
     if( m_configReq )
     {
         delete m_configReq;
@@ -428,9 +449,9 @@ bool rtimvClientBase::connected()
 
 void rtimvClientBase::reconnect()
 {
-    sharedLockT lock(m_connectedMutex);
+    sharedLockT lock( m_connectedMutex );
 
-    if(m_connected)
+    if( m_connected )
     {
         return;
     }
@@ -442,7 +463,7 @@ void rtimvClientBase::reconnect()
     lock.lock();
 
     // start getting images again
-    if(m_connected)
+    if( m_connected )
     {
         m_foundation->emit_ImageNeeded();
     }
@@ -478,15 +499,13 @@ void rtimvClientBase::Configure()
     else
     {
         m_connected = false;
-        if(!m_connectionFailReported)
+        if( !m_connectionFailReported )
         {
             std::cerr << "rtimvClient: " << status.error_message() << std::endl;
             m_connectionFailReported = true;
         }
     }
 }
-
-using namespace std::chrono_literals;
 
 void rtimvClientBase::ImagePlease()
 {
@@ -495,6 +514,11 @@ void rtimvClientBase::ImagePlease()
     SHARED_CONN_LOCK
 
     std::lock_guard<std::mutex> lock( m_imageRequestMutex );
+
+    if( m_shuttingDown )
+    {
+        return;
+    }
 
     if( m_imageRequestPending )
     {
@@ -510,6 +534,7 @@ void rtimvClientBase::ImagePlease()
     }
 
     m_ImagePleaseContext = new grpc::ClientContext;
+    m_ImagePleaseContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
 
     // The actual RPC.
     stub_->async()->ImagePlease( m_ImagePleaseContext,
@@ -522,6 +547,14 @@ void rtimvClientBase::ImagePlease()
 
 void rtimvClientBase::ImageReceived()
 {
+    {
+        std::lock_guard<std::mutex> lock( m_imageRequestMutex );
+        if( m_shuttingDown )
+        {
+            return;
+        }
+    }
+
     uint32_t nx, ny, nz;
     float fpsEst;
     double imageTime;
@@ -656,6 +689,7 @@ void rtimvClientBase::ImageReceived()
 void rtimvClientBase::ImagePlease_callback( grpc::Status status )
 {
     int action = -1;
+    bool shuttingDown = false;
 
     {
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
@@ -699,6 +733,14 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
         m_ImagePleaseContext = nullptr;
 
         m_imageRequestPending = false;
+        shuttingDown = m_shuttingDown;
+    }
+
+    m_imageRequestCv.notify_all();
+
+    if( shuttingDown )
+    {
+        return;
     }
 
     if( action == 0 )

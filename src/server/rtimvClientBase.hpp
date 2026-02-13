@@ -96,14 +96,16 @@ class rtimvClientBase : public mx::app::application
      */
 
   protected:
-    /// Flag used to indicate that the client is connected to the server.  Setting to false triggers an attempt to reconnect.
+    /// Flag used to indicate that the client is connected to the server.  Setting to false triggers an attempt to
+    /// reconnect.
     bool m_connected{ false };
 
-    /// Counter to track connection attemps.  Used to prevent threads from re-requesting re-connections for the same event.
-    uint64_t m_connections {0};
+    /// Counter to track connection attemps.  Used to prevent threads from re-requesting re-connections for the same
+    /// event.
+    uint64_t m_connections{ 0 };
 
     /// Flag to prevent repeating connection failure reports.
-    bool m_connectionFailReported {false};
+    bool m_connectionFailReported{ false };
 
     std::shared_mutex m_connectedMutex;
 
@@ -124,30 +126,40 @@ class rtimvClientBase : public mx::app::application
      */
     bool connected();
 
-public slots:
+  public slots:
 
     void reconnect();
 
-protected:
+  protected:
     /// Context for the ImagePlease rpc.
     /** This has to stay alive until the rpc finishes and can not be reused
      *
      */
     grpc::ClientContext *m_ImagePleaseContext{ nullptr };
 
-public:
+  public:
     /// Configure the server
     /**
      */
     void Configure();
 
   protected:
+    /// Mutex guarding asynchronous image request state.
     std::mutex m_imageRequestMutex;
 
+    /// Condition variable used to signal completion of pending image requests.
+    std::condition_variable m_imageRequestCv;
+
+    /// Flag indicating client teardown is in progress.
+    bool m_shuttingDown{ false };
+
+    /// True while an ImagePlease RPC is outstanding.
     bool m_imageRequestPending{ false };
 
+    /// Request payload for the ImagePlease RPC.
     remote_rtimv::ImageRequest m_grpcImageRequest;
 
+    /// Last ImagePlease response payload from the server.
     remote_rtimv::Image m_grpcImage;
 
   public:
@@ -688,7 +700,7 @@ public:
     /**
      * The cal mutex must be unlocked before calling
      */
-    void mtxUL_autoScale(bool as /**< [in] the new value of the auto scale flag */);
+    void mtxUL_autoScale( bool as /**< [in] the new value of the auto scale flag */ );
 
     /// Get the auto scale flag value
     /**
