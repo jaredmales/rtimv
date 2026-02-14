@@ -8,8 +8,6 @@
 #ifndef rtimv_rtimvControlPanel_hpp
 #define rtimv_rtimvControlPanel_hpp
 
-#include <shared_mutex>
-
 #include <QWidget>
 
 #include "rtimvMainWindow.hpp"
@@ -29,15 +27,11 @@ class rtimvControlPanel : public QWidget
   public:
     /// Construct the control panel and bind it to the main window model.
     rtimvControlPanel( rtimvMainWindow *imv /**< [in] the main window/model*/,
-                       std::shared_mutex *calMutex /**< [in] calibration/data mutex shared with main window*/,
                        Qt::WindowFlags f = Qt::WindowFlags() /**< [in] Qt window flags*/ );
 
   protected:
     /// Pointer to the main window/model this control panel drives.
     rtimvMainWindow *m_imv;
-
-    /// Shared calibration/data mutex from the main window.
-    std::shared_mutex *m_calMutex{ nullptr };
 
     /// Initialize internal default mode state.
     void setupMode();

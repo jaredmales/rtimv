@@ -4,16 +4,8 @@ rtimvControlPanel::rtimvControlPanel()
 {
 }
 
-rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, std::shared_mutex *calMutex, Qt::WindowFlags f )
-    : QWidget( 0, f )
+rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, Qt::WindowFlags f ) : QWidget( 0, f )
 {
-    m_calMutex = calMutex;
-
-    if( m_calMutex == nullptr )
-    {
-        throw std::invalid_argument( "calMutex can't be null" );
-    }
-
     m_ui.setupUi( this );
     m_imv = v;
 
@@ -40,8 +32,7 @@ rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, std::shared_mutex *cal
     m_viewBox->setFlag( QGraphicsItem::ItemIsSelectable, true );
     m_viewBox->setFlag( QGraphicsItem::ItemIsMovable, true );
     m_viewBox->setStretchable( false );
-    m_viewBox->setEdgeTol(
-        m_imv->nx() );
+    m_viewBox->setEdgeTol( m_imv->nx() );
     m_qgsView->addItem( m_viewBox );
 
     double viewZoom = (double)m_ui.viewView->width() / (double)m_imv->nx();
@@ -316,14 +307,12 @@ void rtimvControlPanel::enableViewViewMode( int state )
 
 void rtimvControlPanel::on_xcenEntry_editingFinished()
 {
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    m_imv->mtxL_setViewCen( m_ui.xcenEntry->text().toDouble() / m_imv->nx(), m_imv->get_ycen(), lock );
+    m_imv->mtxUL_setViewCen( m_ui.xcenEntry->text().toDouble() / m_imv->nx(), m_imv->get_ycen() );
 }
 
 void rtimvControlPanel::on_ycenEntry_editingFinished()
 {
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    m_imv->mtxL_setViewCen( m_imv->get_xcen(), m_ui.ycenEntry->text().toDouble() / m_imv->ny(), lock );
+    m_imv->mtxUL_setViewCen( m_imv->get_xcen(), m_ui.ycenEntry->text().toDouble() / m_imv->ny() );
 }
 
 void rtimvControlPanel::on_widthEntry_editingFinished()
@@ -344,68 +333,55 @@ void rtimvControlPanel::on_heightEntry_editingFinished()
 
 void rtimvControlPanel::on_view_center_clicked()
 {
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    m_imv->mtxL_setViewCen( .5, .5, lock );
+    m_imv->mtxUL_setViewCen( .5, .5 );
 }
 
 void rtimvControlPanel::on_view_ul_clicked()
 {
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    m_imv->mtxL_setViewCen( m_imv->get_xcen() / m_imv->nx() - 1. / m_imv->zoomLevel(),
-                            m_imv->get_ycen() / m_imv->ny() - 1. / m_imv->zoomLevel(),
-                            lock );
+    m_imv->mtxUL_setViewCen( m_imv->get_xcen() / m_imv->nx() - 1. / m_imv->zoomLevel(),
+                             m_imv->get_ycen() / m_imv->ny() - 1. / m_imv->zoomLevel() );
 }
 
 void rtimvControlPanel::on_view_up_clicked()
 {
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    m_imv->mtxL_setViewCen(
-        m_imv->get_xcen() / m_imv->nx(), m_imv->get_ycen() / m_imv->ny() - 1. / m_imv->zoomLevel(), lock );
+    m_imv->mtxUL_setViewCen( m_imv->get_xcen() / m_imv->nx(),
+                             m_imv->get_ycen() / m_imv->ny() - 1. / m_imv->zoomLevel() );
 }
 
 void rtimvControlPanel::on_view_ur_clicked()
 {
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    m_imv->mtxL_setViewCen( m_imv->get_xcen() / m_imv->nx() + 1. / m_imv->zoomLevel(),
-                            m_imv->get_ycen() / m_imv->ny() - 1. / m_imv->zoomLevel(),
-                            lock );
+    m_imv->mtxUL_setViewCen( m_imv->get_xcen() / m_imv->nx() + 1. / m_imv->zoomLevel(),
+                             m_imv->get_ycen() / m_imv->ny() - 1. / m_imv->zoomLevel() );
 }
 
 void rtimvControlPanel::on_view_right_clicked()
 {
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    m_imv->mtxL_setViewCen(
-        m_imv->get_xcen() / m_imv->nx() + 1. / m_imv->zoomLevel(), m_imv->get_ycen() / m_imv->ny(), lock );
+    m_imv->mtxUL_setViewCen( m_imv->get_xcen() / m_imv->nx() + 1. / m_imv->zoomLevel(),
+                             m_imv->get_ycen() / m_imv->ny() );
 }
 
 void rtimvControlPanel::on_view_dr_clicked()
 {
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    m_imv->mtxL_setViewCen( m_imv->get_xcen() / m_imv->nx() + 1. / m_imv->zoomLevel(),
-                            m_imv->get_ycen() / m_imv->ny() + 1. / m_imv->zoomLevel(),
-                            lock );
+    m_imv->mtxUL_setViewCen( m_imv->get_xcen() / m_imv->nx() + 1. / m_imv->zoomLevel(),
+                             m_imv->get_ycen() / m_imv->ny() + 1. / m_imv->zoomLevel() );
 }
 
 void rtimvControlPanel::on_view_down_clicked()
 {
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    m_imv->mtxL_setViewCen(
-        m_imv->get_xcen() / m_imv->nx(), m_imv->get_ycen() / m_imv->ny() + 1. / m_imv->zoomLevel(), lock );
+    m_imv->mtxUL_setViewCen( m_imv->get_xcen() / m_imv->nx(),
+                             m_imv->get_ycen() / m_imv->ny() + 1. / m_imv->zoomLevel() );
 }
 
 void rtimvControlPanel::on_view_dl_clicked()
 {
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    m_imv->mtxL_setViewCen( m_imv->get_xcen() / m_imv->nx() - 1. / m_imv->zoomLevel(),
-                            m_imv->get_ycen() / m_imv->ny() + 1. / m_imv->zoomLevel(),
-                            lock );
+    m_imv->mtxUL_setViewCen( m_imv->get_xcen() / m_imv->nx() - 1. / m_imv->zoomLevel(),
+                             m_imv->get_ycen() / m_imv->ny() + 1. / m_imv->zoomLevel() );
 }
 
 void rtimvControlPanel::on_view_left_clicked()
 {
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    m_imv->mtxL_setViewCen(
-        m_imv->get_xcen() / m_imv->nx() - 1. / m_imv->zoomLevel(), m_imv->get_ycen() / m_imv->ny(), lock );
+    m_imv->mtxUL_setViewCen( m_imv->get_xcen() / m_imv->nx() - 1. / m_imv->zoomLevel(),
+                             m_imv->get_ycen() / m_imv->ny() );
 }
 
 void rtimvControlPanel::updateMouseCoords( double x, double y, double v )
@@ -551,8 +527,7 @@ void rtimvControlPanel::on_scaleTypeCombo_activated( int ct )
 
 void rtimvControlPanel::on_colorbarCombo_activated( int cb )
 {
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    m_imv->mtxL_load_colorbar( static_cast<rtimv::colorbar>( cb ), true, lock );
+    m_imv->mtxUL_load_colorbar( static_cast<rtimv::colorbar>( cb ), true );
 }
 
 void rtimvControlPanel::update_mindatSlider()
@@ -853,12 +828,10 @@ void rtimvControlPanel::viewBoxMoved( const QRectF &vbr )
     QPointF np = m_qpmiView->mapFromItem( m_viewBox, QPointF( vbr.x(), vbr.y() ) );
     QPointF np2 = m_qpmiView->mapFromItem( m_viewBox, QPointF( vbr.bottom(), vbr.right() ) );
 
-
     double nxcen = np.x() + .5 * ( np2.x() - np.x() );
     double nycen = np.y() + .5 * ( np2.y() - np.y() );
 
-    std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    m_imv->mtxL_setViewCen( nxcen / (double)m_imv->nx(), nycen / (double)m_imv->nx(), lock, true );
+    m_imv->mtxUL_setViewCen( nxcen / (double)m_imv->nx(), nycen / (double)m_imv->nx(), true );
 }
 
 void rtimvControlPanel::showToolTipCoordsChanged( bool sttc )

@@ -637,7 +637,7 @@ void rtimvMainWindow::launchControlPanel()
 {
     if( !imcp )
     {
-        imcp = new rtimvControlPanel( this, &m_calMutex, Qt::Tool );
+        imcp = new rtimvControlPanel( this, Qt::Tool );
         connect( imcp, SIGNAL( launchStatsBox() ), this, SLOT( doLaunchStatsBox() ) );
         connect( imcp, SIGNAL( hideStatsBox() ), this, SLOT( doHideStatsBox() ) );
     }
@@ -859,6 +859,12 @@ void rtimvMainWindow::mtxL_setViewCen_impl( float x, float y, bool movezoombox )
     ui.graphicsView->mapCenterToScene( vp.x(), vp.y() );
 
     change_center( movezoombox );
+}
+
+void rtimvMainWindow::mtxUL_setViewCen( float x, float y, bool movezoombox )
+{
+    sharedLockT lock( m_calMutex );
+    mtxL_setViewCen( x, y, lock, movezoombox );
 }
 
 void rtimvMainWindow::mtxL_setViewCen( float x, float y, const uniqueLockT &lock, bool movezoombox )
