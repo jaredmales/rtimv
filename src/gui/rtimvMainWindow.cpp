@@ -360,10 +360,10 @@ void rtimvMainWindow::mtxL_postSetImsize( const uniqueLockT &lock )
     if( imcp )
     {
         QTransform transform;
-        float viewZoom = (float)imcp->ui.viewView->width() / (float)m_nx;
+        float viewZoom = (float)imcp->m_ui.viewView->width() / (float)m_nx;
 
         transform.scale( viewZoom, viewZoom );
-        imcp->ui.viewView->setTransform( transform );
+        imcp->m_ui.viewView->setTransform( transform );
     }
 
     statsBoxRemove( m_statsBox );
@@ -411,7 +411,7 @@ void rtimvMainWindow::post_zoomLevel()
     if( imcp )
     {
         transform.scale( pointerOverZoom, pointerOverZoom );
-        imcp->ui.pointerView->setTransform( transform );
+        imcp->m_ui.pointerView->setTransform( transform );
     }
 
     RTIMV_DEBUG_BREADCRUMB
@@ -587,16 +587,16 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT &lock )
 
     if( imcp )
     {
-        if( imcp->ViewViewMode == ViewViewEnabled )
+        if( imcp->m_viewViewMode == ViewViewEnabled )
         {
-            if( !imcp->qpmi_view )
+            if( !imcp->m_qpmiView )
             {
-                imcp->qpmi_view = imcp->qgs_view->addPixmap( m_qpm );
+                imcp->m_qpmiView = imcp->m_qgsView->addPixmap( m_qpm );
             }
 
-            imcp->qpmi_view->setPixmap( m_qpm );
+            imcp->m_qpmiView->setPixmap( m_qpm );
 
-            imcp->qpmi_view->stackBefore( imcp->viewLineVert );
+            imcp->m_qpmiView->stackBefore( imcp->m_viewLineVert );
         }
     }
 
@@ -825,22 +825,22 @@ void rtimvMainWindow::change_center( bool movezoombox )
 
     if( imcp )
     {
-        imcp->viewLineVert->setLine( ui.graphicsView->xCen(), 0, ui.graphicsView->xCen(), m_ny );
-        imcp->viewLineHorz->setLine( 0, ui.graphicsView->yCen(), m_nx, ui.graphicsView->yCen() );
+        imcp->m_viewLineVert->setLine( ui.graphicsView->xCen(), 0, ui.graphicsView->xCen(), m_ny );
+        imcp->m_viewLineHorz->setLine( 0, ui.graphicsView->yCen(), m_nx, ui.graphicsView->yCen() );
 
         if( zoomLevel() <= 1.0 )
-            imcp->viewBox->setVisible( false );
+            imcp->m_viewBox->setVisible( false );
         else
         {
-            imcp->viewBox->setVisible( true );
+            imcp->m_viewBox->setVisible( true );
             if( movezoombox )
             {
-                QPointF tmpp = imcp->viewBox->mapFromParent( ui.graphicsView->xCen() - .5 * m_nx / zoomLevel(),
-                                                             ui.graphicsView->yCen() - .5 * m_ny / zoomLevel() );
-                imcp->viewBox->setRect( tmpp.x(), tmpp.y(), m_nx / zoomLevel(), m_ny / zoomLevel() );
+                QPointF tmpp = imcp->m_viewBox->mapFromParent( ui.graphicsView->xCen() - .5 * m_nx / zoomLevel(),
+                                                               ui.graphicsView->yCen() - .5 * m_ny / zoomLevel() );
+                imcp->m_viewBox->setRect( tmpp.x(), tmpp.y(), m_nx / zoomLevel(), m_ny / zoomLevel() );
             }
         }
-        imcp->ui.viewView->centerOn( .5 * m_nx, .5 * m_ny );
+        imcp->m_ui.viewView->centerOn( .5 * m_nx, .5 * m_ny );
         imcp->update_panel();
     }
 }
@@ -1471,8 +1471,8 @@ void rtimvMainWindow::imStatsClosed( int result )
 
     if( imcp )
     {
-        imcp->statsBoxButtonState = false;
-        imcp->ui.statsBoxButton->setText( "Show Stats Box" );
+        imcp->m_statsBoxButtonState = false;
+        imcp->m_ui.statsBoxButton->setText( "Show Stats Box" );
     }
 }
 
@@ -2338,7 +2338,7 @@ void rtimvMainWindow::autoScale( bool as )
 
     mtxUL_autoScale( as );
 
-    //nb can't rely on m_autoScale updating immediately
+    // nb can't rely on m_autoScale updating immediately
     emit autoScaleUpdated( as );
 
     if( as )
@@ -2489,8 +2489,8 @@ void rtimvMainWindow::toggleStatsBox()
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
         if( imcp )
         {
-            imcp->statsBoxButtonState = false;
-            imcp->ui.statsBoxButton->setText( "Show Stats Box" );
+            imcp->m_statsBoxButtonState = false;
+            imcp->m_ui.statsBoxButton->setText( "Show Stats Box" );
         }
     }
     else
@@ -2500,8 +2500,8 @@ void rtimvMainWindow::toggleStatsBox()
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
         if( imcp )
         {
-            imcp->statsBoxButtonState = true;
-            imcp->ui.statsBoxButton->setText( "Hide Stats Box" );
+            imcp->m_statsBoxButtonState = true;
+            imcp->m_ui.statsBoxButton->setText( "Hide Stats Box" );
         }
     }
 }

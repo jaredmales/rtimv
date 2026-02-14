@@ -1,10 +1,20 @@
+/** \file rtimvControlPanel.hpp
+ * \brief Declarations for the rtimvControlPanel GUI class.
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
 
-#ifndef __imviewercontrolpanel_h__
-#define __imviewercontrolpanel_h__
+#ifndef rtimv_rtimvControlPanel_hpp
+#define rtimv_rtimvControlPanel_hpp
 
-#include "ui_rtimvControlPanel.h"
+#include <shared_mutex>
+
+#include <QWidget>
+
 #include "rtimvMainWindow.hpp"
 #include "StretchBox.hpp"
+#include "ui_rtimvControlPanel.h"
 
 class rtimvMainWindow;
 
@@ -13,161 +23,296 @@ class rtimvControlPanel : public QWidget
     Q_OBJECT
 
   private:
-    rtimvControlPanel()
-    {
-    }
+    /// Private default constructor is disabled for normal use.
+    rtimvControlPanel();
 
   public:
-    rtimvControlPanel( rtimvMainWindow *imv, std::shared_mutex *calMutex, Qt::WindowFlags f = Qt::WindowFlags() );
+    /// Construct the control panel and bind it to the main window model.
+    rtimvControlPanel( rtimvMainWindow *imv /**< [in] the main window/model*/,
+                       std::shared_mutex *calMutex /**< [in] calibration/data mutex shared with main window*/,
+                       Qt::WindowFlags f = Qt::WindowFlags() /**< [in] Qt window flags*/ );
 
   protected:
-    rtimvMainWindow *imv;
+    /// Pointer to the main window/model this control panel drives.
+    rtimvMainWindow *m_imv;
 
+    /// Shared calibration/data mutex from the main window.
     std::shared_mutex *m_calMutex{ nullptr };
 
+    /// Initialize internal default mode state.
     void setupMode();
+
+    /// Populate combo boxes with their available options.
     void setupCombos();
 
+    /// Initialize all UI fields from current model state.
     void init_panel();
 
   public:
+    /// Refresh all UI controls from the current model values.
     void update_panel();
 
     /*** Zoom Controls ***/
   public:
+    /// Synchronize zoom slider position from model zoom.
     void update_ZoomSlider();
+
+    /// Synchronize zoom entry text from model zoom.
     void update_ZoomEntry();
 
   protected slots:
-    void on_ZoomSlider_valueChanged( int value );
+    /// Handle zoom slider changes and apply zoom to the model.
+    void on_ZoomSlider_valueChanged( int value /**< [in] new slider value*/ );
+
+    /// Set zoom level to 1x.
     void on_Zoom1_clicked();
+
+    /// Set zoom level to 2x.
     void on_Zoom2_clicked();
+
+    /// Set zoom level to 4x.
     void on_Zoom4_clicked();
+
+    /// Set zoom level to 8x.
     void on_Zoom8_clicked();
+
+    /// Set zoom level to 16x.
     void on_Zoom16_clicked();
+
+    /// Apply zoom value entered in the zoom text field.
     void on_ZoomEntry_editingFinished();
 
+    /// Set pointer over-zoom factor to 1x.
     void on_overZoom1_clicked();
+
+    /// Set pointer over-zoom factor to 2x.
     void on_overZoom2_clicked();
+
+    /// Set pointer over-zoom factor to 4x.
     void on_overZoom4_clicked();
 
   public:
     /*** The zoom box view ***/
-    QGraphicsScene *qgs_view;
-    QGraphicsScene *qgs_empty;
-    QGraphicsPixmapItem *qpmi_view; // = 0;
-    QGraphicsLineItem *viewLineVert;
-    QGraphicsLineItem *viewLineHorz;
-    // QGraphicsRectItem * viewBox;
-    StretchBox *viewBox;
+    /// Scene containing the overview image and selection graphics.
+    QGraphicsScene *m_qgsView;
 
-    int ViewViewMode; // options: ViewViewEnabled ViewViewNoImage
-    void set_ViewViewMode( int );
+    /// Empty scene shown when overview/pointer views are disabled.
+    QGraphicsScene *m_qgsEmpty;
 
+    /// Pixmap item for the overview image.
+    QGraphicsPixmapItem *m_qpmiView; // = 0;
+
+    /// Vertical center guideline in overview mode.
+    QGraphicsLineItem *m_viewLineVert;
+
+    /// Horizontal center guideline in overview mode.
+    QGraphicsLineItem *m_viewLineHorz;
+
+    /// Movable viewport rectangle in the overview scene.
+    StretchBox *m_viewBox;
+
+    /// Current overview mode (ViewViewEnabled/ViewViewNoImage).
+    int m_viewViewMode; // options: ViewViewEnabled ViewViewNoImage
+
+    /// Set the view-overview display mode.
+    void set_ViewViewMode( int vvm /**< [in] requested view-overview mode*/ );
+
+    /// Update overview center coordinate entries.
     void update_xycenEntry();
+
+    /// Update overview width/height entries.
     void update_whEntry();
 
   protected slots:
-    void on_ViewViewModecheckBox_stateChanged( int );
-    void enableViewViewMode( int );
+    /// Handle checkbox state changes for overview mode.
+    void on_ViewViewModecheckBox_stateChanged( int state /**< [in] new checkbox state*/ );
 
+    /// Enable or disable overview mode from UI state.
+    void enableViewViewMode( int state /**< [in] non-zero enables overview mode*/ );
+
+    /// Apply edited x-center value.
     void on_xcenEntry_editingFinished();
+
+    /// Apply edited y-center value.
     void on_ycenEntry_editingFinished();
 
+    /// Apply edited viewport width.
     void on_widthEntry_editingFinished();
+
+    /// Apply edited viewport height.
     void on_heightEntry_editingFinished();
 
+    /// Center viewport on full-frame center.
     void on_view_center_clicked();
+
+    /// Move viewport up-left.
     void on_view_ul_clicked();
+
+    /// Move viewport up.
     void on_view_up_clicked();
+
+    /// Move viewport up-right.
     void on_view_ur_clicked();
+
+    /// Move viewport right.
     void on_view_right_clicked();
+
+    /// Move viewport down-right.
     void on_view_dr_clicked();
+
+    /// Move viewport down.
     void on_view_down_clicked();
+
+    /// Move viewport down-left.
     void on_view_dl_clicked();
+
+    /// Move viewport left.
     void on_view_left_clicked();
 
   public:
     /*** The pointer tip view ***/
-    QPointF pointerViewCen;
-    int PointerViewMode; // options: PointerViewEnabled PointerViewOnPress PointerViewDisabled
+    /// Fixed pointer-view center in scene coordinates.
+    QPointF m_pointerViewCen;
+
+    /// Current pointer-view mode state.
+    int m_pointerViewMode; // options: PointerViewEnabled PointerViewOnPress PointerViewDisabled
 
   protected:
-    bool PointerViewEmpty;
-    bool PointerViewFixed;
-    bool PointerViewWaiting;
+    /// True when pointer view is displaying the empty scene.
+    bool m_pointerViewEmpty;
+
+    /// True when pointer view location is user-fixed.
+    bool m_pointerViewFixed;
+
+    /// True while waiting for a click to set fixed pointer location.
+    bool m_pointerViewWaiting;
 
   public:
-    void updateMouseCoords( double x, double y, double v );
+    /// Update mouse coordinate and value displays.
+    void updateMouseCoords( double x /**< [in] x coordinate in image pixels*/,
+                            double y /**< [in] y coordinate in image pixels*/,
+                            double v /**< [in] pixel value at x,y*/ );
+
+    /// Clear mouse coordinate and value displays.
     void nullMouseCoords();
-    void viewLeftPressed( QPointF mp );
-    void viewLeftClicked( QPointF mp );
+
+    /// Handle left-button press in the main view.
+    void viewLeftPressed( QPointF mp /**< [in] mouse position in scene coordinates*/ );
+
+    /// Handle left-button click/release in the main view.
+    void viewLeftClicked( QPointF mp /**< [in] mouse position in scene coordinates*/ );
 
   public slots:
-    void set_PointerViewMode( int );
-    void on_pointerViewModecomboBox_activated( int );
+    /// Set pointer-view mode policy.
+    void set_PointerViewMode( int pvm /**< [in] pointer view mode*/ );
+
+    /// Handle pointer-view mode combo selection.
+    void on_pointerViewModecomboBox_activated( int pvm /**< [in] selected pointer view mode*/ );
+
+    /// Toggle pointer location locking workflow.
     void on_pointerSetLocButton_clicked();
-    void set_pointerViewCen( QPointF mp );
 
-    void viewBoxMoved( const QRectF &newcen );
+    /// Set the pointer-view center location.
+    void set_pointerViewCen( QPointF mp /**< [in] new pointer-view center in scene coordinates*/ );
 
-    /*** Color Controls ***/
-    /*void setScaleMode( int sm )
-    {
-        ui.scaleModeCombo->setCurrentIndex( sm );
-    }*/
+    /// Update model center after overview box movement.
+    void viewBoxMoved( const QRectF &newcen /**< [in] updated overview selection rectangle*/ );
 
   protected slots:
-    void on_scaleTypeCombo_activated( int );
-    void on_colorbarCombo_activated( int );
+    /// Handle stretch type combo selection.
+    void on_scaleTypeCombo_activated( int ct /**< [in] selected stretch type index*/ );
+
+    /// Handle colorbar combo selection.
+    void on_colorbarCombo_activated( int cb /**< [in] selected colorbar index*/ );
 
     /* scale controls */
   protected:
+    /// Synchronize min-data slider from model state.
     void update_mindatSlider();
+
+    /// Synchronize min-data absolute entry from model state.
     void update_mindatEntry();
+
+    /// Synchronize min-data relative entry from model state.
     void update_mindatRelEntry();
 
+    /// Synchronize max-data slider from model state.
     void update_maxdatSlider();
+
+    /// Synchronize max-data absolute entry from model state.
     void update_maxdatEntry();
+
+    /// Synchronize max-data relative entry from model state.
     void update_maxdatRelEntry();
 
+    /// Synchronize bias slider from model state.
     void update_biasSlider();
+
+    /// Synchronize bias absolute entry from model state.
     void update_biasEntry();
+
+    /// Synchronize bias relative entry from model state.
     void update_biasRelEntry();
 
+    /// Synchronize contrast slider from model state.
     void update_contrastSlider();
+
+    /// Synchronize contrast absolute entry from model state.
     void update_contrastEntry();
+
+    /// Synchronize contrast relative entry from model state.
     void update_contrastRelEntry();
 
   public slots:
-    void on_scaleModeCombo_activated( int index );
+    /// Handle color mode combo selection.
+    void on_scaleModeCombo_activated( int index /**< [in] selected color mode index*/ );
 
-    void on_mindatSlider_valueChanged( int value );
+    /// Handle minimum data slider changes.
+    void on_mindatSlider_valueChanged( int value /**< [in] new minimum slider value*/ );
+
+    /// Handle minimum data entry edits.
     void on_mindatEntry_editingFinished();
 
-    void on_maxdatSlider_valueChanged( int value );
+    /// Handle maximum data slider changes.
+    void on_maxdatSlider_valueChanged( int value /**< [in] new maximum slider value*/ );
+
+    /// Handle maximum data entry edits.
     void on_maxdatEntry_editingFinished();
 
-    void on_biasSlider_valueChanged( int value );
+    /// Handle bias slider changes.
+    void on_biasSlider_valueChanged( int value /**< [in] new bias slider value*/ );
+
+    /// Handle bias entry edits.
     void on_biasEntry_editingFinished();
 
-    void on_contrastSlider_valueChanged( int value );
+    /// Handle contrast slider changes.
+    void on_contrastSlider_valueChanged( int value /**< [in] new contrast slider value*/ );
+
+    /// Handle contrast entry edits.
     void on_contrastEntry_editingFinished();
 
   public:
     /*** Real Time Controls ***/
-    bool statsBoxButtonState;
+    /// Tracks whether the stats box is currently shown.
+    bool m_statsBoxButtonState;
 
   public slots:
-    void on_imtimerspinBox_valueChanged( int );
+    /// Handle image timer update interval changes.
+    void on_imtimerspinBox_valueChanged( int timeout /**< [in] new image timeout value*/ );
+
+    /// Toggle stats box visibility.
     void on_statsBoxButton_clicked();
 
   signals:
+    /// Request stats box creation/display.
     void launchStatsBox();
+
+    /// Request stats box hide/close.
     void hideStatsBox();
 
   public:
-    Ui::rtimvControlPanel ui;
+    /// Generated Qt UI object for this panel.
+    Ui::rtimvControlPanel m_ui;
 
     /*--------- Mouse coordinates display ---------------*/
   public slots:
@@ -179,7 +324,7 @@ class rtimvControlPanel : public QWidget
     /// Receive signal that the static coords display flag has changed.
     /** Updates the button text.
      */
-    void showStaticCoordsChanged( bool /**< [in] the new value of the flag*/ );
+    void showStaticCoordsChanged( bool ssc /**< [in] the new value of the flag*/ );
 
     /// Toggle the tool tip coords display flag
     void on_toolTipCoordsButton_clicked();
@@ -189,10 +334,10 @@ class rtimvControlPanel : public QWidget
 
   signals:
     /// Request that the tool tip coords display flag change.
-    void showToolTipCoords( bool /**< [in] the new value of the flag*/ );
+    void showToolTipCoords( bool sttc /**< [in] the new value of the flag*/ );
 
     /// Request that the static coords display flag change.
-    void showStaticCoords( bool /**< [in] the new value of the flag*/ );
+    void showStaticCoords( bool ssc /**< [in] the new value of the flag*/ );
 
     /*--------- Target Cross ---------------*/
   public slots:
@@ -209,7 +354,7 @@ class rtimvControlPanel : public QWidget
     /// Notify that the target visibility has changed.
     /** This updates the push button text.
      */
-    void targetVisibleChanged( bool tv );
+    void targetVisibleChanged( bool tv /**< [in] the new target visibility state*/ );
 
     /// Toggle the target cross visibility when button pressed.
     void on_buttonTargetCross_clicked();
@@ -235,7 +380,7 @@ class rtimvControlPanel : public QWidget
     void targetYc( float tyc /**< [in] the new target y coordinate*/ );
 
     /// Request to set the target cross visibility
-    void targetVisible( bool tv );
+    void targetVisible( bool tv /**< [in] the new target visibility state*/ );
 };
 
-#endif //__imviewercontrolpanel_h__
+#endif // rtimv_rtimvControlPanel_hpp

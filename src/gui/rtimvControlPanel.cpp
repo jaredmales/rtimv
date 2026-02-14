@@ -1,5 +1,9 @@
 #include "rtimvControlPanel.hpp"
 
+rtimvControlPanel::rtimvControlPanel()
+{
+}
+
 rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, std::shared_mutex *calMutex, Qt::WindowFlags f )
     : QWidget( 0, f )
 {
@@ -10,92 +14,91 @@ rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, std::shared_mutex *cal
         throw std::invalid_argument( "calMutex can't be null" );
     }
 
-    ui.setupUi( this );
-    imv = v;
+    m_ui.setupUi( this );
+    m_imv = v;
 
     setupMode();
     setupCombos();
-    ui.tabWidget->setCurrentIndex( 0 );
+    m_ui.tabWidget->setCurrentIndex( 0 );
 
-    qgs_view = new QGraphicsScene();
-    qgs_empty = new QGraphicsScene();
+    m_qgsView = new QGraphicsScene();
+    m_qgsEmpty = new QGraphicsScene();
 
-    ui.pointerView->setScene( qgs_empty );
-    PointerViewEmpty = true;
+    m_ui.pointerView->setScene( m_qgsEmpty );
+    m_pointerViewEmpty = true;
 
-    qpmi_view = qgs_view->addPixmap( *( v->getPixmap() ) );
+    m_qpmiView = m_qgsView->addPixmap( *( v->getPixmap() ) );
 
-    ui.viewView->setScene( qgs_view );
+    m_ui.viewView->setScene( m_qgsView );
 
-    viewLineVert = qgs_view->addLine( QLineF( .5 * imv->nx(), 0, .5 * imv->nx(), imv->ny() ), QColor( "lime" ) );
-    viewLineHorz = qgs_view->addLine( QLineF( 0, .5 * imv->ny(), imv->nx(), .5 * imv->ny() ), QColor( "lime" ) );
-    // viewBox = qgs_view->addRect(QRectF(0,0, imv->get_nx(), imv->get_ny()), QColor("lime"));
-    viewBox = new StretchBox( 0, 0, imv->nx(), imv->ny() );
-    viewBox->setPen( QPen( "lime" ) );
-    viewBox->setFlag( QGraphicsItem::ItemIsSelectable, true );
-    viewBox->setFlag( QGraphicsItem::ItemIsMovable, true );
-    viewBox->setStretchable( false );
-    viewBox->setEdgeTol( imv->nx() ); // 5.*imv->nx()/ui.viewView->width() < 5 ? 5 : 5.*imv->nx()/ui.viewView->width()
-                                      // );
-    qgs_view->addItem( viewBox );
+    m_viewLineVert =
+        m_qgsView->addLine( QLineF( .5 * m_imv->nx(), 0, .5 * m_imv->nx(), m_imv->ny() ), QColor( "lime" ) );
+    m_viewLineHorz =
+        m_qgsView->addLine( QLineF( 0, .5 * m_imv->ny(), m_imv->nx(), .5 * m_imv->ny() ), QColor( "lime" ) );
+    m_viewBox = new StretchBox( 0, 0, m_imv->nx(), m_imv->ny() );
+    m_viewBox->setPen( QPen( "lime" ) );
+    m_viewBox->setFlag( QGraphicsItem::ItemIsSelectable, true );
+    m_viewBox->setFlag( QGraphicsItem::ItemIsMovable, true );
+    m_viewBox->setStretchable( false );
+    m_viewBox->setEdgeTol(
+        m_imv->nx() );
+    m_qgsView->addItem( m_viewBox );
 
-    double viewZoom = (double)ui.viewView->width() / (double)imv->nx();
-    ui.viewView->scale( viewZoom, viewZoom );
+    double viewZoom = (double)m_ui.viewView->width() / (double)m_imv->nx();
+    m_ui.viewView->scale( viewZoom, viewZoom );
 
-    PointerViewFixed = false;
-    PointerViewWaiting = false;
+    m_pointerViewFixed = false;
+    m_pointerViewWaiting = false;
 
-    connect( imv, SIGNAL( showToolTipCoordsChanged( bool ) ), this, SLOT( showToolTipCoordsChanged( bool ) ) );
-    connect( this, SIGNAL( showToolTipCoords( bool ) ), imv, SLOT( showToolTipCoords( bool ) ) );
-    connect( imv, SIGNAL( showStaticCoordsChanged( bool ) ), this, SLOT( showStaticCoordsChanged( bool ) ) );
-    connect( this, SIGNAL( showStaticCoords( bool ) ), imv, SLOT( showStaticCoords( bool ) ) );
+    connect( m_imv, SIGNAL( showToolTipCoordsChanged( bool ) ), this, SLOT( showToolTipCoordsChanged( bool ) ) );
+    connect( this, SIGNAL( showToolTipCoords( bool ) ), m_imv, SLOT( showToolTipCoords( bool ) ) );
+    connect( m_imv, SIGNAL( showStaticCoordsChanged( bool ) ), this, SLOT( showStaticCoordsChanged( bool ) ) );
+    connect( this, SIGNAL( showStaticCoords( bool ) ), m_imv, SLOT( showStaticCoords( bool ) ) );
 
-    connect( imv, SIGNAL( targetXcChanged( float ) ), this, SLOT( targetXcChanged( float ) ) );
-    connect( imv, SIGNAL( targetYcChanged( float ) ), this, SLOT( targetYcChanged( float ) ) );
-    connect( imv, SIGNAL( targetVisibleChanged( bool ) ), this, SLOT( targetVisibleChanged( bool ) ) );
+    connect( m_imv, SIGNAL( targetXcChanged( float ) ), this, SLOT( targetXcChanged( float ) ) );
+    connect( m_imv, SIGNAL( targetYcChanged( float ) ), this, SLOT( targetYcChanged( float ) ) );
+    connect( m_imv, SIGNAL( targetVisibleChanged( bool ) ), this, SLOT( targetVisibleChanged( bool ) ) );
 
-    connect( this, SIGNAL( targetXc( float ) ), imv, SLOT( targetXc( float ) ) );
-    connect( this, SIGNAL( targetYc( float ) ), imv, SLOT( targetYc( float ) ) );
-    connect( this, SIGNAL( targetVisible( bool ) ), imv, SLOT( targetVisible( bool ) ) );
+    connect( this, SIGNAL( targetXc( float ) ), m_imv, SLOT( targetXc( float ) ) );
+    connect( this, SIGNAL( targetYc( float ) ), m_imv, SLOT( targetYc( float ) ) );
+    connect( this, SIGNAL( targetVisible( bool ) ), m_imv, SLOT( targetVisible( bool ) ) );
 
     init_panel();
 
-    // connect(viewBox, SIGNAL(moved(const QRectF & )), this, SLOT(viewBoxMoved(const QRectF &)));
-
-    statsBoxButtonState = false;
+    m_statsBoxButtonState = false;
 }
 
 void rtimvControlPanel::setupMode()
 {
-    ViewViewMode = ViewViewNoImage;       // ViewViewEnabled;
-    PointerViewMode = PointerViewOnPress; // PointerViewEnabled;
+    m_viewViewMode = ViewViewNoImage;       // ViewViewEnabled;
+    m_pointerViewMode = PointerViewOnPress; // PointerViewEnabled;
 }
 
 void rtimvControlPanel::setupCombos()
 {
-    ui.scaleModeCombo->insertItem( static_cast<int>( rtimv::colormode::minmaxglobal ), "Min/Max Global" );
-    ui.scaleModeCombo->insertItem( static_cast<int>( rtimv::colormode::minmaxbox ), "Min/Max Box" );
-    ui.scaleModeCombo->insertItem( static_cast<int>( rtimv::colormode::user ), "User" );
-    ui.scaleModeCombo->setCurrentIndex( static_cast<int>( rtimv::colormode::user ) );
+    m_ui.scaleModeCombo->insertItem( static_cast<int>( rtimv::colormode::minmaxglobal ), "Min/Max Global" );
+    m_ui.scaleModeCombo->insertItem( static_cast<int>( rtimv::colormode::minmaxbox ), "Min/Max Box" );
+    m_ui.scaleModeCombo->insertItem( static_cast<int>( rtimv::colormode::user ), "User" );
+    m_ui.scaleModeCombo->setCurrentIndex( static_cast<int>( rtimv::colormode::user ) );
 
-    ui.scaleTypeCombo->insertItem( static_cast<int>( rtimv::stretch::linear ), "Linear" );
-    ui.scaleTypeCombo->insertItem( static_cast<int>( rtimv::stretch::log ), "Log" );
-    ui.scaleTypeCombo->insertItem( static_cast<int>( rtimv::stretch::pow ), "Power" );
-    ui.scaleTypeCombo->insertItem( static_cast<int>( rtimv::stretch::sqrt ), "Square Root" );
-    ui.scaleTypeCombo->insertItem( static_cast<int>( rtimv::stretch::square ), "Squared" );
+    m_ui.scaleTypeCombo->insertItem( static_cast<int>( rtimv::stretch::linear ), "Linear" );
+    m_ui.scaleTypeCombo->insertItem( static_cast<int>( rtimv::stretch::log ), "Log" );
+    m_ui.scaleTypeCombo->insertItem( static_cast<int>( rtimv::stretch::pow ), "Power" );
+    m_ui.scaleTypeCombo->insertItem( static_cast<int>( rtimv::stretch::sqrt ), "Square Root" );
+    m_ui.scaleTypeCombo->insertItem( static_cast<int>( rtimv::stretch::square ), "Squared" );
 
-    ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::grey ), "Grey" );
-    ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::jet ), "Jet" );
-    ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::hot ), "Hot" );
-    ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::bone ), "Bone" );
-    ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::red ), "Red" );
-    ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::green ), "Green" );
-    ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::blue ), "Blue" );
+    m_ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::grey ), "Grey" );
+    m_ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::jet ), "Jet" );
+    m_ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::hot ), "Hot" );
+    m_ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::bone ), "Bone" );
+    m_ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::red ), "Red" );
+    m_ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::green ), "Green" );
+    m_ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::blue ), "Blue" );
 
-    ui.pointerViewModecomboBox->insertItem( PointerViewEnabled, "Enabled" );
-    ui.pointerViewModecomboBox->insertItem( PointerViewOnPress, "On mouse press" );
-    ui.pointerViewModecomboBox->insertItem( PointerViewDisabled, "Disabled" );
-    ui.pointerViewModecomboBox->setCurrentIndex( PointerViewOnPress );
+    m_ui.pointerViewModecomboBox->insertItem( PointerViewEnabled, "Enabled" );
+    m_ui.pointerViewModecomboBox->insertItem( PointerViewOnPress, "On mouse press" );
+    m_ui.pointerViewModecomboBox->insertItem( PointerViewDisabled, "Disabled" );
+    m_ui.pointerViewModecomboBox->setCurrentIndex( PointerViewOnPress );
 }
 
 void rtimvControlPanel::init_panel()
@@ -104,14 +107,14 @@ void rtimvControlPanel::init_panel()
     update_panel();
 
     // initialize the button state for coordinate displays
-    showToolTipCoordsChanged( imv->showToolTipCoords() );
-    showStaticCoordsChanged( imv->showStaticCoords() );
+    showToolTipCoordsChanged( m_imv->showToolTipCoords() );
+    showStaticCoordsChanged( m_imv->showStaticCoords() );
 
-    targetXcChanged( imv->targetXc() );
-    targetYcChanged( imv->targetYc() );
-    targetVisibleChanged( imv->targetVisible() );
+    targetXcChanged( m_imv->targetXc() );
+    targetYcChanged( m_imv->targetYc() );
+    targetVisibleChanged( m_imv->targetVisible() );
 
-    ui.imtimerspinBox->setValue( imv->imageTimeout() );
+    m_ui.imtimerspinBox->setValue( m_imv->imageTimeout() );
 }
 
 void rtimvControlPanel::update_panel()
@@ -135,122 +138,122 @@ void rtimvControlPanel::update_panel()
 
     update_contrastSlider();
 
-    ui.scaleTypeCombo->blockSignals( true );
-    ui.scaleTypeCombo->setCurrentIndex( static_cast<int>( imv->stretch() ) );
-    ui.scaleTypeCombo->blockSignals( false );
+    m_ui.scaleTypeCombo->blockSignals( true );
+    m_ui.scaleTypeCombo->setCurrentIndex( static_cast<int>( m_imv->stretch() ) );
+    m_ui.scaleTypeCombo->blockSignals( false );
 
-    ui.scaleModeCombo->blockSignals( true );
-    ui.scaleModeCombo->setCurrentIndex( static_cast<int>( imv->colormode() ) );
-    ui.scaleModeCombo->blockSignals( false );
+    m_ui.scaleModeCombo->blockSignals( true );
+    m_ui.scaleModeCombo->setCurrentIndex( static_cast<int>( m_imv->colormode() ) );
+    m_ui.scaleModeCombo->blockSignals( false );
 
-    ui.colorbarCombo->blockSignals( true );
-    ui.colorbarCombo->setCurrentIndex( static_cast<int>( imv->colorbar() ) );
-    ui.colorbarCombo->blockSignals( false );
+    m_ui.colorbarCombo->blockSignals( true );
+    m_ui.colorbarCombo->setCurrentIndex( static_cast<int>( m_imv->colorbar() ) );
+    m_ui.colorbarCombo->blockSignals( false );
 }
 
 void rtimvControlPanel::update_ZoomSlider()
 {
-    ui.ZoomSlider->blockSignals( true );
-    ui.ZoomSlider->setSliderPosition(
-        (int)( ( imv->zoomLevel() - imv->zoomLevelMin() ) / ( imv->zoomLevelMax() - imv->zoomLevelMin() ) *
-                   ( ui.ZoomSlider->maximum() - ui.ZoomSlider->minimum() ) +
+    m_ui.ZoomSlider->blockSignals( true );
+    m_ui.ZoomSlider->setSliderPosition(
+        (int)( ( m_imv->zoomLevel() - m_imv->zoomLevelMin() ) / ( m_imv->zoomLevelMax() - m_imv->zoomLevelMin() ) *
+                   ( m_ui.ZoomSlider->maximum() - m_ui.ZoomSlider->minimum() ) +
                .5 ) );
-    ui.ZoomSlider->blockSignals( false );
+    m_ui.ZoomSlider->blockSignals( false );
 }
 
 void rtimvControlPanel::update_ZoomEntry()
 {
     char newz[10];
-    sprintf( newz, "%4.2f", imv->zoomLevel() );
+    sprintf( newz, "%4.2f", m_imv->zoomLevel() );
 
-    ui.ZoomEntry->blockSignals( true );
-    ui.ZoomEntry->setText( newz );
-    ui.ZoomEntry->blockSignals( false );
+    m_ui.ZoomEntry->blockSignals( true );
+    m_ui.ZoomEntry->setText( newz );
+    m_ui.ZoomEntry->blockSignals( false );
 }
 
 void rtimvControlPanel::on_ZoomSlider_valueChanged( int value )
 {
     double zl;
-    zl = imv->zoomLevelMin() +
-         ( (double)value / ( (double)ui.ZoomSlider->maximum() - (double)ui.ZoomSlider->minimum() ) ) *
-             ( imv->zoomLevelMax() - imv->zoomLevelMin() );
-    imv->zoomLevel( zl );
+    zl = m_imv->zoomLevelMin() +
+         ( (double)value / ( (double)m_ui.ZoomSlider->maximum() - (double)m_ui.ZoomSlider->minimum() ) ) *
+             ( m_imv->zoomLevelMax() - m_imv->zoomLevelMin() );
+    m_imv->zoomLevel( zl );
 
     update_ZoomEntry();
 }
 
 void rtimvControlPanel::on_Zoom1_clicked()
 {
-    imv->zoomLevel( 1.0 );
+    m_imv->zoomLevel( 1.0 );
     update_ZoomSlider();
 }
 
 void rtimvControlPanel::on_Zoom2_clicked()
 {
-    imv->zoomLevel( 2.0 );
+    m_imv->zoomLevel( 2.0 );
     update_ZoomSlider();
 }
 
 void rtimvControlPanel::on_Zoom4_clicked()
 {
-    imv->zoomLevel( 4.0 );
+    m_imv->zoomLevel( 4.0 );
     update_ZoomSlider();
 }
 
 void rtimvControlPanel::on_Zoom8_clicked()
 {
-    imv->zoomLevel( 8.0 );
+    m_imv->zoomLevel( 8.0 );
     update_ZoomSlider();
 }
 
 void rtimvControlPanel::on_Zoom16_clicked()
 {
-    imv->zoomLevel( 16.0 );
+    m_imv->zoomLevel( 16.0 );
     update_ZoomSlider();
 }
 
 void rtimvControlPanel::on_ZoomEntry_editingFinished()
 {
-    imv->zoomLevel( ui.ZoomEntry->text().toDouble() );
+    m_imv->zoomLevel( m_ui.ZoomEntry->text().toDouble() );
     update_ZoomSlider();
 }
 
 void rtimvControlPanel::on_overZoom1_clicked()
 {
-    imv->setPointerOverZoom( 1.0 );
+    m_imv->setPointerOverZoom( 1.0 );
 }
 
 void rtimvControlPanel::on_overZoom2_clicked()
 {
-    imv->setPointerOverZoom( 2.0 );
+    m_imv->setPointerOverZoom( 2.0 );
 }
 
 void rtimvControlPanel::on_overZoom4_clicked()
 {
-    imv->setPointerOverZoom( 4.0 );
+    m_imv->setPointerOverZoom( 4.0 );
 }
 
 void rtimvControlPanel::set_ViewViewMode( int vvm )
 {
     if( vvm < 0 || vvm >= ViewViewModeMax )
     {
-        ViewViewMode = ViewViewEnabled;
+        m_viewViewMode = ViewViewEnabled;
     }
     else
-        ViewViewMode = vvm;
+        m_viewViewMode = vvm;
 
-    if( ViewViewMode == ViewViewEnabled )
+    if( m_viewViewMode == ViewViewEnabled )
     {
-        qpmi_view = qgs_view->addPixmap( *( imv->getPixmap() ) );
-        viewBox->setEdgeTol( 5. * imv->nx() / qgs_view->width() );
+        m_qpmiView = m_qgsView->addPixmap( *( m_imv->getPixmap() ) );
+        m_viewBox->setEdgeTol( 5. * m_imv->nx() / m_qgsView->width() );
 
-        qpmi_view->stackBefore( viewLineVert );
+        m_qpmiView->stackBefore( m_viewLineVert );
     }
-    if( ViewViewMode == ViewViewNoImage && qpmi_view )
+    if( m_viewViewMode == ViewViewNoImage && m_qpmiView )
     {
-        qgs_view->removeItem( qpmi_view );
-        delete qpmi_view;
-        qpmi_view = 0;
+        m_qgsView->removeItem( m_qpmiView );
+        delete m_qpmiView;
+        m_qpmiView = 0;
     }
 }
 
@@ -258,43 +261,43 @@ void ::rtimvControlPanel::update_xycenEntry()
 {
     char tmps[10];
 
-    if( !ui.xcenEntry->hasFocus() )
+    if( !m_ui.xcenEntry->hasFocus() )
     {
-        snprintf( tmps, 10, "%.1f", imv->get_xcen() );
+        snprintf( tmps, 10, "%.1f", m_imv->get_xcen() );
 
-        ui.xcenEntry->blockSignals( true );
-        ui.xcenEntry->setText( tmps );
-        ui.xcenEntry->blockSignals( false );
+        m_ui.xcenEntry->blockSignals( true );
+        m_ui.xcenEntry->setText( tmps );
+        m_ui.xcenEntry->blockSignals( false );
     }
-    if( !ui.ycenEntry->hasFocus() )
+    if( !m_ui.ycenEntry->hasFocus() )
     {
-        snprintf( tmps, 10, "%.1f", imv->get_ycen() );
+        snprintf( tmps, 10, "%.1f", m_imv->get_ycen() );
 
-        ui.ycenEntry->blockSignals( true );
-        ui.ycenEntry->setText( tmps );
-        ui.ycenEntry->blockSignals( false );
+        m_ui.ycenEntry->blockSignals( true );
+        m_ui.ycenEntry->setText( tmps );
+        m_ui.ycenEntry->blockSignals( false );
     }
 }
 
 void rtimvControlPanel::update_whEntry()
 {
     char tmps[10];
-    if( !ui.widthEntry->hasFocus() )
+    if( !m_ui.widthEntry->hasFocus() )
     {
-        snprintf( tmps, 10, "%.1f", ( (double)imv->nx() ) / imv->zoomLevel() );
+        snprintf( tmps, 10, "%.1f", ( (double)m_imv->nx() ) / m_imv->zoomLevel() );
 
-        ui.widthEntry->blockSignals( true );
-        ui.widthEntry->setText( tmps );
-        ui.widthEntry->blockSignals( false );
+        m_ui.widthEntry->blockSignals( true );
+        m_ui.widthEntry->setText( tmps );
+        m_ui.widthEntry->blockSignals( false );
     }
 
-    if( !ui.heightEntry->hasFocus() )
+    if( !m_ui.heightEntry->hasFocus() )
     {
-        snprintf( tmps, 10, "%.1f", ( (double)imv->ny() ) / imv->zoomLevel() );
+        snprintf( tmps, 10, "%.1f", ( (double)m_imv->ny() ) / m_imv->zoomLevel() );
 
-        ui.heightEntry->blockSignals( true );
-        ui.heightEntry->setText( tmps );
-        ui.heightEntry->blockSignals( false );
+        m_ui.heightEntry->blockSignals( true );
+        m_ui.heightEntry->setText( tmps );
+        m_ui.heightEntry->blockSignals( false );
     }
 }
 
@@ -314,145 +317,148 @@ void rtimvControlPanel::enableViewViewMode( int state )
 void rtimvControlPanel::on_xcenEntry_editingFinished()
 {
     std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->mtxL_setViewCen( ui.xcenEntry->text().toDouble() / imv->nx(), imv->get_ycen(), lock );
-    ;
+    m_imv->mtxL_setViewCen( m_ui.xcenEntry->text().toDouble() / m_imv->nx(), m_imv->get_ycen(), lock );
 }
 
 void rtimvControlPanel::on_ycenEntry_editingFinished()
 {
     std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->mtxL_setViewCen( imv->get_xcen(), ui.ycenEntry->text().toDouble() / imv->ny(), lock );
+    m_imv->mtxL_setViewCen( m_imv->get_xcen(), m_ui.ycenEntry->text().toDouble() / m_imv->ny(), lock );
 }
 
 void rtimvControlPanel::on_widthEntry_editingFinished()
 {
     double newzoom;
-    newzoom = ( (double)imv->nx() ) / ui.widthEntry->text().toDouble();
-    imv->zoomLevel( newzoom );
+    newzoom = ( (double)m_imv->nx() ) / m_ui.widthEntry->text().toDouble();
+    m_imv->zoomLevel( newzoom );
     update_panel();
 }
 
 void rtimvControlPanel::on_heightEntry_editingFinished()
 {
     double newzoom;
-    newzoom = ( (double)imv->ny() ) / ui.heightEntry->text().toDouble();
-    imv->zoomLevel( newzoom );
+    newzoom = ( (double)m_imv->ny() ) / m_ui.heightEntry->text().toDouble();
+    m_imv->zoomLevel( newzoom );
     update_panel();
 }
 
 void rtimvControlPanel::on_view_center_clicked()
 {
     std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->mtxL_setViewCen( .5, .5, lock );
+    m_imv->mtxL_setViewCen( .5, .5, lock );
 }
 
 void rtimvControlPanel::on_view_ul_clicked()
 {
     std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->mtxL_setViewCen( imv->get_xcen() / imv->nx() - 1. / imv->zoomLevel(),
-                          imv->get_ycen() / imv->ny() - 1. / imv->zoomLevel(),
-                          lock );
+    m_imv->mtxL_setViewCen( m_imv->get_xcen() / m_imv->nx() - 1. / m_imv->zoomLevel(),
+                            m_imv->get_ycen() / m_imv->ny() - 1. / m_imv->zoomLevel(),
+                            lock );
 }
 
 void rtimvControlPanel::on_view_up_clicked()
 {
     std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->mtxL_setViewCen( imv->get_xcen() / imv->nx(), imv->get_ycen() / imv->ny() - 1. / imv->zoomLevel(), lock );
+    m_imv->mtxL_setViewCen(
+        m_imv->get_xcen() / m_imv->nx(), m_imv->get_ycen() / m_imv->ny() - 1. / m_imv->zoomLevel(), lock );
 }
 
 void rtimvControlPanel::on_view_ur_clicked()
 {
     std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->mtxL_setViewCen( imv->get_xcen() / imv->nx() + 1. / imv->zoomLevel(),
-                          imv->get_ycen() / imv->ny() - 1. / imv->zoomLevel(),
-                          lock );
+    m_imv->mtxL_setViewCen( m_imv->get_xcen() / m_imv->nx() + 1. / m_imv->zoomLevel(),
+                            m_imv->get_ycen() / m_imv->ny() - 1. / m_imv->zoomLevel(),
+                            lock );
 }
 
 void rtimvControlPanel::on_view_right_clicked()
 {
     std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->mtxL_setViewCen( imv->get_xcen() / imv->nx() + 1. / imv->zoomLevel(), imv->get_ycen() / imv->ny(), lock );
+    m_imv->mtxL_setViewCen(
+        m_imv->get_xcen() / m_imv->nx() + 1. / m_imv->zoomLevel(), m_imv->get_ycen() / m_imv->ny(), lock );
 }
 
 void rtimvControlPanel::on_view_dr_clicked()
 {
     std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->mtxL_setViewCen( imv->get_xcen() / imv->nx() + 1. / imv->zoomLevel(),
-                          imv->get_ycen() / imv->ny() + 1. / imv->zoomLevel(),
-                          lock );
+    m_imv->mtxL_setViewCen( m_imv->get_xcen() / m_imv->nx() + 1. / m_imv->zoomLevel(),
+                            m_imv->get_ycen() / m_imv->ny() + 1. / m_imv->zoomLevel(),
+                            lock );
 }
 
 void rtimvControlPanel::on_view_down_clicked()
 {
     std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->mtxL_setViewCen( imv->get_xcen() / imv->nx(), imv->get_ycen() / imv->ny() + 1. / imv->zoomLevel(), lock );
+    m_imv->mtxL_setViewCen(
+        m_imv->get_xcen() / m_imv->nx(), m_imv->get_ycen() / m_imv->ny() + 1. / m_imv->zoomLevel(), lock );
 }
 
 void rtimvControlPanel::on_view_dl_clicked()
 {
     std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->mtxL_setViewCen( imv->get_xcen() / imv->nx() - 1. / imv->zoomLevel(),
-                          imv->get_ycen() / imv->ny() + 1. / imv->zoomLevel(),
-                          lock );
+    m_imv->mtxL_setViewCen( m_imv->get_xcen() / m_imv->nx() - 1. / m_imv->zoomLevel(),
+                            m_imv->get_ycen() / m_imv->ny() + 1. / m_imv->zoomLevel(),
+                            lock );
 }
 
 void rtimvControlPanel::on_view_left_clicked()
 {
     std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->mtxL_setViewCen( imv->get_xcen() / imv->nx() - 1. / imv->zoomLevel(), imv->get_ycen() / imv->ny(), lock );
+    m_imv->mtxL_setViewCen(
+        m_imv->get_xcen() / m_imv->nx() - 1. / m_imv->zoomLevel(), m_imv->get_ycen() / m_imv->ny(), lock );
 }
 
 void rtimvControlPanel::updateMouseCoords( double x, double y, double v )
 {
-    if( !PointerViewFixed )
+    if( !m_pointerViewFixed )
     {
         char tmpr[15];
         sprintf( tmpr, "%8.2f", x );
 
-        ui.TextCoordX->blockSignals( true );
-        ui.TextCoordX->setText( tmpr );
-        ui.TextCoordX->blockSignals( false );
+        m_ui.TextCoordX->blockSignals( true );
+        m_ui.TextCoordX->setText( tmpr );
+        m_ui.TextCoordX->blockSignals( false );
 
         sprintf( tmpr, "%8.2f", y );
 
-        ui.TextCoordY->blockSignals( true );
-        ui.TextCoordY->setText( tmpr );
-        ui.TextCoordY->blockSignals( false );
+        m_ui.TextCoordY->blockSignals( true );
+        m_ui.TextCoordY->setText( tmpr );
+        m_ui.TextCoordY->blockSignals( false );
 
         sprintf( tmpr, "%8.2f", v );
 
-        ui.TextPixelVal->blockSignals( true );
-        ui.TextPixelVal->setText( tmpr );
-        ui.TextPixelVal->blockSignals( false );
+        m_ui.TextPixelVal->blockSignals( true );
+        m_ui.TextPixelVal->setText( tmpr );
+        m_ui.TextPixelVal->blockSignals( false );
 
-        if( PointerViewEmpty && PointerViewMode == PointerViewEnabled )
+        if( m_pointerViewEmpty && m_pointerViewMode == PointerViewEnabled )
         {
-            ui.pointerView->setScene( imv->get_qgs() );
-            PointerViewEmpty = false;
+            m_ui.pointerView->setScene( m_imv->get_qgs() );
+            m_pointerViewEmpty = false;
         }
 
-        ui.pointerView->centerOn( x, y );
+        m_ui.pointerView->centerOn( x, y );
     }
 }
 
 void rtimvControlPanel::nullMouseCoords()
 {
-    if( !PointerViewFixed )
+    if( !m_pointerViewFixed )
     {
-        ui.pointerView->setScene( qgs_empty );
-        PointerViewEmpty = true;
+        m_ui.pointerView->setScene( m_qgsEmpty );
+        m_pointerViewEmpty = true;
 
-        ui.TextCoordX->blockSignals( true );
-        ui.TextCoordX->setText( "" );
-        ui.TextCoordX->blockSignals( false );
+        m_ui.TextCoordX->blockSignals( true );
+        m_ui.TextCoordX->setText( "" );
+        m_ui.TextCoordX->blockSignals( false );
 
-        ui.TextCoordY->blockSignals( true );
-        ui.TextCoordY->setText( "" );
-        ui.TextCoordY->blockSignals( false );
+        m_ui.TextCoordY->blockSignals( true );
+        m_ui.TextCoordY->setText( "" );
+        m_ui.TextCoordY->blockSignals( false );
 
-        ui.TextPixelVal->blockSignals( true );
-        ui.TextPixelVal->setText( "" );
-        ui.TextPixelVal->blockSignals( false );
+        m_ui.TextPixelVal->blockSignals( true );
+        m_ui.TextPixelVal->setText( "" );
+        m_ui.TextPixelVal->blockSignals( false );
     }
 }
 
@@ -460,25 +466,25 @@ void rtimvControlPanel::viewLeftPressed( QPointF mp )
 {
     static_cast<void>( mp );
 
-    if( PointerViewMode == PointerViewOnPress )
+    if( m_pointerViewMode == PointerViewOnPress )
     {
-        ui.pointerView->setScene( imv->get_qgs() );
-        PointerViewEmpty = false;
-        if( PointerViewFixed )
+        m_ui.pointerView->setScene( m_imv->get_qgs() );
+        m_pointerViewEmpty = false;
+        if( m_pointerViewFixed )
         {
-            ui.pointerView->centerOn( pointerViewCen.x(), pointerViewCen.y() );
+            m_ui.pointerView->centerOn( m_pointerViewCen.x(), m_pointerViewCen.y() );
         }
     }
 }
 
 void rtimvControlPanel::viewLeftClicked( QPointF mp )
 {
-    if( PointerViewMode == PointerViewOnPress )
+    if( m_pointerViewMode == PointerViewOnPress )
     {
-        ui.pointerView->setScene( qgs_empty );
-        PointerViewEmpty = true;
+        m_ui.pointerView->setScene( m_qgsEmpty );
+        m_pointerViewEmpty = true;
     }
-    if( PointerViewWaiting )
+    if( m_pointerViewWaiting )
     {
         set_pointerViewCen( mp );
     }
@@ -488,21 +494,21 @@ void rtimvControlPanel::set_PointerViewMode( int pvm )
 {
     if( pvm < 0 || pvm >= PointerViewModeMax || pvm == PointerViewEnabled )
     {
-        PointerViewMode = PointerViewEnabled;
-        ui.pointerView->setScene( imv->get_qgs() );
-        PointerViewEmpty = false;
+        m_pointerViewMode = PointerViewEnabled;
+        m_ui.pointerView->setScene( m_imv->get_qgs() );
+        m_pointerViewEmpty = false;
     }
     if( pvm == PointerViewOnPress )
     {
-        PointerViewMode = PointerViewOnPress;
-        ui.pointerView->setScene( qgs_empty );
-        PointerViewEmpty = true;
+        m_pointerViewMode = PointerViewOnPress;
+        m_ui.pointerView->setScene( m_qgsEmpty );
+        m_pointerViewEmpty = true;
     }
     if( pvm == PointerViewDisabled )
     {
-        PointerViewMode = PointerViewDisabled;
-        ui.pointerView->setScene( qgs_empty );
-        PointerViewEmpty = true;
+        m_pointerViewMode = PointerViewDisabled;
+        m_ui.pointerView->setScene( m_qgsEmpty );
+        m_pointerViewEmpty = true;
     }
 }
 
@@ -513,16 +519,16 @@ void rtimvControlPanel::on_pointerViewModecomboBox_activated( int pvm )
 
 void rtimvControlPanel::on_pointerSetLocButton_clicked()
 {
-    if( !PointerViewFixed )
+    if( !m_pointerViewFixed )
     {
-        PointerViewWaiting = true;
-        ui.pointerSetLocButton->setText( "Waiting" );
+        m_pointerViewWaiting = true;
+        m_ui.pointerSetLocButton->setText( "Waiting" );
     }
     else
     {
-        ui.pointerSetLocButton->setText( "Set Location" );
-        PointerViewWaiting = false;
-        PointerViewFixed = false;
+        m_ui.pointerSetLocButton->setText( "Set Location" );
+        m_pointerViewWaiting = false;
+        m_pointerViewFixed = false;
     }
 }
 
@@ -530,80 +536,82 @@ void rtimvControlPanel::set_pointerViewCen( QPointF mp )
 {
     std::cerr << mp.x() << " " << mp.y() << "\n";
 
-    pointerViewCen = mp;
-    ui.pointerSetLocButton->setText( "Clear Location" );
-    PointerViewWaiting = false;
-    PointerViewFixed = true;
+    m_pointerViewCen = mp;
+    m_ui.pointerSetLocButton->setText( "Clear Location" );
+    m_pointerViewWaiting = false;
+    m_pointerViewFixed = true;
 }
 
 void rtimvControlPanel::on_scaleTypeCombo_activated( int ct )
 {
-    imv->stretch( static_cast<rtimv::stretch>( ct ) );
+    m_imv->stretch( static_cast<rtimv::stretch>( ct ) );
 
-    imv->mtxUL_recolor();
+    m_imv->mtxUL_recolor();
 }
 
 void rtimvControlPanel::on_colorbarCombo_activated( int cb )
 {
     std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->mtxL_load_colorbar( static_cast<rtimv::colorbar>( cb ), true, lock );
+    m_imv->mtxL_load_colorbar( static_cast<rtimv::colorbar>( cb ), true, lock );
 }
 
 void rtimvControlPanel::update_mindatSlider()
 {
     int pos;
 
-    pos = (int)( ui.mindatSlider->minimum() +
-                 ( imv->minScaleData() - imv->minImageData() ) / ( imv->maxImageData() - imv->minImageData() ) *
-                     ( ui.mindatSlider->maximum() - ui.mindatSlider->minimum() ) +
+    pos = (int)( m_ui.mindatSlider->minimum() +
+                 ( m_imv->minScaleData() - m_imv->minImageData() ) / ( m_imv->maxImageData() - m_imv->minImageData() ) *
+                     ( m_ui.mindatSlider->maximum() - m_ui.mindatSlider->minimum() ) +
                  .5 );
 
-    ui.mindatSlider->blockSignals( true );
-    ui.mindatSlider->setSliderPosition( pos );
-    ui.mindatSlider->blockSignals( false );
+    m_ui.mindatSlider->blockSignals( true );
+    m_ui.mindatSlider->setSliderPosition( pos );
+    m_ui.mindatSlider->blockSignals( false );
 }
 
 void rtimvControlPanel::update_mindatEntry()
 {
     char tmps[15];
-    if( !ui.mindatEntry->hasFocus() )
+    if( !m_ui.mindatEntry->hasFocus() )
     {
-        sprintf( tmps, "%14.1f", imv->minScaleData() );
+        sprintf( tmps, "%14.1f", m_imv->minScaleData() );
 
-        ui.mindatEntry->blockSignals( true );
-        ui.mindatEntry->setText( tmps );
-        ui.mindatEntry->blockSignals( false );
+        m_ui.mindatEntry->blockSignals( true );
+        m_ui.mindatEntry->setText( tmps );
+        m_ui.mindatEntry->blockSignals( false );
     }
 }
 
 void rtimvControlPanel::update_mindatRelEntry()
 {
     char tmps[15];
-    if( !ui.mindatRelEntry->hasFocus() )
+    if( !m_ui.mindatRelEntry->hasFocus() )
     {
         sprintf( tmps,
                  "%5.3f",
-                 ( imv->minScaleData() - imv->minImageData() ) / ( imv->maxImageData() - imv->minImageData() ) );
+                 ( m_imv->minScaleData() - m_imv->minImageData() ) /
+                     ( m_imv->maxImageData() - m_imv->minImageData() ) );
 
-        ui.mindatRelEntry->blockSignals( true );
-        ui.mindatRelEntry->setText( tmps );
-        ui.mindatRelEntry->blockSignals( false );
+        m_ui.mindatRelEntry->blockSignals( true );
+        m_ui.mindatRelEntry->setText( tmps );
+        m_ui.mindatRelEntry->blockSignals( false );
     }
 }
 
 void rtimvControlPanel::update_maxdatSlider()
 {
-    if( !ui.maxdatSlider->hasFocus() )
+    if( !m_ui.maxdatSlider->hasFocus() )
     {
         int pos;
-        pos = (int)( ui.maxdatSlider->minimum() +
-                     ( imv->maxScaleData() - imv->minImageData() ) / ( imv->maxImageData() - imv->minImageData() ) *
-                         ( ui.maxdatSlider->maximum() - ui.maxdatSlider->minimum() ) +
+        pos = (int)( m_ui.maxdatSlider->minimum() +
+                     ( m_imv->maxScaleData() - m_imv->minImageData() ) /
+                         ( m_imv->maxImageData() - m_imv->minImageData() ) *
+                         ( m_ui.maxdatSlider->maximum() - m_ui.maxdatSlider->minimum() ) +
                      .5 );
 
-        ui.maxdatSlider->blockSignals( true );
-        ui.maxdatSlider->setSliderPosition( pos );
-        ui.maxdatSlider->blockSignals( false );
+        m_ui.maxdatSlider->blockSignals( true );
+        m_ui.maxdatSlider->setSliderPosition( pos );
+        m_ui.maxdatSlider->blockSignals( false );
     }
 }
 
@@ -612,114 +620,116 @@ void rtimvControlPanel::update_maxdatSlider()
 void rtimvControlPanel::update_maxdatEntry()
 {
     char tmps[15];
-    if( !ui.maxdatEntry->hasFocus() )
+    if( !m_ui.maxdatEntry->hasFocus() )
     {
-        sprintf( tmps, "%14.1f", imv->maxScaleData() );
+        sprintf( tmps, "%14.1f", m_imv->maxScaleData() );
 
-        ui.maxdatEntry->blockSignals( true );
-        ui.maxdatEntry->setText( tmps );
-        ui.maxdatEntry->blockSignals( false );
+        m_ui.maxdatEntry->blockSignals( true );
+        m_ui.maxdatEntry->setText( tmps );
+        m_ui.maxdatEntry->blockSignals( false );
     }
 }
 
 void rtimvControlPanel::update_maxdatRelEntry()
 {
     char tmps[15];
-    if( !ui.maxdatRelEntry->hasFocus() )
+    if( !m_ui.maxdatRelEntry->hasFocus() )
     {
         sprintf( tmps,
                  "%5.3f",
-                 ( imv->maxScaleData() - imv->minImageData() ) / ( imv->maxImageData() - imv->minImageData() ) );
+                 ( m_imv->maxScaleData() - m_imv->minImageData() ) /
+                     ( m_imv->maxImageData() - m_imv->minImageData() ) );
 
-        ui.maxdatRelEntry->blockSignals( true );
-        ui.maxdatRelEntry->setText( tmps );
-        ui.maxdatRelEntry->blockSignals( false );
+        m_ui.maxdatRelEntry->blockSignals( true );
+        m_ui.maxdatRelEntry->setText( tmps );
+        m_ui.maxdatRelEntry->blockSignals( false );
     }
 }
 
 void rtimvControlPanel::update_biasSlider()
 {
-    if( !ui.biasSlider->hasFocus() )
+    if( !m_ui.biasSlider->hasFocus() )
     {
         int pos;
-        pos = (int)( ui.biasSlider->minimum() +
-                     ( .5 * ( imv->maxScaleData() + imv->minScaleData() ) - imv->minImageData() ) /
-                         ( imv->maxImageData() - imv->minImageData() ) *
-                         ( ui.biasSlider->maximum() - ui.biasSlider->minimum() ) +
+        pos = (int)( m_ui.biasSlider->minimum() +
+                     ( .5 * ( m_imv->maxScaleData() + m_imv->minScaleData() ) - m_imv->minImageData() ) /
+                         ( m_imv->maxImageData() - m_imv->minImageData() ) *
+                         ( m_ui.biasSlider->maximum() - m_ui.biasSlider->minimum() ) +
                      .5 );
 
-        ui.biasSlider->blockSignals( true );
-        ui.biasSlider->setSliderPosition( pos );
-        ui.biasSlider->blockSignals( false );
+        m_ui.biasSlider->blockSignals( true );
+        m_ui.biasSlider->setSliderPosition( pos );
+        m_ui.biasSlider->blockSignals( false );
     }
 }
 
 void rtimvControlPanel::update_biasEntry()
 {
     char tmps[15];
-    if( !ui.biasEntry->hasFocus() )
+    if( !m_ui.biasEntry->hasFocus() )
     {
-        sprintf( tmps, "%14.1f", 0.5 * ( imv->maxScaleData() + imv->minScaleData() ) );
+        sprintf( tmps, "%14.1f", 0.5 * ( m_imv->maxScaleData() + m_imv->minScaleData() ) );
 
-        ui.biasEntry->blockSignals( true );
-        ui.biasEntry->setText( tmps );
-        ui.biasEntry->blockSignals( false );
+        m_ui.biasEntry->blockSignals( true );
+        m_ui.biasEntry->setText( tmps );
+        m_ui.biasEntry->blockSignals( false );
     }
 }
 
 void rtimvControlPanel::update_biasRelEntry()
 {
     char tmps[15];
-    if( !ui.biasRelEntry->hasFocus() )
+    if( !m_ui.biasRelEntry->hasFocus() )
     {
         sprintf( tmps,
                  "%5.3f",
-                 ( 0.5 * ( imv->maxScaleData() + imv->minScaleData() ) - imv->minImageData() ) /
-                     ( imv->maxImageData() - imv->minImageData() ) );
+                 ( 0.5 * ( m_imv->maxScaleData() + m_imv->minScaleData() ) - m_imv->minImageData() ) /
+                     ( m_imv->maxImageData() - m_imv->minImageData() ) );
 
-        ui.biasRelEntry->blockSignals( true );
-        ui.biasRelEntry->setText( tmps );
-        ui.biasRelEntry->blockSignals( false );
+        m_ui.biasRelEntry->blockSignals( true );
+        m_ui.biasRelEntry->setText( tmps );
+        m_ui.biasRelEntry->blockSignals( false );
     }
 }
 
 void rtimvControlPanel::update_contrastSlider()
 {
     int pos;
-    pos = (int)( ui.contrastSlider->minimum() +
-                 ( imv->maxScaleData() - imv->minScaleData() ) / ( imv->maxImageData() - imv->minImageData() ) *
-                     ( ui.biasSlider->maximum() - ui.biasSlider->minimum() ) +
+    pos = (int)( m_ui.contrastSlider->minimum() +
+                 ( m_imv->maxScaleData() - m_imv->minScaleData() ) / ( m_imv->maxImageData() - m_imv->minImageData() ) *
+                     ( m_ui.biasSlider->maximum() - m_ui.biasSlider->minimum() ) +
                  .5 );
 
-    ui.contrastSlider->blockSignals( true );
-    ui.contrastSlider->setSliderPosition( pos );
-    ui.contrastSlider->blockSignals( false );
+    m_ui.contrastSlider->blockSignals( true );
+    m_ui.contrastSlider->setSliderPosition( pos );
+    m_ui.contrastSlider->blockSignals( false );
 }
 
 void rtimvControlPanel::update_contrastEntry()
 {
     char tmps[15];
-    if( !ui.contrastEntry->hasFocus() )
+    if( !m_ui.contrastEntry->hasFocus() )
     {
-        sprintf( tmps, "%14.1f", ( imv->maxScaleData() - imv->minScaleData() ) );
+        sprintf( tmps, "%14.1f", ( m_imv->maxScaleData() - m_imv->minScaleData() ) );
 
-        ui.contrastEntry->blockSignals( true );
-        ui.contrastEntry->setText( tmps );
-        ui.contrastEntry->blockSignals( false );
+        m_ui.contrastEntry->blockSignals( true );
+        m_ui.contrastEntry->setText( tmps );
+        m_ui.contrastEntry->blockSignals( false );
     }
 }
 
 void rtimvControlPanel::update_contrastRelEntry()
 {
     char tmps[15];
-    if( !ui.contrastRelEntry->hasFocus() )
+    if( !m_ui.contrastRelEntry->hasFocus() )
     {
-        sprintf(
-            tmps, "%5.1f", imv->maxImageData() - imv->minImageData() / ( imv->maxScaleData() - imv->minScaleData() ) );
+        sprintf( tmps,
+                 "%5.1f",
+                 m_imv->maxImageData() - m_imv->minImageData() / ( m_imv->maxScaleData() - m_imv->minScaleData() ) );
 
-        ui.contrastRelEntry->blockSignals( true );
-        ui.contrastRelEntry->setText( tmps );
-        ui.contrastRelEntry->blockSignals( false );
+        m_ui.contrastRelEntry->blockSignals( true );
+        m_ui.contrastRelEntry->setText( tmps );
+        m_ui.contrastRelEntry->blockSignals( false );
     }
 }
 
@@ -727,142 +737,139 @@ void rtimvControlPanel::on_scaleModeCombo_activated( int index )
 {
     if( static_cast<rtimv::colormode>( index ) == rtimv::colormode::minmaxglobal )
     {
-        imv->mtxUL_colormode( rtimv::colormode::minmaxglobal );
+        m_imv->mtxUL_colormode( rtimv::colormode::minmaxglobal );
     }
     else if( static_cast<rtimv::colormode>( index ) == rtimv::colormode::user )
     {
-        imv->mtxUL_colormode( rtimv::colormode::user );
+        m_imv->mtxUL_colormode( rtimv::colormode::user );
     }
     else if( static_cast<rtimv::colormode>( index ) == rtimv::colormode::minmaxbox )
     {
-        imv->toggleColorBoxOn();
+        m_imv->toggleColorBoxOn();
     }
     else
     {
-        imv->mtxUL_colormode( rtimv::colormode::minmaxglobal );
+        m_imv->mtxUL_colormode( rtimv::colormode::minmaxglobal );
     }
 }
 
 void rtimvControlPanel::on_mindatSlider_valueChanged( int value )
 {
-    double sc = ( (double)( value - ui.mindatSlider->minimum() ) ) /
-                ( (double)( ui.mindatSlider->maximum() - ui.mindatSlider->minimum() ) );
+    double sc = ( (double)( value - m_ui.mindatSlider->minimum() ) ) /
+                ( (double)( m_ui.mindatSlider->maximum() - m_ui.mindatSlider->minimum() ) );
 
-    imv->minScaleData( imv->minImageData() + ( imv->maxImageData() - imv->minImageData() ) * sc );
+    m_imv->minScaleData( m_imv->minImageData() + ( m_imv->maxImageData() - m_imv->minImageData() ) * sc );
 
-    imv->mtxUL_colormode( rtimv::colormode::user );
+    m_imv->mtxUL_colormode( rtimv::colormode::user );
 }
 
 void rtimvControlPanel::on_mindatEntry_editingFinished()
 {
-    imv->minScaleData( ui.mindatEntry->text().toDouble() );
+    m_imv->minScaleData( m_ui.mindatEntry->text().toDouble() );
 
-    imv->mtxUL_colormode( rtimv::colormode::user );
+    m_imv->mtxUL_colormode( rtimv::colormode::user );
 }
 
 void rtimvControlPanel::on_maxdatSlider_valueChanged( int value )
 {
-    double sc = ( (double)( value - ui.maxdatSlider->minimum() ) ) /
-                ( (double)( ui.maxdatSlider->maximum() - ui.maxdatSlider->minimum() ) );
+    double sc = ( (double)( value - m_ui.maxdatSlider->minimum() ) ) /
+                ( (double)( m_ui.maxdatSlider->maximum() - m_ui.maxdatSlider->minimum() ) );
 
-    imv->maxScaleData( imv->minImageData() + ( imv->maxImageData() - imv->minImageData() ) * sc );
+    m_imv->maxScaleData( m_imv->minImageData() + ( m_imv->maxImageData() - m_imv->minImageData() ) * sc );
 
-    imv->mtxUL_colormode( rtimv::colormode::user );
+    m_imv->mtxUL_colormode( rtimv::colormode::user );
 }
 
 void rtimvControlPanel::on_maxdatEntry_editingFinished()
 {
-    imv->maxScaleData( ui.maxdatEntry->text().toDouble() );
+    m_imv->maxScaleData( m_ui.maxdatEntry->text().toDouble() );
 
-    imv->mtxUL_colormode( rtimv::colormode::user );
+    m_imv->mtxUL_colormode( rtimv::colormode::user );
 }
 
 void rtimvControlPanel::on_biasSlider_valueChanged( int value )
 {
-    double bias = ( (double)( value - ui.biasSlider->minimum() ) ) /
-                  ( (double)( ui.biasSlider->maximum() - ui.biasSlider->minimum() ) );
+    double bias = ( (double)( value - m_ui.biasSlider->minimum() ) ) /
+                  ( (double)( m_ui.biasSlider->maximum() - m_ui.biasSlider->minimum() ) );
 
-    imv->bias_rel( bias );
+    m_imv->bias_rel( bias );
 
-    imv->mtxUL_colormode( rtimv::colormode::user );
+    m_imv->mtxUL_colormode( rtimv::colormode::user );
 }
 
 void rtimvControlPanel::on_biasEntry_editingFinished()
 {
-    imv->bias( ui.biasEntry->text().toDouble() );
+    m_imv->bias( m_ui.biasEntry->text().toDouble() );
 
-    imv->mtxUL_colormode( rtimv::colormode::user );
+    m_imv->mtxUL_colormode( rtimv::colormode::user );
 }
 
 void rtimvControlPanel::on_contrastSlider_valueChanged( int value )
 {
-    double cont = ( (double)( value - ui.contrastSlider->minimum() ) ) /
-                  ( (double)( ui.contrastSlider->maximum() - ui.contrastSlider->minimum() ) );
+    double cont = ( (double)( value - m_ui.contrastSlider->minimum() ) ) /
+                  ( (double)( m_ui.contrastSlider->maximum() - m_ui.contrastSlider->minimum() ) );
 
-    cont = cont * ( imv->maxImageData() - imv->minImageData() );
+    cont = cont * ( m_imv->maxImageData() - m_imv->minImageData() );
 
-    imv->contrast( cont );
+    m_imv->contrast( cont );
 
-    imv->mtxUL_colormode( rtimv::colormode::user );
+    m_imv->mtxUL_colormode( rtimv::colormode::user );
 }
 
 void rtimvControlPanel::on_contrastEntry_editingFinished()
 {
-    imv->contrast( ui.contrastEntry->text().toDouble() );
+    m_imv->contrast( m_ui.contrastEntry->text().toDouble() );
 
-    imv->mtxUL_colormode( rtimv::colormode::user );
+    m_imv->mtxUL_colormode( rtimv::colormode::user );
 }
 
 void rtimvControlPanel::on_imtimerspinBox_valueChanged( int to )
 {
-    imv->imageTimeout( to );
+    m_imv->imageTimeout( to );
 }
 
 void rtimvControlPanel::on_statsBoxButton_clicked()
 {
-    if( statsBoxButtonState )
+    if( m_statsBoxButtonState )
     {
         emit hideStatsBox();
-        ui.statsBoxButton->setText( "Show Stats Box" );
-        statsBoxButtonState = false;
+        m_ui.statsBoxButton->setText( "Show Stats Box" );
+        m_statsBoxButtonState = false;
     }
     else
     {
         emit launchStatsBox();
-        ui.statsBoxButton->setText( "Hide Stats Box" );
-        statsBoxButtonState = true;
+        m_ui.statsBoxButton->setText( "Hide Stats Box" );
+        m_statsBoxButtonState = true;
     }
 }
 
 void rtimvControlPanel::viewBoxMoved( const QRectF &vbr )
 {
-    // QPointF newcenV = ui.viewView->mapFromScene(newcen);
-    // double viewZoom = (double)ui.viewView->width()/(double)imv->nx();
-    // QRectF vbr = viewBox->rect();
+    // QPointF newcenV = m_ui.viewView->mapFromScene(newcen);
+    // double viewZoom = (double)m_ui.viewView->width()/(double)m_imv->nx();
+    // QRectF vbr = m_viewBox->rect();
 
-    QPointF np = qpmi_view->mapFromItem( viewBox, QPointF( vbr.x(), vbr.y() ) );
-    QPointF np2 = qpmi_view->mapFromItem( viewBox, QPointF( vbr.bottom(), vbr.right() ) );
+    QPointF np = m_qpmiView->mapFromItem( m_viewBox, QPointF( vbr.x(), vbr.y() ) );
+    QPointF np2 = m_qpmiView->mapFromItem( m_viewBox, QPointF( vbr.bottom(), vbr.right() ) );
 
-    // std::cout <<  np.x() << " " << np.y() << " " << (np2.x()-np.x()) << " " << (np2.y()-np.y()) << "\n\n";
 
     double nxcen = np.x() + .5 * ( np2.x() - np.x() );
     double nycen = np.y() + .5 * ( np2.y() - np.y() );
-    // std::cout << nxcen/1024. << " " << nycen/1024. << " " << ui.viewView->width() << " " << ui.viewView->height() <<
-    // "\n";
 
     std::shared_lock<std::shared_mutex> lock( *m_calMutex );
-    imv->mtxL_setViewCen( nxcen / (double)imv->nx(), nycen / (double)imv->nx(), lock, true );
+    m_imv->mtxL_setViewCen( nxcen / (double)m_imv->nx(), nycen / (double)m_imv->nx(), lock, true );
 }
 
 void rtimvControlPanel::showToolTipCoordsChanged( bool sttc )
 {
     if( sttc )
     {
-        ui.toolTipCoordsButton->setText( "Hide Pointer Coords" );
+        m_ui.toolTipCoordsButton->setText( "Hide Pointer Coords" );
     }
     else
     {
-        ui.toolTipCoordsButton->setText( "Show Pointer Coords" );
+        m_ui.toolTipCoordsButton->setText( "Show Pointer Coords" );
     }
 }
 
@@ -870,62 +877,62 @@ void rtimvControlPanel::showStaticCoordsChanged( bool ssc )
 {
     if( ssc )
     {
-        ui.staticCoordsButton->setText( "Hide Static Coords" );
+        m_ui.staticCoordsButton->setText( "Hide Static Coords" );
     }
     else
     {
-        ui.staticCoordsButton->setText( "Show Static Coords" );
+        m_ui.staticCoordsButton->setText( "Show Static Coords" );
     }
 }
 
 void rtimvControlPanel::on_toolTipCoordsButton_clicked()
 {
     // Toggle
-    emit showToolTipCoords( !imv->showToolTipCoords() );
+    emit showToolTipCoords( !m_imv->showToolTipCoords() );
 }
 
 void rtimvControlPanel::on_staticCoordsButton_clicked()
 {
     // Toggle
-    emit showStaticCoords( !imv->showStaticCoords() );
+    emit showStaticCoords( !m_imv->showStaticCoords() );
 }
 
 void rtimvControlPanel::targetXcChanged( float txc )
 {
     char str[16];
     snprintf( str, sizeof( str ), "%0.3f", txc );
-    ui.lineEditTargetFractionX->setText( str );
+    m_ui.lineEditTargetFractionX->setText( str );
 
-    snprintf( str, sizeof( str ), "%0.2f", txc * ( imv->nx() ) - 0.5 );
-    ui.lineEditTargetPixelX->setText( str );
+    snprintf( str, sizeof( str ), "%0.2f", txc * ( m_imv->nx() ) - 0.5 );
+    m_ui.lineEditTargetPixelX->setText( str );
 }
 
 void rtimvControlPanel::targetYcChanged( float tyc )
 {
     char str[16];
     snprintf( str, sizeof( str ), "%0.3f", tyc );
-    ui.lineEditTargetFractionY->setText( str );
+    m_ui.lineEditTargetFractionY->setText( str );
 
-    snprintf( str, sizeof( str ), "%0.2f", tyc * ( imv->ny() ) - 0.5 );
-    ui.lineEditTargetPixelY->setText( str );
+    snprintf( str, sizeof( str ), "%0.2f", tyc * ( m_imv->ny() ) - 0.5 );
+    m_ui.lineEditTargetPixelY->setText( str );
 }
 
 void rtimvControlPanel::targetVisibleChanged( bool tv )
 {
     if( tv )
     {
-        ui.buttonTargetCross->setText( "hide" );
+        m_ui.buttonTargetCross->setText( "hide" );
     }
     else
     {
-        ui.buttonTargetCross->setText( "show" );
+        m_ui.buttonTargetCross->setText( "show" );
     }
 }
 
 void rtimvControlPanel::on_buttonTargetCross_clicked()
 {
     // toggle
-    emit targetVisible( !imv->targetVisible() );
+    emit targetVisible( !m_imv->targetVisible() );
 }
 
 void rtimvControlPanel::on_lineEditTargetPixelX_returnPressed()
@@ -934,7 +941,7 @@ void rtimvControlPanel::on_lineEditTargetPixelX_returnPressed()
     bool ok = false;
     try
     {
-        txc = ui.lineEditTargetPixelX->text().toFloat( &ok );
+        txc = m_ui.lineEditTargetPixelX->text().toFloat( &ok );
     }
     catch( ... )
     {
@@ -944,7 +951,7 @@ void rtimvControlPanel::on_lineEditTargetPixelX_returnPressed()
     if( txc == -1 || ok == false )
         return;
 
-    txc = ( txc + 0.5 ) / imv->nx();
+    txc = ( txc + 0.5 ) / m_imv->nx();
 
     emit targetXc( txc );
 }
@@ -955,7 +962,7 @@ void rtimvControlPanel::on_lineEditTargetPixelY_returnPressed()
     bool ok = false;
     try
     {
-        tyc = ui.lineEditTargetPixelY->text().toFloat( &ok );
+        tyc = m_ui.lineEditTargetPixelY->text().toFloat( &ok );
     }
     catch( ... )
     {
@@ -965,7 +972,7 @@ void rtimvControlPanel::on_lineEditTargetPixelY_returnPressed()
     if( tyc == -1 || ok == false )
         return;
 
-    tyc = ( tyc + 0.5 ) / imv->ny();
+    tyc = ( tyc + 0.5 ) / m_imv->ny();
 
     emit targetYc( tyc );
 }
@@ -976,7 +983,7 @@ void rtimvControlPanel::on_lineEditTargetFractionX_returnPressed()
     bool ok = false;
     try
     {
-        txc = ui.lineEditTargetFractionX->text().toFloat( &ok );
+        txc = m_ui.lineEditTargetFractionX->text().toFloat( &ok );
     }
     catch( ... )
     {
@@ -995,7 +1002,7 @@ void rtimvControlPanel::on_lineEditTargetFractionY_returnPressed()
     bool ok = false;
     try
     {
-        tyc = ui.lineEditTargetFractionY->text().toFloat( &ok );
+        tyc = m_ui.lineEditTargetFractionY->text().toFloat( &ok );
     }
     catch( ... )
     {
