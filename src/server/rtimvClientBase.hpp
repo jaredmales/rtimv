@@ -504,6 +504,14 @@ class rtimvClientBase : public mx::app::application
                              const sharedLockT &lock /**< [in] a lock on m_calMutex */
     );
 
+    /// Set the color bar
+    /**
+     * This takes a shared lock on m_calMutex, then loads the color bar specified and (optionally) updates the image
+     */
+    void mtxUL_load_colorbar( rtimv::colorbar cb, /**< [in] the new color bar */
+                              bool update         /**< [in] whether or not to update the image*/
+    );
+
     rtimv::colorbar colorbar();
 
     ///@}

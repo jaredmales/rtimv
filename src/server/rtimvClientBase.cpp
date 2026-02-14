@@ -1038,6 +1038,13 @@ void rtimvClientBase::mtxL_load_colorbar( rtimv::colorbar cb, bool update, const
     mtxL_load_colorbarImpl( cb, update );
 }
 
+void rtimvClientBase::mtxUL_load_colorbar( rtimv::colorbar cb, bool update )
+{
+    sharedLockT lock( m_calMutex );
+
+    mtxL_load_colorbar( cb, update, lock );
+}
+
 rtimv::colorbar rtimvClientBase::colorbar()
 {
     return m_colorbar;

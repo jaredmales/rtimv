@@ -217,6 +217,11 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     void mtxL_setViewCen_impl( float x, float y, bool movezoombox );
 
   public:
+    /// Lock m_calMutex, then update the viewport center.
+    void mtxUL_setViewCen( float x /**< [in] new x center in fractional image coordinates*/,
+                           float y /**< [in] new y center in fractional image coordinates*/,
+                           bool movezoombox = true /**< [in] whether to move the zoom box graphic*/ );
+
     void mtxL_setViewCen( float x, float y, const uniqueLockT &lock, bool movezoombox = true );
 
     void mtxL_setViewCen( float x, float y, const sharedLockT &lock, bool movezoombox = true );
