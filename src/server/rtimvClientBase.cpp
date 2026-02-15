@@ -1,3 +1,10 @@
+/** \file rtimvClientBase.cpp
+ * \brief Definitions for the rtimvClientBase class
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #include "rtimvClientBase.hpp"
 #include "rtimvColorGRPC.hpp"
 
@@ -1021,7 +1028,6 @@ void rtimvClientBase::setCurrImageTimeout()
         m_cubeFPS = 0;
 
         m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
-
     }
     else // it's a cube, cube mode is on, and FPS > 0
     {
@@ -1064,7 +1070,6 @@ void rtimvClientBase::setCurrImageTimeout()
 
         m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
     }
-
 }
 
 void rtimvClientBase::imageTimeout( int to )

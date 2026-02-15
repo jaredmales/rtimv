@@ -1,3 +1,10 @@
+/** \file rtimvServer.cpp
+ * \brief Definitions for the rtimvServer class
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #include "rtimvServer.hpp"
 
 // The boilerplate preparation for responding to an rpc
@@ -27,7 +34,6 @@
     {                                                                                                                  \
         imageTh->emit_awaken();                                                                                        \
     }
-
 
 rtimvServer::rtimvServer( int argc, char **argv, QObject *Parent ) : QObject( Parent )
 {
@@ -348,8 +354,8 @@ ServerUnaryReactor *rtimvServer::Restretch( CallbackServerContext *context,
 }
 
 ServerUnaryReactor *rtimvServer::SetAutoscale( CallbackServerContext *context,
-                                             const remote_rtimv::AutoscaleRequest *request,
-                                             remote_rtimv::AutoscaleResponse *reply )
+                                               const remote_rtimv::AutoscaleRequest *request,
+                                               remote_rtimv::AutoscaleResponse *reply )
 {
     PREPARE_RPC_REACTOR
     static_cast<void>( reply );
@@ -435,7 +441,8 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
         ++nwaits;
     }
 
-    auto populateImageState = [imageTh, reply]() {
+    auto populateImageState = [imageTh, reply]()
+    {
         reply->set_nx( imageTh->nx() );
         reply->set_ny( imageTh->ny() );
         reply->set_nz( imageTh->nz() );

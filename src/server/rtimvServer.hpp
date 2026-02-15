@@ -1,4 +1,11 @@
 
+/** \file rtimvServer.hpp
+ * \brief Declarations for the rtimvServer class
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #ifndef rtimvServer_hpp
 #define rtimvServer_hpp
 
@@ -171,10 +178,12 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
                                      const remote_rtimv::ImageRequest *request,
                                      remote_rtimv::Image *reply ) override;
 
+    /// Set the cube playback direction on the server.
     ServerUnaryReactor *CubeDir( CallbackServerContext *context,
                                  const remote_rtimv::CubeDirRequest *request,
                                  remote_rtimv::CubeDirResponse *reply ) override;
 
+    /// Set the cube frame on the server.
     ServerUnaryReactor *CubeFrame( CallbackServerContext *context,
                                    const remote_rtimv::CubeFrameRequest *request,
                                    remote_rtimv::CubeFrameResponse *reply ) override;
@@ -190,6 +199,7 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
     ServerUnaryReactor *
     GetPixel( CallbackServerContext *context, const remote_rtimv::Coord *request, remote_rtimv::Pixel *reply ) override;
 
+    /// Get the image number for a requested image index.
     ServerUnaryReactor *GetImageNo( CallbackServerContext *context,
                                     const remote_rtimv::ImageNoRequest *request,
                                     remote_rtimv::ImageNoResponse *reply ) override;

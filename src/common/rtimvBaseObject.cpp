@@ -1,3 +1,10 @@
+/** \file rtimvBaseObject.cpp
+ * \brief Definitions for the rtimvBaseObject class
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #include "rtimvBaseObject.hpp"
 
 // #include "rtimvBase.hpp"
@@ -164,7 +171,6 @@ void rtimvBaseObject::updateCubeFrame()
     m_parent->updateCubeFrame();
 }
 
-
 void rtimvBaseObject::emit_ImageNeeded()
 {
     emit ImageNeeded();
@@ -221,6 +227,4 @@ void rtimvBaseObject::ImageReceived()
 
     #endif
     // clang-format on
-
 }
-

@@ -414,7 +414,6 @@ class rtimvClientBase : public mx::app::application
      * @{
      */
   public:
-
     /// Increment the main image cube number
     /** This is on m_cubeTimer expiration
      */

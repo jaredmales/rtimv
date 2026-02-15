@@ -1,3 +1,10 @@
+/** \file rtimvBase.cpp
+ * \brief Definitions for the rtimvBase class
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #include "rtimvBase.hpp"
 #include "rtimvBaseObject.hpp"
 
@@ -1307,7 +1314,7 @@ void rtimvBase::mtxUL_autoScale( bool as )
         // On a change to true we trigger a re-color
         if( m_autoScale == true )
         {
-            //This changes us out of user mode
+            // This changes us out of user mode
             if( m_colormode == rtimv::colormode::user )
             {
                 m_colormode = rtimv::colormode::minmaxglobal;

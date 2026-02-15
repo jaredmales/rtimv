@@ -769,7 +769,7 @@ class rtimvBase : public mx::app::application
     /**
      * The cal mutex must be unlocked before calling
      */
-    void mtxUL_autoScale(bool as /**< [in] the new value of the auto scale flag */);
+    void mtxUL_autoScale( bool as /**< [in] the new value of the auto scale flag */ );
 
     /// Get the auto scale flag value
     /**

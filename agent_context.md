@@ -50,6 +50,16 @@ Follow these code style and documentation rules exactly.
 - Ensure docs and naming are consistent after formatting.
 - Report any places where project style is ambiguous before making assumptions.
 
+10) gRPC Reactor Conventions
+- For unary reactors, use `static_cast<void>(...)` for intentionally unused parameters.
+- For image-dependent modification RPCs, guard with `if( !imageTh->connected() )` and return `Status::OK` early.
+- Keep image modification RPC declarations grouped after `ImagePlease` in `rtimv.proto` and corresponding server/client files.
+
+11) Client/Server State Synchronization
+- Treat `Image` as the authoritative state sync payload for frequently changing backend state.
+- When practical, include configuration/state fields in `Image` so clients can refresh passively on each `ImagePlease` response.
+- Prefer updating local cached client state from received `Image` fields instead of immediately mirroring local writes after set-RPC calls.
+
 When you finish:
 - Summarize what changed.
 - List affected files.
