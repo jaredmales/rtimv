@@ -560,6 +560,7 @@ void rtimvClientBase::ImageReceived()
     double imageTime;
     uint32_t saturated;
     float minsc, maxsc, minim, maxim;
+    int imageTimeout;
 
     remote_rtimv::Colorbar colorbar;
     remote_rtimv::Colormode colormode;
@@ -569,6 +570,7 @@ void rtimvClientBase::ImageReceived()
     bool subtractDark;
     bool applyMask;
     bool applySatMask;
+    bool hasImagePayload{ false };
 
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
@@ -605,8 +607,11 @@ void rtimvClientBase::ImageReceived()
             m_qim = new QImage;
         }
 
-        m_qim->loadFromData(
-            reinterpret_cast<const uchar *>( m_grpcImage.image().data() ), m_grpcImage.image().size(), "jpeg" );
+        if( m_grpcImage.image().size() > 0 )
+        {
+            hasImagePayload = m_qim->loadFromData(
+                reinterpret_cast<const uchar *>( m_grpcImage.image().data() ), m_grpcImage.image().size(), "jpeg" );
+        }
 
         imageTime = m_grpcImage.atime();
         fpsEst = m_grpcImage.fps();
@@ -627,6 +632,8 @@ void rtimvClientBase::ImageReceived()
         subtractDark = m_grpcImage.subtract_dark();
         applyMask = m_grpcImage.apply_mask();
         applySatMask = m_grpcImage.apply_sat_mask();
+
+        imageTimeout = m_grpcImage.image_timeout();
     }
 
     std::shared_mutex dummy; // Used just to satisfy the requirement, not needed
@@ -667,14 +674,22 @@ void rtimvClientBase::ImageReceived()
     m_subtractDark = subtractDark;
     m_applyMask = applyMask;
     m_applySatMask = applySatMask;
+    m_imageTimeout = imageTimeout;
 
-    mtxL_postRecolor( ulock );
+    if( hasImagePayload )
+    {
+        mtxL_postRecolor( ulock );
 
-    ulock.unlock();
-    sharedLockT slock( dummy );
-    mtxL_postChangeImdata( slock );
+        ulock.unlock();
+        sharedLockT slock( dummy );
+        mtxL_postChangeImdata( slock );
+    }
+    else
+    {
+        ulock.unlock();
+    }
 
-    if( resized )
+    if( resized && hasImagePayload )
     {
         // Always switch to zoom 1 after a resize occurs
         zoomLevel( 1 );
@@ -713,7 +728,7 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_TIMEOUT )
             {
-                action = 1;
+                action = 0;
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_NOT_CONFIGURED )
             {
@@ -874,7 +889,20 @@ void rtimvClientBase::cubeFrame( uint32_t fno )
 
 void rtimvClientBase::cubeFrameDelta( int32_t dfno )
 {
-    // send to server
+    SHARED_CONN_LOCK
+
+    remote_rtimv::CubeFrameDeltaRequest request;
+    remote_rtimv::CubeFrameDeltaResponse response;
+    grpc::ClientContext context;
+
+    request.set_delta( dfno );
+
+    grpc::Status status = stub_->CubeFrameDelta( &context, request, &response );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+    }
 }
 
 void rtimvClientBase::updateImages()
@@ -888,17 +916,41 @@ void rtimvClientBase::updateImages()
 
 void rtimvClientBase::updateCube()
 {
-    // send to server
+    SHARED_CONN_LOCK
+
+    remote_rtimv::UpdateCubeRequest request;
+    remote_rtimv::UpdateCubeResponse response;
+    grpc::ClientContext context;
+
+    grpc::Status status = stub_->UpdateCube( &context, request, &response );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+    }
 }
 
 void rtimvClientBase::updateCubeFrame()
 {
-    // m_foundation->emit_cubeFrameUpdated( imageNo() );
+    m_foundation->emit_cubeFrameUpdated( imageNo( 0 ) );
 }
 
 void rtimvClientBase::imageTimeout( int to )
 {
-    // send to server
+    SHARED_CONN_LOCK
+
+    remote_rtimv::ImageTimeoutRequest request;
+    remote_rtimv::ImageTimeoutResponse response;
+    grpc::ClientContext context;
+
+    request.set_timeout( to );
+
+    grpc::Status status = stub_->SetImageTimeout( &context, request, &response );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+    }
 }
 
 int rtimvClientBase::imageTimeout()

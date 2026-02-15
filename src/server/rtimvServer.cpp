@@ -315,6 +315,18 @@ ServerUnaryReactor *rtimvServer::SetMaxScale( CallbackServerContext *context,
     return reactor;
 }
 
+ServerUnaryReactor *rtimvServer::SetImageTimeout( CallbackServerContext *context,
+                                                  const remote_rtimv::ImageTimeoutRequest *request,
+                                                  remote_rtimv::ImageTimeoutResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+
+    imageTh->imageTimeout( request->timeout() );
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
 ServerUnaryReactor *rtimvServer::Restretch( CallbackServerContext *context,
                                             const remote_rtimv::RestretchRequest *request,
                                             remote_rtimv::RestretchResponse *reply )
@@ -410,9 +422,41 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
         ++nwaits;
     }
 
+    auto populateImageState = [imageTh, reply]() {
+        reply->set_nx( imageTh->nx() );
+        reply->set_ny( imageTh->ny() );
+        reply->set_nz( imageTh->nz() );
+        reply->set_no( imageTh->imageNo( 0 ) );
+
+        reply->set_atime( imageTh->imageTime() );
+        reply->set_fps( imageTh->fpsEst() );
+
+        reply->set_saturated( imageTh->saturated() );
+
+        reply->set_min_image_data( imageTh->minImageData() );
+        reply->set_max_image_data( imageTh->maxImageData() );
+        reply->set_min_scale_data( imageTh->minScaleData() );
+        reply->set_max_scale_data( imageTh->maxScaleData() );
+
+        reply->set_colorbar( rtimv::colorbar2grpc( imageTh->colorbar() ) );
+
+        reply->set_colormode( rtimv::colormode2grpc( imageTh->colormode() ) );
+
+        reply->set_colorstretch( rtimv::stretch2grpc( imageTh->stretch() ) );
+
+        reply->set_autoscale( imageTh->autoScale() );
+
+        reply->set_subtract_dark( imageTh->subtractDark() );
+        reply->set_apply_mask( imageTh->applyMask() );
+        reply->set_apply_sat_mask( imageTh->applySatMask() );
+
+        reply->set_image_timeout( imageTh->imageTimeout() );
+    };
+
     if( imageTh->newImage() == false )
     {
         reply->set_status( remote_rtimv::IMAGE_STATUS_TIMEOUT );
+        populateImageState();
         std::string *im = new std::string;
         reply->set_allocated_image( im );
 
@@ -430,37 +474,51 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
     imageTh->lastRequest( -1 ); // sets to now, again b/c of wait
 
     reply->set_status( remote_rtimv::IMAGE_STATUS_VALID );
-    reply->set_nx( imageTh->nx() );
-    reply->set_ny( imageTh->ny() );
-    reply->set_nz( imageTh->nz() );
-    reply->set_no( imageTh->imageNo( 0 ) );
-
-    reply->set_atime( imageTh->imageTime() );
-    reply->set_fps( imageTh->fpsEst() );
+    populateImageState();
 
     reply->set_allocated_image( im );
 
-    reply->set_saturated( imageTh->saturated() );
-
-    reply->set_min_image_data( imageTh->minImageData() );
-    reply->set_max_image_data( imageTh->maxImageData() );
-    reply->set_min_scale_data( imageTh->minScaleData() );
-    reply->set_max_scale_data( imageTh->maxScaleData() );
-
-    reply->set_colorbar( rtimv::colorbar2grpc( imageTh->colorbar() ) );
-
-    reply->set_colormode( rtimv::colormode2grpc( imageTh->colormode() ) );
-
-    reply->set_colorstretch( rtimv::stretch2grpc( imageTh->stretch() ) );
-
-    reply->set_autoscale( imageTh->autoScale());
-
-    reply->set_subtract_dark( imageTh->subtractDark() );
-    reply->set_apply_mask( imageTh->applyMask() );
-    reply->set_apply_sat_mask( imageTh->applySatMask() );
-
     reactor->Finish( Status::OK );
 
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::UpdateCube( CallbackServerContext *context,
+                                             const remote_rtimv::UpdateCubeRequest *request,
+                                             remote_rtimv::UpdateCubeResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( request );
+    static_cast<void>( reply );
+
+    if( !imageTh->connected() )
+    {
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+
+    imageTh->updateCube();
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::CubeFrameDelta( CallbackServerContext *context,
+                                                 const remote_rtimv::CubeFrameDeltaRequest *request,
+                                                 remote_rtimv::CubeFrameDeltaResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
+
+    if( !imageTh->connected() )
+    {
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+
+    imageTh->cubeFrameDelta( request->delta() );
+
+    reactor->Finish( Status::OK );
     return reactor;
 }
 

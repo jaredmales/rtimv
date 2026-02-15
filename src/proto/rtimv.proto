@@ -16,6 +16,8 @@ service rtimv
 
     rpc SetMaxScale(ScaleRequest) returns (ScaleResponse);
 
+    rpc SetImageTimeout(ImageTimeoutRequest) returns (ImageTimeoutResponse);
+
     rpc Restretch(RestretchRequest) returns (RestretchResponse);
 
     rpc SetAutoscale(AutoscaleRequest) returns (AutoscaleResponse);
@@ -27,6 +29,10 @@ service rtimv
     rpc SetApplySatMask(ApplySatMaskRequest) returns (ApplySatMaskResponse);
 
     rpc ImagePlease(ImageRequest) returns (Image);
+
+    rpc UpdateCube(UpdateCubeRequest) returns (UpdateCubeResponse);
+
+    rpc CubeFrameDelta(CubeFrameDeltaRequest) returns (CubeFrameDeltaResponse);
 
     rpc GetPixel(Coord) returns(Pixel);
 
@@ -151,6 +157,15 @@ message ScaleResponse
 {
 }
 
+message ImageTimeoutRequest
+{
+    int32 timeout = 1;
+}
+
+message ImageTimeoutResponse
+{
+}
+
 message RestretchRequest
 {
 }
@@ -192,6 +207,23 @@ message ApplySatMaskRequest
 }
 
 message ApplySatMaskResponse
+{
+}
+
+message UpdateCubeRequest
+{
+}
+
+message UpdateCubeResponse
+{
+}
+
+message CubeFrameDeltaRequest
+{
+    int32 delta = 1;
+}
+
+message CubeFrameDeltaResponse
 {
 }
 
@@ -240,6 +272,8 @@ message Image
 //    bool apply_flat = 155;
     bool apply_mask = 160;
     bool apply_sat_mask = 165;
+
+    int32 image_timeout = 170;
 }
 
 message Coord
