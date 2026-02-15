@@ -345,6 +345,9 @@ class rtimvBase : public mx::app::application
      */
     void cubeDir( int dir /**< [in] the new cube direction*/ );
 
+    /// Get the cube direction
+    int cubeDir();
+
     /// Set the current cube frame
     void cubeFrame( uint32_t fno /**< [in] the new frame number*/ );
 
@@ -766,7 +769,7 @@ class rtimvBase : public mx::app::application
     /**
      * The cal mutex must be unlocked before calling
      */
-    void mtxUL_autoScale(bool as /**< [in] the new value of the auto scale flag */);
+    void mtxUL_autoScale( bool as /**< [in] the new value of the auto scale flag */ );
 
     /// Get the auto scale flag value
     /**

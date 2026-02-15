@@ -1,3 +1,10 @@
+/** \file rtimvBaseObject.cpp
+ * \brief Definitions for the rtimvBaseObject class
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #include "rtimvBaseObject.hpp"
 
 // #include "rtimvBase.hpp"
@@ -130,12 +137,18 @@ void rtimvBaseObject::cubeFrameDelta( int32_t dfno )
 
 void rtimvBaseObject::updateImages()
 {
+    // clang-format off
+    #ifndef RTIMV_GRPC
+
     if( !m_parent )
     {
         return;
     }
 
     m_parent->updateImages();
+
+    #endif
+    // clang-format on
 }
 
 void rtimvBaseObject::updateCube()
@@ -157,7 +170,6 @@ void rtimvBaseObject::updateCubeFrame()
 
     m_parent->updateCubeFrame();
 }
-
 
 void rtimvBaseObject::emit_ImageNeeded()
 {
@@ -215,6 +227,4 @@ void rtimvBaseObject::ImageReceived()
 
     #endif
     // clang-format on
-
 }
-

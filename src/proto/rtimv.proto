@@ -16,6 +16,8 @@ service rtimv
 
     rpc SetMaxScale(ScaleRequest) returns (ScaleResponse);
 
+    rpc SetImageTimeout(ImageTimeoutRequest) returns (ImageTimeoutResponse);
+
     rpc Restretch(RestretchRequest) returns (RestretchResponse);
 
     rpc SetAutoscale(AutoscaleRequest) returns (AutoscaleResponse);
@@ -28,7 +30,17 @@ service rtimv
 
     rpc ImagePlease(ImageRequest) returns (Image);
 
+    rpc CubeDir(CubeDirRequest) returns (CubeDirResponse);
+
+    rpc CubeFrame(CubeFrameRequest) returns (CubeFrameResponse);
+
+    rpc UpdateCube(UpdateCubeRequest) returns (UpdateCubeResponse);
+
+    rpc CubeFrameDelta(CubeFrameDeltaRequest) returns (CubeFrameDeltaResponse);
+
     rpc GetPixel(Coord) returns(Pixel);
+
+    rpc GetImageNo(ImageNoRequest) returns (ImageNoResponse);
 
     rpc ColorBox(Box) returns (MinvalMaxval);
 
@@ -151,6 +163,15 @@ message ScaleResponse
 {
 }
 
+message ImageTimeoutRequest
+{
+    int32 timeout = 1;
+}
+
+message ImageTimeoutResponse
+{
+}
+
 message RestretchRequest
 {
 }
@@ -192,6 +213,41 @@ message ApplySatMaskRequest
 }
 
 message ApplySatMaskResponse
+{
+}
+
+message UpdateCubeRequest
+{
+}
+
+message UpdateCubeResponse
+{
+}
+
+message CubeDirRequest
+{
+    int32 dir = 1;
+}
+
+message CubeDirResponse
+{
+}
+
+message CubeFrameRequest
+{
+    uint32 frame = 1;
+}
+
+message CubeFrameResponse
+{
+}
+
+message CubeFrameDeltaRequest
+{
+    int32 delta = 1;
+}
+
+message CubeFrameDeltaResponse
 {
 }
 
@@ -240,6 +296,9 @@ message Image
 //    bool apply_flat = 155;
     bool apply_mask = 160;
     bool apply_sat_mask = 165;
+
+    int32 image_timeout = 170;
+    int32 cube_dir = 175;
 }
 
 message Coord
@@ -252,6 +311,17 @@ message Pixel
 {
     bool valid = 1;
     float value = 2;
+}
+
+message ImageNoRequest
+{
+    uint32 image = 1;
+}
+
+message ImageNoResponse
+{
+    bool valid = 1;
+    uint32 no = 2;
 }
 
 message MinvalMaxval

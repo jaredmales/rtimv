@@ -1,3 +1,10 @@
+/** \file rtimvBase.cpp
+ * \brief Definitions for the rtimvBase class
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #include "rtimvBase.hpp"
 #include "rtimvBaseObject.hpp"
 
@@ -690,6 +697,11 @@ void rtimvBase::cubeDir( int dir )
     m_foundation->emit_cubeDirUpdated( m_cubeDir );
 }
 
+int rtimvBase::cubeDir()
+{
+    return m_cubeDir;
+}
+
 void rtimvBase::cubeFrame( uint32_t fno )
 {
     if( m_images[0] != nullptr )
@@ -1302,7 +1314,7 @@ void rtimvBase::mtxUL_autoScale( bool as )
         // On a change to true we trigger a re-color
         if( m_autoScale == true )
         {
-            //This changes us out of user mode
+            // This changes us out of user mode
             if( m_colormode == rtimv::colormode::user )
             {
                 m_colormode = rtimv::colormode::minmaxglobal;

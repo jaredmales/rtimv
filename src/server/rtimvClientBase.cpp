@@ -1,3 +1,10 @@
+/** \file rtimvClientBase.cpp
+ * \brief Definitions for the rtimvClientBase class
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #include "rtimvClientBase.hpp"
 #include "rtimvColorGRPC.hpp"
 
@@ -556,10 +563,12 @@ void rtimvClientBase::ImageReceived()
     }
 
     uint32_t nx, ny, nz;
+    uint32_t imageNo;
     float fpsEst;
     double imageTime;
     uint32_t saturated;
     float minsc, maxsc, minim, maxim;
+    int imageTimeout;
 
     remote_rtimv::Colorbar colorbar;
     remote_rtimv::Colormode colormode;
@@ -569,6 +578,8 @@ void rtimvClientBase::ImageReceived()
     bool subtractDark;
     bool applyMask;
     bool applySatMask;
+    int cubeDir;
+    bool hasImagePayload{ false };
 
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
@@ -583,6 +594,7 @@ void rtimvClientBase::ImageReceived()
         nx = m_grpcImage.nx();
         ny = m_grpcImage.ny();
         nz = m_grpcImage.nz();
+        imageNo = m_grpcImage.no();
 
         // Always have at least one pixel
         if( nx == 0 )
@@ -605,8 +617,11 @@ void rtimvClientBase::ImageReceived()
             m_qim = new QImage;
         }
 
-        m_qim->loadFromData(
-            reinterpret_cast<const uchar *>( m_grpcImage.image().data() ), m_grpcImage.image().size(), "jpeg" );
+        if( m_grpcImage.image().size() > 0 )
+        {
+            hasImagePayload = m_qim->loadFromData(
+                reinterpret_cast<const uchar *>( m_grpcImage.image().data() ), m_grpcImage.image().size(), "jpeg" );
+        }
 
         imageTime = m_grpcImage.atime();
         fpsEst = m_grpcImage.fps();
@@ -627,6 +642,9 @@ void rtimvClientBase::ImageReceived()
         subtractDark = m_grpcImage.subtract_dark();
         applyMask = m_grpcImage.apply_mask();
         applySatMask = m_grpcImage.apply_sat_mask();
+
+        imageTimeout = m_grpcImage.image_timeout();
+        cubeDir = m_grpcImage.cube_dir();
     }
 
     std::shared_mutex dummy; // Used just to satisfy the requirement, not needed
@@ -652,6 +670,7 @@ void rtimvClientBase::ImageReceived()
 
     m_fpsEst = fpsEst;
     m_imageTime = imageTime;
+    m_imageNo = imageNo;
     m_saturated = saturated;
     m_minImageData = minim;
     m_maxImageData = maxim;
@@ -667,14 +686,27 @@ void rtimvClientBase::ImageReceived()
     m_subtractDark = subtractDark;
     m_applyMask = applyMask;
     m_applySatMask = applySatMask;
+    m_imageTimeout = imageTimeout;
+    if( m_cubeDir != cubeDir )
+    {
+        m_cubeDir = cubeDir;
+        m_foundation->emit_cubeDirUpdated( m_cubeDir );
+    }
 
-    mtxL_postRecolor( ulock );
+    if( hasImagePayload )
+    {
+        mtxL_postRecolor( ulock );
 
-    ulock.unlock();
-    sharedLockT slock( dummy );
-    mtxL_postChangeImdata( slock );
+        ulock.unlock();
+        sharedLockT slock( dummy );
+        mtxL_postChangeImdata( slock );
+    }
+    else
+    {
+        ulock.unlock();
+    }
 
-    if( resized )
+    if( resized && hasImagePayload )
     {
         // Always switch to zoom 1 after a resize occurs
         zoomLevel( 1 );
@@ -713,7 +745,7 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_TIMEOUT )
             {
-                action = 1;
+                action = 0;
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_NOT_CONFIGURED )
             {
@@ -806,8 +838,35 @@ std::string rtimvClientBase::imageName( size_t n )
 
 uint32_t rtimvClientBase::imageNo( size_t n )
 {
-    // get from server?
-    return 0;
+    if( n == 0 )
+    {
+        return m_imageNo;
+    }
+
+    SHARED_CONN_LOCK_RET( 0 )
+
+    remote_rtimv::ImageNoRequest request;
+    remote_rtimv::ImageNoResponse response;
+    grpc::ClientContext context;
+
+    request.set_image( static_cast<uint32_t>( n ) );
+
+    grpc::Status status = stub_->GetImageNo( &context, request, &response );
+
+    if( status.ok() )
+    {
+        if( !response.valid() )
+        {
+            return 0;
+        }
+
+        return response.no();
+    }
+    else
+    {
+        REPORT_SERVER_DISCONNECTED
+        return 0;
+    }
 }
 
 std::vector<std::string> rtimvClientBase::info( size_t n )
@@ -820,7 +879,7 @@ void rtimvClientBase::mtxL_setImsize( uint32_t x, uint32_t y, uint32_t z, const 
 {
 
     m_nz = z;
-    // m_foundation->emit_nzUpdated( m_nz );
+    m_foundation->emit_nzUpdated( m_nz );
 
     if( m_nx != x || m_ny != y )
     {
@@ -848,57 +907,187 @@ uint32_t rtimvClientBase::nz()
 
 void rtimvClientBase::cubeMode( bool cm )
 {
-    // send to server
+    m_cubeMode = cm;
+
+    setCurrImageTimeout();
+
+    m_foundation->emit_cubeModeUpdated( m_cubeMode );
 }
 
 void rtimvClientBase::cubeFPS( float fps )
 {
-    // send to server
+    if( fps < 0 )
+    {
+        fps = 0;
+    }
+    m_desiredCubeFPS = fps;
+    setCurrImageTimeout();
+
+    m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
 }
 
 void rtimvClientBase::cubeFPSMult( float mult )
 {
-    // send to server
+    m_cubeFPSMult = mult;
+    setCurrImageTimeout();
+    m_foundation->emit_cubeFPSMultUpdated( m_cubeFPSMult );
 }
 
 void rtimvClientBase::cubeDir( int dir )
 {
-    m_cubeDir = dir;
-    // m_foundation->emit_cubeDirUpdated( m_cubeDir );
+    SHARED_CONN_LOCK
+
+    remote_rtimv::CubeDirRequest request;
+    remote_rtimv::CubeDirResponse response;
+    grpc::ClientContext context;
+
+    request.set_dir( dir );
+
+    grpc::Status status = stub_->CubeDir( &context, request, &response );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+    }
 }
 
 void rtimvClientBase::cubeFrame( uint32_t fno )
 {
-    // send to server
+    SHARED_CONN_LOCK
+
+    remote_rtimv::CubeFrameRequest request;
+    remote_rtimv::CubeFrameResponse response;
+    grpc::ClientContext context;
+
+    request.set_frame( fno );
+
+    grpc::Status status = stub_->CubeFrame( &context, request, &response );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+    }
 }
 
 void rtimvClientBase::cubeFrameDelta( int32_t dfno )
 {
-    // send to server
-}
+    SHARED_CONN_LOCK
 
-void rtimvClientBase::updateImages()
-{
-    // If we aren't waiting on an image yet, sent ImagePlease
-    /*if( !m_imageWaiting )
+    remote_rtimv::CubeFrameDeltaRequest request;
+    remote_rtimv::CubeFrameDeltaResponse response;
+    grpc::ClientContext context;
+
+    request.set_delta( dfno );
+
+    grpc::Status status = stub_->CubeFrameDelta( &context, request, &response );
+
+    if( !status.ok() )
     {
-        ImagePlease();
-    }*/
+        REPORT_SERVER_DISCONNECTED
+    }
 }
 
 void rtimvClientBase::updateCube()
 {
-    // send to server
+    SHARED_CONN_LOCK
+
+    remote_rtimv::UpdateCubeRequest request;
+    remote_rtimv::UpdateCubeResponse response;
+    grpc::ClientContext context;
+
+    grpc::Status status = stub_->UpdateCube( &context, request, &response );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+    }
 }
 
 void rtimvClientBase::updateCubeFrame()
 {
-    // m_foundation->emit_cubeFrameUpdated( imageNo() );
+    m_foundation->emit_cubeFrameUpdated( imageNo( 0 ) );
+}
+
+void rtimvClientBase::setCurrImageTimeout()
+{
+    int cubeTimeout;
+
+    if( m_desiredCubeFPS <= 0 || m_nz <= 1 )
+    {
+        m_foundation->m_cubeTimer.stop();
+
+        if( m_nz <= 1 )
+        {
+            m_foundation->m_cubeFrameUpdateTimer.stop();
+        }
+        else
+        {
+            m_foundation->m_cubeFrameUpdateTimer.start( 250 );
+        }
+
+        m_cubeFPS = 0;
+
+        m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
+    }
+    else // it's a cube, cube mode is on, and FPS > 0
+    {
+        // First get our wish
+        cubeTimeout = std::round( 1000. / ( m_desiredCubeFPS * m_cubeFPSMult ) );
+
+        if( cubeTimeout < 1 )
+        {
+            cubeTimeout = 1;
+        }
+
+        if( cubeTimeout < m_imageTimeout )
+        {
+            cubeTimeout = m_imageTimeout;
+        }
+
+        // Now get reality with imageTimeout
+        int f = std::round( ( 1.0 * cubeTimeout ) / m_imageTimeout );
+        if( f <= 0 )
+        {
+            f = 1;
+        }
+
+        // Report reality
+        m_cubeFPS = ( 1000.0 / ( f * m_imageTimeout ) ) / m_cubeFPSMult;
+
+        // Implement reality
+        cubeTimeout = std::round( 1000. / ( m_cubeFPS * m_cubeFPSMult ) );
+
+        if( m_cubeMode )
+        {
+            m_foundation->m_cubeTimer.start( cubeTimeout );
+            m_foundation->m_cubeFrameUpdateTimer.start( 250 );
+        }
+        else
+        {
+            m_cubeFPS = 0;
+            m_foundation->m_cubeTimer.stop();
+        }
+
+        m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
+    }
 }
 
 void rtimvClientBase::imageTimeout( int to )
 {
-    // send to server
+    SHARED_CONN_LOCK
+
+    remote_rtimv::ImageTimeoutRequest request;
+    remote_rtimv::ImageTimeoutResponse response;
+    grpc::ClientContext context;
+
+    request.set_timeout( to );
+
+    grpc::Status status = stub_->SetImageTimeout( &context, request, &response );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+    }
 }
 
 int rtimvClientBase::imageTimeout()
