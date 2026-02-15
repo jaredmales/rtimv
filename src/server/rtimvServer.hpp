@@ -171,6 +171,14 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
                                      const remote_rtimv::ImageRequest *request,
                                      remote_rtimv::Image *reply ) override;
 
+    ServerUnaryReactor *CubeDir( CallbackServerContext *context,
+                                 const remote_rtimv::CubeDirRequest *request,
+                                 remote_rtimv::CubeDirResponse *reply ) override;
+
+    ServerUnaryReactor *CubeFrame( CallbackServerContext *context,
+                                   const remote_rtimv::CubeFrameRequest *request,
+                                   remote_rtimv::CubeFrameResponse *reply ) override;
+
     ServerUnaryReactor *UpdateCube( CallbackServerContext *context,
                                     const remote_rtimv::UpdateCubeRequest *request,
                                     remote_rtimv::UpdateCubeResponse *reply ) override;
@@ -181,6 +189,10 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
 
     ServerUnaryReactor *
     GetPixel( CallbackServerContext *context, const remote_rtimv::Coord *request, remote_rtimv::Pixel *reply ) override;
+
+    ServerUnaryReactor *GetImageNo( CallbackServerContext *context,
+                                    const remote_rtimv::ImageNoRequest *request,
+                                    remote_rtimv::ImageNoResponse *reply ) override;
 
     ServerUnaryReactor *ColorBox( CallbackServerContext *context,
                                   const remote_rtimv::Box *request,

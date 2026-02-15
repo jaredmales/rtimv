@@ -194,6 +194,8 @@ class rtimvClientBase : public mx::app::application
 
     double m_imageTime{ 0 };
 
+    uint32_t m_imageNo{ 0 };
+
     ///@}
 
     /** @name Image Status

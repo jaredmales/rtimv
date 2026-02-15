@@ -690,6 +690,11 @@ void rtimvBase::cubeDir( int dir )
     m_foundation->emit_cubeDirUpdated( m_cubeDir );
 }
 
+int rtimvBase::cubeDir()
+{
+    return m_cubeDir;
+}
+
 void rtimvBase::cubeFrame( uint32_t fno )
 {
     if( m_images[0] != nullptr )

@@ -30,11 +30,17 @@ service rtimv
 
     rpc ImagePlease(ImageRequest) returns (Image);
 
+    rpc CubeDir(CubeDirRequest) returns (CubeDirResponse);
+
+    rpc CubeFrame(CubeFrameRequest) returns (CubeFrameResponse);
+
     rpc UpdateCube(UpdateCubeRequest) returns (UpdateCubeResponse);
 
     rpc CubeFrameDelta(CubeFrameDeltaRequest) returns (CubeFrameDeltaResponse);
 
     rpc GetPixel(Coord) returns(Pixel);
+
+    rpc GetImageNo(ImageNoRequest) returns (ImageNoResponse);
 
     rpc ColorBox(Box) returns (MinvalMaxval);
 
@@ -218,6 +224,24 @@ message UpdateCubeResponse
 {
 }
 
+message CubeDirRequest
+{
+    int32 dir = 1;
+}
+
+message CubeDirResponse
+{
+}
+
+message CubeFrameRequest
+{
+    uint32 frame = 1;
+}
+
+message CubeFrameResponse
+{
+}
+
 message CubeFrameDeltaRequest
 {
     int32 delta = 1;
@@ -274,6 +298,7 @@ message Image
     bool apply_sat_mask = 165;
 
     int32 image_timeout = 170;
+    int32 cube_dir = 175;
 }
 
 message Coord
@@ -286,6 +311,17 @@ message Pixel
 {
     bool valid = 1;
     float value = 2;
+}
+
+message ImageNoRequest
+{
+    uint32 image = 1;
+}
+
+message ImageNoResponse
+{
+    bool valid = 1;
+    uint32 no = 2;
 }
 
 message MinvalMaxval

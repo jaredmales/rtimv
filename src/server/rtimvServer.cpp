@@ -230,6 +230,7 @@ ServerUnaryReactor *rtimvServer::SetColorbar( CallbackServerContext *context,
                                               remote_rtimv::ColorbarResponse *reply )
 {
     PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
 
     rtimv::colorbar cb = rtimv::grpc2colorbar( request->colorbar() );
 
@@ -252,6 +253,7 @@ ServerUnaryReactor *rtimvServer::SetColormode( CallbackServerContext *context,
                                                remote_rtimv::ColormodeResponse *reply )
 {
     PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
 
     rtimv::colormode cm = rtimv::grpc2colormode( request->colormode() );
 
@@ -275,6 +277,7 @@ ServerUnaryReactor *rtimvServer::SetColorstretch( CallbackServerContext *context
                                                   remote_rtimv::ColorstretchResponse *reply )
 {
     PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
 
     rtimv::stretch cs = rtimv::grpc2stretch( request->colorstretch() );
 
@@ -296,6 +299,7 @@ ServerUnaryReactor *rtimvServer::SetMinScale( CallbackServerContext *context,
                                               remote_rtimv::ScaleResponse *reply )
 {
     PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
 
     imageTh->minScaleData( request->value() );
 
@@ -308,6 +312,7 @@ ServerUnaryReactor *rtimvServer::SetMaxScale( CallbackServerContext *context,
                                               remote_rtimv::ScaleResponse *reply )
 {
     PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
 
     imageTh->maxScaleData( request->value() );
 
@@ -320,6 +325,7 @@ ServerUnaryReactor *rtimvServer::SetImageTimeout( CallbackServerContext *context
                                                   remote_rtimv::ImageTimeoutResponse *reply )
 {
     PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
 
     imageTh->imageTimeout( request->timeout() );
 
@@ -332,6 +338,8 @@ ServerUnaryReactor *rtimvServer::Restretch( CallbackServerContext *context,
                                             remote_rtimv::RestretchResponse *reply )
 {
     PREPARE_RPC_REACTOR
+    static_cast<void>( request );
+    static_cast<void>( reply );
 
     imageTh->mtxUL_reStretch();
 
@@ -344,6 +352,7 @@ ServerUnaryReactor *rtimvServer::SetAutoscale( CallbackServerContext *context,
                                              remote_rtimv::AutoscaleResponse *reply )
 {
     PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
 
     imageTh->mtxUL_autoScale( request->autoscale() );
 
@@ -356,6 +365,7 @@ ServerUnaryReactor *rtimvServer::SetSubDark( CallbackServerContext *context,
                                              remote_rtimv::SubDarkResponse *reply )
 {
     PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
 
     imageTh->subtractDark( request->subtract_dark() );
 
@@ -368,6 +378,7 @@ ServerUnaryReactor *rtimvServer::SetApplyMask( CallbackServerContext *context,
                                                remote_rtimv::ApplyMaskResponse *reply )
 {
     PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
 
     imageTh->applyMask( request->apply_mask() );
 
@@ -380,6 +391,7 @@ ServerUnaryReactor *rtimvServer::SetApplySatMask( CallbackServerContext *context
                                                   remote_rtimv::ApplySatMaskResponse *reply )
 {
     PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
 
     imageTh->applySatMask( request->apply_sat_mask() );
 
@@ -392,6 +404,7 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
                                               remote_rtimv::Image *reply )
 {
     PREPARE_RPC_REACTOR
+    static_cast<void>( request );
 
     // Check if image has been found
     if( !imageTh->connected() )
@@ -451,6 +464,7 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
         reply->set_apply_sat_mask( imageTh->applySatMask() );
 
         reply->set_image_timeout( imageTh->imageTimeout() );
+        reply->set_cube_dir( imageTh->cubeDir() );
     };
 
     if( imageTh->newImage() == false )
@@ -498,6 +512,44 @@ ServerUnaryReactor *rtimvServer::UpdateCube( CallbackServerContext *context,
     }
 
     imageTh->updateCube();
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::CubeDir( CallbackServerContext *context,
+                                          const remote_rtimv::CubeDirRequest *request,
+                                          remote_rtimv::CubeDirResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
+
+    if( !imageTh->connected() )
+    {
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+
+    imageTh->cubeDir( request->dir() );
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::CubeFrame( CallbackServerContext *context,
+                                            const remote_rtimv::CubeFrameRequest *request,
+                                            remote_rtimv::CubeFrameResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
+
+    if( !imageTh->connected() )
+    {
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+
+    imageTh->cubeFrame( request->frame() );
 
     reactor->Finish( Status::OK );
     return reactor;
@@ -556,6 +608,37 @@ rtimvServer::GetPixel( CallbackServerContext *context, const remote_rtimv::Coord
     return reactor;
 }
 
+ServerUnaryReactor *rtimvServer::GetImageNo( CallbackServerContext *context,
+                                             const remote_rtimv::ImageNoRequest *request,
+                                             remote_rtimv::ImageNoResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+
+    // Check if image has been found
+    if( !imageTh->connected() )
+    {
+        reply->set_valid( false );
+        reply->set_no( 0 );
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+
+    uint32_t n = request->image();
+    if( n >= imageTh->nz() )
+    {
+        reply->set_valid( false );
+        reply->set_no( 0 );
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+
+    reply->set_valid( true );
+    reply->set_no( imageTh->imageNo( n ) );
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
 ServerUnaryReactor *rtimvServer::ColorBox( CallbackServerContext *context,
                                            const remote_rtimv::Box *request,
                                            remote_rtimv::MinvalMaxval *reply )
@@ -593,6 +676,8 @@ ServerUnaryReactor *rtimvServer::Recolor( CallbackServerContext *context,
                                           remote_rtimv::RecolorResponse *reply )
 {
     PREPARE_RPC_REACTOR
+    static_cast<void>( request );
+    static_cast<void>( reply );
 
     imageTh->mtxUL_recolor();
 

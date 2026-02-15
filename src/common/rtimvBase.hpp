@@ -345,6 +345,9 @@ class rtimvBase : public mx::app::application
      */
     void cubeDir( int dir /**< [in] the new cube direction*/ );
 
+    /// Get the cube direction
+    int cubeDir();
+
     /// Set the current cube frame
     void cubeFrame( uint32_t fno /**< [in] the new frame number*/ );
 
