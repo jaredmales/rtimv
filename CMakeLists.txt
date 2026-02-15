@@ -81,6 +81,7 @@ install( EXPORT rtimv-sharedTargets
 
 set( commonsrcs src/common/rtimvBaseObject.cpp
                              src/common/rtimvBase.cpp
+                             src/common/rtimvFilters.cpp
                              src/common/images/shmimImage.cpp
                              src/common/images/mzmqImage.cpp
                              src/common/images/fitsImage.cpp

@@ -28,6 +28,25 @@ rtimvBase::rtimvBase()
 
 rtimvBase::~rtimvBase()
 {
+    if( m_calDataRaw != nullptr )
+    {
+        delete[] m_calDataRaw;
+        m_calDataRaw = nullptr;
+        m_calData = nullptr;
+    }
+
+    if( m_satData != nullptr )
+    {
+        delete[] m_satData;
+        m_satData = nullptr;
+    }
+
+    if( m_qim != nullptr )
+    {
+        delete m_qim;
+        m_qim = nullptr;
+    }
+
     for( size_t n = 0; n < m_images.size(); ++n )
     {
         if( m_images[n] )
@@ -511,15 +530,15 @@ void rtimvBase::mtxL_setImsize( uint32_t x, uint32_t y, uint32_t z, const unique
     m_nz = z;
     m_foundation->emit_nzUpdated( m_nz );
 
-    if( m_nx != x || m_ny != y || m_calData == 0 || m_qim == 0 )
+    if( m_nx != x || m_ny != y || m_calDataRaw == nullptr || m_qim == nullptr )
     {
         m_nx = x;
         m_ny = y;
 
-        if( m_calData != nullptr )
+        if( m_calDataRaw != nullptr )
         {
-            delete[] m_calData;
-            m_calData = nullptr;
+            delete[] m_calDataRaw;
+            m_calDataRaw = nullptr;
         }
 
         if( m_satData != nullptr )
@@ -528,7 +547,8 @@ void rtimvBase::mtxL_setImsize( uint32_t x, uint32_t y, uint32_t z, const unique
             m_satData = nullptr;
         }
 
-        m_calData = new float[m_nx * m_ny];
+        m_calDataRaw = new float[m_nx * m_ny];
+        m_calData = m_calDataRaw;
         m_satData = new uint8_t[m_nx * m_ny];
 
         if( m_qim != nullptr )
@@ -803,36 +823,136 @@ void rtimvBase::subtractDark( bool sd )
     if( sd != m_subtractDark )
     {
         m_subtractDark = sd;
-        mtxUL_changeImdata(); // have to trigger refresh of cal data
+        mtxUL_changeImdata(); // Recompute calibrated/filtered data after calibration changes.
     }
 }
+
 bool rtimvBase::subtractDark()
 {
     return m_subtractDark;
 }
+
 void rtimvBase::applyMask( bool amsk )
 {
     if( amsk != m_applyMask )
     {
         m_applyMask = amsk;
-        mtxUL_changeImdata(); // have to trigger refresh of cal data
+        mtxUL_changeImdata(); // Recompute calibrated/filtered data after calibration changes.
     }
 }
+
 bool rtimvBase::applyMask()
 {
     return m_applyMask;
 }
+
 void rtimvBase::applySatMask( bool asmsk )
 {
     if( asmsk != m_applySatMask )
     {
         m_applySatMask = asmsk;
-        mtxUL_changeImdata(); // have to trigger refresh of cal data
+        mtxUL_changeImdata(); // Recompute calibrated/filtered data after calibration changes.
     }
 }
+
 bool rtimvBase::applySatMask()
 {
     return m_applySatMask;
+}
+
+// Filter setting changes are applied immediately to the current frame.
+void rtimvBase::hpFilter( rtimv::hpFilter filter )
+{
+    if( filter != m_hpFilter )
+    {
+        m_hpFilter = filter;
+        mtxUL_changeImdata();
+    }
+}
+
+rtimv::hpFilter rtimvBase::hpFilter()
+{
+    return m_hpFilter;
+}
+
+void rtimvBase::hpfFW( float fw )
+{
+    if( fw < 0 )
+    {
+        fw = 0;
+    }
+
+    if( fw != m_hpfFW )
+    {
+        m_hpfFW = fw;
+        mtxUL_changeImdata();
+    }
+}
+
+float rtimvBase::hpfFW()
+{
+    return m_hpfFW;
+}
+
+void rtimvBase::applyHPFilter( bool apply )
+{
+    if( apply != m_applyHPFilter )
+    {
+        m_applyHPFilter = apply;
+        mtxUL_changeImdata();
+    }
+}
+
+bool rtimvBase::applyHPFilter()
+{
+    return m_applyHPFilter;
+}
+
+void rtimvBase::lpFilter( rtimv::lpFilter filter )
+{
+    if( filter != m_lpFilter )
+    {
+        m_lpFilter = filter;
+        mtxUL_changeImdata();
+    }
+}
+
+rtimv::lpFilter rtimvBase::lpFilter()
+{
+    return m_lpFilter;
+}
+
+void rtimvBase::lpfFW( float fw )
+{
+    if( fw < 0 )
+    {
+        fw = 0;
+    }
+
+    if( fw != m_lpfFW )
+    {
+        m_lpfFW = fw;
+        mtxUL_changeImdata();
+    }
+}
+
+float rtimvBase::lpfFW()
+{
+    return m_lpfFW;
+}
+
+void rtimvBase::applyLPFilter( bool apply )
+{
+    if( apply != m_applyLPFilter )
+    {
+        m_applyLPFilter = apply;
+        mtxUL_changeImdata();
+    }
+}
+
+bool rtimvBase::applyLPFilter()
+{
+    return m_applyLPFilter;
 }
 
 rtimvBase::pixelF rtimvBase::rawPixel()
@@ -887,29 +1007,47 @@ rtimvBase::pixelF rtimvBase::rawPixel()
     {
 
         if( m_images[1] == nullptr && m_images[2] == nullptr )
+        {
             return _pixel;
+        }
         else if( m_images[2] == nullptr )
         {
             if( m_images[1]->nx() != m_images[0]->nx() || m_images[1]->ny() != m_images[0]->ny() )
+            {
                 return _pixel;
+            }
+
             if( m_images[1]->valid() )
+            {
                 _pixel = &pixel_subDark;
+            }
         }
         else if( m_images[1] == nullptr )
         {
             if( m_images[2]->nx() != m_images[0]->nx() || m_images[2]->ny() != m_images[0]->ny() )
+            {
                 return _pixel;
+            }
+
             if( m_images[2]->valid() )
+            {
                 _pixel = &pixel_applyMask;
+            }
         }
         else
         {
             if( m_images[1]->nx() != m_images[0]->nx() || m_images[1]->ny() != m_images[0]->ny() )
+            {
                 return _pixel;
+            }
             if( m_images[2]->nx() != m_images[0]->nx() || m_images[2]->ny() != m_images[0]->ny() )
+            {
                 return _pixel;
+            }
             if( m_images[1]->valid() && m_images[2]->valid() )
+            {
                 _pixel = &pixel_subDarkApplyMask;
+            }
         }
     }
 
@@ -1514,7 +1652,7 @@ void rtimvBase::mtxUL_changeImdata()
             }
 
             // Fill in calibrated value
-            m_calData[n] = _pixel( this, n );
+            m_calDataRaw[n] = _pixel( this, n );
         }
 
         RTIMV_DEBUG_BREADCRUMB
@@ -1551,12 +1689,24 @@ void rtimvBase::mtxUL_changeImdata()
             return;
         }
 
-        RTIMV_DEBUG_BREADCRUMB
-
-        // At this point the raw data has been copied out to calData.
+        // At this point the raw data has been copied into m_calDataRaw.
         // We have released the raw data mutex (rawlock).
         // We shared_lock the caldata mutex to make sure a subsequent call
-        // from a different thread doesn't delete m_calData.
+        // from a different thread doesn't delete the raw allocation.
+
+        RTIMV_DEBUG_BREADCRUMB
+
+        // Filter if desired
+
+        if( m_applyHPFilter || m_applyLPFilter )
+        {
+            mtxL_applyFilter();
+            //m_calData is assigned in applyFilter
+        }
+        else
+        {
+            m_calData = m_calDataRaw;
+        }
 
         RTIMV_DEBUG_BREADCRUMB
 
@@ -1684,6 +1834,36 @@ void rtimvBase::mtxUL_changeImdata()
     RTIMV_DEBUG_BREADCRUMB
 
 } // void rtimvBase::mtxUL_changeImdata()
+
+void rtimvBase::mtxL_applyFilter()
+{
+    if( !( m_applyHPFilter || m_applyLPFilter ) )
+    {
+        m_calData = m_calDataRaw;
+        return;
+    }
+
+    mx::improc::eigenMap<float> imin( m_calDataRaw, m_nx, m_ny );
+
+    if( m_applyHPFilter )
+    {
+        rtimv::applyHPFilter( m_hpFiltered, imin, m_hpFilter, m_hpfFW, m_filterWork );
+        if( m_applyLPFilter )
+        {
+            rtimv::applyLPFilter( m_lpFiltered, m_hpFiltered, m_lpFilter, m_lpfFW );
+            m_calData = m_lpFiltered.data();
+        }
+        else
+        {
+            m_calData = m_hpFiltered.data();
+        }
+    }
+    else
+    {
+        rtimv::applyLPFilter( m_lpFiltered, imin, m_lpFilter, m_lpfFW );
+        m_calData = m_lpFiltered.data();
+    }
+}
 
 void rtimvBase::mtxL_recolorImpl()
 {

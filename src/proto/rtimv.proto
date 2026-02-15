@@ -30,6 +30,18 @@ service rtimv
 
     rpc SetApplySatMask(ApplySatMaskRequest) returns (ApplySatMaskResponse);
 
+    rpc SetHPFilter(HPFilterRequest) returns (HPFilterResponse);
+
+    rpc SetHPFW(FilterWidthRequest) returns (FilterWidthResponse);
+
+    rpc SetApplyHPFilter(ApplyFilterRequest) returns (ApplyFilterResponse);
+
+    rpc SetLPFilter(LPFilterRequest) returns (LPFilterResponse);
+
+    rpc SetLPFW(FilterWidthRequest) returns (FilterWidthResponse);
+
+    rpc SetApplyLPFilter(ApplyFilterRequest) returns (ApplyFilterResponse);
+
     rpc ImagePlease(ImageRequest) returns (Image);
 
     rpc CubeDir(CubeDirRequest) returns (CubeDirResponse);
@@ -227,6 +239,60 @@ message ApplySatMaskResponse
 {
 }
 
+enum HPFilter
+{
+    HPFILTER_UNKNOWN = 0;
+    HPFILTER_GAUSSIAN = 1;
+    HPFILTER_MEDIAN = 2;
+    HPFILTER_MEAN = 3;
+    HPFILTER_FOURIER = 4;
+    HPFILTER_RADPROF = 5;
+}
+
+message HPFilterRequest
+{
+    HPFilter hp_filter = 1;
+}
+
+message HPFilterResponse
+{
+}
+
+enum LPFilter
+{
+    LPFILTER_UNKNOWN = 0;
+    LPFILTER_GAUSSIAN = 1;
+    LPFILTER_MEDIAN = 2;
+    LPFILTER_MEAN = 3;
+}
+
+message LPFilterRequest
+{
+    LPFilter lp_filter = 1;
+}
+
+message LPFilterResponse
+{
+}
+
+message FilterWidthRequest
+{
+    float width = 1;
+}
+
+message FilterWidthResponse
+{
+}
+
+message ApplyFilterRequest
+{
+    bool apply_filter = 1;
+}
+
+message ApplyFilterResponse
+{
+}
+
 message UpdateCubeRequest
 {
 }
@@ -311,6 +377,14 @@ message Image
     int32 image_timeout = 170;
     int32 cube_dir = 175;
     int32 quality = 180;
+
+    HPFilter hp_filter = 185;
+    float hpf_fw = 186;
+    bool apply_hp_filter = 187;
+
+    LPFilter lp_filter = 188;
+    float lpf_fw = 189;
+    bool apply_lp_filter = 190;
 }
 
 message Coord

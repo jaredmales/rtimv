@@ -263,6 +263,12 @@ class rtimvControlPanel : public QWidget
     /// Synchronize JPEG quality entry from model state.
     void update_qualityEntry();
 
+    /// Synchronize high-pass filter controls from model state.
+    void update_hpFilter();
+
+    /// Synchronize low-pass filter controls from model state.
+    void update_lpFilter();
+
   public slots:
     /// Handle color mode combo selection.
     void on_scaleModeCombo_activated( int index /**< [in] selected color mode index*/ );
@@ -290,6 +296,30 @@ class rtimvControlPanel : public QWidget
 
     /// Handle contrast entry edits.
     void on_contrastEntry_editingFinished();
+
+    /// Handle high-pass filter type changes.
+    void on_hpFilterCombo_activated( int index /**< [in] selected high-pass filter type*/ );
+
+    /// Handle high-pass filter enable state changes.
+    void on_hpApplyCheck_stateChanged( int state /**< [in] checked state*/ );
+
+    /// Handle high-pass width slider changes.
+    void on_hpFWSlider_valueChanged( int value /**< [in] slider position*/ );
+
+    /// Handle high-pass width entry edits.
+    void on_hpFWEntry_editingFinished();
+
+    /// Handle low-pass filter type changes.
+    void on_lpFilterCombo_activated( int index /**< [in] selected low-pass filter type*/ );
+
+    /// Handle low-pass filter enable state changes.
+    void on_lpApplyCheck_stateChanged( int state /**< [in] checked state*/ );
+
+    /// Handle low-pass width slider changes.
+    void on_lpFWSlider_valueChanged( int value /**< [in] slider position*/ );
+
+    /// Handle low-pass width entry edits.
+    void on_lpFWEntry_editingFinished();
 
   public:
     /*** Real Time Controls ***/

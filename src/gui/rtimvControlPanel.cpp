@@ -1,5 +1,7 @@
 #include "rtimvControlPanel.hpp"
 
+#include <algorithm>
+
 rtimvControlPanel::rtimvControlPanel()
 {
 }
@@ -100,6 +102,16 @@ void rtimvControlPanel::setupCombos()
     m_ui.pointerViewModecomboBox->insertItem( PointerViewOnPress, "On mouse press" );
     m_ui.pointerViewModecomboBox->insertItem( PointerViewDisabled, "Disabled" );
     m_ui.pointerViewModecomboBox->setCurrentIndex( PointerViewOnPress );
+
+    m_ui.hpFilterCombo->insertItem( static_cast<int>( rtimv::hpFilter::gaussian ), "Gaussian" );
+    m_ui.hpFilterCombo->insertItem( static_cast<int>( rtimv::hpFilter::median ), "Median" );
+    m_ui.hpFilterCombo->insertItem( static_cast<int>( rtimv::hpFilter::mean ), "Mean" );
+    m_ui.hpFilterCombo->insertItem( static_cast<int>( rtimv::hpFilter::fourier ), "Fourier (TBD)" );
+    m_ui.hpFilterCombo->insertItem( static_cast<int>( rtimv::hpFilter::radprof ), "Radial Profile (TBD)" );
+
+    m_ui.lpFilterCombo->insertItem( static_cast<int>( rtimv::lpFilter::gaussian ), "Gaussian" );
+    m_ui.lpFilterCombo->insertItem( static_cast<int>( rtimv::lpFilter::median ), "Median" );
+    m_ui.lpFilterCombo->insertItem( static_cast<int>( rtimv::lpFilter::mean ), "Mean" );
 }
 
 void rtimvControlPanel::init_panel()
@@ -121,6 +133,8 @@ void rtimvControlPanel::init_panel()
     update_qualitySlider();
     update_qualityEntry();
 #endif
+    update_hpFilter();
+    update_lpFilter();
 }
 
 void rtimvControlPanel::update_panel()
@@ -160,6 +174,9 @@ void rtimvControlPanel::update_panel()
     update_qualitySlider();
     update_qualityEntry();
 #endif
+
+    update_hpFilter();
+    update_lpFilter();
 }
 
 void rtimvControlPanel::update_ZoomSlider()
@@ -749,6 +766,64 @@ void rtimvControlPanel::update_qualityEntry()
 #endif
 }
 
+void rtimvControlPanel::update_hpFilter()
+{
+    constexpr int minSlider = 1;
+    constexpr int maxSlider = 1000;
+    constexpr float fwScale = 10.0f;
+
+    m_ui.hpFilterCombo->blockSignals( true );
+    m_ui.hpFilterCombo->setCurrentIndex( static_cast<int>( m_imv->hpFilter() ) );
+    m_ui.hpFilterCombo->blockSignals( false );
+
+    m_ui.hpApplyCheck->blockSignals( true );
+    m_ui.hpApplyCheck->setChecked( m_imv->applyHPFilter() );
+    m_ui.hpApplyCheck->blockSignals( false );
+
+    const float fw = std::max( 0.0f, m_imv->hpfFW() );
+    const int slider = std::clamp( static_cast<int>( fw * fwScale + 0.5f ), minSlider, maxSlider );
+
+    m_ui.hpFWSlider->blockSignals( true );
+    m_ui.hpFWSlider->setValue( slider );
+    m_ui.hpFWSlider->blockSignals( false );
+
+    if( !m_ui.hpFWEntry->hasFocus() )
+    {
+        m_ui.hpFWEntry->blockSignals( true );
+        m_ui.hpFWEntry->setText( QString::number( fw, 'f', 1 ) );
+        m_ui.hpFWEntry->blockSignals( false );
+    }
+}
+
+void rtimvControlPanel::update_lpFilter()
+{
+    constexpr int minSlider = 1;
+    constexpr int maxSlider = 1000;
+    constexpr float fwScale = 10.0f;
+
+    m_ui.lpFilterCombo->blockSignals( true );
+    m_ui.lpFilterCombo->setCurrentIndex( static_cast<int>( m_imv->lpFilter() ) );
+    m_ui.lpFilterCombo->blockSignals( false );
+
+    m_ui.lpApplyCheck->blockSignals( true );
+    m_ui.lpApplyCheck->setChecked( m_imv->applyLPFilter() );
+    m_ui.lpApplyCheck->blockSignals( false );
+
+    const float fw = std::max( 0.0f, m_imv->lpfFW() );
+    const int slider = std::clamp( static_cast<int>( fw * fwScale + 0.5f ), minSlider, maxSlider );
+
+    m_ui.lpFWSlider->blockSignals( true );
+    m_ui.lpFWSlider->setValue( slider );
+    m_ui.lpFWSlider->blockSignals( false );
+
+    if( !m_ui.lpFWEntry->hasFocus() )
+    {
+        m_ui.lpFWEntry->blockSignals( true );
+        m_ui.lpFWEntry->setText( QString::number( fw, 'f', 1 ) );
+        m_ui.lpFWEntry->blockSignals( false );
+    }
+}
+
 void rtimvControlPanel::on_scaleModeCombo_activated( int index )
 {
     if( static_cast<rtimv::colormode>( index ) == rtimv::colormode::minmaxglobal )
@@ -837,6 +912,70 @@ void rtimvControlPanel::on_contrastEntry_editingFinished()
     m_imv->contrast( m_ui.contrastEntry->text().toDouble() );
 
     m_imv->mtxUL_colormode( rtimv::colormode::user );
+}
+
+void rtimvControlPanel::on_hpFilterCombo_activated( int index )
+{
+    m_imv->hpFilter( static_cast<rtimv::hpFilter>( index ) );
+}
+
+void rtimvControlPanel::on_hpApplyCheck_stateChanged( int state )
+{
+    m_imv->applyHPFilter( state != 0 );
+}
+
+void rtimvControlPanel::on_hpFWSlider_valueChanged( int value )
+{
+    constexpr float fwScale = 10.0f;
+    m_imv->hpfFW( value / fwScale );
+    update_hpFilter();
+}
+
+void rtimvControlPanel::on_hpFWEntry_editingFinished()
+{
+    bool ok = false;
+    const float fw = m_ui.hpFWEntry->text().toFloat( &ok );
+
+    if( !ok )
+    {
+        update_hpFilter();
+        return;
+    }
+
+    m_imv->hpfFW( fw );
+    update_hpFilter();
+}
+
+void rtimvControlPanel::on_lpFilterCombo_activated( int index )
+{
+    m_imv->lpFilter( static_cast<rtimv::lpFilter>( index ) );
+}
+
+void rtimvControlPanel::on_lpApplyCheck_stateChanged( int state )
+{
+    m_imv->applyLPFilter( state != 0 );
+}
+
+void rtimvControlPanel::on_lpFWSlider_valueChanged( int value )
+{
+    constexpr float fwScale = 10.0f;
+    m_imv->lpfFW( value / fwScale );
+    update_lpFilter();
+}
+
+void rtimvControlPanel::on_lpFWEntry_editingFinished()
+{
+    bool ok = false;
+    const float fw = m_ui.lpFWEntry->text().toFloat( &ok );
+
+    if( !ok )
+    {
+        update_lpFilter();
+        return;
+    }
+
+    m_imv->lpfFW( fw );
+    update_lpFilter();
 }
 
 void rtimvControlPanel::on_imtimerspinBox_valueChanged( int to )

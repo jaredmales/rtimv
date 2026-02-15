@@ -32,6 +32,7 @@ using grpc::Status;
 
 #include "rtimvServerThread.hpp"
 #include "rtimvColorGRPC.hpp"
+#include "rtimvFilterGRPC.hpp"
 
 #define RTIMV_DEBUG_BREADCRUMB
 
@@ -177,6 +178,30 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
     ServerUnaryReactor *SetApplySatMask( CallbackServerContext *context,
                                          const remote_rtimv::ApplySatMaskRequest *request,
                                          remote_rtimv::ApplySatMaskResponse *reply ) override;
+
+    ServerUnaryReactor *SetHPFilter( CallbackServerContext *context,
+                                     const remote_rtimv::HPFilterRequest *request,
+                                     remote_rtimv::HPFilterResponse *reply ) override;
+
+    ServerUnaryReactor *SetHPFW( CallbackServerContext *context,
+                                 const remote_rtimv::FilterWidthRequest *request,
+                                 remote_rtimv::FilterWidthResponse *reply ) override;
+
+    ServerUnaryReactor *SetApplyHPFilter( CallbackServerContext *context,
+                                          const remote_rtimv::ApplyFilterRequest *request,
+                                          remote_rtimv::ApplyFilterResponse *reply ) override;
+
+    ServerUnaryReactor *SetLPFilter( CallbackServerContext *context,
+                                     const remote_rtimv::LPFilterRequest *request,
+                                     remote_rtimv::LPFilterResponse *reply ) override;
+
+    ServerUnaryReactor *SetLPFW( CallbackServerContext *context,
+                                 const remote_rtimv::FilterWidthRequest *request,
+                                 remote_rtimv::FilterWidthResponse *reply ) override;
+
+    ServerUnaryReactor *SetApplyLPFilter( CallbackServerContext *context,
+                                          const remote_rtimv::ApplyFilterRequest *request,
+                                          remote_rtimv::ApplyFilterResponse *reply ) override;
 
     ServerUnaryReactor *ImagePlease( CallbackServerContext *context,
                                      const remote_rtimv::ImageRequest *request,
