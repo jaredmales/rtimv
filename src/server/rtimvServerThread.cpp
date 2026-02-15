@@ -35,7 +35,7 @@ void rtimvServerThread::configure()
     std::vector<const char *> argv( m_argv->size() + 1, NULL );
     for( size_t index = 0; index < m_argv->size(); ++index )
     {
-        argv[index] = (*m_argv )[index].c_str();
+        argv[index] = ( *m_argv )[index].c_str();
     }
 
     m_argv = nullptr;
@@ -75,9 +75,9 @@ void rtimvServerThread::post_zoomLevel()
 
 void rtimvServerThread::mtxUL_recolor()
 {
-    sharedLockT lock(m_calMutex);
+    sharedLockT lock( m_calMutex );
 
-    mtxL_recolor(lock);
+    mtxL_recolor( lock );
 }
 
 void rtimvServerThread::mtxL_postRecolor( const uniqueLockT &lock )
@@ -115,27 +115,40 @@ void rtimvServerThread::mtxuL_render( std::string *image )
     QBuffer buffer( &renderedImage );
     buffer.open( QIODevice::WriteOnly );
 
-    int m_quality = 50;
-    m_qim->save( &buffer, "jpeg", m_quality );
+    m_qim->save( &buffer, "jpeg", m_quality.load( std::memory_order_relaxed ) );
 
     *image = renderedImage.toStdString();
 
-    m_newImage = false;
+    m_newImage.store( false, std::memory_order_relaxed );
 }
 
 bool rtimvServerThread::newImage()
 {
-    return m_newImage;
+    return m_newImage.load( std::memory_order_relaxed );
 }
 
 int rtimvServerThread::quality()
 {
-    return m_quality;
+    return m_quality.load( std::memory_order_relaxed );
 }
 
 void rtimvServerThread::quality( int q )
 {
-    m_quality = q;
+    if( q < 0 )
+    {
+        q = 0;
+    }
+    else if( q > 100 )
+    {
+        q = 100;
+    }
+
+    int oldQ = m_quality.exchange( q, std::memory_order_relaxed );
+
+    if( oldQ != q )
+    {
+        m_newImage.store( true, std::memory_order_relaxed );
+    }
 }
 
 double rtimvServerThread::lastRequest()

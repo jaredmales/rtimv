@@ -8,6 +8,7 @@
 #include <QByteArray>
 
 #include <mx/app/application.hpp>
+#include <atomic>
 
 using namespace mx::app;
 
@@ -23,9 +24,9 @@ class rtimvServerThread : public QThread, public rtimvBase
     std::shared_ptr<std::vector<std::string>> m_argv; /**< The command line argv.  This is set in the constructor, and
                                                       destroyed after configure is called.*/
 
-    bool m_newImage{ false }; ///< Flag indicating a new image is ready after the last render.
+    std::atomic<bool> m_newImage{ false }; ///< Flag indicating a new image is ready after the last render.
 
-    int m_quality{ 50 }; ///< The JPEG quality factor (0-100).  Default is 50.
+    std::atomic<int> m_quality{ 50 }; ///< The JPEG quality factor (0-100).  Default is 50.
 
     double m_lastRequest{ 0 }; ///< The time of the last request for an image
 
@@ -57,7 +58,6 @@ class rtimvServerThread : public QThread, public rtimvBase
     virtual void post_zoomLevel();
 
   public:
-
     void mtxUL_recolor();
 
     virtual void mtxL_postRecolor( const uniqueLockT &lock /**<[in] a unique mutex lock which is locked*/ );

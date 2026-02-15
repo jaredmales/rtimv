@@ -18,6 +18,8 @@ service rtimv
 
     rpc SetImageTimeout(ImageTimeoutRequest) returns (ImageTimeoutResponse);
 
+    rpc SetQuality(QualityRequest) returns (QualityResponse);
+
     rpc Restretch(RestretchRequest) returns (RestretchResponse);
 
     rpc SetAutoscale(AutoscaleRequest) returns (AutoscaleResponse);
@@ -172,6 +174,15 @@ message ImageTimeoutResponse
 {
 }
 
+message QualityRequest
+{
+    int32 quality = 1;
+}
+
+message QualityResponse
+{
+}
+
 message RestretchRequest
 {
 }
@@ -299,6 +310,7 @@ message Image
 
     int32 image_timeout = 170;
     int32 cube_dir = 175;
+    int32 quality = 180;
 }
 
 message Coord

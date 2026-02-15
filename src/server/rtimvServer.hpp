@@ -154,6 +154,10 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
                                          const remote_rtimv::ImageTimeoutRequest *request,
                                          remote_rtimv::ImageTimeoutResponse *reply ) override;
 
+    ServerUnaryReactor *SetQuality( CallbackServerContext *context,
+                                    const remote_rtimv::QualityRequest *request,
+                                    remote_rtimv::QualityResponse *reply ) override;
+
     ServerUnaryReactor *Restretch( CallbackServerContext *context,
                                    const remote_rtimv::RestretchRequest *request,
                                    remote_rtimv::RestretchResponse *reply ) override;

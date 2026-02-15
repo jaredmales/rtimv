@@ -626,7 +626,9 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT &lock )
         {
             if( nz() > 1 && m_cubeCtrl == nullptr ) // new image is cube for first time
             {
+#ifndef RTIMV_GRPC
                 cubeMode( true );
+#endif
                 launchCubeCtrl();
             }
         }

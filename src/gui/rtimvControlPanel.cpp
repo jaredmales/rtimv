@@ -54,6 +54,16 @@ rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, Qt::WindowFlags f ) : 
     connect( this, SIGNAL( targetYc( float ) ), m_imv, SLOT( targetYc( float ) ) );
     connect( this, SIGNAL( targetVisible( bool ) ), m_imv, SLOT( targetVisible( bool ) ) );
 
+#ifdef RTIMV_GRPC
+    m_ui.qualityLabel->setVisible( true );
+    m_ui.qualitySlider->setVisible( true );
+    m_ui.qualityEntry->setVisible( true );
+#else
+    m_ui.qualityLabel->setVisible( false );
+    m_ui.qualitySlider->setVisible( false );
+    m_ui.qualityEntry->setVisible( false );
+#endif
+
     init_panel();
 
     m_statsBoxButtonState = false;
@@ -106,6 +116,11 @@ void rtimvControlPanel::init_panel()
     targetVisibleChanged( m_imv->targetVisible() );
 
     m_ui.imtimerspinBox->setValue( m_imv->imageTimeout() );
+
+#ifdef RTIMV_GRPC
+    update_qualitySlider();
+    update_qualityEntry();
+#endif
 }
 
 void rtimvControlPanel::update_panel()
@@ -140,6 +155,11 @@ void rtimvControlPanel::update_panel()
     m_ui.colorbarCombo->blockSignals( true );
     m_ui.colorbarCombo->setCurrentIndex( static_cast<int>( m_imv->colorbar() ) );
     m_ui.colorbarCombo->blockSignals( false );
+
+#ifdef RTIMV_GRPC
+    update_qualitySlider();
+    update_qualityEntry();
+#endif
 }
 
 void rtimvControlPanel::update_ZoomSlider()
@@ -708,6 +728,27 @@ void rtimvControlPanel::update_contrastRelEntry()
     }
 }
 
+void rtimvControlPanel::update_qualitySlider()
+{
+#ifdef RTIMV_GRPC
+    m_ui.qualitySlider->blockSignals( true );
+    m_ui.qualitySlider->setValue( m_imv->quality() );
+    m_ui.qualitySlider->blockSignals( false );
+#endif
+}
+
+void rtimvControlPanel::update_qualityEntry()
+{
+#ifdef RTIMV_GRPC
+    if( !m_ui.qualityEntry->hasFocus() )
+    {
+        m_ui.qualityEntry->blockSignals( true );
+        m_ui.qualityEntry->setText( QString::number( m_imv->quality() ) );
+        m_ui.qualityEntry->blockSignals( false );
+    }
+#endif
+}
+
 void rtimvControlPanel::on_scaleModeCombo_activated( int index )
 {
     if( static_cast<rtimv::colormode>( index ) == rtimv::colormode::minmaxglobal )
@@ -801,6 +842,43 @@ void rtimvControlPanel::on_contrastEntry_editingFinished()
 void rtimvControlPanel::on_imtimerspinBox_valueChanged( int to )
 {
     m_imv->imageTimeout( to );
+}
+
+void rtimvControlPanel::on_qualitySlider_valueChanged( int value )
+{
+#ifdef RTIMV_GRPC
+    m_imv->quality( value );
+    update_qualityEntry();
+#else
+    static_cast<void>( value );
+#endif
+}
+
+void rtimvControlPanel::on_qualityEntry_editingFinished()
+{
+#ifdef RTIMV_GRPC
+    bool ok{ false };
+    int q = m_ui.qualityEntry->text().toInt( &ok );
+
+    if( !ok )
+    {
+        update_qualityEntry();
+        return;
+    }
+
+    if( q < 0 )
+    {
+        q = 0;
+    }
+    else if( q > 100 )
+    {
+        q = 100;
+    }
+
+    m_imv->quality( q );
+    update_qualitySlider();
+    update_qualityEntry();
+#endif
 }
 
 void rtimvControlPanel::on_statsBoxButton_clicked()

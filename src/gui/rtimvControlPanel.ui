@@ -1734,6 +1734,71 @@
       <string>Rel.</string>
      </property>
     </widget>
+    <widget class="QLabel" name="qualityLabel">
+     <property name="geometry">
+      <rect>
+       <x>400</x>
+       <y>10</y>
+       <width>81</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>10</pointsize>
+       <weight>75</weight>
+       <bold>true</bold>
+      </font>
+     </property>
+     <property name="text">
+      <string>JPEG Quality</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+    <widget class="QSlider" name="qualitySlider">
+     <property name="geometry">
+      <rect>
+       <x>430</x>
+       <y>30</y>
+       <width>22</width>
+       <height>150</height>
+      </rect>
+     </property>
+     <property name="minimum">
+      <number>0</number>
+     </property>
+     <property name="maximum">
+      <number>100</number>
+     </property>
+     <property name="value">
+      <number>50</number>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+    </widget>
+    <widget class="QLineEdit" name="qualityEntry">
+     <property name="geometry">
+      <rect>
+       <x>400</x>
+       <y>182</y>
+       <width>81</width>
+       <height>25</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>10</pointsize>
+       <weight>50</weight>
+       <bold>false</bold>
+      </font>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
    </widget>
    <widget class="QWidget" name="tabSetup">
     <attribute name="title">
@@ -1993,6 +2058,8 @@
   <tabstop>scaleModeCombo</tabstop>
   <tabstop>scaleTypeCombo</tabstop>
   <tabstop>colorbarCombo</tabstop>
+  <tabstop>qualitySlider</tabstop>
+  <tabstop>qualityEntry</tabstop>
   <tabstop>view_ur</tabstop>
   <tabstop>Zoom8</tabstop>
   <tabstop>view_right</tabstop>

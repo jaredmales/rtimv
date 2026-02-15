@@ -339,6 +339,19 @@ ServerUnaryReactor *rtimvServer::SetImageTimeout( CallbackServerContext *context
     return reactor;
 }
 
+ServerUnaryReactor *rtimvServer::SetQuality( CallbackServerContext *context,
+                                             const remote_rtimv::QualityRequest *request,
+                                             remote_rtimv::QualityResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
+
+    imageTh->quality( request->quality() );
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
 ServerUnaryReactor *rtimvServer::Restretch( CallbackServerContext *context,
                                             const remote_rtimv::RestretchRequest *request,
                                             remote_rtimv::RestretchResponse *reply )
@@ -472,6 +485,7 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
 
         reply->set_image_timeout( imageTh->imageTimeout() );
         reply->set_cube_dir( imageTh->cubeDir() );
+        reply->set_quality( imageTh->quality() );
     };
 
     if( imageTh->newImage() == false )

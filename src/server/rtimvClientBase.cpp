@@ -569,6 +569,7 @@ void rtimvClientBase::ImageReceived()
     uint32_t saturated;
     float minsc, maxsc, minim, maxim;
     int imageTimeout;
+    int quality;
 
     remote_rtimv::Colorbar colorbar;
     remote_rtimv::Colormode colormode;
@@ -645,6 +646,7 @@ void rtimvClientBase::ImageReceived()
 
         imageTimeout = m_grpcImage.image_timeout();
         cubeDir = m_grpcImage.cube_dir();
+        quality = m_grpcImage.quality();
     }
 
     std::shared_mutex dummy; // Used just to satisfy the requirement, not needed
@@ -687,6 +689,7 @@ void rtimvClientBase::ImageReceived()
     m_applyMask = applyMask;
     m_applySatMask = applySatMask;
     m_imageTimeout = imageTimeout;
+    m_quality = quality;
     if( m_cubeDir != cubeDir )
     {
         m_cubeDir = cubeDir;
@@ -1093,6 +1096,29 @@ void rtimvClientBase::imageTimeout( int to )
 int rtimvClientBase::imageTimeout()
 {
     return m_imageTimeout;
+}
+
+void rtimvClientBase::quality( int q )
+{
+    SHARED_CONN_LOCK
+
+    remote_rtimv::QualityRequest request;
+    remote_rtimv::QualityResponse response;
+    grpc::ClientContext context;
+
+    request.set_quality( q );
+
+    grpc::Status status = stub_->SetQuality( &context, request, &response );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+    }
+}
+
+int rtimvClientBase::quality()
+{
+    return m_quality;
 }
 
 void rtimvClientBase::subtractDark( bool sd )

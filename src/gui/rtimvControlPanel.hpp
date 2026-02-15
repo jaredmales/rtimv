@@ -257,6 +257,12 @@ class rtimvControlPanel : public QWidget
     /// Synchronize contrast relative entry from model state.
     void update_contrastRelEntry();
 
+    /// Synchronize JPEG quality slider from model state.
+    void update_qualitySlider();
+
+    /// Synchronize JPEG quality entry from model state.
+    void update_qualityEntry();
+
   public slots:
     /// Handle color mode combo selection.
     void on_scaleModeCombo_activated( int index /**< [in] selected color mode index*/ );
@@ -293,6 +299,12 @@ class rtimvControlPanel : public QWidget
   public slots:
     /// Handle image timer update interval changes.
     void on_imtimerspinBox_valueChanged( int timeout /**< [in] new image timeout value*/ );
+
+    /// Handle JPEG quality slider changes.
+    void on_qualitySlider_valueChanged( int value /**< [in] new quality value*/ );
+
+    /// Handle JPEG quality entry edits.
+    void on_qualityEntry_editingFinished();
 
     /// Toggle stats box visibility.
     void on_statsBoxButton_clicked();

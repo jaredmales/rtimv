@@ -348,6 +348,8 @@ class rtimvClientBase : public mx::app::application
 
     int m_cubeDir{ 1 }; ///< Direction of cube travel. +1 or -1.
 
+    int m_quality{ 50 }; ///< JPEG quality factor [0,100].
+
     int m_currImageTimeout{ 50 }; /**< The timeout for checking for a new image in ms.  This is
                                        what is used to maintain both the cube update rate set by
                                        m_cubeFPS (as close as possible) while meeting the minimum
@@ -377,6 +379,12 @@ class rtimvClientBase : public mx::app::application
      * \returns the current value of m_imageTimeout
      */
     int imageTimeout();
+
+    /// Set the JPEG quality used by the server.
+    void quality( int q /**< [in] the new JPEG quality [0,100] */ );
+
+    /// Get the JPEG quality.
+    int quality();
 
     /// Get the current image display timeout.
     /**
