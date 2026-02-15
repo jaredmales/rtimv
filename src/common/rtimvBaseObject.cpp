@@ -130,12 +130,18 @@ void rtimvBaseObject::cubeFrameDelta( int32_t dfno )
 
 void rtimvBaseObject::updateImages()
 {
+    // clang-format off
+    #ifndef RTIMV_GRPC
+
     if( !m_parent )
     {
         return;
     }
 
     m_parent->updateImages();
+
+    #endif
+    // clang-format on
 }
 
 void rtimvBaseObject::updateCube()

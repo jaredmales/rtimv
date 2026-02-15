@@ -863,23 +863,36 @@ uint32_t rtimvClientBase::nz()
 
 void rtimvClientBase::cubeMode( bool cm )
 {
-    // send to server
+    m_cubeMode = cm;
+
+    setCurrImageTimeout();
+
+    m_foundation->emit_cubeModeUpdated( m_cubeMode );
 }
 
 void rtimvClientBase::cubeFPS( float fps )
 {
-    // send to server
+    if( fps < 0 )
+    {
+        fps = 0;
+    }
+    m_desiredCubeFPS = fps;
+    setCurrImageTimeout();
+
+    m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
 }
 
 void rtimvClientBase::cubeFPSMult( float mult )
 {
-    // send to server
+    m_cubeFPSMult = mult;
+    setCurrImageTimeout();
+    m_foundation->emit_cubeFPSMultUpdated( m_cubeFPSMult );
 }
 
 void rtimvClientBase::cubeDir( int dir )
 {
     m_cubeDir = dir;
-    // m_foundation->emit_cubeDirUpdated( m_cubeDir );
+    m_foundation->emit_cubeDirUpdated( m_cubeDir );
 }
 
 void rtimvClientBase::cubeFrame( uint32_t fno )
@@ -905,15 +918,6 @@ void rtimvClientBase::cubeFrameDelta( int32_t dfno )
     }
 }
 
-void rtimvClientBase::updateImages()
-{
-    // If we aren't waiting on an image yet, sent ImagePlease
-    /*if( !m_imageWaiting )
-    {
-        ImagePlease();
-    }*/
-}
-
 void rtimvClientBase::updateCube()
 {
     SHARED_CONN_LOCK
@@ -933,6 +937,72 @@ void rtimvClientBase::updateCube()
 void rtimvClientBase::updateCubeFrame()
 {
     m_foundation->emit_cubeFrameUpdated( imageNo( 0 ) );
+}
+
+void rtimvClientBase::setCurrImageTimeout()
+{
+    int cubeTimeout;
+
+    if( m_desiredCubeFPS <= 0 || m_nz <= 1 )
+    {
+        m_foundation->m_cubeTimer.stop();
+
+        if( m_nz <= 1 )
+        {
+            m_foundation->m_cubeFrameUpdateTimer.stop();
+        }
+        else
+        {
+            m_foundation->m_cubeFrameUpdateTimer.start( 250 );
+        }
+
+        m_cubeFPS = 0;
+
+        m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
+
+    }
+    else // it's a cube, cube mode is on, and FPS > 0
+    {
+        // First get our wish
+        cubeTimeout = std::round( 1000. / ( m_desiredCubeFPS * m_cubeFPSMult ) );
+
+        if( cubeTimeout < 1 )
+        {
+            cubeTimeout = 1;
+        }
+
+        if( cubeTimeout < m_imageTimeout )
+        {
+            cubeTimeout = m_imageTimeout;
+        }
+
+        // Now get reality with imageTimeout
+        int f = std::round( ( 1.0 * cubeTimeout ) / m_imageTimeout );
+        if( f <= 0 )
+        {
+            f = 1;
+        }
+
+        // Report reality
+        m_cubeFPS = ( 1000.0 / ( f * m_imageTimeout ) ) / m_cubeFPSMult;
+
+        // Implement reality
+        cubeTimeout = std::round( 1000. / ( m_cubeFPS * m_cubeFPSMult ) );
+
+        if( m_cubeMode )
+        {
+            m_foundation->m_cubeTimer.start( cubeTimeout );
+            m_foundation->m_cubeFrameUpdateTimer.start( 250 );
+        }
+        else
+        {
+            m_cubeFPS = 0;
+            m_foundation->m_cubeTimer.stop();
+        }
+
+        m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
+    }
+
 }
 
 void rtimvClientBase::imageTimeout( int to )

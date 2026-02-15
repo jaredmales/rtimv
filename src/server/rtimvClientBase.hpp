@@ -412,10 +412,6 @@ class rtimvClientBase : public mx::app::application
      * @{
      */
   public:
-    /// Check all images for updates
-    /** This is called on m_imageTimer expiration.
-     */
-    void updateImages();
 
     /// Increment the main image cube number
     /** This is on m_cubeTimer expiration
