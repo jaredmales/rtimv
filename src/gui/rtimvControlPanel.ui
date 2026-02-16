@@ -1800,6 +1800,195 @@
      </property>
     </widget>
    </widget>
+   <widget class="QWidget" name="tabFilters">
+    <attribute name="title">
+     <string>Filters</string>
+    </attribute>
+    <widget class="QLabel" name="hpFilterLabel">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>18</y>
+       <width>151</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>High-Pass Filter</string>
+     </property>
+    </widget>
+    <widget class="QComboBox" name="hpFilterCombo">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>40</y>
+       <width>211</width>
+       <height>28</height>
+      </rect>
+     </property>
+    </widget>
+    <widget class="QCheckBox" name="hpApplyCheck">
+     <property name="geometry">
+      <rect>
+       <x>250</x>
+       <y>44</y>
+       <width>91</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Apply</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="hpFWLabel">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>78</y>
+       <width>111</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Width (pixels)</string>
+     </property>
+    </widget>
+    <widget class="QSlider" name="hpFWSlider">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>100</y>
+       <width>231</width>
+       <height>22</height>
+      </rect>
+     </property>
+     <property name="minimum">
+      <number>1</number>
+     </property>
+     <property name="maximum">
+      <number>1000</number>
+     </property>
+     <property name="value">
+      <number>100</number>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+    <widget class="QLineEdit" name="hpFWEntry">
+     <property name="geometry">
+      <rect>
+       <x>260</x>
+       <y>98</y>
+       <width>81</width>
+       <height>25</height>
+      </rect>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+    </widget>
+    <widget class="QFrame" name="filterDivider">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>145</y>
+       <width>680</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::HLine</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Sunken</enum>
+     </property>
+    </widget>
+    <widget class="QLabel" name="lpFilterLabel">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>170</y>
+       <width>151</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Low-Pass Filter</string>
+     </property>
+    </widget>
+    <widget class="QComboBox" name="lpFilterCombo">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>192</y>
+       <width>211</width>
+       <height>28</height>
+      </rect>
+     </property>
+    </widget>
+    <widget class="QCheckBox" name="lpApplyCheck">
+     <property name="geometry">
+      <rect>
+       <x>250</x>
+       <y>196</y>
+       <width>91</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Apply</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="lpFWLabel">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>230</y>
+       <width>111</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Width (pixels)</string>
+     </property>
+    </widget>
+    <widget class="QSlider" name="lpFWSlider">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>252</y>
+       <width>231</width>
+       <height>22</height>
+      </rect>
+     </property>
+     <property name="minimum">
+      <number>1</number>
+     </property>
+     <property name="maximum">
+      <number>1000</number>
+     </property>
+     <property name="value">
+      <number>30</number>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+    <widget class="QLineEdit" name="lpFWEntry">
+     <property name="geometry">
+      <rect>
+       <x>260</x>
+       <y>250</y>
+       <width>81</width>
+       <height>25</height>
+      </rect>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+    </widget>
+   </widget>
    <widget class="QWidget" name="tabSetup">
     <attribute name="title">
      <string>Setup</string>
@@ -2066,6 +2255,14 @@
   <tabstop>view_down</tabstop>
   <tabstop>absfixedButton</tabstop>
   <tabstop>relfixedButton</tabstop>
+  <tabstop>hpFilterCombo</tabstop>
+  <tabstop>hpApplyCheck</tabstop>
+  <tabstop>hpFWSlider</tabstop>
+  <tabstop>hpFWEntry</tabstop>
+  <tabstop>lpFilterCombo</tabstop>
+  <tabstop>lpApplyCheck</tabstop>
+  <tabstop>lpFWSlider</tabstop>
+  <tabstop>lpFWEntry</tabstop>
   <tabstop>ViewViewModecheckBox</tabstop>
   <tabstop>pointerViewModecomboBox</tabstop>
   <tabstop>imtimerspinBox</tabstop>

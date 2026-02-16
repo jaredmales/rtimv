@@ -19,6 +19,7 @@
 #include "rtimvImage.hpp"
 #include "colorMaps.hpp"
 #include "rtimvColor.hpp"
+#include "rtimvFilters.hpp"
 
 #include "rtimvBaseObject.hpp"
 
@@ -238,7 +239,7 @@ class rtimvBase : public mx::app::application
      */
 
     /// Changes the image size, but only if necessary.
-    /** This reallocates m_calData and m_qim
+    /** This reallocates \ref m_calDataRaw, updates \ref m_calData, and reallocates \ref m_qim.
      *
      */
     void mtxL_setImsize( uint32_t x, ///< [in] the new x size
@@ -401,7 +402,13 @@ class rtimvBase : public mx::app::application
      */
     bool m_applySatMask{ false };
 
-    /// Buffer to hold the calibrated image data
+    /// Owned buffer that stores unfiltered calibrated pixel data.
+    float *m_calDataRaw{ nullptr };
+
+    /// Pointer to the currently active calibrated data buffer.
+    /** Normally this points at \ref m_calDataRaw. When filtering is enabled it points at
+     * filter output buffers managed elsewhere.
+     */
     float *m_calData{ nullptr };
 
     /// Buffer to hold the the saturated pixel map
@@ -782,18 +789,83 @@ class rtimvBase : public mx::app::application
 
     ///@}
 
+    /** @name Image Filtering - Data
+     *
+     * Controls for optional high-pass/low-pass image filtering.
+     * @{
+     */
+  protected:
+    rtimv::hpFilter m_hpFilter{ rtimv::hpFilter::gaussian }; ///< Selected high-pass filter type.
+
+    float m_hpfFW{ 10 }; ///< Full width for the high-pass filter in pixels.
+
+    bool m_applyHPFilter{ false }; ///< Whether the high-pass filter is currently enabled.
+
+    rtimv::lpFilter m_lpFilter{ rtimv::lpFilter::gaussian }; ///< Selected low-pass filter type.
+
+    float m_lpfFW{ 3 }; ///< Full width for the low-pass filter in pixels.
+
+    bool m_applyLPFilter{ false }; ///< Whether the low-pass filter is currently enabled.
+
+    ///@}
+
     /** @name Image Filtering
+     *
+     * Public access to image filtering configuration.
+     * @{
+     */
+  public:
+    /// Set the high-pass filter type.
+    void hpFilter( rtimv::hpFilter filter /**< [in] selected high-pass filter type */ );
+
+    /// Get the high-pass filter type.
+    rtimv::hpFilter hpFilter();
+
+    /// Set the high-pass filter full width.
+    void hpfFW( float fw /**< [in] high-pass filter width in pixels */ );
+
+    /// Get the high-pass filter full width.
+    float hpfFW();
+
+    /// Set whether high-pass filtering is applied.
+    void applyHPFilter( bool apply /**< [in] true enables high-pass filtering */ );
+
+    /// Get whether high-pass filtering is enabled.
+    bool applyHPFilter();
+
+    /// Set the low-pass filter type.
+    void lpFilter( rtimv::lpFilter filter /**< [in] selected low-pass filter type */ );
+
+    /// Get the low-pass filter type.
+    rtimv::lpFilter lpFilter();
+
+    /// Set the low-pass filter full width.
+    void lpfFW( float fw /**< [in] low-pass filter width in pixels */ );
+
+    /// Get the low-pass filter full width.
+    float lpfFW();
+
+    /// Set whether low-pass filtering is applied.
+    void applyLPFilter( bool apply /**< [in] true enables low-pass filtering */ );
+
+    /// Get whether low-pass filtering is enabled.
+    bool applyLPFilter();
+
+    ///@}
+
+    /** @name Image Filtering - Working Memory
      *
      * @{
      */
+    /// Scratch image used for intermediate smoothing during filtering.
+    mx::improc::eigenImage<float> m_filterWork;
 
-    float *m_lowPassFiltered{ nullptr };
+    /// Buffer holding the current high-pass filtered image.
+    mx::improc::eigenImage<float> m_hpFiltered;
 
-    bool m_applyLPFilter;
-
-    int m_lpFilterType;
-
-    ///@} -- filtering
+    /// Buffer holding the current low-pass filtered image.
+    mx::improc::eigenImage<float> m_lpFiltered;
+    /// @}
 
     //****** The display *************
   protected:
@@ -820,8 +892,15 @@ class rtimvBase : public mx::app::application
                        int y  /**< [in] the y location of the pixel */
     );
 
-    /// Updates the QImage and basic statistics after a new image.
-    void mtxUL_changeImdata();
+    /// Updates filtered data, the QImage, and basic statistics.
+    /** When \p newdata is false, raw calibrated pixels in \ref m_calDataRaw are reused.
+     */
+    void mtxUL_changeImdata( bool newdata = true /**< [in] true to repopulate \ref m_calDataRaw */ );
+
+    /// Apply configured high-pass/low-pass filters and update \ref m_calData.
+    /** Called with \ref m_calMutex in shared-lock context from \ref mtxUL_changeImdata.
+     */
+    void mtxL_applyFilter();
 
   private:
     /// Color the image based on the current colormap configuration and stretch

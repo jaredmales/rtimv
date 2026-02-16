@@ -21,6 +21,7 @@
 
 #include "rtimvBaseObject.hpp"
 #include "rtimvColor.hpp"
+#include "rtimvFilters.hpp"
 
 #include <grpcpp/grpcpp.h>
 
@@ -380,10 +381,10 @@ class rtimvClientBase : public mx::app::application
      */
     int imageTimeout();
 
-    /// Set the JPEG quality used by the server.
+    /// Set the JPEG quality.
     void quality( int q /**< [in] the new JPEG quality [0,100] */ );
 
-    /// Get the JPEG quality.
+    /// Get the JPEG quality
     int quality();
 
     /// Get the current image display timeout.
@@ -437,7 +438,10 @@ class rtimvClientBase : public mx::app::application
 
     /** \name Calibrated Pixel Data
      *
-     * Settings to control which calibrations are applied, and manage access to memory.
+     * Settings to control which calibrations are applied.
+     *
+     * In the gRPC client, these values are synchronized from the server via
+     * the Image message and are also writable through corresponding RPCs.
      *
      * @{
      */
@@ -721,22 +725,75 @@ class rtimvClientBase : public mx::app::application
      */
     bool autoScale();
 
+    /// Restretch the image based on the current colormode.
     void mtxUL_reStretch();
+
+    ///@}
+
+    /** @name Image Filtering - Data
+     *
+     * Controls for optional high-pass/low-pass image filtering.
+     * @{
+     */
+  protected:
+    rtimv::hpFilter m_hpFilter{ rtimv::hpFilter::gaussian }; ///< Selected high-pass filter type.
+    float m_hpfFW{ 10 };                                     ///< Full width for the high-pass filter in pixels.
+    bool m_applyHPFilter{ false };                           ///< Whether the high-pass filter is currently enabled.
+
+    rtimv::lpFilter m_lpFilter{ rtimv::lpFilter::gaussian }; ///< Selected low-pass filter type.
+    float m_lpfFW{ 3 };                                      ///< Full width for the low-pass filter in pixels.
+    bool m_applyLPFilter{ false };                           ///< Whether the low-pass filter is currently enabled.
+
+    /// Filtering working buffers are not stored on the client.
+    /** The client receives post-filter state through the Image message; filtering work
+     * is performed on the server side.
+     */
 
     ///@}
 
     /** @name Image Filtering
      *
+     * Public access to image filtering configuration.
      * @{
      */
+  public:
+    /// Set the high-pass filter type.
+    void hpFilter( rtimv::hpFilter filter /**< [in] selected high-pass filter type */ );
 
-    // float *m_lowPassFiltered{ nullptr };
+    /// Get the high-pass filter type.
+    rtimv::hpFilter hpFilter();
 
-    // bool m_applyLPFilter;
+    /// Set the high-pass filter full width.
+    void hpfFW( float fw /**< [in] high-pass filter width in pixels */ );
 
-    // int m_lpFilterType;
+    /// Get the high-pass filter full width.
+    float hpfFW();
 
-    ///@} -- filtering
+    /// Set whether high-pass filtering is applied.
+    void applyHPFilter( bool apply /**< [in] true enables high-pass filtering */ );
+
+    /// Get whether high-pass filtering is enabled.
+    bool applyHPFilter();
+
+    /// Set the low-pass filter type.
+    void lpFilter( rtimv::lpFilter filter /**< [in] selected low-pass filter type */ );
+
+    /// Get the low-pass filter type.
+    rtimv::lpFilter lpFilter();
+
+    /// Set the low-pass filter full width.
+    void lpfFW( float fw /**< [in] low-pass filter width in pixels */ );
+
+    /// Get the low-pass filter full width.
+    float lpfFW();
+
+    /// Set whether low-pass filtering is applied.
+    void applyLPFilter( bool apply /**< [in] true enables low-pass filtering */ );
+
+    /// Get whether low-pass filtering is enabled.
+    bool applyLPFilter();
+
+    ///@}
 
     //****** The display *************
   protected:

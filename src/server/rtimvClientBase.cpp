@@ -7,6 +7,7 @@
 
 #include "rtimvClientBase.hpp"
 #include "rtimvColorGRPC.hpp"
+#include "rtimvFilterGRPC.hpp"
 
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
@@ -579,6 +580,12 @@ void rtimvClientBase::ImageReceived()
     bool subtractDark;
     bool applyMask;
     bool applySatMask;
+    remote_rtimv::HPFilter hpFilter;
+    float hpfFW;
+    bool applyHPFilter;
+    remote_rtimv::LPFilter lpFilter;
+    float lpfFW;
+    bool applyLPFilter;
     int cubeDir;
     bool hasImagePayload{ false };
 
@@ -643,6 +650,12 @@ void rtimvClientBase::ImageReceived()
         subtractDark = m_grpcImage.subtract_dark();
         applyMask = m_grpcImage.apply_mask();
         applySatMask = m_grpcImage.apply_sat_mask();
+        hpFilter = m_grpcImage.hp_filter();
+        hpfFW = m_grpcImage.hpf_fw();
+        applyHPFilter = m_grpcImage.apply_hp_filter();
+        lpFilter = m_grpcImage.lp_filter();
+        lpfFW = m_grpcImage.lpf_fw();
+        applyLPFilter = m_grpcImage.apply_lp_filter();
 
         imageTimeout = m_grpcImage.image_timeout();
         cubeDir = m_grpcImage.cube_dir();
@@ -688,6 +701,20 @@ void rtimvClientBase::ImageReceived()
     m_subtractDark = subtractDark;
     m_applyMask = applyMask;
     m_applySatMask = applySatMask;
+    rtimv::hpFilter hp = rtimv::grpc2hpFilter( hpFilter );
+    if( hp != static_cast<rtimv::hpFilter>( -1 ) )
+    {
+        m_hpFilter = hp;
+    }
+    m_hpfFW = hpfFW;
+    m_applyHPFilter = applyHPFilter;
+    rtimv::lpFilter lp = rtimv::grpc2lpFilter( lpFilter );
+    if( lp != static_cast<rtimv::lpFilter>( -1 ) )
+    {
+        m_lpFilter = lp;
+    }
+    m_lpfFW = lpfFW;
+    m_applyLPFilter = applyLPFilter;
     m_imageTimeout = imageTimeout;
     m_quality = quality;
     if( m_cubeDir != cubeDir )
@@ -1079,6 +1106,7 @@ void rtimvClientBase::imageTimeout( int to )
 {
     SHARED_CONN_LOCK
 
+    // Server applies the change; local state is synchronized via Image responses.
     remote_rtimv::ImageTimeoutRequest request;
     remote_rtimv::ImageTimeoutResponse response;
     grpc::ClientContext context;
@@ -1102,6 +1130,7 @@ void rtimvClientBase::quality( int q )
 {
     SHARED_CONN_LOCK
 
+    // Server applies the change; local state is synchronized via Image responses.
     remote_rtimv::QualityRequest request;
     remote_rtimv::QualityResponse response;
     grpc::ClientContext context;
@@ -1125,6 +1154,7 @@ void rtimvClientBase::subtractDark( bool sd )
 {
     SHARED_CONN_LOCK
 
+    // Server applies the change; local state is synchronized via Image responses.
     remote_rtimv::SubDarkRequest request;
     remote_rtimv::SubDarkResponse response;
     grpc::ClientContext context;
@@ -1148,6 +1178,7 @@ void rtimvClientBase::applyMask( bool amsk )
 {
     SHARED_CONN_LOCK
 
+    // Server applies the change; local state is synchronized via Image responses.
     remote_rtimv::ApplyMaskRequest request;
     remote_rtimv::ApplyMaskResponse response;
     grpc::ClientContext context;
@@ -1171,6 +1202,7 @@ void rtimvClientBase::applySatMask( bool asmsk )
 {
     SHARED_CONN_LOCK
 
+    // Server applies the change; local state is synchronized via Image responses.
     remote_rtimv::ApplySatMaskRequest request;
     remote_rtimv::ApplySatMaskResponse response;
     grpc::ClientContext context;
@@ -1188,6 +1220,150 @@ void rtimvClientBase::applySatMask( bool asmsk )
 bool rtimvClientBase::applySatMask()
 {
     return m_applySatMask;
+}
+
+void rtimvClientBase::hpFilter( rtimv::hpFilter filter )
+{
+    SHARED_CONN_LOCK
+
+    // Server applies the change; local state is synchronized via Image responses.
+    remote_rtimv::HPFilterRequest request;
+    remote_rtimv::HPFilterResponse response;
+    grpc::ClientContext context;
+
+    request.set_hp_filter( rtimv::hpFilter2grpc( filter ) );
+
+    grpc::Status status = stub_->SetHPFilter( &context, request, &response );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+    }
+}
+
+rtimv::hpFilter rtimvClientBase::hpFilter()
+{
+    return m_hpFilter;
+}
+
+void rtimvClientBase::hpfFW( float fw )
+{
+    SHARED_CONN_LOCK
+
+    // Server applies the change; local state is synchronized via Image responses.
+    remote_rtimv::FilterWidthRequest request;
+    remote_rtimv::FilterWidthResponse response;
+    grpc::ClientContext context;
+
+    request.set_width( fw );
+
+    grpc::Status status = stub_->SetHPFW( &context, request, &response );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+    }
+}
+
+float rtimvClientBase::hpfFW()
+{
+    return m_hpfFW;
+}
+
+void rtimvClientBase::applyHPFilter( bool apply )
+{
+    SHARED_CONN_LOCK
+
+    // Server applies the change; local state is synchronized via Image responses.
+    remote_rtimv::ApplyFilterRequest request;
+    remote_rtimv::ApplyFilterResponse response;
+    grpc::ClientContext context;
+
+    request.set_apply_filter( apply );
+
+    grpc::Status status = stub_->SetApplyHPFilter( &context, request, &response );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+    }
+}
+
+bool rtimvClientBase::applyHPFilter()
+{
+    return m_applyHPFilter;
+}
+
+void rtimvClientBase::lpFilter( rtimv::lpFilter filter )
+{
+    SHARED_CONN_LOCK
+
+    // Server applies the change; local state is synchronized via Image responses.
+    remote_rtimv::LPFilterRequest request;
+    remote_rtimv::LPFilterResponse response;
+    grpc::ClientContext context;
+
+    request.set_lp_filter( rtimv::lpFilter2grpc( filter ) );
+
+    grpc::Status status = stub_->SetLPFilter( &context, request, &response );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+    }
+}
+
+rtimv::lpFilter rtimvClientBase::lpFilter()
+{
+    return m_lpFilter;
+}
+
+void rtimvClientBase::lpfFW( float fw )
+{
+    SHARED_CONN_LOCK
+
+    // Server applies the change; local state is synchronized via Image responses.
+    remote_rtimv::FilterWidthRequest request;
+    remote_rtimv::FilterWidthResponse response;
+    grpc::ClientContext context;
+
+    request.set_width( fw );
+
+    grpc::Status status = stub_->SetLPFW( &context, request, &response );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+    }
+}
+
+float rtimvClientBase::lpfFW()
+{
+    return m_lpfFW;
+}
+
+void rtimvClientBase::applyLPFilter( bool apply )
+{
+    SHARED_CONN_LOCK
+
+    // Server applies the change; local state is synchronized via Image responses.
+    remote_rtimv::ApplyFilterRequest request;
+    remote_rtimv::ApplyFilterResponse response;
+    grpc::ClientContext context;
+
+    request.set_apply_filter( apply );
+
+    grpc::Status status = stub_->SetApplyLPFilter( &context, request, &response );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+    }
+}
+
+bool rtimvClientBase::applyLPFilter()
+{
+    return m_applyLPFilter;
 }
 
 float rtimvClientBase::calPixel( uint32_t x, uint32_t y )
@@ -1527,16 +1703,12 @@ void rtimvClientBase::mtxUL_autoScale( bool as )
 
     grpc::Status status = stub_->SetAutoscale( &context, request, &response );
 
-    // Act upon its status.
     if( status.ok() )
     {
         return;
     }
-    else
-    {
-        REPORT_SERVER_DISCONNECTED
-        return;
-    }
+
+    REPORT_SERVER_DISCONNECTED
 }
 
 bool rtimvClientBase::autoScale()
@@ -1558,11 +1730,8 @@ void rtimvClientBase::mtxUL_reStretch()
     {
         return;
     }
-    else
-    {
-        REPORT_SERVER_DISCONNECTED
-        return;
-    }
+
+    REPORT_SERVER_DISCONNECTED
 }
 
 uint8_t rtimvClientBase::lightness( int x, int y )

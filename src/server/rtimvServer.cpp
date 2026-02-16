@@ -418,6 +418,102 @@ ServerUnaryReactor *rtimvServer::SetApplySatMask( CallbackServerContext *context
     return reactor;
 }
 
+ServerUnaryReactor *rtimvServer::SetHPFilter( CallbackServerContext *context,
+                                              const remote_rtimv::HPFilterRequest *request,
+                                              remote_rtimv::HPFilterResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
+
+    rtimv::hpFilter filter = rtimv::grpc2hpFilter( request->hp_filter() );
+
+    if( filter != static_cast<rtimv::hpFilter>( -1 ) )
+    {
+        imageTh->hpFilter( filter );
+        reactor->Finish( Status::OK );
+    }
+    else
+    {
+        reactor->Finish( grpc::Status( grpc::INVALID_ARGUMENT, "invalid HP filter" ) );
+    }
+
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::SetHPFW( CallbackServerContext *context,
+                                          const remote_rtimv::FilterWidthRequest *request,
+                                          remote_rtimv::FilterWidthResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
+
+    imageTh->hpfFW( request->width() );
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::SetApplyHPFilter( CallbackServerContext *context,
+                                                   const remote_rtimv::ApplyFilterRequest *request,
+                                                   remote_rtimv::ApplyFilterResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
+
+    imageTh->applyHPFilter( request->apply_filter() );
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::SetLPFilter( CallbackServerContext *context,
+                                              const remote_rtimv::LPFilterRequest *request,
+                                              remote_rtimv::LPFilterResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
+
+    rtimv::lpFilter filter = rtimv::grpc2lpFilter( request->lp_filter() );
+
+    if( filter != static_cast<rtimv::lpFilter>( -1 ) )
+    {
+        imageTh->lpFilter( filter );
+        reactor->Finish( Status::OK );
+    }
+    else
+    {
+        reactor->Finish( grpc::Status( grpc::INVALID_ARGUMENT, "invalid LP filter" ) );
+    }
+
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::SetLPFW( CallbackServerContext *context,
+                                          const remote_rtimv::FilterWidthRequest *request,
+                                          remote_rtimv::FilterWidthResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
+
+    imageTh->lpfFW( request->width() );
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::SetApplyLPFilter( CallbackServerContext *context,
+                                                   const remote_rtimv::ApplyFilterRequest *request,
+                                                   remote_rtimv::ApplyFilterResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
+
+    imageTh->applyLPFilter( request->apply_filter() );
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
 ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
                                               const remote_rtimv::ImageRequest *request,
                                               remote_rtimv::Image *reply )
@@ -486,6 +582,14 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
         reply->set_image_timeout( imageTh->imageTimeout() );
         reply->set_cube_dir( imageTh->cubeDir() );
         reply->set_quality( imageTh->quality() );
+
+        reply->set_hp_filter( rtimv::hpFilter2grpc( imageTh->hpFilter() ) );
+        reply->set_hpf_fw( imageTh->hpfFW() );
+        reply->set_apply_hp_filter( imageTh->applyHPFilter() );
+
+        reply->set_lp_filter( rtimv::lpFilter2grpc( imageTh->lpFilter() ) );
+        reply->set_lpf_fw( imageTh->lpfFW() );
+        reply->set_apply_lp_filter( imageTh->applyLPFilter() );
     };
 
     if( imageTh->newImage() == false )
