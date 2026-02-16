@@ -60,6 +60,19 @@ Follow these code style and documentation rules exactly.
 - When practical, include configuration/state fields in `Image` so clients can refresh passively on each `ImagePlease` response.
 - Prefer updating local cached client state from received `Image` fields instead of immediately mirroring local writes after set-RPC calls.
 
+12) Doxygen Named Section Ordering
+- For classes that expose configuration via member data + accessors, keep named sections split into:
+  - `... - Data` for protected/private member state
+  - `...` (without `- Data`) for public access functions
+- Place the `... - Data` section before the corresponding public accessor section.
+
+13) Base/Client Interface Parity
+- Keep `rtimvBase` and `rtimvClientBase` documentation and section structure highly aligned when they implement the same conceptual interface.
+- If one side intentionally lacks working-memory members (e.g., server-only processing buffers), add an explicit note documenting why.
+
+14) Header Declaration Parameter Docs
+- In headers, prefer inline parameter documentation on declarations (`type name /**< ... */`) rather than separate `\param` lists, unless there is a specific reason to deviate.
+
 When you finish:
 - Summarize what changed.
 - List affected files.
