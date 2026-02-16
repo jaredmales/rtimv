@@ -2222,6 +2222,8 @@ void rtimvMainWindow::keyPressEvent( QKeyEvent *ke )
         case Qt::Key_F:
             if( key == 'f' )
                 return toggleFPSGage();
+            if( key == 'F' )
+                return toggleFilter();
             break;
         case Qt::Key_H:
             if( key == 'h' )
@@ -2654,6 +2656,54 @@ void rtimvMainWindow::toggleApplySatMask()
     }
 }
 
+void rtimvMainWindow::toggleFilter()
+{
+    if( applyHPFilter() || applyLPFilter() )
+    {
+        applyHPFilter( false );
+        applyLPFilter( false );
+        ui.graphicsView->zoomText( "filters off" );
+        mtxTry_fontLuminance( ui.graphicsView->zoomText() );
+        return;
+    }
+
+    const bool enableHP = ( hpFilter() != rtimv::hpFilter::none ) && ( hpfFW() > 0 );
+    const bool enableLP = ( lpFilter() != rtimv::lpFilter::none ) && ( lpfFW() > 0 );
+
+    applyHPFilter( enableHP );
+    applyLPFilter( enableLP );
+
+    if( enableHP && enableLP )
+    {
+        ui.graphicsView->zoomText( "HP & LP filter on" );
+    }
+    else if( enableHP )
+    {
+        ui.graphicsView->zoomText( "HP filter on" );
+    }
+    else if( enableLP )
+    {
+        ui.graphicsView->zoomText( "LP filter on" );
+    }
+    else
+    {
+        const bool hpNone = ( hpFilter() == rtimv::hpFilter::none );
+        const bool lpNone = ( lpFilter() == rtimv::lpFilter::none );
+        const bool offByNone = ( hpNone && !enableLP ) || ( lpNone && !enableHP );
+
+        if( offByNone )
+        {
+            ui.graphicsView->zoomText( "filters off (none)" );
+        }
+        else
+        {
+            ui.graphicsView->zoomText( "filters off (FW=0)" );
+        }
+    }
+
+    mtxTry_fontLuminance( ui.graphicsView->zoomText() );
+}
+
 void rtimvMainWindow::toggleLogLinear()
 {
     rtimv::stretch s = stretch();
@@ -2709,8 +2759,8 @@ std::string rtimvMainWindow::generateHelp()
 
     help += "\n";
     help += "C: toggle cube control        D: toggle dark subtraction     \n";
-    help += "L: toggle log scale           M: toggle mask                 \n";
-    help += "S: toggle saturation mask      \n";
+    help += "F: toggle filters             L: toggle log scale           \n";
+    help += "M: toggle mask                S: toggle saturation mask      \n";
 
     help += "\n";
     help += "1-9: change zoom level        ctrl +: zoom in\n";

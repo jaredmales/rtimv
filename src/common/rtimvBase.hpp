@@ -801,7 +801,7 @@ class rtimvBase : public mx::app::application
 
     bool m_applyHPFilter{ false }; ///< Whether the high-pass filter is currently enabled.
 
-    rtimv::lpFilter m_lpFilter{ rtimv::lpFilter::gaussian }; ///< Selected low-pass filter type.
+    rtimv::lpFilter m_lpFilter{ rtimv::lpFilter::none }; ///< Selected low-pass filter type.
 
     float m_lpfFW{ 3 }; ///< Full width for the low-pass filter in pixels.
 

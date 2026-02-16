@@ -1838,7 +1838,10 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
 
 void rtimvBase::mtxL_applyFilter()
 {
-    if( !( m_applyHPFilter || m_applyLPFilter ) )
+    const bool doHP = m_applyHPFilter && ( m_hpFilter != rtimv::hpFilter::none ) && ( m_hpfFW > 0 );
+    const bool doLP = m_applyLPFilter && ( m_lpFilter != rtimv::lpFilter::none ) && ( m_lpfFW > 0 );
+
+    if( !( doHP || doLP ) )
     {
         m_calData = m_calDataRaw;
         return;
@@ -1846,10 +1849,10 @@ void rtimvBase::mtxL_applyFilter()
 
     mx::improc::eigenMap<float> imin( m_calDataRaw, m_nx, m_ny );
 
-    if( m_applyHPFilter )
+    if( doHP )
     {
         rtimv::applyHPFilter( m_hpFiltered, imin, m_hpFilter, m_hpfFW, m_filterWork );
-        if( m_applyLPFilter )
+        if( doLP )
         {
             rtimv::applyLPFilter( m_lpFiltered, m_hpFiltered, m_lpFilter, m_lpfFW );
             m_calData = m_lpFiltered.data();

@@ -17,6 +17,7 @@ namespace rtimv
 /// Available high-pass filter implementations.
 enum class hpFilter
 {
+    none,     ///< No high-pass filtering.
     gaussian, ///< Subtract a Gaussian-smoothed image (fw is FWHM in pixels).
     median,   ///< Subtract a median-smoothed image (fw is full width in pixels).
     mean,     ///< Subtract a mean-smoothed image (fw is full width in pixels).
@@ -27,6 +28,7 @@ enum class hpFilter
 /// Available low-pass filter implementations.
 enum class lpFilter
 {
+    none,     ///< No low-pass filtering.
     gaussian, ///< Gaussian smoothing (fw is FWHM in pixels).
     median,   ///< Median smoothing (fw is full width in pixels).
     mean      ///< Mean smoothing (fw is full width in pixels).

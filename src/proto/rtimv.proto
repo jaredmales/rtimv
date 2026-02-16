@@ -242,11 +242,12 @@ message ApplySatMaskResponse
 enum HPFilter
 {
     HPFILTER_UNKNOWN = 0;
-    HPFILTER_GAUSSIAN = 1;
-    HPFILTER_MEDIAN = 2;
-    HPFILTER_MEAN = 3;
-    HPFILTER_FOURIER = 4;
-    HPFILTER_RADPROF = 5;
+    HPFILTER_NONE = 1;
+    HPFILTER_GAUSSIAN = 2;
+    HPFILTER_MEDIAN = 3;
+    HPFILTER_MEAN = 4;
+    HPFILTER_FOURIER = 5;
+    HPFILTER_RADPROF = 6;
 }
 
 message HPFilterRequest
@@ -261,9 +262,10 @@ message HPFilterResponse
 enum LPFilter
 {
     LPFILTER_UNKNOWN = 0;
-    LPFILTER_GAUSSIAN = 1;
-    LPFILTER_MEDIAN = 2;
-    LPFILTER_MEAN = 3;
+    LPFILTER_NONE = 1;
+    LPFILTER_GAUSSIAN = 2;
+    LPFILTER_MEDIAN = 3;
+    LPFILTER_MEAN = 4;
 }
 
 message LPFilterRequest

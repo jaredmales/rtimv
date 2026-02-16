@@ -700,6 +700,8 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
     void toggleApplySatMask();
 
+    void toggleFilter();
+
     void toggleLogLinear();
 
     void toggleTarget();

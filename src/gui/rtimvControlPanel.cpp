@@ -103,12 +103,14 @@ void rtimvControlPanel::setupCombos()
     m_ui.pointerViewModecomboBox->insertItem( PointerViewDisabled, "Disabled" );
     m_ui.pointerViewModecomboBox->setCurrentIndex( PointerViewOnPress );
 
+    m_ui.hpFilterCombo->insertItem( static_cast<int>( rtimv::hpFilter::none ), "None" );
     m_ui.hpFilterCombo->insertItem( static_cast<int>( rtimv::hpFilter::gaussian ), "Gaussian" );
     m_ui.hpFilterCombo->insertItem( static_cast<int>( rtimv::hpFilter::median ), "Median" );
     m_ui.hpFilterCombo->insertItem( static_cast<int>( rtimv::hpFilter::mean ), "Mean" );
     m_ui.hpFilterCombo->insertItem( static_cast<int>( rtimv::hpFilter::fourier ), "Fourier (TBD)" );
     m_ui.hpFilterCombo->insertItem( static_cast<int>( rtimv::hpFilter::radprof ), "Radial Profile (TBD)" );
 
+    m_ui.lpFilterCombo->insertItem( static_cast<int>( rtimv::lpFilter::none ), "None" );
     m_ui.lpFilterCombo->insertItem( static_cast<int>( rtimv::lpFilter::gaussian ), "Gaussian" );
     m_ui.lpFilterCombo->insertItem( static_cast<int>( rtimv::lpFilter::median ), "Median" );
     m_ui.lpFilterCombo->insertItem( static_cast<int>( rtimv::lpFilter::mean ), "Mean" );
