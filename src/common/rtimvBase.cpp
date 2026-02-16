@@ -851,7 +851,7 @@ void rtimvBase::applySatMask( bool asmsk )
     if( asmsk != m_applySatMask )
     {
         m_applySatMask = asmsk;
-        mtxUL_changeImdata(); // Recompute calibrated/filtered data after calibration changes.
+        mtxUL_recolor(); // Saturation-mask display is a recolor-only change.
     }
 }
 
@@ -866,7 +866,7 @@ void rtimvBase::hpFilter( rtimv::hpFilter filter )
     if( filter != m_hpFilter )
     {
         m_hpFilter = filter;
-        mtxUL_changeImdata();
+        mtxUL_changeImdata( false );
     }
 }
 
@@ -885,7 +885,7 @@ void rtimvBase::hpfFW( float fw )
     if( fw != m_hpfFW )
     {
         m_hpfFW = fw;
-        mtxUL_changeImdata();
+        mtxUL_changeImdata( false );
     }
 }
 
@@ -899,7 +899,7 @@ void rtimvBase::applyHPFilter( bool apply )
     if( apply != m_applyHPFilter )
     {
         m_applyHPFilter = apply;
-        mtxUL_changeImdata();
+        mtxUL_changeImdata( false );
     }
 }
 
@@ -913,7 +913,7 @@ void rtimvBase::lpFilter( rtimv::lpFilter filter )
     if( filter != m_lpFilter )
     {
         m_lpFilter = filter;
-        mtxUL_changeImdata();
+        mtxUL_changeImdata( false );
     }
 }
 
@@ -932,7 +932,7 @@ void rtimvBase::lpfFW( float fw )
     if( fw != m_lpfFW )
     {
         m_lpfFW = fw;
-        mtxUL_changeImdata();
+        mtxUL_changeImdata( false );
     }
 }
 
@@ -946,7 +946,7 @@ void rtimvBase::applyLPFilter( bool apply )
     if( apply != m_applyLPFilter )
     {
         m_applyLPFilter = apply;
-        mtxUL_changeImdata();
+        mtxUL_changeImdata( false );
     }
 }
 
@@ -1577,7 +1577,7 @@ uint8_t rtimvBase::lightness( int x, int y )
     return lightness( n );
 }
 
-void rtimvBase::mtxUL_changeImdata()
+void rtimvBase::mtxUL_changeImdata( bool newdata )
 {
     RTIMV_DEBUG_BREADCRUMB
 
@@ -1592,6 +1592,7 @@ void rtimvBase::mtxUL_changeImdata()
 
     bool resized = false;
 
+    if( newdata )
     { // mutex scope
 
         // Get a unique lock on the cal data to allow us to delete it and overwrite it

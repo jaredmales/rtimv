@@ -892,8 +892,10 @@ class rtimvBase : public mx::app::application
                        int y  /**< [in] the y location of the pixel */
     );
 
-    /// Updates the QImage and basic statistics after a new image.
-    void mtxUL_changeImdata();
+    /// Updates filtered data, the QImage, and basic statistics.
+    /** When \p newdata is false, raw calibrated pixels in \ref m_calDataRaw are reused.
+     */
+    void mtxUL_changeImdata( bool newdata = true /**< [in] true to repopulate \ref m_calDataRaw */ );
 
     /// Apply configured high-pass/low-pass filters and update \ref m_calData.
     /** Called with \ref m_calMutex in shared-lock context from \ref mtxUL_changeImdata.
