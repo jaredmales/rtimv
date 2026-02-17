@@ -586,6 +586,9 @@ void rtimvClientBase::ImageReceived()
     remote_rtimv::LPFilter lpFilter;
     float lpfFW;
     bool applyLPFilter;
+    bool statsBox;
+    uint32_t statsBox_i0, statsBox_i1, statsBox_j0, statsBox_j1;
+    float statsBox_min, statsBox_max, statsBox_mean, statsBox_median;
     int cubeDir;
     bool hasImagePayload{ false };
 
@@ -656,6 +659,15 @@ void rtimvClientBase::ImageReceived()
         lpFilter = m_grpcImage.lp_filter();
         lpfFW = m_grpcImage.lpf_fw();
         applyLPFilter = m_grpcImage.apply_lp_filter();
+        statsBox = m_grpcImage.stats_box();
+        statsBox_i0 = m_grpcImage.stats_box_i0();
+        statsBox_i1 = m_grpcImage.stats_box_i1();
+        statsBox_j0 = m_grpcImage.stats_box_j0();
+        statsBox_j1 = m_grpcImage.stats_box_j1();
+        statsBox_min = m_grpcImage.stats_box_min();
+        statsBox_max = m_grpcImage.stats_box_max();
+        statsBox_mean = m_grpcImage.stats_box_mean();
+        statsBox_median = m_grpcImage.stats_box_median();
 
         imageTimeout = m_grpcImage.image_timeout();
         cubeDir = m_grpcImage.cube_dir();
@@ -715,6 +727,15 @@ void rtimvClientBase::ImageReceived()
     }
     m_lpfFW = lpfFW;
     m_applyLPFilter = applyLPFilter;
+    m_statsBox = statsBox;
+    m_statsBox_i0 = statsBox_i0;
+    m_statsBox_i1 = statsBox_i1;
+    m_statsBox_j0 = statsBox_j0;
+    m_statsBox_j1 = statsBox_j1;
+    m_statsBox_min = statsBox_min;
+    m_statsBox_max = statsBox_max;
+    m_statsBox_mean = statsBox_mean;
+    m_statsBox_median = statsBox_median;
     m_imageTimeout = imageTimeout;
     m_quality = quality;
     if( m_cubeDir != cubeDir )
@@ -1559,6 +1580,152 @@ float rtimvClientBase::colorBox_min()
 float rtimvClientBase::colorBox_max()
 {
     return m_colorBox_max;
+}
+
+void rtimvClientBase::statsBox( bool sb )
+{
+    m_statsBox = sb;
+
+    if( sb )
+    {
+        return;
+    }
+
+    m_statsBox_min = 0;
+    m_statsBox_max = 0;
+    m_statsBox_mean = 0;
+    m_statsBox_median = 0;
+
+    SHARED_CONN_LOCK
+
+    remote_rtimv::Box request;
+    remote_rtimv::StatsValues vals;
+    grpc::ClientContext context;
+
+    remote_rtimv::Coord *ul = new remote_rtimv::Coord;
+    ul->set_x( 1 );
+    ul->set_y( 1 );
+    request.set_allocated_upper_left( ul );
+
+    remote_rtimv::Coord *lr = new remote_rtimv::Coord;
+    lr->set_x( 0 );
+    lr->set_y( 0 );
+    request.set_allocated_lower_right( lr );
+
+    grpc::Status status = stub_->StatsBox( &context, request, &vals );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+        return;
+    }
+}
+
+bool rtimvClientBase::statsBox()
+{
+    return m_statsBox;
+}
+
+void rtimvClientBase::statsBox_i0( int64_t i0 )
+{
+    m_statsBox_i0 = i0;
+}
+
+int64_t rtimvClientBase::statsBox_i0()
+{
+    return m_statsBox_i0;
+}
+
+void rtimvClientBase::statsBox_i1( int64_t i1 )
+{
+    m_statsBox_i1 = i1;
+}
+
+int64_t rtimvClientBase::statsBox_i1()
+{
+    return m_statsBox_i1;
+}
+
+void rtimvClientBase::statsBox_j0( int64_t j0 )
+{
+    m_statsBox_j0 = j0;
+}
+
+int64_t rtimvClientBase::statsBox_j0()
+{
+    return m_statsBox_j0;
+}
+
+void rtimvClientBase::statsBox_j1( int64_t j1 )
+{
+    m_statsBox_j1 = j1;
+}
+
+int64_t rtimvClientBase::statsBox_j1()
+{
+    return m_statsBox_j1;
+}
+
+float rtimvClientBase::statsBox_min()
+{
+    return m_statsBox_min;
+}
+
+float rtimvClientBase::statsBox_max()
+{
+    return m_statsBox_max;
+}
+
+float rtimvClientBase::statsBox_mean()
+{
+    return m_statsBox_mean;
+}
+
+float rtimvClientBase::statsBox_median()
+{
+    return m_statsBox_median;
+}
+
+void rtimvClientBase::mtxUL_calcStatsBox()
+{
+    SHARED_CONN_LOCK
+
+    remote_rtimv::Box request;
+    remote_rtimv::StatsValues vals;
+    grpc::ClientContext context;
+
+    remote_rtimv::Coord *ul = new remote_rtimv::Coord;
+    ul->set_x( m_statsBox_i0 );
+    ul->set_y( m_statsBox_j0 );
+    request.set_allocated_upper_left( ul );
+
+    remote_rtimv::Coord *lr = new remote_rtimv::Coord;
+    lr->set_x( m_statsBox_i1 );
+    lr->set_y( m_statsBox_j1 );
+    request.set_allocated_lower_right( lr );
+
+    grpc::Status status = stub_->StatsBox( &context, request, &vals );
+
+    if( !status.ok() )
+    {
+        REPORT_SERVER_DISCONNECTED
+        return;
+    }
+
+    if( !vals.valid() )
+    {
+        return;
+    }
+
+    m_statsBox = true;
+    m_statsBox_i0 = vals.i0();
+    m_statsBox_i1 = vals.i1();
+    m_statsBox_j0 = vals.j0();
+    m_statsBox_j1 = vals.j1();
+    m_statsBox_min = vals.min();
+    m_statsBox_max = vals.max();
+    m_statsBox_mean = vals.mean();
+    m_statsBox_median = vals.median();
 }
 
 void rtimvClientBase::stretch( rtimv::stretch cs )

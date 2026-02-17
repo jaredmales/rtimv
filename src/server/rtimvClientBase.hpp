@@ -654,6 +654,116 @@ class rtimvClientBase : public mx::app::application
 
     ///@}
 
+    /** @name Stats Box - Data
+     *
+     * @{
+     */
+  private:
+    /// The stats box upper left corner x coordinate.
+    int64_t m_statsBox_i0{ 0 };
+
+    /// The stats box lower right corner x coordinate.
+    int64_t m_statsBox_i1{ 0 };
+
+    /// The stats box upper left corner y coordinate.
+    int64_t m_statsBox_j0{ 0 };
+
+    /// The stats box lower right corner y coordinate.
+    int64_t m_statsBox_j1{ 0 };
+
+  protected:
+    /// Whether stats-box calculations are enabled.
+    bool m_statsBox{ false };
+
+    /// The minimum calibrated value in the stats box.
+    float m_statsBox_min{ 0 };
+
+    /// The maximum calibrated value in the stats box.
+    float m_statsBox_max{ 0 };
+
+    /// The mean calibrated value in the stats box.
+    float m_statsBox_mean{ 0 };
+
+    /// The median calibrated value in the stats box.
+    float m_statsBox_median{ 0 };
+    ///@}
+
+    /** @name Stats Box
+     *
+     * @{
+     */
+  public:
+    /// Set whether stats-box calculations are enabled.
+    void statsBox( bool sb /**< [in] true enables stats-box calculations */ );
+
+    /// Get whether stats-box calculations are enabled.
+    bool statsBox();
+
+    /// Set the stats box upper left corner x coordinate.
+    void statsBox_i0( int64_t i0 /**< [in] the new upper-left x coordinate */ );
+
+    /// Get the stats box upper left corner x coordinate.
+    /**
+     * \returns m_statsBox_i0
+     */
+    int64_t statsBox_i0();
+
+    /// Set the stats box upper left corner y coordinate.
+    void statsBox_j0( int64_t j0 /**< [in] the new upper-left y coordinate */ );
+
+    /// Get the stats box upper left corner y coordinate.
+    /**
+     * \returns m_statsBox_j0
+     */
+    int64_t statsBox_j0();
+
+    /// Set the stats box lower right corner x coordinate.
+    void statsBox_i1( int64_t i1 /**< [in] the new lower-right x coordinate */ );
+
+    /// Get the stats box lower right corner x coordinate.
+    /**
+     * \returns m_statsBox_i1
+     */
+    int64_t statsBox_i1();
+
+    /// Set the stats box lower right corner y coordinate.
+    void statsBox_j1( int64_t j1 /**< [in] the new lower-right y coordinate */ );
+
+    /// Get the stats box lower right corner y coordinate.
+    /**
+     * \returns m_statsBox_j1
+     */
+    int64_t statsBox_j1();
+
+    /// Get the minimum calibrated value in the stats box.
+    /**
+     * \returns m_statsBox_min
+     */
+    float statsBox_min();
+
+    /// Get the maximum calibrated value in the stats box.
+    /**
+     * \returns m_statsBox_max
+     */
+    float statsBox_max();
+
+    /// Get the mean calibrated value in the stats box.
+    /**
+     * \returns m_statsBox_mean
+     */
+    float statsBox_mean();
+
+    /// Get the median calibrated value in the stats box.
+    /**
+     * \returns m_statsBox_median
+     */
+    float statsBox_median();
+
+    /// Request stats-box calculations from the server.
+    void mtxUL_calcStatsBox();
+
+    ///@}
+
     /** @name Color Stretch - Data
      *
      * @{

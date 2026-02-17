@@ -613,13 +613,6 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT &lock )
 
     RTIMV_DEBUG_BREADCRUMB
 
-    if( imStats )
-    {
-        imStats->setImdata();
-    }
-
-    RTIMV_DEBUG_BREADCRUMB
-
     if( m_connected ) // first time through this won't be true
     {
         if( imageValid( 0 ) ) // really can't be false if connected
@@ -1434,11 +1427,12 @@ void rtimvMainWindow::doLaunchStatsBox()
 
     if( !imStats )
     {
-        imStats = new rtimvStats( this, &m_calMutex, this, Qt::WindowFlags() );
+        imStats = new rtimvStats( this, this, Qt::WindowFlags() );
         imStats->setAttribute( Qt::WA_DeleteOnClose ); // Qt will delete imstats when it closes.
         connect( imStats, SIGNAL( finished( int ) ), this, SLOT( imStatsClosed( int ) ) );
     }
 
+    statsBox( true );
     mtxTry_statsBoxMoved( m_statsBox );
 
     imStats->show();
@@ -1448,6 +1442,8 @@ void rtimvMainWindow::doLaunchStatsBox()
 
 void rtimvMainWindow::doHideStatsBox()
 {
+    statsBox( false );
+
     if( imStats )
     {
         delete imStats;
@@ -1486,8 +1482,6 @@ void rtimvMainWindow::imStatsClosed( int result )
 
 void rtimvMainWindow::mtxTry_statsBoxMoved( StretchBox *sb )
 {
-    sharedLockT lock( m_calMutex );
-
     if( !m_statsBox )
         return;
 
@@ -1499,10 +1493,11 @@ void rtimvMainWindow::mtxTry_statsBoxMoved( StretchBox *sb )
                                        QPointF( m_statsBox->rect().x() + m_statsBox->rect().width(),
                                                 m_statsBox->rect().y() + m_statsBox->rect().height() ) );
 
-    if( imStats )
-    {
-        imStats->mtxL_setImdata( m_nx, m_ny, np.x(), np2.x(), m_ny - np2.y(), m_ny - np.y(), lock );
-    }
+    statsBox_i0( np.x() );
+    statsBox_i1( np2.x() );
+    statsBox_j0( m_ny - np2.y() );
+    statsBox_j1( m_ny - np.y() );
+    mtxUL_calcStatsBox();
 
     mtxTry_userBoxMoved( sb );
 }

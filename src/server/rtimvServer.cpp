@@ -590,6 +590,16 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
         reply->set_lp_filter( rtimv::lpFilter2grpc( imageTh->lpFilter() ) );
         reply->set_lpf_fw( imageTh->lpfFW() );
         reply->set_apply_lp_filter( imageTh->applyLPFilter() );
+
+        reply->set_stats_box( imageTh->statsBox() );
+        reply->set_stats_box_i0( imageTh->statsBox_i0() );
+        reply->set_stats_box_i1( imageTh->statsBox_i1() );
+        reply->set_stats_box_j0( imageTh->statsBox_j0() );
+        reply->set_stats_box_j1( imageTh->statsBox_j1() );
+        reply->set_stats_box_min( imageTh->statsBox_min() );
+        reply->set_stats_box_max( imageTh->statsBox_max() );
+        reply->set_stats_box_mean( imageTh->statsBox_mean() );
+        reply->set_stats_box_median( imageTh->statsBox_median() );
     };
 
     if( imageTh->newImage() == false )
@@ -807,6 +817,57 @@ ServerUnaryReactor *rtimvServer::Recolor( CallbackServerContext *context,
     imageTh->mtxUL_recolor();
 
     reactor->Finish( Status::OK ); // maybe send something else?
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::StatsBox( CallbackServerContext *context,
+                                           const remote_rtimv::Box *request,
+                                           remote_rtimv::StatsValues *reply )
+{
+    PREPARE_RPC_REACTOR
+
+    if( !imageTh->connected() )
+    {
+        reply->set_valid( false );
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+
+    if( request->lower_right().x() <= request->upper_left().x() || request->lower_right().y() <= request->upper_left().y() )
+    {
+        imageTh->statsBox( false );
+        reply->set_valid( true );
+        reply->set_i0( imageTh->statsBox_i0() );
+        reply->set_i1( imageTh->statsBox_i1() );
+        reply->set_j0( imageTh->statsBox_j0() );
+        reply->set_j1( imageTh->statsBox_j1() );
+        reply->set_min( imageTh->statsBox_min() );
+        reply->set_max( imageTh->statsBox_max() );
+        reply->set_mean( imageTh->statsBox_mean() );
+        reply->set_median( imageTh->statsBox_median() );
+
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+
+    imageTh->statsBox_i0( request->upper_left().x() );
+    imageTh->statsBox_j0( request->upper_left().y() );
+    imageTh->statsBox_i1( request->lower_right().x() );
+    imageTh->statsBox_j1( request->lower_right().y() );
+    imageTh->statsBox( true );
+    imageTh->mtxUL_calcStatsBox();
+
+    reply->set_valid( true );
+    reply->set_i0( imageTh->statsBox_i0() );
+    reply->set_i1( imageTh->statsBox_i1() );
+    reply->set_j0( imageTh->statsBox_j0() );
+    reply->set_j1( imageTh->statsBox_j1() );
+    reply->set_min( imageTh->statsBox_min() );
+    reply->set_max( imageTh->statsBox_max() );
+    reply->set_mean( imageTh->statsBox_mean() );
+    reply->set_median( imageTh->statsBox_median() );
+
+    reactor->Finish( Status::OK );
     return reactor;
 }
 

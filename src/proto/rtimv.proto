@@ -60,7 +60,7 @@ service rtimv
 
     rpc Recolor(RecolorRequest) returns (RecolorResponse);
 
-    rpc StatsBox(Box) returns(Pixel);
+    rpc StatsBox(Box) returns(StatsValues);
 
 }
 
@@ -387,6 +387,16 @@ message Image
     LPFilter lp_filter = 188;
     float lpf_fw = 189;
     bool apply_lp_filter = 190;
+
+    bool stats_box = 191;
+    uint32 stats_box_i0 = 192;
+    uint32 stats_box_i1 = 193;
+    uint32 stats_box_j0 = 194;
+    uint32 stats_box_j1 = 195;
+    float stats_box_min = 196;
+    float stats_box_max = 197;
+    float stats_box_mean = 198;
+    float stats_box_median = 199;
 }
 
 message Coord
@@ -431,4 +441,17 @@ message RecolorRequest
 
 message RecolorResponse
 {
+}
+
+message StatsValues
+{
+    bool valid = 1;
+    uint32 i0 = 2;
+    uint32 i1 = 3;
+    uint32 j0 = 4;
+    uint32 j1 = 5;
+    float min = 6;
+    float max = 7;
+    float mean = 8;
+    float median = 9;
 }
