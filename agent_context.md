@@ -73,6 +73,20 @@ Follow these code style and documentation rules exactly.
 14) Header Declaration Parameter Docs
 - In headers, prefer inline parameter documentation on declarations (`type name /**< ... */`) rather than separate `\param` lists, unless there is a specific reason to deviate.
 
+15) PR Prompt Attribution
+- At the top of PR descriptions, include an explicit attribution line when work was performed with Codex.
+- Preferred format:
+  - `This work was performed by GPT-5.3-Codex in response to the prompt: "...".`
+- Include the primary user prompt verbatim (or a faithful condensed version if it is extremely long).
+
+16) Stats Architecture Rule
+- Keep statistics calculations in `rtimvBase`/`rtimvClientBase` rather than GUI classes when the behavior should match between local and gRPC clients.
+- GUI classes should provide region coordinates and render values, but not own the calculation pipeline.
+
+17) Display-Only Widget Pattern
+- When backend state is authoritative, GUI dialogs/widgets should be display-only and poll/read backend values instead of running duplicate worker threads.
+- Prefer a single source of truth for computed values and synchronize via `Image` state where appropriate.
+
 When you finish:
 - Summarize what changed.
 - List affected files.
