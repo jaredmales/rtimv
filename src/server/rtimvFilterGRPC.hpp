@@ -17,6 +17,8 @@ inline remote_rtimv::HPFilter hpFilter2grpc( rtimv::hpFilter filter )
 {
     switch( filter )
     {
+    case rtimv::hpFilter::none:
+        return remote_rtimv::HPFILTER_NONE;
     case rtimv::hpFilter::gaussian:
         return remote_rtimv::HPFILTER_GAUSSIAN;
     case rtimv::hpFilter::median:
@@ -36,6 +38,8 @@ inline rtimv::hpFilter grpc2hpFilter( remote_rtimv::HPFilter filter )
 {
     switch( filter )
     {
+    case remote_rtimv::HPFILTER_NONE:
+        return rtimv::hpFilter::none;
     case remote_rtimv::HPFILTER_GAUSSIAN:
         return rtimv::hpFilter::gaussian;
     case remote_rtimv::HPFILTER_MEDIAN:
@@ -55,6 +59,8 @@ inline remote_rtimv::LPFilter lpFilter2grpc( rtimv::lpFilter filter )
 {
     switch( filter )
     {
+    case rtimv::lpFilter::none:
+        return remote_rtimv::LPFILTER_NONE;
     case rtimv::lpFilter::gaussian:
         return remote_rtimv::LPFILTER_GAUSSIAN;
     case rtimv::lpFilter::median:
@@ -70,6 +76,8 @@ inline rtimv::lpFilter grpc2lpFilter( remote_rtimv::LPFilter filter )
 {
     switch( filter )
     {
+    case remote_rtimv::LPFILTER_NONE:
+        return rtimv::lpFilter::none;
     case remote_rtimv::LPFILTER_GAUSSIAN:
         return rtimv::lpFilter::gaussian;
     case remote_rtimv::LPFILTER_MEDIAN:

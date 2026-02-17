@@ -45,6 +45,12 @@ void applyHPFilter( mx::improc::eigenImage<float> &outim,
     outim.resize( inim.rows(), inim.cols() );
     work.resize( inim.rows(), inim.cols() );
 
+    if( filter == hpFilter::none || fw <= 0 )
+    {
+        outim = inim;
+        return;
+    }
+
     if( filter == hpFilter::gaussian )
     {
         mx::improc::filterImage( work, inim, mx::improc::gaussKernel<mx::improc::eigenImage<float>, 2>( fw ) );
@@ -75,6 +81,12 @@ void applyHPFilter( mx::improc::eigenImage<float> &outim,
 void applyLPFilter( mx::improc::eigenImage<float> &outim, constImageRef inim, lpFilter filter, float fw )
 {
     outim.resize( inim.rows(), inim.cols() );
+
+    if( filter == lpFilter::none || fw <= 0 )
+    {
+        outim = inim;
+        return;
+    }
 
     if( filter == lpFilter::gaussian )
     {
