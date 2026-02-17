@@ -241,6 +241,10 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
                                  const remote_rtimv::RecolorRequest *request,
                                  remote_rtimv::RecolorResponse *reply ) override;
 
+    ServerUnaryReactor *StatsBox( CallbackServerContext *context,
+                                  const remote_rtimv::Box *request,
+                                  remote_rtimv::StatsValues *reply ) override;
+
   signals:
 
     void gotConfigure( const configSpec * );

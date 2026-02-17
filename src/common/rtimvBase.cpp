@@ -18,6 +18,8 @@
 #include "images/fitsDirectory.hpp"
 #include "images/mzmqImage.hpp"
 
+#include <mx/math/vectorUtils.hpp>
+
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
 
@@ -1363,6 +1365,159 @@ float rtimvBase::colorBox_max()
     return m_colorBox_max;
 }
 
+void rtimvBase::statsBox( bool sb )
+{
+    m_statsBox = sb;
+
+    if( !m_statsBox )
+    {
+        m_statsBox_min = 0;
+        m_statsBox_max = 0;
+        m_statsBox_mean = 0;
+        m_statsBox_median = 0;
+    }
+}
+
+bool rtimvBase::statsBox()
+{
+    return m_statsBox;
+}
+
+void rtimvBase::statsBox_i0( int64_t i0 )
+{
+    m_statsBox_i0 = i0;
+}
+
+int64_t rtimvBase::statsBox_i0()
+{
+    return m_statsBox_i0;
+}
+
+void rtimvBase::statsBox_j0( int64_t j0 )
+{
+    m_statsBox_j0 = j0;
+}
+
+int64_t rtimvBase::statsBox_j0()
+{
+    return m_statsBox_j0;
+}
+
+void rtimvBase::statsBox_i1( int64_t i1 )
+{
+    m_statsBox_i1 = i1;
+}
+
+int64_t rtimvBase::statsBox_i1()
+{
+    return m_statsBox_i1;
+}
+
+void rtimvBase::statsBox_j1( int64_t j1 )
+{
+    m_statsBox_j1 = j1;
+}
+
+int64_t rtimvBase::statsBox_j1()
+{
+    return m_statsBox_j1;
+}
+
+float rtimvBase::statsBox_min()
+{
+    return m_statsBox_min;
+}
+
+float rtimvBase::statsBox_max()
+{
+    return m_statsBox_max;
+}
+
+float rtimvBase::statsBox_mean()
+{
+    return m_statsBox_mean;
+}
+
+float rtimvBase::statsBox_median()
+{
+    return m_statsBox_median;
+}
+
+void rtimvBase::mtxUL_calcStatsBox()
+{
+    sharedLockT lock( m_calMutex );
+
+    mtxL_calcStatsBox( lock );
+}
+
+void rtimvBase::mtxL_calcStatsBox( const sharedLockT &lock )
+{
+    assert( lock.owns_lock() );
+
+    if( !m_statsBox )
+    {
+        return;
+    }
+
+    if( m_nx < 2 || m_ny < 2 || m_calData == nullptr )
+    {
+        m_statsBox_min = 0;
+        m_statsBox_max = 0;
+        m_statsBox_mean = 0;
+        m_statsBox_median = 0;
+        return;
+    }
+
+    normalizeStatsBox();
+
+    m_statsBox_min = std::numeric_limits<float>::max();
+    m_statsBox_max = -std::numeric_limits<float>::max();
+    double mean = 0;
+    size_t nn = 0;
+
+    m_statsBox_medWork.clear();
+    m_statsBox_medWork.reserve( ( m_statsBox_i1 - m_statsBox_i0 + 1 ) * ( m_statsBox_j1 - m_statsBox_j0 + 1 ) );
+
+    for( int64_t j = m_statsBox_j0; j <= m_statsBox_j1; ++j )
+    {
+        for( int64_t i = m_statsBox_i0; i <= m_statsBox_i1; ++i )
+        {
+            float imval = calPixel( i, j );
+
+            if( !std::isfinite( imval ) )
+            {
+                continue;
+            }
+
+            m_statsBox_medWork.push_back( imval );
+
+            mean += imval;
+            ++nn;
+
+            if( imval < m_statsBox_min )
+            {
+                m_statsBox_min = imval;
+            }
+            if( imval > m_statsBox_max )
+            {
+                m_statsBox_max = imval;
+            }
+        }
+    }
+
+    if( nn == 0 )
+    {
+        m_statsBox_min = 0;
+        m_statsBox_max = 0;
+        m_statsBox_mean = 0;
+        m_statsBox_median = 0;
+        return;
+    }
+
+    m_statsBox_mean = mean / nn;
+    m_statsBox_median = mx::math::vectorMedianInPlace( m_statsBox_medWork );
+}
+
 void rtimvBase::stretch( rtimv::stretch ct )
 {
     m_stretch = ct;
@@ -1808,6 +1963,11 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
             }
         }
 
+        if( m_statsBox )
+        {
+            mtxL_calcStatsBox( lock );
+        }
+
         RTIMV_DEBUG_BREADCRUMB
 
         mtxL_recolorImpl();
@@ -2024,6 +2184,15 @@ void rtimvBase::zoomLevel( float zl )
 
 void rtimvBase::normalizeColorBox()
 {
+    if( m_nx < 2 || m_ny < 2 )
+    {
+        m_colorBox_i0 = 0;
+        m_colorBox_i1 = 0;
+        m_colorBox_j0 = 0;
+        m_colorBox_j1 = 0;
+        return;
+    }
+
     if( m_colorBox_i0 < 0 )
     {
         m_colorBox_i0 = 0;
@@ -2068,6 +2237,64 @@ void rtimvBase::normalizeColorBox()
     if( m_colorBox_j0 > m_colorBox_j1 )
     {
         std::swap( m_colorBox_j0, m_colorBox_j1 );
+    }
+}
+
+void rtimvBase::normalizeStatsBox()
+{
+    if( m_nx < 2 || m_ny < 2 )
+    {
+        m_statsBox_i0 = 0;
+        m_statsBox_i1 = 0;
+        m_statsBox_j0 = 0;
+        m_statsBox_j1 = 0;
+        return;
+    }
+
+    if( m_statsBox_i0 < 0 )
+    {
+        m_statsBox_i0 = 0;
+    }
+    else if( m_statsBox_i0 >= (int64_t)m_nx - 1 )
+    {
+        m_statsBox_i0 = (int64_t)m_nx - 2;
+    }
+
+    if( m_statsBox_i1 < 0 )
+    {
+        m_statsBox_i1 = 0;
+    }
+    else if( m_statsBox_i1 >= (int64_t)m_nx - 1 )
+    {
+        m_statsBox_i1 = (int64_t)m_nx - 2;
+    }
+
+    if( m_statsBox_i0 > m_statsBox_i1 )
+    {
+        std::swap( m_statsBox_i0, m_statsBox_i1 );
+    }
+
+    if( m_statsBox_j0 < 0 )
+    {
+        m_statsBox_j0 = 0;
+    }
+    else if( m_statsBox_j0 >= (int64_t)m_ny - 1 )
+    {
+        m_statsBox_j0 = (int64_t)m_ny - 2;
+    }
+
+    if( m_statsBox_j1 <= 0 )
+    {
+        m_statsBox_j1 = 0;
+    }
+    else if( m_statsBox_j1 >= (int64_t)m_ny - 1 )
+    {
+        m_statsBox_j1 = (int64_t)m_ny - 2;
+    }
+
+    if( m_statsBox_j0 > m_statsBox_j1 )
+    {
+        std::swap( m_statsBox_j0, m_statsBox_j1 );
     }
 }
 
