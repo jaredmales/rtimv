@@ -286,7 +286,19 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
      * - If it is, updates the mouse coord text boxes
      * - If the mouse is right-clicked and dragging, updates the strech bias and contrast.
      */
-    void mtxL_updateMouseCoords( const sharedLockT &lock );
+    void mtxL_updateMouseCoords( const sharedLockT &lock,
+                                 bool requestPixel = true /**< [in] whether to issue a pixel-value request */ );
+
+    QTimer m_mousePixelTimer;                 ///< Debounce timer for mouse pixel requests.
+    int m_mousePixelTimeout{ 35 };            ///< Debounce timeout for mouse pixel requests, ms.
+    bool m_mousePixelRequestPending{ false }; ///< True when a mouse pixel request should be dispatched.
+    uint32_t m_mousePixelRequestX{ 0 };       ///< Pending mouse pixel request x coordinate.
+    uint32_t m_mousePixelRequestY{ 0 };       ///< Pending mouse pixel request y coordinate.
+
+    bool m_mousePixelCacheValid{ false }; ///< True when cached mouse pixel value is valid.
+    uint32_t m_mousePixelCacheX{ 0 };     ///< Cached mouse pixel x coordinate.
+    uint32_t m_mousePixelCacheY{ 0 };     ///< Cached mouse pixel y coordinate.
+    float m_mousePixelCacheValue{ 0 };    ///< Cached mouse pixel value.
 
   public:
     /// Get the value of the flag controlling whether tool tip coordinates are shown
@@ -317,6 +329,19 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
   public slots:
     /// Receive signal that the viewport mouse coordinates have changed.
     void changeMouseCoords();
+
+    /// Update mouse coordinate display from cached pixel data without issuing a request.
+    void updateMouseCoordsFromCache();
+
+    /// Dispatch the debounced mouse pixel request.
+    void dispatchMousePixelRequest();
+
+    /// Handle a pixel-value update from the backend.
+    void pixelValueUpdated( uint32_t x,  /**< [in] x coordinate */
+                            uint32_t y,  /**< [in] y coordinate */
+                            float value, /**< [in] calibrated pixel value */
+                            bool valid   /**< [in] true when value is valid */
+    );
 
     void viewLeftPressed( QPointF mp );
     void viewLeftClicked( QPointF mp );
@@ -463,9 +488,42 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
   public:
     StretchBox *m_colorBox{ nullptr }; ///\todo make this protected, fix imcp
 
+  protected:
+    QTimer m_colorBoxTimer;                 ///< Debounce timer for color-box requests.
+    int m_colorBoxTimeout{ 75 };            ///< Debounce timeout for color-box requests, ms.
+    bool m_colorBoxRequestPending{ false }; ///< True when color-box request should be dispatched.
+
+    bool m_colorBoxCacheValid{ false }; ///< True when cached color-box min/max are valid.
+    int64_t m_colorBoxCache_i0{ 0 };    ///< Cached color-box upper-left x coordinate.
+    int64_t m_colorBoxCache_i1{ 0 };    ///< Cached color-box lower-right x coordinate.
+    int64_t m_colorBoxCache_j0{ 0 };    ///< Cached color-box upper-left y coordinate.
+    int64_t m_colorBoxCache_j1{ 0 };    ///< Cached color-box lower-right y coordinate.
+    float m_colorBoxCacheMin{ 0 };      ///< Cached color-box minimum value.
+    float m_colorBoxCacheMax{ 0 };      ///< Cached color-box maximum value.
+
+    /// Update the on-image color-box min/max text.
+    void mtxTry_updateColorBoxText( StretchBox *sb, /**< [in] color box to annotate */
+                                    bool hasValues, /**< [in] true when min/max values are available */
+                                    float minVal,   /**< [in] minimum value */
+                                    float maxVal    /**< [in] maximum value */
+    );
+
   public slots:
 
     void mtxTry_colorBoxMoved( StretchBox *sb );
+
+    /// Dispatch the debounced color-box request.
+    void dispatchColorBoxRequest();
+
+    /// Handle a color-box update from the backend.
+    void colorBoxUpdated( int64_t i0, /**< [in] upper-left x coordinate */
+                          int64_t i1, /**< [in] lower-right x coordinate */
+                          int64_t j0, /**< [in] upper-left y coordinate */
+                          int64_t j1, /**< [in] lower-right y coordinate */
+                          float min,  /**< [in] minimum value */
+                          float max,  /**< [in] maximum value */
+                          bool valid  /**< [in] true when min/max are valid */
+    );
 
     void mtxTry_colorBoxSelected( StretchBox *sb );
 
@@ -481,6 +539,10 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
     rtimvStats *imStats;
 
+    QTimer m_statsBoxTimer;                 ///< Debounce timer for stats-box requests.
+    int m_statsBoxTimeout{ 75 };            ///< Debounce timeout for stats-box requests, ms.
+    bool m_statsBoxRequestPending{ false }; ///< True when stats-box request should be dispatched.
+
   public slots:
 
     void doLaunchStatsBox();
@@ -490,6 +552,9 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     void imStatsClosed( int );
 
     void mtxTry_statsBoxMoved( StretchBox * );
+
+    /// Dispatch the debounced stats-box request.
+    void dispatchStatsBoxRequest();
 
     void mtxTry_statsBoxSelected( StretchBox * );
 

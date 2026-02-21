@@ -138,6 +138,15 @@ class rtimvClientBase : public mx::app::application
      */
     grpc::ClientContext *m_ImagePleaseContext{ nullptr };
 
+    /// Context for the GetPixel rpc.
+    grpc::ClientContext *m_GetPixelContext{ nullptr };
+
+    /// Context for the ColorBox rpc.
+    grpc::ClientContext *m_ColorBoxContext{ nullptr };
+
+    /// Context for the StatsBox rpc.
+    grpc::ClientContext *m_StatsBoxContext{ nullptr };
+
   public:
     /// Configure the server
     /**
@@ -163,9 +172,97 @@ class rtimvClientBase : public mx::app::application
     /// Last ImagePlease response payload from the server.
     remote_rtimv::Image m_grpcImage;
 
+    /// Mutex guarding asynchronous unary RPC state for GetPixel/ColorBox/StatsBox.
+    std::mutex m_asyncRpcMutex;
+
+    /// Condition variable used to signal completion of GetPixel/ColorBox/StatsBox requests.
+    std::condition_variable m_asyncRpcCv;
+
+    /// True while a GetPixel request is outstanding.
+    bool m_getPixelPending{ false };
+
+    /// True when a newer GetPixel request should be sent after current completion.
+    bool m_getPixelQueued{ false };
+
+    /// Current desired x coordinate for GetPixel.
+    uint32_t m_getPixelX{ 0 };
+
+    /// Current desired y coordinate for GetPixel.
+    uint32_t m_getPixelY{ 0 };
+
+    /// In-flight x coordinate for the outstanding GetPixel request.
+    uint32_t m_getPixelInflightX{ 0 };
+
+    /// In-flight y coordinate for the outstanding GetPixel request.
+    uint32_t m_getPixelInflightY{ 0 };
+
+    /// Request payload for GetPixel.
+    remote_rtimv::Coord m_getPixelRequest;
+
+    /// Response payload for GetPixel.
+    remote_rtimv::Pixel m_getPixelReply;
+
+    /// True while a ColorBox request is outstanding.
+    bool m_colorBoxPending{ false };
+
+    /// True when a newer ColorBox request should be sent after current completion.
+    bool m_colorBoxQueued{ false };
+
+    /// Request payload for ColorBox.
+    remote_rtimv::Box m_colorBoxRequest;
+
+    /// Response payload for ColorBox.
+    remote_rtimv::MinvalMaxval m_colorBoxReply;
+
+    /// In-flight upper-left x coordinate for ColorBox.
+    int64_t m_colorBoxInflight_i0{ 0 };
+
+    /// In-flight lower-right x coordinate for ColorBox.
+    int64_t m_colorBoxInflight_i1{ 0 };
+
+    /// In-flight upper-left y coordinate for ColorBox.
+    int64_t m_colorBoxInflight_j0{ 0 };
+
+    /// In-flight lower-right y coordinate for ColorBox.
+    int64_t m_colorBoxInflight_j1{ 0 };
+
+    /// True while a StatsBox request is outstanding.
+    bool m_statsBoxPending{ false };
+
+    /// True when a newer StatsBox request should be sent after current completion.
+    bool m_statsBoxQueued{ false };
+
+    /// Request payload for StatsBox.
+    remote_rtimv::Box m_statsBoxRequest;
+
+    /// Response payload for StatsBox.
+    remote_rtimv::StatsValues m_statsBoxReply;
+
+    /// In-flight upper-left x coordinate for StatsBox.
+    int64_t m_statsBoxInflight_i0{ 0 };
+
+    /// In-flight lower-right x coordinate for StatsBox.
+    int64_t m_statsBoxInflight_i1{ 0 };
+
+    /// In-flight upper-left y coordinate for StatsBox.
+    int64_t m_statsBoxInflight_j0{ 0 };
+
+    /// In-flight lower-right y coordinate for StatsBox.
+    int64_t m_statsBoxInflight_j1{ 0 };
+
   public:
     /// Request an image from the server
     void ImagePlease();
+
+    /// Request an updated calibrated pixel value.
+    void requestPixelValue( uint32_t x, /**< [in] x coordinate of the pixel */
+                            uint32_t y /**< [in] y coordinate of the pixel */ );
+
+    /// Request updated color-box min/max values.
+    void requestColorBoxValues();
+
+    /// Request updated stats-box values.
+    void requestStatsBoxValues();
 
     /// Process a received image
     void ImageReceived();
@@ -173,6 +270,15 @@ class rtimvClientBase : public mx::app::application
   protected:
     /// Handle an ImagePlease response from the server
     void ImagePlease_callback( grpc::Status status );
+
+    /// Handle a GetPixel response from the server.
+    void GetPixel_callback( grpc::Status status );
+
+    /// Handle a ColorBox response from the server.
+    void ColorBox_callback( grpc::Status status );
+
+    /// Handle a StatsBox response from the server.
+    void StatsBox_callback( grpc::Status status );
 
     /// Function called on connection
     /**
@@ -851,8 +957,8 @@ class rtimvClientBase : public mx::app::application
     bool m_applyHPFilter{ false };                           ///< Whether the high-pass filter is currently enabled.
 
     rtimv::lpFilter m_lpFilter{ rtimv::lpFilter::none }; ///< Selected low-pass filter type.
-    float m_lpfFW{ 3 };                                      ///< Full width for the low-pass filter in pixels.
-    bool m_applyLPFilter{ false };                           ///< Whether the low-pass filter is currently enabled.
+    float m_lpfFW{ 3 };                                  ///< Full width for the low-pass filter in pixels.
+    bool m_applyLPFilter{ false };                       ///< Whether the low-pass filter is currently enabled.
 
     /// Filtering working buffers are not stored on the client.
     /** The client receives post-filter state through the Image message; filtering work

@@ -1081,6 +1081,22 @@ float rtimvBase::calPixel( uint32_t x, uint32_t y )
     return m_calData[y * m_nx + x];
 }
 
+void rtimvBase::requestPixelValue( uint32_t x, uint32_t y )
+{
+    if( m_foundation == nullptr )
+    {
+        return;
+    }
+
+    if( m_nx == 0 || m_ny == 0 || m_calData == nullptr || x >= m_nx || y >= m_ny )
+    {
+        m_foundation->emit_pixelValueUpdated( x, y, 0, false );
+        return;
+    }
+
+    m_foundation->emit_pixelValueUpdated( x, y, calPixel( x, y ), true );
+}
+
 uint8_t rtimvBase::satPixel( uint32_t x, uint32_t y )
 {
     return m_satData[y * m_nx + x];
@@ -1365,6 +1381,20 @@ float rtimvBase::colorBox_max()
     return m_colorBox_max;
 }
 
+void rtimvBase::requestColorBoxValues()
+{
+    sharedLockT lock( m_calMutex );
+    mtxL_colormode( rtimv::colormode::minmaxbox, lock );
+
+    if( m_foundation == nullptr )
+    {
+        return;
+    }
+
+    m_foundation->emit_colorBoxUpdated(
+        m_colorBox_i0, m_colorBox_i1, m_colorBox_j0, m_colorBox_j1, m_colorBox_min, m_colorBox_max, true );
+}
+
 void rtimvBase::statsBox( bool sb )
 {
     m_statsBox = sb;
@@ -1448,6 +1478,26 @@ void rtimvBase::mtxUL_calcStatsBox()
     sharedLockT lock( m_calMutex );
 
     mtxL_calcStatsBox( lock );
+}
+
+void rtimvBase::requestStatsBoxValues()
+{
+    mtxUL_calcStatsBox();
+
+    if( m_foundation == nullptr )
+    {
+        return;
+    }
+
+    m_foundation->emit_statsBoxUpdated( m_statsBox_i0,
+                                        m_statsBox_i1,
+                                        m_statsBox_j0,
+                                        m_statsBox_j1,
+                                        m_statsBox_min,
+                                        m_statsBox_max,
+                                        m_statsBox_mean,
+                                        m_statsBox_median,
+                                        true );
 }
 
 void rtimvBase::mtxL_calcStatsBox( const sharedLockT &lock )
@@ -1857,7 +1907,7 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
         if( m_applyHPFilter || m_applyLPFilter )
         {
             mtxL_applyFilter();
-            //m_calData is assigned in applyFilter
+            // m_calData is assigned in applyFilter
         }
         else
         {

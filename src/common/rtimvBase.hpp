@@ -503,6 +503,13 @@ class rtimvBase : public mx::app::application
     float calPixel( uint32_t x, /**< [in] the x coordinate of the pixel */
                     uint32_t y /**< [in] the y coordinate of the pixel */ );
 
+    /// Request a calibrated pixel value update.
+    /** Local mode resolves this request immediately and emits
+     * rtimvBaseObject::pixelValueUpdated.
+     */
+    void requestPixelValue( uint32_t x, /**< [in] the x coordinate of the pixel */
+                            uint32_t y /**< [in] the y coordinate of the pixel */ );
+
     /// Get the value of a pixel in the saturation mask
     /**
      * \returns the value of the (x,y) pixel in \ref m_satData
@@ -698,6 +705,12 @@ class rtimvBase : public mx::app::application
      */
     float colorBox_max();
 
+    /// Request updated color-box min/max values.
+    /** Local mode resolves this request immediately and emits
+     * rtimvBaseObject::colorBoxUpdated.
+     */
+    void requestColorBoxValues();
+
     ///@}
 
     /** @name Stats Box - Data
@@ -813,6 +826,12 @@ class rtimvBase : public mx::app::application
 
     /// Calculate stats-box values while not holding \ref m_calMutex.
     void mtxUL_calcStatsBox();
+
+    /// Request updated stats-box values.
+    /** Local mode resolves this request immediately and emits
+     * rtimvBaseObject::statsBoxUpdated.
+     */
+    void requestStatsBoxValues();
 
     /// Calculate stats-box values with \ref m_calMutex in shared lock.
     void mtxL_calcStatsBox( const sharedLockT &lock /**<[in] a shared mutex lock which is locked on m_calMutex*/ );

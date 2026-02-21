@@ -65,6 +65,23 @@ void rtimvBaseObject::emit_cubeFrameUpdated( uint32_t fno )
     emit cubeFrameUpdated( fno );
 }
 
+void rtimvBaseObject::emit_pixelValueUpdated( uint32_t x, uint32_t y, float value, bool valid )
+{
+    emit pixelValueUpdated( x, y, value, valid );
+}
+
+void rtimvBaseObject::emit_colorBoxUpdated(
+    int64_t i0, int64_t i1, int64_t j0, int64_t j1, float min, float max, bool valid )
+{
+    emit colorBoxUpdated( i0, i1, j0, j1, min, max, valid );
+}
+
+void rtimvBaseObject::emit_statsBoxUpdated(
+    int64_t i0, int64_t i1, int64_t j0, int64_t j1, float min, float max, float mean, float median, bool valid )
+{
+    emit statsBoxUpdated( i0, i1, j0, j1, min, max, mean, median, valid );
+}
+
 void rtimvBaseObject::imageTimeout( int to )
 {
     if( !m_parent )

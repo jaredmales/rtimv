@@ -397,6 +397,14 @@ message Image
     float stats_box_max = 197;
     float stats_box_mean = 198;
     float stats_box_median = 199;
+
+    bool color_box = 200;
+    uint32 color_box_i0 = 201;
+    uint32 color_box_i1 = 202;
+    uint32 color_box_j0 = 203;
+    uint32 color_box_j1 = 204;
+    float color_box_min = 205;
+    float color_box_max = 206;
 }
 
 message Coord
