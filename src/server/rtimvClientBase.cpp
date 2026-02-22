@@ -107,16 +107,6 @@ rtimvClientBase::~rtimvClientBase()
 
 void rtimvClientBase::setupConfig()
 {
-    config.add( "localConfig",
-                "l",
-                "localConfig",
-                mx::app::argType::Required,
-                "",
-                "localConfig",
-                false,
-                "string",
-                "A local configuration file." );
-
     config.add( "server",
                 "S",
                 "server",
@@ -277,14 +267,10 @@ void rtimvClientBase::setupConfig()
                 "specific port specified in a key." );
 }
 
-void rtimvClientBase::loadStandardConfig()
-{
-    config( m_configPathCL, "localConfig" );
-    m_configPathCL = m_configPathCLBase + m_configPathCL;
-}
-
 void rtimvClientBase::loadConfig()
 {
+    std::vector<std::string> imageNames( 4 );
+
     if( m_configReq )
     {
         delete m_configReq;
@@ -292,66 +278,73 @@ void rtimvClientBase::loadConfig()
 
     m_configReq = new remote_rtimv::Config;
 
-    if( config.isSet( "config" ) )
+    std::string configFile;
+    config( configFile, "config" );
+    if( configFile != "" )
     {
-        std::string configFile;
-        config( configFile, "config" );
         m_configReq->set_file( configFile );
     }
 
     config( m_server, "server" );
     config( m_port, "port" );
 
-    if( config.isSet( "image.key" ) )
+    std::string imKey;
+    config( imKey, "image.key" );
+    if( imKey != "" )
     {
-        std::string imKey;
-        config( imKey, "image.key" );
         m_configReq->set_image_key( imKey );
+        imageNames[0] = imKey;
     }
 
-    if( config.isSet( "dark.key" ) )
+    std::string darkKey;
+    config( darkKey, "dark.key" );
+    if( darkKey != "" )
     {
-        std::string darkKey;
-        config( darkKey, "dark.key" );
         m_configReq->set_dark_key( darkKey );
+        imageNames[1] = darkKey;
     }
 
-    if( config.isSet( "flat.key" ) )
+    std::string flatKey;
+    config( flatKey, "flat.key" );
+    if( flatKey != "" )
     {
-        std::string flatKey;
-        config( flatKey, "flat.key" );
         m_configReq->set_mask_key( flatKey );
     }
 
-    if( config.isSet( "mask.key" ) )
+    std::string maskKey;
+    config( maskKey, "mask.key" );
+    if( maskKey != "" )
     {
-        std::string maskKey;
-        config( maskKey, "mask.key" );
         m_configReq->set_mask_key( maskKey );
+        imageNames[2] = maskKey;
     }
 
-    if( config.isSet( "satMask.key" ) )
+    std::string satMaskKey;
+    config( satMaskKey, "satMask.key" );
+    if( satMaskKey != "" )
     {
-        std::string satMaskKey;
-        config( satMaskKey, "satMask.key" );
         m_configReq->set_sat_mask_key( satMaskKey );
+        imageNames[3] = satMaskKey;
     }
 
     // The command line always overrides the config
     if( config.nonOptions.size() > 0 )
     {
         m_configReq->set_image_key( config.nonOptions[0] );
+        imageNames[0] = config.nonOptions[0];
     }
 
     if( config.nonOptions.size() > 1 )
     {
         m_configReq->set_dark_key( config.nonOptions[1] );
+        imageNames[1] = config.nonOptions[1];
         // darkKey = config.nonOptions[1]
     }
 
     if( config.nonOptions.size() > 2 )
     {
         m_configReq->set_mask_key( config.nonOptions[2] );
+        imageNames[2] = config.nonOptions[2];
     }
 
     if( config.nonOptions.size() > 3 )
@@ -362,7 +355,10 @@ void rtimvClientBase::loadConfig()
     if( config.nonOptions.size() > 4 )
     {
         m_configReq->set_sat_mask_key( config.nonOptions[4] );
+        imageNames[3] = config.nonOptions[4];
     }
+
+    m_imageNames = imageNames;
 
     if( m_configReq->file() == "" && m_configReq->image_key() == "" )
     {
@@ -532,6 +528,7 @@ void rtimvClientBase::Configure()
     if( status.ok() )
     {
         m_connected = true;
+        updateImageNamesFromServer();
         std::cerr << "rtimvClient connected to: " << m_server << ':' << m_port << '\n';
         m_connectionFailReported = false;
     }
@@ -542,6 +539,37 @@ void rtimvClientBase::Configure()
         {
             std::cerr << "rtimvClient: " << status.error_message() << std::endl;
             m_connectionFailReported = true;
+        }
+    }
+}
+
+void rtimvClientBase::updateImageNamesFromServer()
+{
+    if( !stub_ )
+    {
+        return;
+    }
+
+    if( m_imageNames.size() < 4 )
+    {
+        m_imageNames.resize( 4 );
+    }
+
+    for( uint32_t n = 0; n < 4; ++n )
+    {
+        remote_rtimv::ImageNameRequest request;
+        remote_rtimv::ImageNameResponse response;
+        grpc::ClientContext context;
+
+        request.set_image( n );
+
+        grpc::Status status = stub_->GetImageName( &context, request, &response );
+        if( status.ok() && response.valid() )
+        {
+            if( m_imageNames[n] == "" )
+            {
+                m_imageNames[n] = response.name();
+            }
         }
     }
 }
@@ -1301,8 +1329,12 @@ double rtimvClientBase::fpsEst( size_t n )
 
 std::string rtimvClientBase::imageName( size_t n )
 {
-    // get from server?
-    return "";
+    if( n >= m_imageNames.size() )
+    {
+        return "";
+    }
+
+    return m_imageNames[n];
 }
 
 uint32_t rtimvClientBase::imageNo( size_t n )

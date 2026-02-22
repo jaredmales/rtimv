@@ -261,6 +261,8 @@ void rtimvBase::loadConfig()
     if( config.nonOptions.size() > 3 )
         keys[3] = config.nonOptions[3];
 
+    m_imageNames = keys;
+
     processKeys( keys );
 
     if( m_images[0] == nullptr )
@@ -315,11 +317,14 @@ void rtimvBase::loadConfig()
 void rtimvBase::processKeys( const std::vector<std::string> &shkeys )
 {
     m_images.resize( 4, nullptr );
+    m_imageNames.resize( 4 );
 
     for( size_t i = 0; i < m_images.size(); ++i )
     {
         if( shkeys.size() > i )
         {
+            m_imageNames[i] = shkeys[i];
+
             if( shkeys[i] != "" )
             {
                 // safely accept several different common fits extensions
@@ -481,12 +486,12 @@ double rtimvBase::fpsEst( size_t n )
 
 std::string rtimvBase::imageName( size_t n )
 {
-    if( !imageValid( n ) )
+    if( n >= m_imageNames.size() )
     {
         return std::string();
     }
 
-    return m_images[n]->imageName();
+    return m_imageNames[n];
 }
 
 uint32_t rtimvBase::imageNo( size_t n )

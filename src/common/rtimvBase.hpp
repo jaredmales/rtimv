@@ -111,6 +111,9 @@ class rtimvBase : public mx::app::application
      */
     std::vector<rtimvImage *> m_images;
 
+    /// Configured image names/keys by image index, used before streams are connected.
+    std::vector<std::string> m_imageNames;
+
     /// Flag used to indicate that the main image, m_images[0], is connected to its first image
     bool m_connected{ false };
 
