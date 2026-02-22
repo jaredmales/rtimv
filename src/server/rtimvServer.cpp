@@ -773,6 +773,31 @@ ServerUnaryReactor *rtimvServer::GetImageName( CallbackServerContext *context,
     return reactor;
 }
 
+ServerUnaryReactor *rtimvServer::GetInfo( CallbackServerContext *context,
+                                          const remote_rtimv::InfoRequest *request,
+                                          remote_rtimv::InfoResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+
+    uint32_t n = request->image();
+    std::vector<std::string> info = imageTh->info( n );
+    if( info.size() == 0 )
+    {
+        reply->set_valid( false );
+    }
+    else
+    {
+        reply->set_valid( true );
+        for( size_t i = 0; i < info.size(); ++i )
+        {
+            reply->add_info( info[i] );
+        }
+    }
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
 ServerUnaryReactor *rtimvServer::GetImageNo( CallbackServerContext *context,
                                              const remote_rtimv::ImageNoRequest *request,
                                              remote_rtimv::ImageNoResponse *reply )

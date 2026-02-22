@@ -56,6 +56,8 @@ service rtimv
 
     rpc GetImageName(ImageNameRequest) returns (ImageNameResponse);
 
+    rpc GetInfo(InfoRequest) returns (InfoResponse);
+
     rpc GetImageNo(ImageNoRequest) returns (ImageNoResponse);
 
     rpc ColorBox(Box) returns (MinvalMaxval);
@@ -435,6 +437,17 @@ message ImageNameResponse
 {
     bool valid = 1;
     string name = 2;
+}
+
+message InfoRequest
+{
+    uint32 image = 1;
+}
+
+message InfoResponse
+{
+    bool valid = 1;
+    repeated string info = 2;
 }
 
 message ImageNoResponse

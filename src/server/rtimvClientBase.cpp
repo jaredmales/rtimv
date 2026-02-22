@@ -1372,8 +1372,42 @@ uint32_t rtimvClientBase::imageNo( size_t n )
 
 std::vector<std::string> rtimvClientBase::info( size_t n )
 {
-    // get from server (maybe once and cache?)
-    return std::vector<std::string>( { "" } );
+    SHARED_CONN_LOCK_RET( std::vector<std::string>( { "" } ) )
+
+    remote_rtimv::InfoRequest request;
+    remote_rtimv::InfoResponse response;
+    grpc::ClientContext context;
+
+    request.set_image( static_cast<uint32_t>( n ) );
+
+    grpc::Status status = stub_->GetInfo( &context, request, &response );
+
+    if( status.ok() )
+    {
+        if( !response.valid() )
+        {
+            return std::vector<std::string>( { "" } );
+        }
+
+        std::vector<std::string> info;
+        info.reserve( response.info_size() );
+        for( const auto &s : response.info() )
+        {
+            info.push_back( s );
+        }
+
+        if( info.size() == 0 )
+        {
+            return std::vector<std::string>( { "" } );
+        }
+
+        return info;
+    }
+    else
+    {
+        REPORT_SERVER_DISCONNECTED
+        return std::vector<std::string>( { "" } );
+    }
 }
 
 void rtimvClientBase::mtxL_setImsize( uint32_t x, uint32_t y, uint32_t z, const uniqueLockT &lock )
