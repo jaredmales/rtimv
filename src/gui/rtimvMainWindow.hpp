@@ -48,6 +48,16 @@
 #define ViewViewNoImage 1
 #define ViewViewModeMax 2
 
+#ifdef RTIMV_GRPC
+    #define RTIMV_MOUSE_PIXEL_TIMEOUT_DEFAULT 35
+    #define RTIMV_COLOR_BOX_TIMEOUT_DEFAULT 75
+    #define RTIMV_STATS_BOX_TIMEOUT_DEFAULT 75
+#else
+    #define RTIMV_MOUSE_PIXEL_TIMEOUT_DEFAULT 5
+    #define RTIMV_COLOR_BOX_TIMEOUT_DEFAULT 5
+    #define RTIMV_STATS_BOX_TIMEOUT_DEFAULT 5
+#endif
+
 class rtimvControlPanel;
 
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
@@ -289,8 +299,8 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     void mtxL_updateMouseCoords( const sharedLockT &lock,
                                  bool requestPixel = true /**< [in] whether to issue a pixel-value request */ );
 
-    QTimer m_mousePixelTimer;                 ///< Debounce timer for mouse pixel requests.
-    int m_mousePixelTimeout{ 35 };            ///< Debounce timeout for mouse pixel requests, ms.
+    QTimer m_mousePixelTimer;                                     ///< Debounce timer for mouse pixel requests.
+    int m_mousePixelTimeout{ RTIMV_MOUSE_PIXEL_TIMEOUT_DEFAULT }; ///< Debounce timeout for mouse pixel requests, ms.
     bool m_mousePixelRequestPending{ false }; ///< True when a mouse pixel request should be dispatched.
     uint32_t m_mousePixelRequestX{ 0 };       ///< Pending mouse pixel request x coordinate.
     uint32_t m_mousePixelRequestY{ 0 };       ///< Pending mouse pixel request y coordinate.
@@ -489,9 +499,9 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     StretchBox *m_colorBox{ nullptr }; ///\todo make this protected, fix imcp
 
   protected:
-    QTimer m_colorBoxTimer;                 ///< Debounce timer for color-box requests.
-    int m_colorBoxTimeout{ 75 };            ///< Debounce timeout for color-box requests, ms.
-    bool m_colorBoxRequestPending{ false }; ///< True when color-box request should be dispatched.
+    QTimer m_colorBoxTimer;                                   ///< Debounce timer for color-box requests.
+    int m_colorBoxTimeout{ RTIMV_COLOR_BOX_TIMEOUT_DEFAULT }; ///< Debounce timeout for color-box requests, ms.
+    bool m_colorBoxRequestPending{ false };                   ///< True when color-box request should be dispatched.
 
     bool m_colorBoxCacheValid{ false }; ///< True when cached color-box min/max are valid.
     int64_t m_colorBoxCache_i0{ 0 };    ///< Cached color-box upper-left x coordinate.
@@ -539,9 +549,9 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
     rtimvStats *imStats;
 
-    QTimer m_statsBoxTimer;                 ///< Debounce timer for stats-box requests.
-    int m_statsBoxTimeout{ 75 };            ///< Debounce timeout for stats-box requests, ms.
-    bool m_statsBoxRequestPending{ false }; ///< True when stats-box request should be dispatched.
+    QTimer m_statsBoxTimer;                                   ///< Debounce timer for stats-box requests.
+    int m_statsBoxTimeout{ RTIMV_STATS_BOX_TIMEOUT_DEFAULT }; ///< Debounce timeout for stats-box requests, ms.
+    bool m_statsBoxRequestPending{ false };                   ///< True when stats-box request should be dispatched.
 
   public slots:
 
