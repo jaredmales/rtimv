@@ -6,6 +6,8 @@
 #ifndef rtimv_rtimvBaseObject_hpp
 #define rtimv_rtimvBaseObject_hpp
 
+#include <cstdint>
+
 #include <QObject>
 #include <QTimer>
 
@@ -51,6 +53,35 @@ struct rtimvBaseObject : public QObject
     /// Update the cube frame number
     void emit_cubeFrameUpdated( uint32_t fno /**< [in] the current cube frame number*/ );
 
+    /// Emit a pixel-value update.
+    void emit_pixelValueUpdated( uint32_t x,  /**< [in] x coordinate of the pixel */
+                                 uint32_t y,  /**< [in] y coordinate of the pixel */
+                                 float value, /**< [in] the calibrated pixel value */
+                                 bool valid   /**< [in] true when value is valid */
+    );
+
+    /// Emit a color-box min/max update.
+    void emit_colorBoxUpdated( int64_t i0, /**< [in] upper-left x coordinate */
+                               int64_t i1, /**< [in] lower-right x coordinate */
+                               int64_t j0, /**< [in] upper-left y coordinate */
+                               int64_t j1, /**< [in] lower-right y coordinate */
+                               float min,  /**< [in] minimum calibrated value */
+                               float max,  /**< [in] maximum calibrated value */
+                               bool valid  /**< [in] true when min/max are valid */
+    );
+
+    /// Emit a stats-box update.
+    void emit_statsBoxUpdated( int64_t i0,   /**< [in] upper-left x coordinate */
+                               int64_t i1,   /**< [in] lower-right x coordinate */
+                               int64_t j0,   /**< [in] upper-left y coordinate */
+                               int64_t j1,   /**< [in] lower-right y coordinate */
+                               float min,    /**< [in] minimum calibrated value */
+                               float max,    /**< [in] maximum calibrated value */
+                               float mean,   /**< [in] mean calibrated value */
+                               float median, /**< [in] median calibrated value */
+                               bool valid    /**< [in] true when stats are valid */
+    );
+
   signals:
 
     /// Update the number of images in the cube
@@ -71,6 +102,35 @@ struct rtimvBaseObject : public QObject
 
     /// Update the cube frame number
     void cubeFrameUpdated( uint32_t fno /**< [in] the current cube frame number*/ );
+
+    /// Pixel value updated.
+    void pixelValueUpdated( uint32_t x,  /**< [in] x coordinate of the pixel */
+                            uint32_t y,  /**< [in] y coordinate of the pixel */
+                            float value, /**< [in] the calibrated pixel value */
+                            bool valid   /**< [in] true when value is valid */
+    );
+
+    /// Color-box min/max updated.
+    void colorBoxUpdated( int64_t i0, /**< [in] upper-left x coordinate */
+                          int64_t i1, /**< [in] lower-right x coordinate */
+                          int64_t j0, /**< [in] upper-left y coordinate */
+                          int64_t j1, /**< [in] lower-right y coordinate */
+                          float min,  /**< [in] minimum calibrated value */
+                          float max,  /**< [in] maximum calibrated value */
+                          bool valid  /**< [in] true when min/max are valid */
+    );
+
+    /// Stats-box values updated.
+    void statsBoxUpdated( int64_t i0,   /**< [in] upper-left x coordinate */
+                          int64_t i1,   /**< [in] lower-right x coordinate */
+                          int64_t j0,   /**< [in] upper-left y coordinate */
+                          int64_t j1,   /**< [in] lower-right y coordinate */
+                          float min,    /**< [in] minimum calibrated value */
+                          float max,    /**< [in] maximum calibrated value */
+                          float mean,   /**< [in] mean calibrated value */
+                          float median, /**< [in] median calibrated value */
+                          bool valid    /**< [in] true when stats are valid */
+    );
 
   public slots:
 
@@ -104,7 +164,7 @@ struct rtimvBaseObject : public QObject
     /// Calls the parent's rtimvBase::updateCubeFrame()
     void updateCubeFrame();
 
-//GRPC Stuff:
+    // GRPC Stuff:
 
   public:
     void emit_ImageNeeded();
@@ -124,7 +184,6 @@ struct rtimvBaseObject : public QObject
     void ImagePlease();
 
     void ImageReceived();
-
 };
 
 #endif // rtimv_rtimvBase_hpp

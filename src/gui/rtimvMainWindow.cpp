@@ -1,8 +1,11 @@
 
 #include "rtimvMainWindow.hpp"
+#include <QMetaType>
 
 rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::WindowFlags f ) : QWidget( Parent, f )
 {
+    qRegisterMetaType<uint32_t>( "uint32_t" );
+    qRegisterMetaType<int64_t>( "int64_t" );
 
     m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; // Tells mx::application to look for this env var.
 
@@ -45,6 +48,25 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
     m_cenLineHorz = 0;
 
     imStats = 0;
+
+    connect( &m_mousePixelTimer, SIGNAL( timeout() ), this, SLOT( dispatchMousePixelRequest() ) );
+    m_mousePixelTimer.setSingleShot( true );
+
+    connect( &m_colorBoxTimer, SIGNAL( timeout() ), this, SLOT( dispatchColorBoxRequest() ) );
+    m_colorBoxTimer.setSingleShot( true );
+
+    connect( &m_statsBoxTimer, SIGNAL( timeout() ), this, SLOT( dispatchStatsBoxRequest() ) );
+    m_statsBoxTimer.setSingleShot( true );
+
+    connect( m_foundation,
+             SIGNAL( pixelValueUpdated( uint32_t, uint32_t, float, bool ) ),
+             this,
+             SLOT( pixelValueUpdated( uint32_t, uint32_t, float, bool ) ) );
+
+    connect( m_foundation,
+             SIGNAL( colorBoxUpdated( int64_t, int64_t, int64_t, int64_t, float, float, bool ) ),
+             this,
+             SLOT( colorBoxUpdated( int64_t, int64_t, int64_t, int64_t, float, float, bool ) ) );
 
     m_northArrow = m_qgs->addLine( QLineF( 512, 400, 512, 624 ), QColor( ui.graphicsView->gageFontColor() ) );
     m_northArrowTip = m_qgs->addLine( QLineF( 512, 400, 536, 424 ), QColor( ui.graphicsView->gageFontColor() ) );
@@ -960,7 +982,7 @@ void rtimvMainWindow::nullMouseCoords()
     }
 }
 
-void rtimvMainWindow::mtxL_updateMouseCoords( const sharedLockT &lock )
+void rtimvMainWindow::mtxL_updateMouseCoords( const sharedLockT &lock, bool requestPixel )
 {
     assert( lock.owns_lock() );
 
@@ -1006,15 +1028,39 @@ void rtimvMainWindow::mtxL_updateMouseCoords( const sharedLockT &lock )
         if( idx_y > (int64_t)m_ny - 1 )
             idx_y = m_ny - 1;
 
-        float val;
+        if( requestPixel )
+        {
+            m_mousePixelRequestX = idx_x;
+            m_mousePixelRequestY = idx_y;
+            m_mousePixelRequestPending = true;
 
-        val = calPixel( idx_x, idx_y );
+            if( !m_mousePixelTimer.isActive() )
+            {
+                m_mousePixelTimer.start( m_mousePixelTimeout );
+            }
+        }
+
+        bool hasValue = m_mousePixelCacheValid && m_mousePixelCacheX == static_cast<uint32_t>( idx_x ) &&
+                        m_mousePixelCacheY == static_cast<uint32_t>( idx_y );
+
+        float val = 0;
+        if( hasValue )
+        {
+            val = m_mousePixelCacheValue;
+        }
 
         if( m_showStaticCoords )
         {
             ui.graphicsView->textCoordX( mx - 0.5 );
             ui.graphicsView->textCoordY( m_qpmi->boundingRect().height() - my - 0.5 );
-            ui.graphicsView->textPixelVal( val );
+            if( hasValue )
+            {
+                ui.graphicsView->textPixelVal( val );
+            }
+            else
+            {
+                ui.graphicsView->textPixelVal( "" );
+            }
         }
 
         if( m_showToolTipCoords )
@@ -1022,7 +1068,11 @@ void rtimvMainWindow::mtxL_updateMouseCoords( const sharedLockT &lock )
             char valStr[32];
             char posStr[32];
 
-            if( fabs( val ) < 1e-1 )
+            if( !hasValue )
+            {
+                valStr[0] = '\0';
+            }
+            else if( fabs( val ) < 1e-1 )
             {
                 snprintf( valStr, sizeof( valStr ), "%0.04g", val );
             }
@@ -1038,7 +1088,7 @@ void rtimvMainWindow::mtxL_updateMouseCoords( const sharedLockT &lock )
 
         if( imcp )
         {
-            imcp->updateMouseCoords( mx, my, val );
+            imcp->updateMouseCoords( mx, my, hasValue ? val : 0 );
         }
     }
 
@@ -1086,7 +1136,36 @@ void rtimvMainWindow::changeMouseCoords()
     m_nullMouseCoords = false;
 
     sharedLockT lock( m_calMutex );
-    mtxL_updateMouseCoords( lock );
+    mtxL_updateMouseCoords( lock, true );
+}
+
+void rtimvMainWindow::updateMouseCoordsFromCache()
+{
+    m_nullMouseCoords = false;
+
+    sharedLockT lock( m_calMutex );
+    mtxL_updateMouseCoords( lock, false );
+}
+
+void rtimvMainWindow::dispatchMousePixelRequest()
+{
+    if( !m_mousePixelRequestPending )
+    {
+        return;
+    }
+
+    m_mousePixelRequestPending = false;
+    requestPixelValue( m_mousePixelRequestX, m_mousePixelRequestY );
+}
+
+void rtimvMainWindow::pixelValueUpdated( uint32_t x, uint32_t y, float value, bool valid )
+{
+    m_mousePixelCacheX = x;
+    m_mousePixelCacheY = y;
+    m_mousePixelCacheValue = value;
+    m_mousePixelCacheValid = valid;
+
+    updateMouseCoordsFromCache();
 }
 
 void rtimvMainWindow::viewLeftPressed( QPointF mp )
@@ -1213,13 +1292,26 @@ void rtimvMainWindow::mtxTry_userItemMouseCoords( float mx, float my, float dx, 
     if( idx_y > (int64_t)m_ny - 1 )
         idx_y = m_ny - 1;
 
-    float val;
-    val = calPixel( idx_x, idx_y );
+    m_mousePixelRequestX = idx_x;
+    m_mousePixelRequestY = idx_y;
+    m_mousePixelRequestPending = true;
+    if( !m_mousePixelTimer.isActive() )
+    {
+        m_mousePixelTimer.start( m_mousePixelTimeout );
+    }
+
+    bool hasValue = m_mousePixelCacheValid && m_mousePixelCacheX == static_cast<uint32_t>( idx_x ) &&
+                    m_mousePixelCacheY == static_cast<uint32_t>( idx_y );
+    float val = hasValue ? m_mousePixelCacheValue : 0;
 
     char valStr[32];
     char posStr[64];
 
-    if( fabs( val ) < 1e-1 )
+    if( !hasValue )
+    {
+        valStr[0] = '\0';
+    }
+    else if( fabs( val ) < 1e-1 )
     {
         snprintf( valStr, sizeof( valStr ), "%0.04g", val );
     }
@@ -1343,27 +1435,56 @@ void rtimvMainWindow::mtxTry_colorBoxMoved( StretchBox *sb )
     colorBox_j0( (int64_t)m_ny - (int64_t)( np2.y() + .5 ) );
     colorBox_j1( (int64_t)m_ny - (int64_t)np.y() );
 
-    mtxL_colormode( rtimv::colormode::minmaxbox, lock ); // recalcs and recolors.
+    m_colorBoxRequestPending = true;
+    if( !m_colorBoxTimer.isActive() )
+    {
+        m_colorBoxTimer.start( m_colorBoxTimeout );
+    }
+
+    bool hasValues = m_colorBoxCacheValid && m_colorBoxCache_i0 == colorBox_i0() &&
+                     m_colorBoxCache_i1 == colorBox_i1() && m_colorBoxCache_j0 == colorBox_j0() &&
+                     m_colorBoxCache_j1 == colorBox_j1();
+
+    mtxTry_updateColorBoxText( sb, hasValues, m_colorBoxCacheMin, m_colorBoxCacheMax );
+
+    mtxL_fontLuminance( ui.graphicsView->userItemSize(), lock );
+}
+
+void rtimvMainWindow::mtxTry_updateColorBoxText( StretchBox *sb, bool hasValues, float minVal, float maxVal )
+{
+    if( sb == nullptr )
+    {
+        return;
+    }
 
     char tmp[256];
     char valMin[64];
     char valMax[64];
-    if( fabs( colorBox_min() ) < 1e-1 )
-    {
-        snprintf( valMin, sizeof( valMin ), "%0.04g", colorBox_min() );
-    }
-    else
-    {
-        snprintf( valMin, sizeof( valMin ), "%0.02f", colorBox_min() );
-    }
 
-    if( fabs( colorBox_max() ) < 1e-1 )
+    if( !hasValues )
     {
-        snprintf( valMax, sizeof( valMax ), "%0.04g", colorBox_max() );
+        valMin[0] = '\0';
+        valMax[0] = '\0';
     }
     else
     {
-        snprintf( valMax, sizeof( valMax ), "%0.02f", colorBox_max() );
+        if( fabs( minVal ) < 1e-1 )
+        {
+            snprintf( valMin, sizeof( valMin ), "%0.04g", minVal );
+        }
+        else
+        {
+            snprintf( valMin, sizeof( valMin ), "%0.02f", minVal );
+        }
+
+        if( fabs( maxVal ) < 1e-1 )
+        {
+            snprintf( valMax, sizeof( valMax ), "%0.04g", maxVal );
+        }
+        else
+        {
+            snprintf( valMax, sizeof( valMax ), "%0.02f", maxVal );
+        }
     }
 
     snprintf( tmp, 256, "min: %s\nmax: %s", valMin, valMax );
@@ -1372,6 +1493,42 @@ void rtimvMainWindow::mtxTry_colorBoxMoved( StretchBox *sb )
     QPoint qr = ui.graphicsView->mapFromScene( QPointF( sbr.x(), sbr.y() ) );
 
     ui.graphicsView->userItemSizeText( tmp, qr );
+}
+
+void rtimvMainWindow::dispatchColorBoxRequest()
+{
+    if( !m_colorBoxRequestPending )
+    {
+        return;
+    }
+
+    m_colorBoxRequestPending = false;
+    requestColorBoxValues();
+}
+
+void rtimvMainWindow::colorBoxUpdated(
+    int64_t i0, int64_t i1, int64_t j0, int64_t j1, float min, float max, bool valid )
+{
+    m_colorBoxCacheValid = valid;
+    m_colorBoxCache_i0 = i0;
+    m_colorBoxCache_i1 = i1;
+    m_colorBoxCache_j0 = j0;
+    m_colorBoxCache_j1 = j1;
+    m_colorBoxCacheMin = min;
+    m_colorBoxCacheMax = max;
+
+    if( m_colorBox == nullptr )
+    {
+        return;
+    }
+
+    if( i0 != colorBox_i0() || i1 != colorBox_i1() || j0 != colorBox_j0() || j1 != colorBox_j1() )
+    {
+        return;
+    }
+
+    sharedLockT lock( m_calMutex );
+    mtxTry_updateColorBoxText( m_colorBox, valid, min, max );
 
     mtxL_fontLuminance( ui.graphicsView->userItemSize(), lock );
 }
@@ -1402,6 +1559,8 @@ void rtimvMainWindow::colorBoxRemove( StretchBox *sb )
     }
 
     mtxUL_colormode( rtimv::colormode::minmaxglobal );
+    m_colorBoxRequestPending = false;
+    m_colorBoxTimer.stop();
 
     m_colorBox->disconnect();
     disconnect( m_colorBox );
@@ -1443,6 +1602,8 @@ void rtimvMainWindow::doLaunchStatsBox()
 void rtimvMainWindow::doHideStatsBox()
 {
     statsBox( false );
+    m_statsBoxRequestPending = false;
+    m_statsBoxTimer.stop();
 
     if( imStats )
     {
@@ -1497,9 +1658,24 @@ void rtimvMainWindow::mtxTry_statsBoxMoved( StretchBox *sb )
     statsBox_i1( np2.x() );
     statsBox_j0( m_ny - np2.y() );
     statsBox_j1( m_ny - np.y() );
-    mtxUL_calcStatsBox();
+    m_statsBoxRequestPending = true;
+    if( !m_statsBoxTimer.isActive() )
+    {
+        m_statsBoxTimer.start( m_statsBoxTimeout );
+    }
 
     mtxTry_userBoxMoved( sb );
+}
+
+void rtimvMainWindow::dispatchStatsBoxRequest()
+{
+    if( !m_statsBoxRequestPending )
+    {
+        return;
+    }
+
+    m_statsBoxRequestPending = false;
+    requestStatsBoxValues();
 }
 
 void rtimvMainWindow::mtxTry_statsBoxSelected( StretchBox *sb )
@@ -1519,6 +1695,8 @@ void rtimvMainWindow::statsBoxRemove( StretchBox *sb )
     }
 
     doHideStatsBox();
+    m_statsBoxRequestPending = false;
+    m_statsBoxTimer.stop();
     m_statsBox->disconnect();
     disconnect( m_statsBox );
     m_statsBox->deleteLater();

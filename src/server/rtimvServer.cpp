@@ -600,6 +600,14 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
         reply->set_stats_box_max( imageTh->statsBox_max() );
         reply->set_stats_box_mean( imageTh->statsBox_mean() );
         reply->set_stats_box_median( imageTh->statsBox_median() );
+
+        reply->set_color_box( imageTh->colormode() == rtimv::colormode::minmaxbox );
+        reply->set_color_box_i0( imageTh->colorBox_i0() );
+        reply->set_color_box_i1( imageTh->colorBox_i1() );
+        reply->set_color_box_j0( imageTh->colorBox_j0() );
+        reply->set_color_box_j1( imageTh->colorBox_j1() );
+        reply->set_color_box_min( imageTh->colorBox_min() );
+        reply->set_color_box_max( imageTh->colorBox_max() );
     };
 
     if( imageTh->newImage() == false )
@@ -833,7 +841,8 @@ ServerUnaryReactor *rtimvServer::StatsBox( CallbackServerContext *context,
         return reactor;
     }
 
-    if( request->lower_right().x() <= request->upper_left().x() || request->lower_right().y() <= request->upper_left().y() )
+    if( request->lower_right().x() <= request->upper_left().x() ||
+        request->lower_right().y() <= request->upper_left().y() )
     {
         imageTh->statsBox( false );
         reply->set_valid( true );

@@ -63,6 +63,37 @@ rtimvClientBase::~rtimvClientBase()
         }
     }
 
+    {
+        std::lock_guard<std::mutex> asyncLock( m_asyncRpcMutex );
+
+        if( m_GetPixelContext )
+        {
+            m_GetPixelContext->TryCancel();
+        }
+
+        if( m_ColorBoxContext )
+        {
+            m_ColorBoxContext->TryCancel();
+        }
+
+        if( m_StatsBoxContext )
+        {
+            m_StatsBoxContext->TryCancel();
+        }
+    }
+
+    {
+        std::unique_lock<std::mutex> lock( m_asyncRpcMutex );
+
+        while( m_getPixelPending || m_colorBoxPending || m_statsBoxPending )
+        {
+            if( m_asyncRpcCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
+            {
+                std::cerr << "rtimvClient: waiting for async unary RPC callbacks during shutdown.\n";
+            }
+        }
+    }
+
     if( m_configReq )
     {
         delete m_configReq;
@@ -553,6 +584,168 @@ void rtimvClientBase::ImagePlease()
     m_imageRequestPending = true;
 }
 
+void rtimvClientBase::requestPixelValue( uint32_t x, uint32_t y )
+{
+    sharedLockT connLock( m_connectedMutex );
+
+    if( !m_connected )
+    {
+        if( m_foundation )
+        {
+            m_foundation->emit_pixelValueUpdated( x, y, 0, false );
+        }
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+
+    if( m_shuttingDown )
+    {
+        return;
+    }
+
+    m_getPixelX = x;
+    m_getPixelY = y;
+
+    if( m_getPixelPending )
+    {
+        m_getPixelQueued = true;
+        return;
+    }
+
+    if( m_GetPixelContext )
+    {
+        std::cerr << "bug: in requestPixelValue but GetPixelContext is allocated " << __FILE__ << ' ' << __LINE__
+                  << '\n';
+        return;
+    }
+
+    m_getPixelRequest.set_x( m_getPixelX );
+    m_getPixelRequest.set_y( m_getPixelY );
+    m_getPixelInflightX = m_getPixelX;
+    m_getPixelInflightY = m_getPixelY;
+
+    m_GetPixelContext = new grpc::ClientContext;
+    m_GetPixelContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+
+    stub_->async()->GetPixel( m_GetPixelContext,
+                              &m_getPixelRequest,
+                              &m_getPixelReply,
+                              [this]( grpc::Status status ) { this->GetPixel_callback( status ); } );
+
+    m_getPixelPending = true;
+}
+
+void rtimvClientBase::requestColorBoxValues()
+{
+    sharedLockT connLock( m_connectedMutex );
+
+    if( !m_connected )
+    {
+        if( m_foundation )
+        {
+            m_foundation->emit_colorBoxUpdated(
+                m_colorBox_i0, m_colorBox_i1, m_colorBox_j0, m_colorBox_j1, 0, 0, false );
+        }
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+
+    if( m_shuttingDown )
+    {
+        return;
+    }
+
+    if( m_colorBoxPending )
+    {
+        m_colorBoxQueued = true;
+        return;
+    }
+
+    if( m_ColorBoxContext )
+    {
+        std::cerr << "bug: in requestColorBoxValues but ColorBoxContext is allocated " << __FILE__ << ' ' << __LINE__
+                  << '\n';
+        return;
+    }
+
+    m_colorBoxRequest.mutable_upper_left()->set_x( m_colorBox_i0 );
+    m_colorBoxRequest.mutable_upper_left()->set_y( m_colorBox_j0 );
+    m_colorBoxRequest.mutable_lower_right()->set_x( m_colorBox_i1 );
+    m_colorBoxRequest.mutable_lower_right()->set_y( m_colorBox_j1 );
+
+    m_colorBoxInflight_i0 = m_colorBox_i0;
+    m_colorBoxInflight_i1 = m_colorBox_i1;
+    m_colorBoxInflight_j0 = m_colorBox_j0;
+    m_colorBoxInflight_j1 = m_colorBox_j1;
+
+    m_ColorBoxContext = new grpc::ClientContext;
+    m_ColorBoxContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+
+    stub_->async()->ColorBox( m_ColorBoxContext,
+                              &m_colorBoxRequest,
+                              &m_colorBoxReply,
+                              [this]( grpc::Status status ) { this->ColorBox_callback( status ); } );
+
+    m_colorBoxPending = true;
+}
+
+void rtimvClientBase::requestStatsBoxValues()
+{
+    sharedLockT connLock( m_connectedMutex );
+
+    if( !m_connected )
+    {
+        if( m_foundation )
+        {
+            m_foundation->emit_statsBoxUpdated(
+                m_statsBox_i0, m_statsBox_i1, m_statsBox_j0, m_statsBox_j1, 0, 0, 0, 0, false );
+        }
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+
+    if( m_shuttingDown )
+    {
+        return;
+    }
+
+    if( m_statsBoxPending )
+    {
+        m_statsBoxQueued = true;
+        return;
+    }
+
+    if( m_StatsBoxContext )
+    {
+        std::cerr << "bug: in requestStatsBoxValues but StatsBoxContext is allocated " << __FILE__ << ' ' << __LINE__
+                  << '\n';
+        return;
+    }
+
+    m_statsBoxRequest.mutable_upper_left()->set_x( m_statsBox_i0 );
+    m_statsBoxRequest.mutable_upper_left()->set_y( m_statsBox_j0 );
+    m_statsBoxRequest.mutable_lower_right()->set_x( m_statsBox_i1 );
+    m_statsBoxRequest.mutable_lower_right()->set_y( m_statsBox_j1 );
+
+    m_statsBoxInflight_i0 = m_statsBox_i0;
+    m_statsBoxInflight_i1 = m_statsBox_i1;
+    m_statsBoxInflight_j0 = m_statsBox_j0;
+    m_statsBoxInflight_j1 = m_statsBox_j1;
+
+    m_StatsBoxContext = new grpc::ClientContext;
+    m_StatsBoxContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+
+    stub_->async()->StatsBox( m_StatsBoxContext,
+                              &m_statsBoxRequest,
+                              &m_statsBoxReply,
+                              [this]( grpc::Status status ) { this->StatsBox_callback( status ); } );
+
+    m_statsBoxPending = true;
+}
+
 void rtimvClientBase::ImageReceived()
 {
     {
@@ -589,6 +782,9 @@ void rtimvClientBase::ImageReceived()
     bool statsBox;
     uint32_t statsBox_i0, statsBox_i1, statsBox_j0, statsBox_j1;
     float statsBox_min, statsBox_max, statsBox_mean, statsBox_median;
+    bool colorBox;
+    uint32_t colorBox_i0, colorBox_i1, colorBox_j0, colorBox_j1;
+    float colorBox_min, colorBox_max;
     int cubeDir;
     bool hasImagePayload{ false };
 
@@ -668,6 +864,13 @@ void rtimvClientBase::ImageReceived()
         statsBox_max = m_grpcImage.stats_box_max();
         statsBox_mean = m_grpcImage.stats_box_mean();
         statsBox_median = m_grpcImage.stats_box_median();
+        colorBox = m_grpcImage.color_box();
+        colorBox_i0 = m_grpcImage.color_box_i0();
+        colorBox_i1 = m_grpcImage.color_box_i1();
+        colorBox_j0 = m_grpcImage.color_box_j0();
+        colorBox_j1 = m_grpcImage.color_box_j1();
+        colorBox_min = m_grpcImage.color_box_min();
+        colorBox_max = m_grpcImage.color_box_max();
 
         imageTimeout = m_grpcImage.image_timeout();
         cubeDir = m_grpcImage.cube_dir();
@@ -736,6 +939,12 @@ void rtimvClientBase::ImageReceived()
     m_statsBox_max = statsBox_max;
     m_statsBox_mean = statsBox_mean;
     m_statsBox_median = statsBox_median;
+    m_colorBox_i0 = colorBox_i0;
+    m_colorBox_i1 = colorBox_i1;
+    m_colorBox_j0 = colorBox_j0;
+    m_colorBox_j1 = colorBox_j1;
+    m_colorBox_min = colorBox_min;
+    m_colorBox_max = colorBox_max;
     m_imageTimeout = imageTimeout;
     m_quality = quality;
     if( m_cubeDir != cubeDir )
@@ -743,6 +952,19 @@ void rtimvClientBase::ImageReceived()
         m_cubeDir = cubeDir;
         m_foundation->emit_cubeDirUpdated( m_cubeDir );
     }
+
+    m_foundation->emit_statsBoxUpdated( m_statsBox_i0,
+                                        m_statsBox_i1,
+                                        m_statsBox_j0,
+                                        m_statsBox_j1,
+                                        m_statsBox_min,
+                                        m_statsBox_max,
+                                        m_statsBox_mean,
+                                        m_statsBox_median,
+                                        m_statsBox );
+
+    m_foundation->emit_colorBoxUpdated(
+        m_colorBox_i0, m_colorBox_i1, m_colorBox_j0, m_colorBox_j1, m_colorBox_min, m_colorBox_max, colorBox );
 
     if( hasImagePayload )
     {
@@ -837,6 +1059,202 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
     }
 
     // if action stays -1 we just return
+}
+
+void rtimvClientBase::GetPixel_callback( grpc::Status status )
+{
+    bool queueNext{ false };
+    uint32_t nextX{ 0 };
+    uint32_t nextY{ 0 };
+    uint32_t reqX{ 0 };
+    uint32_t reqY{ 0 };
+    float value{ 0 };
+    bool valid{ false };
+
+    {
+        std::lock_guard<std::mutex> asyncLock( m_asyncRpcMutex );
+
+        if( !m_getPixelPending )
+        {
+            std::cerr << "bug: in GetPixel_callback but getPixelPending is false\n";
+            return;
+        }
+
+        reqX = m_getPixelInflightX;
+        reqY = m_getPixelInflightY;
+
+        if( status.ok() )
+        {
+            valid = m_getPixelReply.valid();
+            if( valid )
+            {
+                value = m_getPixelReply.value();
+            }
+        }
+        else
+        {
+            sharedLockT connLock( m_connectedMutex );
+            REPORT_SERVER_DISCONNECTED
+        }
+
+        delete m_GetPixelContext;
+        m_GetPixelContext = nullptr;
+
+        m_getPixelPending = false;
+        queueNext = m_getPixelQueued && !m_shuttingDown;
+        nextX = m_getPixelX;
+        nextY = m_getPixelY;
+        m_getPixelQueued = false;
+    }
+
+    m_asyncRpcCv.notify_all();
+
+    if( m_foundation )
+    {
+        m_foundation->emit_pixelValueUpdated( reqX, reqY, value, valid );
+    }
+
+    if( queueNext )
+    {
+        requestPixelValue( nextX, nextY );
+    }
+}
+
+void rtimvClientBase::ColorBox_callback( grpc::Status status )
+{
+    bool queueNext{ false };
+    bool valid{ false };
+    int64_t i0{ 0 }, i1{ 0 }, j0{ 0 }, j1{ 0 };
+    float min{ 0 }, max{ 0 };
+
+    {
+        std::lock_guard<std::mutex> asyncLock( m_asyncRpcMutex );
+
+        if( !m_colorBoxPending )
+        {
+            std::cerr << "bug: in ColorBox_callback but colorBoxPending is false\n";
+            return;
+        }
+
+        i0 = m_colorBoxInflight_i0;
+        i1 = m_colorBoxInflight_i1;
+        j0 = m_colorBoxInflight_j0;
+        j1 = m_colorBoxInflight_j1;
+
+        if( status.ok() )
+        {
+            valid = m_colorBoxReply.valid();
+            if( valid )
+            {
+                min = m_colorBoxReply.min();
+                max = m_colorBoxReply.max();
+
+                m_colorBox_i0 = i0;
+                m_colorBox_i1 = i1;
+                m_colorBox_j0 = j0;
+                m_colorBox_j1 = j1;
+                m_colorBox_min = min;
+                m_colorBox_max = max;
+            }
+        }
+        else
+        {
+            sharedLockT connLock( m_connectedMutex );
+            REPORT_SERVER_DISCONNECTED
+        }
+
+        delete m_ColorBoxContext;
+        m_ColorBoxContext = nullptr;
+
+        m_colorBoxPending = false;
+        queueNext = m_colorBoxQueued && !m_shuttingDown;
+        m_colorBoxQueued = false;
+    }
+
+    m_asyncRpcCv.notify_all();
+
+    if( m_foundation )
+    {
+        m_foundation->emit_colorBoxUpdated( i0, i1, j0, j1, min, max, valid );
+    }
+
+    if( queueNext )
+    {
+        requestColorBoxValues();
+    }
+}
+
+void rtimvClientBase::StatsBox_callback( grpc::Status status )
+{
+    bool queueNext{ false };
+    bool valid{ false };
+    int64_t i0{ 0 }, i1{ 0 }, j0{ 0 }, j1{ 0 };
+    float min{ 0 }, max{ 0 }, mean{ 0 }, median{ 0 };
+
+    {
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+
+        if( !m_statsBoxPending )
+        {
+            std::cerr << "bug: in StatsBox_callback but statsBoxPending is false\n";
+            return;
+        }
+
+        i0 = m_statsBoxInflight_i0;
+        i1 = m_statsBoxInflight_i1;
+        j0 = m_statsBoxInflight_j0;
+        j1 = m_statsBoxInflight_j1;
+
+        if( status.ok() )
+        {
+            valid = m_statsBoxReply.valid();
+            if( valid )
+            {
+                i0 = m_statsBoxReply.i0();
+                i1 = m_statsBoxReply.i1();
+                j0 = m_statsBoxReply.j0();
+                j1 = m_statsBoxReply.j1();
+                min = m_statsBoxReply.min();
+                max = m_statsBoxReply.max();
+                mean = m_statsBoxReply.mean();
+                median = m_statsBoxReply.median();
+
+                m_statsBox = true;
+                m_statsBox_i0 = i0;
+                m_statsBox_i1 = i1;
+                m_statsBox_j0 = j0;
+                m_statsBox_j1 = j1;
+                m_statsBox_min = min;
+                m_statsBox_max = max;
+                m_statsBox_mean = mean;
+                m_statsBox_median = median;
+            }
+        }
+        else
+        {
+            sharedLockT connLock( m_connectedMutex );
+            REPORT_SERVER_DISCONNECTED
+        }
+
+        delete m_StatsBoxContext;
+        m_StatsBoxContext = nullptr;
+
+        m_statsBoxPending = false;
+        queueNext = m_statsBoxQueued && !m_shuttingDown;
+        m_statsBoxQueued = false;
+    }
+
+    m_asyncRpcCv.notify_all();
+
+    if( m_foundation )
+    {
+        m_foundation->emit_statsBoxUpdated( i0, i1, j0, j1, min, max, mean, median, valid );
+    }
+
+    if( queueNext )
+    {
+        requestStatsBoxValues();
+    }
 }
 
 bool rtimvClientBase::imageValid()
@@ -1389,31 +1807,8 @@ bool rtimvClientBase::applyLPFilter()
 
 float rtimvClientBase::calPixel( uint32_t x, uint32_t y )
 {
-    SHARED_CONN_LOCK_RET( 0 )
-
-    remote_rtimv::Coord request;
-    remote_rtimv::Pixel pixel;
-    grpc::ClientContext context;
-
-    request.set_x( x );
-    request.set_y( y );
-
-    grpc::Status status = stub_->GetPixel( &context, request, &pixel );
-
-    if( status.ok() )
-    {
-        if( !pixel.valid() )
-        {
-            return 0;
-        }
-
-        return pixel.value();
-    }
-    else
-    {
-        REPORT_SERVER_DISCONNECTED
-        return 0;
-    }
+    requestPixelValue( x, y );
+    return 0;
 }
 
 void rtimvClientBase::mtxL_load_colorbarImpl( rtimv::colorbar cb, bool update )
@@ -1473,42 +1868,14 @@ void rtimvClientBase::mtxL_colormode( rtimv::colormode m, const sharedLockT &loc
 {
     assert( lock.owns_lock() );
 
-    SHARED_CONN_LOCK
-
     if( m == rtimv::colormode::minmaxbox )
     {
-        remote_rtimv::Box request;
-        remote_rtimv::MinvalMaxval vals;
-        grpc::ClientContext context;
-
-        remote_rtimv::Coord *ul = new remote_rtimv::Coord;
-        ul->set_x( m_colorBox_i0 );
-        ul->set_y( m_colorBox_j0 );
-        request.set_allocated_upper_left( ul );
-
-        remote_rtimv::Coord *lr = new remote_rtimv::Coord;
-        lr->set_x( m_colorBox_i1 );
-        lr->set_y( m_colorBox_j1 );
-        request.set_allocated_lower_right( lr );
-
-        grpc::Status status = stub_->ColorBox( &context, request, &vals );
-
-        if( !status.ok() )
-        {
-            REPORT_SERVER_DISCONNECTED
-            return;
-        }
-
-        if( !vals.valid() )
-        {
-            return;
-        }
-
-        m_colorBox_min = vals.min();
-        m_colorBox_max = vals.max();
+        requestColorBoxValues();
     }
     else
     {
+        SHARED_CONN_LOCK
+
         remote_rtimv::ColormodeRequest request;
         remote_rtimv::ColormodeResponse response;
         grpc::ClientContext context;
@@ -1523,6 +1890,8 @@ void rtimvClientBase::mtxL_colormode( rtimv::colormode m, const sharedLockT &loc
             return;
         }
     }
+
+    m_colormode = m;
 
     mtxL_postColormode( m, lock );
 }
@@ -1595,30 +1964,12 @@ void rtimvClientBase::statsBox( bool sb )
     m_statsBox_max = 0;
     m_statsBox_mean = 0;
     m_statsBox_median = 0;
+    m_statsBox_i0 = 1;
+    m_statsBox_j0 = 1;
+    m_statsBox_i1 = 0;
+    m_statsBox_j1 = 0;
 
-    SHARED_CONN_LOCK
-
-    remote_rtimv::Box request;
-    remote_rtimv::StatsValues vals;
-    grpc::ClientContext context;
-
-    remote_rtimv::Coord *ul = new remote_rtimv::Coord;
-    ul->set_x( 1 );
-    ul->set_y( 1 );
-    request.set_allocated_upper_left( ul );
-
-    remote_rtimv::Coord *lr = new remote_rtimv::Coord;
-    lr->set_x( 0 );
-    lr->set_y( 0 );
-    request.set_allocated_lower_right( lr );
-
-    grpc::Status status = stub_->StatsBox( &context, request, &vals );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
-        return;
-    }
+    requestStatsBoxValues();
 }
 
 bool rtimvClientBase::statsBox()
@@ -1688,44 +2039,7 @@ float rtimvClientBase::statsBox_median()
 
 void rtimvClientBase::mtxUL_calcStatsBox()
 {
-    SHARED_CONN_LOCK
-
-    remote_rtimv::Box request;
-    remote_rtimv::StatsValues vals;
-    grpc::ClientContext context;
-
-    remote_rtimv::Coord *ul = new remote_rtimv::Coord;
-    ul->set_x( m_statsBox_i0 );
-    ul->set_y( m_statsBox_j0 );
-    request.set_allocated_upper_left( ul );
-
-    remote_rtimv::Coord *lr = new remote_rtimv::Coord;
-    lr->set_x( m_statsBox_i1 );
-    lr->set_y( m_statsBox_j1 );
-    request.set_allocated_lower_right( lr );
-
-    grpc::Status status = stub_->StatsBox( &context, request, &vals );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
-        return;
-    }
-
-    if( !vals.valid() )
-    {
-        return;
-    }
-
-    m_statsBox = true;
-    m_statsBox_i0 = vals.i0();
-    m_statsBox_i1 = vals.i1();
-    m_statsBox_j0 = vals.j0();
-    m_statsBox_j1 = vals.j1();
-    m_statsBox_min = vals.min();
-    m_statsBox_max = vals.max();
-    m_statsBox_mean = vals.mean();
-    m_statsBox_median = vals.median();
+    requestStatsBoxValues();
 }
 
 void rtimvClientBase::stretch( rtimv::stretch cs )
