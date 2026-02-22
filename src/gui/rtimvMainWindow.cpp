@@ -156,9 +156,14 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
         }
     }
 
-    setWindowTitle( m_title.c_str() );
-
     startup();
+
+    std::string imageTitle = imageName( 0 );
+    if( imageTitle != "" )
+    {
+        m_title = imageTitle;
+    }
+    setWindowTitle( m_title.c_str() );
 }
 
 rtimvMainWindow::~rtimvMainWindow()
@@ -171,7 +176,6 @@ rtimvMainWindow::~rtimvMainWindow()
 
 void rtimvMainWindow::setupConfig()
 {
-
     RTIMV_BASE::setupConfig();
 
     config.add( "nofpsgage",
@@ -319,13 +323,9 @@ void rtimvMainWindow::setupConfig()
 
 void rtimvMainWindow::loadConfig()
 {
-
     RTIMV_BASE::loadConfig();
 
-    if( imageValid() )
-    {
-        m_title = imageName( 0 );
-    }
+    m_title = imageName( 0 );
 
     // Now load remaining options, respecting coded defaults.
 
@@ -353,8 +353,6 @@ void rtimvMainWindow::loadConfig()
 
 void rtimvMainWindow::onConnect()
 {
-    setWindowTitle( m_title.c_str() );
-
     squareDown();
 
     if( nz() > 1 && !m_cubeCtrl )

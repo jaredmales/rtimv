@@ -228,6 +228,16 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
     ServerUnaryReactor *
     GetPixel( CallbackServerContext *context, const remote_rtimv::Coord *request, remote_rtimv::Pixel *reply ) override;
 
+    /// Get the image name/key for a requested image index.
+    ServerUnaryReactor *GetImageName( CallbackServerContext *context,
+                                      const remote_rtimv::ImageNameRequest *request,
+                                      remote_rtimv::ImageNameResponse *reply ) override;
+
+    /// Get info strings for a requested image index.
+    ServerUnaryReactor *GetInfo( CallbackServerContext *context,
+                                 const remote_rtimv::InfoRequest *request,
+                                 remote_rtimv::InfoResponse *reply ) override;
+
     /// Get the image number for a requested image index.
     ServerUnaryReactor *GetImageNo( CallbackServerContext *context,
                                     const remote_rtimv::ImageNoRequest *request,

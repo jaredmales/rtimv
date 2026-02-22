@@ -81,8 +81,6 @@ class rtimvClientBase : public mx::app::application
 
     virtual void setupConfig();
 
-    virtual void loadStandardConfig();
-
     virtual void loadConfig();
 
     ///@}
@@ -132,6 +130,9 @@ class rtimvClientBase : public mx::app::application
     void reconnect();
 
   protected:
+    /// Refresh configured image names from the server.
+    void updateImageNamesFromServer();
+
     /// Context for the ImagePlease rpc.
     /** This has to stay alive until the rpc finishes and can not be reused
      *
@@ -297,6 +298,15 @@ class rtimvClientBase : public mx::app::application
      * @{
      */
   protected:
+    /// Configured image names/keys by image index, used before receiving first image.
+    /** By index:
+     * - 0 is the main image.
+     * - 1 is the dark image which is (optionally) subtracted from the main image.
+     * - 2 is the mask image which is (optionally) multiplied by the dark-subtracted image.  Normally a 1/0 image.
+     * - 3 is the saturation mask which (optionally) denotes which pixels to turn the saturation color.
+     */
+    std::vector<std::string> m_imageNames;
+
     float m_fpsEst;
 
     double m_imageTime{ 0 };

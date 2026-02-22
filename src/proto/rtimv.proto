@@ -54,6 +54,10 @@ service rtimv
 
     rpc GetPixel(Coord) returns(Pixel);
 
+    rpc GetImageName(ImageNameRequest) returns (ImageNameResponse);
+
+    rpc GetInfo(InfoRequest) returns (InfoResponse);
+
     rpc GetImageNo(ImageNoRequest) returns (ImageNoResponse);
 
     rpc ColorBox(Box) returns (MinvalMaxval);
@@ -422,6 +426,28 @@ message Pixel
 message ImageNoRequest
 {
     uint32 image = 1;
+}
+
+message ImageNameRequest
+{
+    uint32 image = 1;
+}
+
+message ImageNameResponse
+{
+    bool valid = 1;
+    string name = 2;
+}
+
+message InfoRequest
+{
+    uint32 image = 1;
+}
+
+message InfoResponse
+{
+    bool valid = 1;
+    repeated string info = 2;
 }
 
 message ImageNoResponse
