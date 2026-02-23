@@ -15,7 +15,7 @@ rtimvServerThread::rtimvServerThread( const std::string &uri,
 
     lastRequest( -1 ); // set to now
 
-    std::cerr << "I am: " << uri << '\n';
+    std::cout << "Client: " << uri << " thread started\n";
 
     m_argv = argv;
 }

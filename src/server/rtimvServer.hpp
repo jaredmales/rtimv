@@ -48,14 +48,18 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
     typedef std::shared_lock<std::shared_mutex> sharedLockT;
 
   protected:
+    std::string m_serverAddress{ "0.0.0.0" }; ///< Host/interface address the grpc server listens on.
+
+    int m_port{ 7000 }; ///< Port the grpc server listens on.
+
     float m_waitTimeout = 1; ///< Time to wait for a new image to be ready before timing out, in s.  Default is 1 s.
 
     int m_waitSleep = 100; ///< Time to sleep while waiting for a new image, in ms.  Default is 100 ms.
 
-    float m_clientSleep{ 5 }; /**< Time in seconds after which a thread with no requests will be put
+    float m_clientSleep{ 10 }; /**< Time in seconds after which a thread with no requests will be put
                                     to sleep.  Default is 10 s.*/
 
-    float m_clientDisconnect{ 10 }; /**< Time in seconds after which a thread with no requests will be disconnected.
+    float m_clientDisconnect{ 120 }; /**< Time in seconds after which a thread with no requests will be disconnected.
                                           Default is 120 s.*/
 
     /// Mutex for locking access to the client list
@@ -72,36 +76,6 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
 
         remote_rtimv::Config m_config;
 
-        /*std::string m_config; ///< The configuration file to read for this client
-
-        std::string m_imageKey;
-
-        std::string m_darkKey;
-
-        std::string m_maskKey;
-
-        std::string m_satMaskKey;
-
-        float m_updateFPS {10};
-
-        uint32_t m_updateTimeout { 100};
-
-        float m_updateCubeFPS {10};
-
-        bool m_autoscale {false};
-
-        bool m_darksub {false};
-
-        float m_satLevel {1e30};
-
-        bool m_masksat {false};
-
-        bool m_mzmqAlways {false};
-
-        std::string m_mzmqServer;
-
-        uint32_t m_port {0};
-*/
         configSpec( const std::string uri, const remote_rtimv::Config *config ) : m_uri( uri )
         {
             if( config )

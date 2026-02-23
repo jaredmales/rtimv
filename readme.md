@@ -1,4 +1,4 @@
-## Synopsis
+# rtimv 
 
 A qt5-based real-time image viewer.
 
@@ -12,24 +12,7 @@ This is now a stripped down version, with only minimal analysis tools.  A plugin
 
 ## Installation
 
-Dependencies:
- - qt-5
-   - on Ubuntu 20 `sudo apt-get install qt5-default`
-   - on Ubuntu 22 `sudo apt install qtbase5-dev qt5-qmake`
- - mxlib [https://github.com/jaredmales/mxlib](https://github.com/jaredmales/mxlib)
-   - for best results checkout the `magaox` branch of mxlib
- - milk-org/milk  from https://github.com/milk-org/milk
-   - If you are looking for an image viewer for cacao, you probably already have this!
-   - If not follow the instructions in the README to checkout milk and build it.
-   - See also https://github.com/milk-org/milk/wiki/install-DownloadCompile, I recommend creating the `tmpfs` for `milk/shm`
- - milkzmq from https://github.com/jaredmales/milkzmq
-
-
-On CentOS-7 you may need to install mesa-libGL-devel.x86_64
- 
-For `ubuntu` you just need to type `make`.  This should work on `CentOS 7` as well, but if not try calling it with `make QMAKE=qmake-qt5`. 
-
-Once make completes, `sudo make install` will install the executable to `/usr/local/bin`.  You may need to run `sudo ldconfig` to update the linker.
+The installation guide is located in [doc/Installation.md](doc/UserGuide.md) or in the [rtimv documentation pages](https://jaredmales.github.io/rtimv-doc/index.html).
 
 ## User's Guide
 

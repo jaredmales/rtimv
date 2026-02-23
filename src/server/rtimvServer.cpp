@@ -62,17 +62,80 @@ rtimvServer::~rtimvServer()
 
 void rtimvServer::setupConfig()
 {
+    config.add( "server.port",
+                "p",
+                "server.port",
+                mx::app::argType::Required,
+                "server",
+                "port",
+                false,
+                "int",
+                "Port the grpc server listens on." );
+
+    config.add( "server.address",
+                "",
+                "server.address",
+                mx::app::argType::Required,
+                "server",
+                "address",
+                false,
+                "string",
+                "Host/interface address the grpc server listens on." );
+
+    config.add( "image.timeout",
+                "",
+                "image.timeout",
+                mx::app::argType::Required,
+                "image",
+                "timeout",
+                false,
+                "real",
+                "Time to wait for a new image to be ready before timing out, in s.  Default is 1 s." );
+
+    config.add( "image.sleep",
+                "",
+                "image.sleep",
+                mx::app::argType::Required,
+                "image",
+                "sleep",
+                false,
+                "int",
+                "Time to sleep while waiting for a new image, in ms.  Default is 100 ms." );
+
+    config.add( "client.sleep",
+                "",
+                "client.sleep",
+                mx::app::argType::Required,
+                "client",
+                "sleep",
+                false,
+                "real",
+                "Time in seconds after which a thread with no requests will be put to sleep.  Default is 10 s." );
+
+    config.add( "client.disconnect",
+                "",
+                "client.disconnect",
+                mx::app::argType::Required,
+                "client",
+                "disconnect",
+                false,
+                "real",
+                "Time in seconds after which a thread with no requests will be disconnected. Default is 120 s." );
 }
 
 void rtimvServer::loadConfig()
 {
+    config( m_port, "server.port" );
+    config( m_serverAddress, "server.address" );
+    config( m_waitTimeout, "image.timeout" );
+    config( m_waitSleep, "image.sleep" );
+    config( m_clientSleep, "client.sleep" );
+    config( m_clientDisconnect, "client.disconnect" );
 }
 
 void rtimvServer::startServer()
 {
-    int port = 7000;
-
-    std::string server_address = std::format( "0.0.0.0:{}", port );
+    std::string server_address = std::format( "{}:{}", m_serverAddress, m_port );
 
     grpc::EnableDefaultHealthCheckService( true );
 
@@ -146,7 +209,7 @@ void rtimvServer::startServer()
                     imageTh->deleteLater();
                     m_clients.erase( client );
 
-                    std::cerr << "Client " << ckey << " disconnected.\n";
+                    std::cout << "Client " << ckey << " disconnected.\n";
 
                     break; // give up mutex and start loop over
                 }
@@ -155,7 +218,7 @@ void rtimvServer::startServer()
                     if( !imageTh->asleep() )
                     {
                         imageTh->emit_gotosleep();
-                        std::cerr << "Client " << client->first << " put to sleep\n";
+                        std::cout << "Client " << client->first << " put to sleep\n";
                     }
                 }
             }
@@ -1059,7 +1122,7 @@ void rtimvServer::doConfigure( const configSpec *cspec )
         imageTh->start();
         imageTh->lastRequest( -1 ); // sets to now
 
-        std::cerr << "Client " << uri << " configured\n";
+        std::cout << "Client " << uri << " configured\n";
     }
     else
     {
