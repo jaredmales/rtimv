@@ -128,6 +128,8 @@ cmake --build _build -j
 sudo cmake --install _build
 ```
 
+Note: on Fedora 42 additionally specify `-DRTIMV_SERVER_SYSTEMD_UNIT_DIR=/usr/lib/systemd/system`
+
 ### 2. Provide environment variables (optional but common)
 
 By default the installed unit references:
