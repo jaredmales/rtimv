@@ -17,6 +17,15 @@ include(GNUInstallDirs)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(_rtimv_default_systemd_unit_dir "${CMAKE_INSTALL_PREFIX}/lib/systemd/system")
+pkg_check_modules(SYSTEMD QUIET systemd)
+if(SYSTEMD_FOUND)
+    pkg_get_variable(_rtimv_systemd_unit_dir systemd systemdsystemunitdir)
+    if(_rtimv_systemd_unit_dir)
+        set(_rtimv_default_systemd_unit_dir "${_rtimv_systemd_unit_dir}")
+    endif()
+endif()
+
 ############################################
 # Documentation
 ############################################
@@ -186,7 +195,7 @@ set(RTIMV_SERVER_SYSTEMD_ENVIRONMENT_FILE "/etc/default/rtimvServer" CACHE FILEP
 set(RTIMV_SERVER_SYSTEMD_ARGS "" CACHE STRING "Additional arguments appended to ExecStart for rtimvServer service")
 set(RTIMV_SERVER_SYSTEMD_RESTART "on-failure" CACHE STRING "systemd Restart= policy for rtimvServer")
 set(RTIMV_SERVER_SYSTEMD_RESTART_SEC "2s" CACHE STRING "systemd RestartSec= for rtimvServer")
-set(RTIMV_SERVER_SYSTEMD_UNIT_DIR "${CMAKE_INSTALL_LIBDIR}/systemd/system" CACHE PATH "Install directory for rtimvServer systemd unit")
+set(RTIMV_SERVER_SYSTEMD_UNIT_DIR "${_rtimv_default_systemd_unit_dir}" CACHE PATH "Install directory for rtimvServer systemd unit")
 
 add_executable(rtimvServer src/server/rtimvServer.cpp
                            src/server/rtimvServerThread.cpp
