@@ -12,8 +12,31 @@ project(rtimv LANGUAGES CXX
               DESCRIPTION "A qt-based real-time image viewer for astronomy."
               HOMEPAGE_URL "https://jaredmales.github.io/rtimv-doc/index.html")
 
+include(GNUInstallDirs)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+############################################
+# Documentation
+############################################
+
+find_package(Doxygen QUIET)
+
+if(DOXYGEN_FOUND)
+    set(RTIMV_DOXYGEN_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/doc")
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/rtimv-dox.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/rtimv-dox
+                   @ONLY)
+
+    add_custom_target(docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/rtimv-dox
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc
+        COMMENT "Generating API documentation with Doxygen"
+        VERBATIM)
+else()
+    message(STATUS "Doxygen not found; 'docs' target will not be available.")
+endif()
 
 ############################################
 # Qt setup
@@ -156,6 +179,15 @@ pkg_check_modules(GRPCPP REQUIRED IMPORTED_TARGET grpc++)
 
 if(Protobuf_FOUND AND GRPCPP_FOUND)
 
+option(RTIMV_INSTALL_SYSTEMD_UNIT "Install a systemd unit for rtimvServer" ON)
+set(RTIMV_SERVER_SYSTEMD_USER "rtimv" CACHE STRING "User account to run rtimvServer under systemd")
+set(RTIMV_SERVER_SYSTEMD_GROUP "rtimv" CACHE STRING "Group account to run rtimvServer under systemd")
+set(RTIMV_SERVER_SYSTEMD_ENVIRONMENT_FILE "/etc/default/rtimvServer" CACHE FILEPATH "systemd EnvironmentFile for rtimvServer service")
+set(RTIMV_SERVER_SYSTEMD_ARGS "" CACHE STRING "Additional arguments appended to ExecStart for rtimvServer service")
+set(RTIMV_SERVER_SYSTEMD_RESTART "on-failure" CACHE STRING "systemd Restart= policy for rtimvServer")
+set(RTIMV_SERVER_SYSTEMD_RESTART_SEC "2s" CACHE STRING "systemd RestartSec= for rtimvServer")
+set(RTIMV_SERVER_SYSTEMD_UNIT_DIR "${CMAKE_INSTALL_LIBDIR}/systemd/system" CACHE PATH "Install directory for rtimvServer systemd unit")
+
 add_executable(rtimvServer src/server/rtimvServer.cpp
                            src/server/rtimvServerThread.cpp
                            src/server/rtimvServerMain.cpp
@@ -178,6 +210,14 @@ target_link_libraries(rtimvServer PRIVATE PkgConfig::GRPCPP)
 target_link_libraries(rtimvServer PRIVATE -lgrpc++_reflection)
 
 install (TARGETS rtimvServer DESTINATION bin)
+
+if(RTIMV_INSTALL_SYSTEMD_UNIT)
+    configure_file(systemd/rtimvServer.service.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/rtimvServer.service
+                   @ONLY)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/rtimvServer.service
+            DESTINATION ${RTIMV_SERVER_SYSTEMD_UNIT_DIR})
+endif()
 
 endif() #(Protobuf_FOUND AND GRPCPP_FOUND)
 
