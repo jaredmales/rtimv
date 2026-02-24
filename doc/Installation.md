@@ -13,13 +13,18 @@ This document describes dependencies, standard CMake usage, CMake configuration 
 - Qt5 Widgets development package
 - `mxlib`  [https://github.com/jaredmales/mxlib](https://github.com/jaredmales/mxlib)
   - The basic minimal-dependencies `mxlib` is the miminum requirement
-  - For MILK/ImageStreamIO Image Streams (`shmims`) `mxlib` must be built with ImageStreamIO 
+    - For MILK/ImageStreamIO Image Streams (`shmims`) `mxlib` must be built with ImageStreamIO 
 
 ### Optional Protocol Support
-- For the `milkzmq` protocol: 
-  -`libzmq` (pkg-config module: `libzmq`)
+The following are optional. Even if you have none of these installed `rtimv` should still build and provide FITS support (via `mxlib` above).
+
+- For local MILK/ImageStreamIO shared memory streams (`shmims`): `libImageStreamIO` from [MILK](https://github.com/milk-org/milk)
+  - `mxlib` must be built with this already installed and configured to enable this, see above.
+
+- For the `milkzmq` image transfer protocol: 
+  - The ZeroMQ library `libzmq`
     - Must be built with the "Draft API" enabled.  In 2026 the best way to obtain this is to build it yourself:
-        ```
+        ```bash
         wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz
         tar -xvzf zeromq-4.3.4.tar.gz
         cd zeromq-4.3.4
@@ -27,32 +32,19 @@ This document describes dependencies, standard CMake usage, CMake configuration 
         make
         sudo make install
         ```
-  - `xrif` [https://github.com/jaredmales/xrif](https://github.com/jaredmales/xrif)
-- For local MILK/ImageStreamIO shared memory streams (`shmims`): `libImageStreamIO` from [MILK](https://github.com/milk-org/milk)
-  - `mxlib` must be built with this support to enable this, see above.
+    - The `xrif` compression protocol: [https://github.com/jaredmales/xrif](https://github.com/jaredmales/xrif)
 
-
-### Optional (for remote client/server mode targets)
-- Protobuf 
-- gRPC C++ (pkg-config module: `grpc++`)
-
-To install these on:
-- Ubuntu 24:
-    ```
+- For rtimvClient and rtimvServer: `gRPC` for C++
+  - Ubuntu 24:
+    ```bash
     sudo apt install libgrpc++-dev
-    sudo apt  install protobuf-compiler
+    sudo apt install protobuf-compiler
     sudo apt install protobuf-compiler-grpc
     ```
-- Fedora 42:
-    ```
+  - Fedora 42:
+    ```bash
     sudo dnf install grpc grpc-devel
     ```
-
-If Protobuf/gRPC are found, CMake builds:
-- `rtimvServer`
-- `rtimvClient`
-
-If not found, local `rtimv` still builds.
 
 ## Standard CMake Workflow
 
