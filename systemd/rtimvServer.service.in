@@ -1,0 +1,16 @@
+[Unit]
+Description=rtimv gRPC Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@RTIMV_SERVER_SYSTEMD_USER@
+Group=@RTIMV_SERVER_SYSTEMD_GROUP@
+EnvironmentFile=-@RTIMV_SERVER_SYSTEMD_ENVIRONMENT_FILE@
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/rtimvServer @RTIMV_SERVER_SYSTEMD_ARGS@
+Restart=@RTIMV_SERVER_SYSTEMD_RESTART@
+RestartSec=@RTIMV_SERVER_SYSTEMD_RESTART_SEC@
+
+[Install]
+WantedBy=multi-user.target
