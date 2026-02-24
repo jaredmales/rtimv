@@ -9,6 +9,9 @@
 #include "rtimvColorGRPC.hpp"
 #include "rtimvFilterGRPC.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
 
@@ -42,7 +45,7 @@ rtimvClientBase::rtimvClientBase()
 
 rtimvClientBase::~rtimvClientBase()
 {
-    {
+    { // mutex scope
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
         m_shuttingDown = true;
 
@@ -52,7 +55,7 @@ rtimvClientBase::~rtimvClientBase()
         }
     }
 
-    {
+    { // mutex scope
         std::unique_lock<std::mutex> lock( m_imageRequestMutex );
         while( m_imageRequestPending )
         {
@@ -63,7 +66,7 @@ rtimvClientBase::~rtimvClientBase()
         }
     }
 
-    {
+    { // mutex scope
         std::lock_guard<std::mutex> asyncLock( m_asyncRpcMutex );
 
         if( m_GetPixelContext )
@@ -80,12 +83,36 @@ rtimvClientBase::~rtimvClientBase()
         {
             m_StatsBoxContext->TryCancel();
         }
+
+        if( m_SetColorstretchContext )
+        {
+            m_SetColorstretchContext->TryCancel();
+        }
+
+        if( m_SetMinScaleContext )
+        {
+            m_SetMinScaleContext->TryCancel();
+        }
+
+        if( m_SetMaxScaleContext )
+        {
+            m_SetMaxScaleContext->TryCancel();
+        }
+
+        for( auto *context : m_emptyRpcContexts )
+        {
+            if( context )
+            {
+                context->TryCancel();
+            }
+        }
     }
 
-    {
+    { // mutex scope
         std::unique_lock<std::mutex> lock( m_asyncRpcMutex );
 
-        while( m_getPixelPending || m_colorBoxPending || m_statsBoxPending )
+        while( m_getPixelPending || m_colorBoxPending || m_statsBoxPending || m_setColorstretchPending ||
+               m_setMinScalePending || m_setMaxScalePending || m_emptyRpcPending > 0 )
         {
             if( m_asyncRpcCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
             {
@@ -776,7 +803,7 @@ void rtimvClientBase::requestStatsBoxValues()
 
 void rtimvClientBase::ImageReceived()
 {
-    {
+    { // mutex scope
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
         if( m_shuttingDown )
         {
@@ -935,6 +962,52 @@ void rtimvClientBase::ImageReceived()
     m_minScaleData = minsc;
     m_maxScaleData = maxsc;
 
+    bool sendQueuedMinScale{ false };
+    float nextMinScale{ 0 };
+    bool sendQueuedMaxScale{ false };
+    float nextMaxScale{ 0 };
+
+    { // mutex scope
+        std::lock_guard<std::mutex> asyncLock( m_asyncRpcMutex );
+
+        const auto scaleMatched = []( float a, float b )
+        {
+            const float norm = std::max( std::fabs( a ), std::fabs( b ) );
+            const float tol = 1e-5f * std::max( 1.0f, norm );
+            return std::fabs( a - b ) <= tol;
+        };
+
+        if( m_setMinScaleAwaitImage )
+        {
+            if( !scaleMatched( m_minScaleData, m_setMinScalePrevAtSend ) ||
+                scaleMatched( m_minScaleData, m_setMinScaleInflight ) )
+            {
+                m_setMinScaleAwaitImage = false;
+                if( m_setMinScaleQueued && !m_setMinScalePending && !m_shuttingDown )
+                {
+                    sendQueuedMinScale = true;
+                    nextMinScale = m_setMinScaleDesired;
+                    m_setMinScaleQueued = false;
+                }
+            }
+        }
+
+        if( m_setMaxScaleAwaitImage )
+        {
+            if( !scaleMatched( m_maxScaleData, m_setMaxScalePrevAtSend ) ||
+                scaleMatched( m_maxScaleData, m_setMaxScaleInflight ) )
+            {
+                m_setMaxScaleAwaitImage = false;
+                if( m_setMaxScaleQueued && !m_setMaxScalePending && !m_shuttingDown )
+                {
+                    sendQueuedMaxScale = true;
+                    nextMaxScale = m_setMaxScaleDesired;
+                    m_setMaxScaleQueued = false;
+                }
+            }
+        }
+    }
+
     m_colorbar = rtimv::grpc2colorbar( colorbar );
     m_colormode = rtimv::grpc2colormode( colormode );
     m_stretch = rtimv::grpc2stretch( stretch );
@@ -1015,6 +1088,16 @@ void rtimvClientBase::ImageReceived()
 
     updateFPS();
 
+    if( sendQueuedMinScale )
+    {
+        minScaleData( nextMinScale );
+    }
+
+    if( sendQueuedMaxScale )
+    {
+        maxScaleData( nextMaxScale );
+    }
+
     // We always go on and get the next one
     m_foundation->emit_ImageNeeded();
 }
@@ -1024,7 +1107,7 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
     int action = -1;
     bool shuttingDown = false;
 
-    {
+    { // mutex scope
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
 
         if( !m_imageRequestPending )
@@ -1099,7 +1182,7 @@ void rtimvClientBase::GetPixel_callback( grpc::Status status )
     float value{ 0 };
     bool valid{ false };
 
-    {
+    { // mutex scope
         std::lock_guard<std::mutex> asyncLock( m_asyncRpcMutex );
 
         if( !m_getPixelPending )
@@ -1155,7 +1238,7 @@ void rtimvClientBase::ColorBox_callback( grpc::Status status )
     int64_t i0{ 0 }, i1{ 0 }, j0{ 0 }, j1{ 0 };
     float min{ 0 }, max{ 0 };
 
-    {
+    { // mutex scope
         std::lock_guard<std::mutex> asyncLock( m_asyncRpcMutex );
 
         if( !m_colorBoxPending )
@@ -1219,7 +1302,7 @@ void rtimvClientBase::StatsBox_callback( grpc::Status status )
     int64_t i0{ 0 }, i1{ 0 }, j0{ 0 }, j1{ 0 };
     float min{ 0 }, max{ 0 }, mean{ 0 }, median{ 0 };
 
-    {
+    { // mutex scope
         std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
 
         if( !m_statsBoxPending )
@@ -1282,6 +1365,159 @@ void rtimvClientBase::StatsBox_callback( grpc::Status status )
     if( queueNext )
     {
         requestStatsBoxValues();
+    }
+}
+
+void rtimvClientBase::SetColorstretch_callback( grpc::Status status )
+{
+    bool queueNext{ false };
+    rtimv::stretch nextStretch{ rtimv::stretch::linear };
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+
+        if( !m_setColorstretchPending )
+        {
+            std::cerr << "bug: in SetColorstretch_callback but setColorstretchPending is false\n";
+            return;
+        }
+
+        if( !status.ok() )
+        {
+            sharedLockT connLock( m_connectedMutex );
+            REPORT_SERVER_DISCONNECTED
+        }
+
+        delete m_SetColorstretchContext;
+        m_SetColorstretchContext = nullptr;
+
+        m_setColorstretchPending = false;
+        queueNext = m_setColorstretchQueued && !m_shuttingDown;
+        nextStretch = m_setColorstretchDesired;
+        m_setColorstretchQueued = false;
+    }
+
+    m_asyncRpcCv.notify_all();
+
+    if( queueNext )
+    {
+        stretch( nextStretch );
+    }
+}
+
+void rtimvClientBase::SetMinScale_callback( grpc::Status status )
+{
+    bool queueNext{ false };
+    float nextValue{ 0 };
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+
+        if( !m_setMinScalePending )
+        {
+            std::cerr << "bug: in SetMinScale_callback but setMinScalePending is false\n";
+            return;
+        }
+
+        if( status.ok() )
+        {
+            m_setMinScaleAwaitImage = true;
+        }
+        else
+        {
+            sharedLockT connLock( m_connectedMutex );
+            REPORT_SERVER_DISCONNECTED
+            queueNext = m_setMinScaleQueued && !m_shuttingDown;
+            nextValue = m_setMinScaleDesired;
+            m_setMinScaleQueued = false;
+        }
+
+        delete m_SetMinScaleContext;
+        m_SetMinScaleContext = nullptr;
+        m_setMinScalePending = false;
+    }
+
+    m_asyncRpcCv.notify_all();
+
+    if( queueNext )
+    {
+        minScaleData( nextValue );
+    }
+}
+
+void rtimvClientBase::SetMaxScale_callback( grpc::Status status )
+{
+    bool queueNext{ false };
+    float nextValue{ 0 };
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+
+        if( !m_setMaxScalePending )
+        {
+            std::cerr << "bug: in SetMaxScale_callback but setMaxScalePending is false\n";
+            return;
+        }
+
+        if( status.ok() )
+        {
+            m_setMaxScaleAwaitImage = true;
+        }
+        else
+        {
+            sharedLockT connLock( m_connectedMutex );
+            REPORT_SERVER_DISCONNECTED
+            queueNext = m_setMaxScaleQueued && !m_shuttingDown;
+            nextValue = m_setMaxScaleDesired;
+            m_setMaxScaleQueued = false;
+        }
+
+        delete m_SetMaxScaleContext;
+        m_SetMaxScaleContext = nullptr;
+        m_setMaxScalePending = false;
+    }
+
+    m_asyncRpcCv.notify_all();
+
+    if( queueNext )
+    {
+        maxScaleData( nextValue );
+    }
+}
+
+void rtimvClientBase::EmptyRpc_callback( grpc::ClientContext *context, grpc::Status status )
+{
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+
+        auto it = std::find( m_emptyRpcContexts.begin(), m_emptyRpcContexts.end(), context );
+        if( it == m_emptyRpcContexts.end() )
+        {
+            std::cerr << "bug: in EmptyRpc_callback but context is not tracked\n";
+        }
+        else
+        {
+            m_emptyRpcContexts.erase( it );
+        }
+
+        if( m_emptyRpcPending == 0 )
+        {
+            std::cerr << "bug: in EmptyRpc_callback but emptyRpcPending is zero\n";
+        }
+        else
+        {
+            --m_emptyRpcPending;
+        }
+    }
+
+    delete context;
+
+    m_asyncRpcCv.notify_all();
+
+    if( !status.ok() )
+    {
+        sharedLockT connLock( m_connectedMutex );
+        REPORT_SERVER_DISCONNECTED
     }
 }
 
@@ -1472,70 +1708,114 @@ void rtimvClientBase::cubeDir( int dir )
 {
     SHARED_CONN_LOCK
 
-    remote_rtimv::CubeDirRequest request;
-    remote_rtimv::CubeDirResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::CubeDirRequest>();
+    auto response = std::make_shared<remote_rtimv::CubeDirResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_dir( dir );
-
-    grpc::Status status = stub_->CubeDir( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    request->set_dir( dir );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->CubeDir( context,
+                             request.get(),
+                             response.get(),
+                             [this, context, request, response]( grpc::Status status )
+                             { this->EmptyRpc_callback( context, status ); } );
 }
 
 void rtimvClientBase::cubeFrame( uint32_t fno )
 {
     SHARED_CONN_LOCK
 
-    remote_rtimv::CubeFrameRequest request;
-    remote_rtimv::CubeFrameResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::CubeFrameRequest>();
+    auto response = std::make_shared<remote_rtimv::CubeFrameResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_frame( fno );
-
-    grpc::Status status = stub_->CubeFrame( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    request->set_frame( fno );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->CubeFrame( context,
+                               request.get(),
+                               response.get(),
+                               [this, context, request, response]( grpc::Status status )
+                               { this->EmptyRpc_callback( context, status ); } );
 }
 
 void rtimvClientBase::cubeFrameDelta( int32_t dfno )
 {
     SHARED_CONN_LOCK
 
-    remote_rtimv::CubeFrameDeltaRequest request;
-    remote_rtimv::CubeFrameDeltaResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::CubeFrameDeltaRequest>();
+    auto response = std::make_shared<remote_rtimv::CubeFrameDeltaResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_delta( dfno );
-
-    grpc::Status status = stub_->CubeFrameDelta( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    request->set_delta( dfno );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->CubeFrameDelta( context,
+                                    request.get(),
+                                    response.get(),
+                                    [this, context, request, response]( grpc::Status status )
+                                    { this->EmptyRpc_callback( context, status ); } );
 }
 
 void rtimvClientBase::updateCube()
 {
     SHARED_CONN_LOCK
 
-    remote_rtimv::UpdateCubeRequest request;
-    remote_rtimv::UpdateCubeResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::UpdateCubeRequest>();
+    auto response = std::make_shared<remote_rtimv::UpdateCubeResponse>();
+    auto *context = new grpc::ClientContext;
 
-    grpc::Status status = stub_->UpdateCube( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->UpdateCube( context,
+                                request.get(),
+                                response.get(),
+                                [this, context, request, response]( grpc::Status status )
+                                { this->EmptyRpc_callback( context, status ); } );
 }
 
 void rtimvClientBase::updateCubeFrame()
@@ -1611,19 +1891,29 @@ void rtimvClientBase::imageTimeout( int to )
 {
     SHARED_CONN_LOCK
 
-    // Server applies the change; local state is synchronized via Image responses.
-    remote_rtimv::ImageTimeoutRequest request;
-    remote_rtimv::ImageTimeoutResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::ImageTimeoutRequest>();
+    auto response = std::make_shared<remote_rtimv::ImageTimeoutResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_timeout( to );
-
-    grpc::Status status = stub_->SetImageTimeout( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    request->set_timeout( to );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->SetImageTimeout( context,
+                                     request.get(),
+                                     response.get(),
+                                     [this, context, request, response]( grpc::Status status )
+                                     { this->EmptyRpc_callback( context, status ); } );
 }
 
 int rtimvClientBase::imageTimeout()
@@ -1635,19 +1925,29 @@ void rtimvClientBase::quality( int q )
 {
     SHARED_CONN_LOCK
 
-    // Server applies the change; local state is synchronized via Image responses.
-    remote_rtimv::QualityRequest request;
-    remote_rtimv::QualityResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::QualityRequest>();
+    auto response = std::make_shared<remote_rtimv::QualityResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_quality( q );
-
-    grpc::Status status = stub_->SetQuality( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    request->set_quality( q );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->SetQuality( context,
+                                request.get(),
+                                response.get(),
+                                [this, context, request, response]( grpc::Status status )
+                                { this->EmptyRpc_callback( context, status ); } );
 }
 
 int rtimvClientBase::quality()
@@ -1659,19 +1959,29 @@ void rtimvClientBase::subtractDark( bool sd )
 {
     SHARED_CONN_LOCK
 
-    // Server applies the change; local state is synchronized via Image responses.
-    remote_rtimv::SubDarkRequest request;
-    remote_rtimv::SubDarkResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::SubDarkRequest>();
+    auto response = std::make_shared<remote_rtimv::SubDarkResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_subtract_dark( sd );
-
-    grpc::Status status = stub_->SetSubDark( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    request->set_subtract_dark( sd );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->SetSubDark( context,
+                                request.get(),
+                                response.get(),
+                                [this, context, request, response]( grpc::Status status )
+                                { this->EmptyRpc_callback( context, status ); } );
 }
 
 bool rtimvClientBase::subtractDark()
@@ -1683,19 +1993,29 @@ void rtimvClientBase::applyMask( bool amsk )
 {
     SHARED_CONN_LOCK
 
-    // Server applies the change; local state is synchronized via Image responses.
-    remote_rtimv::ApplyMaskRequest request;
-    remote_rtimv::ApplyMaskResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::ApplyMaskRequest>();
+    auto response = std::make_shared<remote_rtimv::ApplyMaskResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_apply_mask( amsk );
-
-    grpc::Status status = stub_->SetApplyMask( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    request->set_apply_mask( amsk );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->SetApplyMask( context,
+                                  request.get(),
+                                  response.get(),
+                                  [this, context, request, response]( grpc::Status status )
+                                  { this->EmptyRpc_callback( context, status ); } );
 }
 
 bool rtimvClientBase::applyMask()
@@ -1707,19 +2027,29 @@ void rtimvClientBase::applySatMask( bool asmsk )
 {
     SHARED_CONN_LOCK
 
-    // Server applies the change; local state is synchronized via Image responses.
-    remote_rtimv::ApplySatMaskRequest request;
-    remote_rtimv::ApplySatMaskResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::ApplySatMaskRequest>();
+    auto response = std::make_shared<remote_rtimv::ApplySatMaskResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_apply_sat_mask( asmsk );
-
-    grpc::Status status = stub_->SetApplySatMask( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    request->set_apply_sat_mask( asmsk );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->SetApplySatMask( context,
+                                     request.get(),
+                                     response.get(),
+                                     [this, context, request, response]( grpc::Status status )
+                                     { this->EmptyRpc_callback( context, status ); } );
 }
 
 bool rtimvClientBase::applySatMask()
@@ -1731,19 +2061,29 @@ void rtimvClientBase::hpFilter( rtimv::hpFilter filter )
 {
     SHARED_CONN_LOCK
 
-    // Server applies the change; local state is synchronized via Image responses.
-    remote_rtimv::HPFilterRequest request;
-    remote_rtimv::HPFilterResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::HPFilterRequest>();
+    auto response = std::make_shared<remote_rtimv::HPFilterResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_hp_filter( rtimv::hpFilter2grpc( filter ) );
-
-    grpc::Status status = stub_->SetHPFilter( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    request->set_hp_filter( rtimv::hpFilter2grpc( filter ) );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->SetHPFilter( context,
+                                 request.get(),
+                                 response.get(),
+                                 [this, context, request, response]( grpc::Status status )
+                                 { this->EmptyRpc_callback( context, status ); } );
 }
 
 rtimv::hpFilter rtimvClientBase::hpFilter()
@@ -1755,19 +2095,29 @@ void rtimvClientBase::hpfFW( float fw )
 {
     SHARED_CONN_LOCK
 
-    // Server applies the change; local state is synchronized via Image responses.
-    remote_rtimv::FilterWidthRequest request;
-    remote_rtimv::FilterWidthResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::FilterWidthRequest>();
+    auto response = std::make_shared<remote_rtimv::FilterWidthResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_width( fw );
-
-    grpc::Status status = stub_->SetHPFW( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    request->set_width( fw );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->SetHPFW( context,
+                             request.get(),
+                             response.get(),
+                             [this, context, request, response]( grpc::Status status )
+                             { this->EmptyRpc_callback( context, status ); } );
 }
 
 float rtimvClientBase::hpfFW()
@@ -1779,19 +2129,29 @@ void rtimvClientBase::applyHPFilter( bool apply )
 {
     SHARED_CONN_LOCK
 
-    // Server applies the change; local state is synchronized via Image responses.
-    remote_rtimv::ApplyFilterRequest request;
-    remote_rtimv::ApplyFilterResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::ApplyFilterRequest>();
+    auto response = std::make_shared<remote_rtimv::ApplyFilterResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_apply_filter( apply );
-
-    grpc::Status status = stub_->SetApplyHPFilter( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    request->set_apply_filter( apply );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->SetApplyHPFilter( context,
+                                      request.get(),
+                                      response.get(),
+                                      [this, context, request, response]( grpc::Status status )
+                                      { this->EmptyRpc_callback( context, status ); } );
 }
 
 bool rtimvClientBase::applyHPFilter()
@@ -1803,19 +2163,29 @@ void rtimvClientBase::lpFilter( rtimv::lpFilter filter )
 {
     SHARED_CONN_LOCK
 
-    // Server applies the change; local state is synchronized via Image responses.
-    remote_rtimv::LPFilterRequest request;
-    remote_rtimv::LPFilterResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::LPFilterRequest>();
+    auto response = std::make_shared<remote_rtimv::LPFilterResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_lp_filter( rtimv::lpFilter2grpc( filter ) );
-
-    grpc::Status status = stub_->SetLPFilter( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    request->set_lp_filter( rtimv::lpFilter2grpc( filter ) );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->SetLPFilter( context,
+                                 request.get(),
+                                 response.get(),
+                                 [this, context, request, response]( grpc::Status status )
+                                 { this->EmptyRpc_callback( context, status ); } );
 }
 
 rtimv::lpFilter rtimvClientBase::lpFilter()
@@ -1827,19 +2197,29 @@ void rtimvClientBase::lpfFW( float fw )
 {
     SHARED_CONN_LOCK
 
-    // Server applies the change; local state is synchronized via Image responses.
-    remote_rtimv::FilterWidthRequest request;
-    remote_rtimv::FilterWidthResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::FilterWidthRequest>();
+    auto response = std::make_shared<remote_rtimv::FilterWidthResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_width( fw );
-
-    grpc::Status status = stub_->SetLPFW( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    request->set_width( fw );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->SetLPFW( context,
+                             request.get(),
+                             response.get(),
+                             [this, context, request, response]( grpc::Status status )
+                             { this->EmptyRpc_callback( context, status ); } );
 }
 
 float rtimvClientBase::lpfFW()
@@ -1851,19 +2231,29 @@ void rtimvClientBase::applyLPFilter( bool apply )
 {
     SHARED_CONN_LOCK
 
-    // Server applies the change; local state is synchronized via Image responses.
-    remote_rtimv::ApplyFilterRequest request;
-    remote_rtimv::ApplyFilterResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::ApplyFilterRequest>();
+    auto response = std::make_shared<remote_rtimv::ApplyFilterResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_apply_filter( apply );
-
-    grpc::Status status = stub_->SetApplyLPFilter( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    request->set_apply_filter( apply );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->SetApplyLPFilter( context,
+                                      request.get(),
+                                      response.get(),
+                                      [this, context, request, response]( grpc::Status status )
+                                      { this->EmptyRpc_callback( context, status ); } );
 }
 
 bool rtimvClientBase::applyLPFilter()
@@ -1881,20 +2271,30 @@ void rtimvClientBase::mtxL_load_colorbarImpl( rtimv::colorbar cb, bool update )
 {
     SHARED_CONN_LOCK
 
-    remote_rtimv::ColorbarRequest request;
-    remote_rtimv::ColorbarResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::ColorbarRequest>();
+    auto response = std::make_shared<remote_rtimv::ColorbarResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_colorbar( rtimv::colorbar2grpc( cb ) );
-    request.set_update( update );
-
-    grpc::Status status = stub_->SetColorbar( &context, request, &response );
-
-    if( !status.ok() )
-    {
-        REPORT_SERVER_DISCONNECTED
-        return;
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
+
+    request->set_colorbar( rtimv::colorbar2grpc( cb ) );
+    request->set_update( update );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->SetColorbar( context,
+                                 request.get(),
+                                 response.get(),
+                                 [this, context, request, response]( grpc::Status status )
+                                 { this->EmptyRpc_callback( context, status ); } );
 }
 
 void rtimvClientBase::mtxL_load_colorbar( rtimv::colorbar cb, bool update, const uniqueLockT &lock )
@@ -1942,19 +2342,29 @@ void rtimvClientBase::mtxL_colormode( rtimv::colormode m, const sharedLockT &loc
     {
         SHARED_CONN_LOCK
 
-        remote_rtimv::ColormodeRequest request;
-        remote_rtimv::ColormodeResponse response;
-        grpc::ClientContext context;
+        auto request = std::make_shared<remote_rtimv::ColormodeRequest>();
+        auto response = std::make_shared<remote_rtimv::ColormodeResponse>();
+        auto *context = new grpc::ClientContext;
 
-        request.set_colormode( rtimv::colormode2grpc( m ) );
-
-        grpc::Status status = stub_->SetColormode( &context, request, &response );
-
-        if( !status.ok() )
-        {
-            REPORT_SERVER_DISCONNECTED
-            return;
+        { // mutex scope
+            std::lock_guard<std::mutex> asyncLock( m_asyncRpcMutex );
+            if( m_shuttingDown )
+            {
+                delete context;
+                return;
+            }
+            m_emptyRpcContexts.push_back( context );
+            ++m_emptyRpcPending;
         }
+
+        request->set_colormode( rtimv::colormode2grpc( m ) );
+
+        context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+        stub_->async()->SetColormode( context,
+                                      request.get(),
+                                      response.get(),
+                                      [this, context, request, response]( grpc::Status status )
+                                      { this->EmptyRpc_callback( context, status ); } );
     }
 
     m_colormode = m;
@@ -2112,19 +2522,38 @@ void rtimvClientBase::stretch( rtimv::stretch cs )
 {
     SHARED_CONN_LOCK
 
-    remote_rtimv::ColorstretchRequest request;
-    remote_rtimv::ColorstretchResponse response;
-    grpc::ClientContext context;
+    std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
 
-    request.set_colorstretch( rtimv::stretch2grpc( cs ) );
-
-    grpc::Status status = stub_->SetColorstretch( &context, request, &response );
-
-    if( !status.ok() )
+    if( m_shuttingDown )
     {
-        REPORT_SERVER_DISCONNECTED
         return;
     }
+
+    m_setColorstretchDesired = cs;
+
+    if( m_setColorstretchPending )
+    {
+        m_setColorstretchQueued = true;
+        return;
+    }
+
+    if( m_SetColorstretchContext )
+    {
+        std::cerr << "bug: in stretch but SetColorstretchContext is allocated " << __FILE__ << ' ' << __LINE__ << '\n';
+        return;
+    }
+
+    m_setColorstretchRequest.set_colorstretch( rtimv::stretch2grpc( m_setColorstretchDesired ) );
+
+    m_SetColorstretchContext = new grpc::ClientContext;
+    m_SetColorstretchContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+
+    stub_->async()->SetColorstretch( m_SetColorstretchContext,
+                                     &m_setColorstretchRequest,
+                                     &m_setColorstretchReply,
+                                     [this]( grpc::Status status ) { this->SetColorstretch_callback( status ); } );
+
+    m_setColorstretchPending = true;
 }
 
 rtimv::stretch rtimvClientBase::stretch()
@@ -2136,23 +2565,40 @@ void rtimvClientBase::minScaleData( float md )
 {
     SHARED_CONN_LOCK
 
-    remote_rtimv::ScaleRequest request;
-    remote_rtimv::ScaleResponse response;
-    grpc::ClientContext context;
+    std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
 
-    request.set_value( md );
-
-    grpc::Status status = stub_->SetMinScale( &context, request, &response );
-
-    if( status.ok() )
+    if( m_shuttingDown )
     {
         return;
     }
-    else
+
+    m_setMinScaleDesired = md;
+
+    if( m_setMinScalePending || m_setMinScaleAwaitImage )
     {
-        REPORT_SERVER_DISCONNECTED
+        m_setMinScaleQueued = true;
         return;
     }
+
+    if( m_SetMinScaleContext )
+    {
+        std::cerr << "bug: in minScaleData but SetMinScaleContext is allocated " << __FILE__ << ' ' << __LINE__ << '\n';
+        return;
+    }
+
+    m_setMinScaleRequest.set_value( m_setMinScaleDesired );
+    m_setMinScaleInflight = m_setMinScaleDesired;
+    m_setMinScalePrevAtSend = m_minScaleData;
+
+    m_SetMinScaleContext = new grpc::ClientContext;
+    m_SetMinScaleContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+
+    stub_->async()->SetMinScale( m_SetMinScaleContext,
+                                 &m_setMinScaleRequest,
+                                 &m_setMinScaleReply,
+                                 [this]( grpc::Status status ) { this->SetMinScale_callback( status ); } );
+
+    m_setMinScalePending = true;
 }
 
 float rtimvClientBase::minScaleData()
@@ -2164,23 +2610,40 @@ void rtimvClientBase::maxScaleData( float md )
 {
     SHARED_CONN_LOCK
 
-    remote_rtimv::ScaleRequest request;
-    remote_rtimv::ScaleResponse response;
-    grpc::ClientContext context;
+    std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
 
-    request.set_value( md );
-
-    grpc::Status status = stub_->SetMaxScale( &context, request, &response );
-
-    if( status.ok() )
+    if( m_shuttingDown )
     {
         return;
     }
-    else
+
+    m_setMaxScaleDesired = md;
+
+    if( m_setMaxScalePending || m_setMaxScaleAwaitImage )
     {
-        REPORT_SERVER_DISCONNECTED
+        m_setMaxScaleQueued = true;
         return;
     }
+
+    if( m_SetMaxScaleContext )
+    {
+        std::cerr << "bug: in maxScaleData but SetMaxScaleContext is allocated " << __FILE__ << ' ' << __LINE__ << '\n';
+        return;
+    }
+
+    m_setMaxScaleRequest.set_value( m_setMaxScaleDesired );
+    m_setMaxScaleInflight = m_setMaxScaleDesired;
+    m_setMaxScalePrevAtSend = m_maxScaleData;
+
+    m_SetMaxScaleContext = new grpc::ClientContext;
+    m_SetMaxScaleContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+
+    stub_->async()->SetMaxScale( m_SetMaxScaleContext,
+                                 &m_setMaxScaleRequest,
+                                 &m_setMaxScaleReply,
+                                 [this]( grpc::Status status ) { this->SetMaxScale_callback( status ); } );
+
+    m_setMaxScalePending = true;
 }
 
 float rtimvClientBase::maxScaleData()
@@ -2242,20 +2705,29 @@ void rtimvClientBase::mtxUL_autoScale( bool as )
 {
     SHARED_CONN_LOCK
 
-    remote_rtimv::AutoscaleRequest request;
-    remote_rtimv::AutoscaleResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::AutoscaleRequest>();
+    auto response = std::make_shared<remote_rtimv::AutoscaleResponse>();
+    auto *context = new grpc::ClientContext;
 
-    request.set_autoscale( as );
-
-    grpc::Status status = stub_->SetAutoscale( &context, request, &response );
-
-    if( status.ok() )
-    {
-        return;
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
 
-    REPORT_SERVER_DISCONNECTED
+    request->set_autoscale( as );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->SetAutoscale( context,
+                                  request.get(),
+                                  response.get(),
+                                  [this, context, request, response]( grpc::Status status )
+                                  { this->EmptyRpc_callback( context, status ); } );
 }
 
 bool rtimvClientBase::autoScale()
@@ -2267,18 +2739,27 @@ void rtimvClientBase::mtxUL_reStretch()
 {
     SHARED_CONN_LOCK
 
-    remote_rtimv::RestretchRequest request;
-    remote_rtimv::RestretchResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::RestretchRequest>();
+    auto response = std::make_shared<remote_rtimv::RestretchResponse>();
+    auto *context = new grpc::ClientContext;
 
-    grpc::Status status = stub_->Restretch( &context, request, &response );
-
-    if( status.ok() )
-    {
-        return;
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
     }
 
-    REPORT_SERVER_DISCONNECTED
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->Restretch( context,
+                               request.get(),
+                               response.get(),
+                               [this, context, request, response]( grpc::Status status )
+                               { this->EmptyRpc_callback( context, status ); } );
 }
 
 uint8_t rtimvClientBase::lightness( int x, int y )
@@ -2303,22 +2784,27 @@ void rtimvClientBase::mtxL_recolor( const sharedLockT &lock )
 
     SHARED_CONN_LOCK
 
-    remote_rtimv::RecolorRequest request;
-    remote_rtimv::RecolorResponse response;
-    grpc::ClientContext context;
+    auto request = std::make_shared<remote_rtimv::RecolorRequest>();
+    auto response = std::make_shared<remote_rtimv::RecolorResponse>();
+    auto *context = new grpc::ClientContext;
 
-    grpc::Status status = stub_->Recolor( &context, request, &response );
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
+    }
 
-    // Act upon its status.
-    if( status.ok() )
-    {
-        return;
-    }
-    else
-    {
-        REPORT_SERVER_DISCONNECTED
-        return;
-    }
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->Recolor( context,
+                             request.get(),
+                             response.get(),
+                             [this, context, request, response]( grpc::Status status )
+                             { this->EmptyRpc_callback( context, status ); } );
 }
 
 uint32_t rtimvClientBase::saturated()

@@ -87,6 +87,13 @@ Follow these code style and documentation rules exactly.
 - When backend state is authoritative, GUI dialogs/widgets should be display-only and poll/read backend values instead of running duplicate worker threads.
 - Prefer a single source of truth for computed values and synchronize via `Image` state where appropriate.
 
+18) Scoped Block Comments
+  - For any `{}` block used only to control lock/mutex lifetime, annotate the opening brace as:
+    - `{ //mutex scope`
+
+19) Keep This File Current
+  - Add new standing style/documentation instructions and coding conventions to `agent_context.md` as they are introduced.
+
 When you finish:
 - Summarize what changed.
 - List affected files.

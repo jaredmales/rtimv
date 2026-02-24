@@ -148,6 +148,15 @@ class rtimvClientBase : public mx::app::application
     /// Context for the StatsBox rpc.
     grpc::ClientContext *m_StatsBoxContext{ nullptr };
 
+    /// Context for the SetColorstretch rpc.
+    grpc::ClientContext *m_SetColorstretchContext{ nullptr };
+
+    /// Context for the SetMinScale rpc.
+    grpc::ClientContext *m_SetMinScaleContext{ nullptr };
+
+    /// Context for the SetMaxScale rpc.
+    grpc::ClientContext *m_SetMaxScaleContext{ nullptr };
+
   public:
     /// Configure the server
     /**
@@ -251,6 +260,75 @@ class rtimvClientBase : public mx::app::application
     /// In-flight lower-right y coordinate for StatsBox.
     int64_t m_statsBoxInflight_j1{ 0 };
 
+    /// Request payload for SetColorstretch.
+    remote_rtimv::ColorstretchRequest m_setColorstretchRequest;
+
+    /// Response payload for SetColorstretch.
+    remote_rtimv::ColorstretchResponse m_setColorstretchReply;
+
+    /// True while a SetColorstretch request is outstanding.
+    bool m_setColorstretchPending{ false };
+
+    /// True when a newer SetColorstretch request should be sent after current completion.
+    bool m_setColorstretchQueued{ false };
+
+    /// Current desired stretch to apply.
+    rtimv::stretch m_setColorstretchDesired{ rtimv::stretch::linear };
+
+    /// Request payload for SetMinScale.
+    remote_rtimv::ScaleRequest m_setMinScaleRequest;
+
+    /// Response payload for SetMinScale.
+    remote_rtimv::ScaleResponse m_setMinScaleReply;
+
+    /// True while a SetMinScale request is outstanding.
+    bool m_setMinScalePending{ false };
+
+    /// True when a newer SetMinScale request should be sent after current completion.
+    bool m_setMinScaleQueued{ false };
+
+    /// Current desired minimum scale value.
+    float m_setMinScaleDesired{ 0 };
+
+    /// In-flight minimum scale value.
+    float m_setMinScaleInflight{ 0 };
+
+    /// Last observed minimum scale at SetMinScale send time.
+    float m_setMinScalePrevAtSend{ 0 };
+
+    /// True while waiting for ImagePlease to reflect the in-flight minimum scale update.
+    bool m_setMinScaleAwaitImage{ false };
+
+    /// Request payload for SetMaxScale.
+    remote_rtimv::ScaleRequest m_setMaxScaleRequest;
+
+    /// Response payload for SetMaxScale.
+    remote_rtimv::ScaleResponse m_setMaxScaleReply;
+
+    /// True while a SetMaxScale request is outstanding.
+    bool m_setMaxScalePending{ false };
+
+    /// True when a newer SetMaxScale request should be sent after current completion.
+    bool m_setMaxScaleQueued{ false };
+
+    /// Current desired maximum scale value.
+    float m_setMaxScaleDesired{ 0 };
+
+    /// In-flight maximum scale value.
+    float m_setMaxScaleInflight{ 0 };
+
+    /// Last observed maximum scale at SetMaxScale send time.
+    float m_setMaxScalePrevAtSend{ 0 };
+
+    /// True while waiting for ImagePlease to reflect the in-flight maximum scale update.
+    bool m_setMaxScaleAwaitImage{ false };
+
+    /// Contexts for fire-and-forget empty-response unary RPCs.
+    std::vector<grpc::ClientContext *> m_emptyRpcContexts;
+
+    /// Number of in-flight fire-and-forget empty-response unary RPCs.
+    size_t m_emptyRpcPending{ 0 };
+
   public:
     /// Request an image from the server
     void ImagePlease();
@@ -280,6 +358,19 @@ class rtimvClientBase : public mx::app::application
 
     /// Handle a StatsBox response from the server.
     void StatsBox_callback( grpc::Status status );
+
+    /// Handle a SetColorstretch response from the server.
+    void SetColorstretch_callback( grpc::Status status );
+
+    /// Handle a SetMinScale response from the server.
+    void SetMinScale_callback( grpc::Status status );
+
+    /// Handle a SetMaxScale response from the server.
+    void SetMaxScale_callback( grpc::Status status );
+
+    /// Handle completion of a fire-and-forget empty-response unary RPC.
+    void EmptyRpc_callback( grpc::ClientContext *context, /**< [in] context for the completed RPC */
+                            grpc::Status status /**< [in] completion status */ );
 
     /// Function called on connection
     /**
