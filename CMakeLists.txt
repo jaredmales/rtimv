@@ -146,11 +146,11 @@ endif()
 
 target_link_libraries(commonlib PUBLIC Qt5::Widgets)
 target_link_libraries(commonlib PUBLIC PkgConfig::MXLIB)
-target_link_libraries(commonlib PUBLIC -lxrif)
 
 if(LIBZMQ_FOUND)
     message(STATUS "enabling milkzmq support (libzmq found)")
     target_compile_definitions(commonlib PUBLIC RTIMV_MZMQ_ENABLED)
+    target_link_libraries(commonlib PUBLIC -lxrif)
     target_link_libraries(commonlib PUBLIC PkgConfig::LIBZMQ)
 else()
     message(STATUS "disabling milkzmq support (libzmq not found)")
