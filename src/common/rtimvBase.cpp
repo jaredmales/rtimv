@@ -16,7 +16,9 @@
 
 #include "images/fitsImage.hpp"
 #include "images/fitsDirectory.hpp"
-#include "images/mzmqImage.hpp"
+#ifdef RTIMV_MZMQ_ENABLED
+    #include "images/mzmqImage.hpp"
+#endif
 
 #include <mx/math/vectorUtils.hpp>
 
@@ -369,6 +371,7 @@ void rtimvBase::processKeys( const std::vector<std::string> &shkeys )
                 else if( shkeys[i].find( '@' ) != std::string::npos || shkeys[i].find( ':' ) != std::string::npos ||
                          m_mzmqAlways == true )
                 {
+#ifdef RTIMV_MZMQ_ENABLED
                     mzmqImage *mi = new mzmqImage( &m_rawMutex );
 
                     // change defaults
@@ -383,6 +386,9 @@ void rtimvBase::processKeys( const std::vector<std::string> &shkeys )
                     }
 
                     m_images[i] = (rtimvImage *)mi;
+#else
+                    qFatal( "milkzmq support is not available in this build (libzmq not found)." );
+#endif
                 }
                 else
                 {

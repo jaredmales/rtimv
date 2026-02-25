@@ -12,7 +12,7 @@ This is now a stripped down version, with only minimal analysis tools.  A plugin
 
 ## Installation
 
-The installation guide is located in [doc/Installation.md](doc/UserGuide.md) or in the [rtimv documentation pages](https://jaredmales.github.io/rtimv-doc/index.html).
+The installation guide is located in [doc/Installation.md](doc/Installation.md) or in the [rtimv documentation pages](https://jaredmales.github.io/rtimv-doc/index.html).
 
 ## User's Guide
 
