@@ -67,7 +67,7 @@ pkg_check_modules(MXLIB REQUIRED IMPORTED_TARGET mxlib)
 # zmq setup
 ############################################
 
-pkg_check_modules(LIBZMQ REQUIRED IMPORTED_TARGET libzmq)
+pkg_check_modules(LIBZMQ QUIET IMPORTED_TARGET libzmq)
 
 
 
@@ -115,9 +115,12 @@ set( commonsrcs src/common/rtimvBaseObject.cpp
                              src/common/rtimvBase.cpp
                              src/common/rtimvFilters.cpp
                              src/common/images/shmimImage.cpp
-                             src/common/images/mzmqImage.cpp
                              src/common/images/fitsImage.cpp
                              src/common/images/fitsDirectory.cpp)
+
+if(LIBZMQ_FOUND)
+    list(APPEND commonsrcs src/common/images/mzmqImage.cpp)
+endif()
 
 add_library(commonlib OBJECT ${commonsrcs})
 
@@ -143,8 +146,15 @@ endif()
 
 target_link_libraries(commonlib PUBLIC Qt5::Widgets)
 target_link_libraries(commonlib PUBLIC PkgConfig::MXLIB)
-target_link_libraries(commonlib PUBLIC PkgConfig::LIBZMQ)
-target_link_libraries(commonlib PUBLIC -lxrif)
+
+if(LIBZMQ_FOUND)
+    message(STATUS "enabling milkzmq support (libzmq found)")
+    target_compile_definitions(commonlib PUBLIC RTIMV_MZMQ_ENABLED)
+    target_link_libraries(commonlib PUBLIC -lxrif)
+    target_link_libraries(commonlib PUBLIC PkgConfig::LIBZMQ)
+else()
+    message(STATUS "disabling milkzmq support (libzmq not found)")
+endif()
 
 
 ############################################

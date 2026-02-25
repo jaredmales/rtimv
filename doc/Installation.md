@@ -1,6 +1,6 @@
 # Building and Installing
 
-This document describes dependencies, standard CMake usage, CMake configuration options, and deployment of `rtimvServer` with `systemd`.
+This document describes dependencies, standard CMake usage, and CMake configuration options, and deployment of `rtimvServer` with `systemd`.
 
 ## Dependencies
 
@@ -11,6 +11,11 @@ This document describes dependencies, standard CMake usage, CMake configuration 
 
 ### Required libraries
 - Qt5 Widgets development package
+  - On Fedora 42:
+    ```bash
+    sudo dnf install qt6-qt5compat-devel qt5-qtbase-devel
+    ```
+
 - `mxlib`  [https://github.com/jaredmales/mxlib](https://github.com/jaredmales/mxlib)
   - The basic minimal-dependencies `mxlib` is the miminum requirement
     - For MILK/ImageStreamIO Image Streams (`shmims`) `mxlib` must be built with ImageStreamIO 
@@ -37,9 +42,7 @@ The following are optional. Even if you have none of these installed `rtimv` sho
 - For rtimvClient and rtimvServer: `gRPC` for C++
   - Ubuntu 24:
     ```bash
-    sudo apt install libgrpc++-dev
-    sudo apt install protobuf-compiler
-    sudo apt install protobuf-compiler-grpc
+    sudo apt install libgrpc++-dev protobuf-compiler protobuf-compiler-grpc
     ```
   - Fedora 42:
     ```bash
@@ -67,6 +70,13 @@ To install to a custom prefix:
 cmake -S . -B _build -DCMAKE_INSTALL_PREFIX=/opt/rtimv
 cmake --build _build -j
 cmake --install _build
+```
+
+The default prefix is `/usr/local`.  Note that on Fedora 42 you may need to add this to `ld.so.conf.d`:
+
+```bash
+echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/local.conf
+sudo ldconfig
 ```
 
 ## CMake Options
