@@ -13,6 +13,7 @@ project(rtimv LANGUAGES CXX
               HOMEPAGE_URL "https://jaredmales.github.io/rtimv-doc/index.html")
 
 include(GNUInstallDirs)
+include(CTest)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -239,6 +240,10 @@ if(RTIMV_INSTALL_SYSTEMD_UNIT)
 endif()
 
 endif() #(Protobuf_FOUND AND GRPCPP_FOUND)
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
 
 ############################################
 # rtimvClient

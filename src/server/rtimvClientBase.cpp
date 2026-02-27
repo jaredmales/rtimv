@@ -607,36 +607,43 @@ void rtimvClientBase::ImagePlease()
 
     SHARED_CONN_LOCK
 
-    std::lock_guard<std::mutex> lock( m_imageRequestMutex );
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_imageRequestMutex );
 
-    if( m_shuttingDown )
-    {
-        return;
+        if( m_shuttingDown )
+        {
+            return;
+        }
+
+        if( m_imageRequestPending )
+        {
+
+            std::cerr << "bug: in ImagePlease but imageRequestPending is true " << __FILE__ << ' ' << __LINE__ << '\n';
+            return;
+        }
+
+        if( m_ImagePleaseContext )
+        {
+            std::cerr << "bug: in ImagePlease but ImagePleaseContext is allocated " << __FILE__ << ' ' << __LINE__ << '\n';
+            return;
+        }
+
+        m_ImagePleaseContext = new grpc::ClientContext;
+        m_ImagePleaseContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+
+        m_imageRequestPending = true;
     }
 
-    if( m_imageRequestPending )
-    {
+    connLock.unlock();
+    dispatchImagePleaseAsync();
+}
 
-        std::cerr << "bug: in ImagePlease but imageRequestPending is true " << __FILE__ << ' ' << __LINE__ << '\n';
-        return;
-    }
-
-    if( m_ImagePleaseContext )
-    {
-        std::cerr << "bug: in ImagePlease but ImagePleaseContext is allocated " << __FILE__ << ' ' << __LINE__ << '\n';
-        return;
-    }
-
-    m_ImagePleaseContext = new grpc::ClientContext;
-    m_ImagePleaseContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
-
-    // The actual RPC.
+void rtimvClientBase::dispatchImagePleaseAsync()
+{
     stub_->async()->ImagePlease( m_ImagePleaseContext,
                                  &m_grpcImageRequest,
                                  &m_grpcImage,
                                  [this]( grpc::Status status ) { this->ImagePlease_callback( status ); } );
-
-    m_imageRequestPending = true;
 }
 
 void rtimvClientBase::requestPixelValue( uint32_t x, uint32_t y )
@@ -683,12 +690,12 @@ void rtimvClientBase::requestPixelValue( uint32_t x, uint32_t y )
     m_GetPixelContext = new grpc::ClientContext;
     m_GetPixelContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
 
+    m_getPixelPending = true;
+
     stub_->async()->GetPixel( m_GetPixelContext,
                               &m_getPixelRequest,
                               &m_getPixelReply,
                               [this]( grpc::Status status ) { this->GetPixel_callback( status ); } );
-
-    m_getPixelPending = true;
 }
 
 void rtimvClientBase::requestColorBoxValues()
@@ -738,12 +745,12 @@ void rtimvClientBase::requestColorBoxValues()
     m_ColorBoxContext = new grpc::ClientContext;
     m_ColorBoxContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
 
+    m_colorBoxPending = true;
+
     stub_->async()->ColorBox( m_ColorBoxContext,
                               &m_colorBoxRequest,
                               &m_colorBoxReply,
                               [this]( grpc::Status status ) { this->ColorBox_callback( status ); } );
-
-    m_colorBoxPending = true;
 }
 
 void rtimvClientBase::requestStatsBoxValues()
@@ -793,12 +800,12 @@ void rtimvClientBase::requestStatsBoxValues()
     m_StatsBoxContext = new grpc::ClientContext;
     m_StatsBoxContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
 
+    m_statsBoxPending = true;
+
     stub_->async()->StatsBox( m_StatsBoxContext,
                               &m_statsBoxRequest,
                               &m_statsBoxReply,
                               [this]( grpc::Status status ) { this->StatsBox_callback( status ); } );
-
-    m_statsBoxPending = true;
 }
 
 void rtimvClientBase::ImageReceived()
@@ -1106,6 +1113,8 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
 {
     int action = -1;
     bool shuttingDown = false;
+    bool disconnected = false;
+    uint64_t connections = 0;
 
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
@@ -1140,9 +1149,7 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
         }
         else
         {
-            SHARED_CONN_LOCK
-            REPORT_SERVER_DISCONNECTED
-            // don't return here so deallocation happens
+            disconnected = true;
         }
 
         delete m_ImagePleaseContext;
@@ -1153,6 +1160,20 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
     }
 
     m_imageRequestCv.notify_all();
+
+    if( disconnected )
+    {
+        sharedLockT connLock( m_connectedMutex );
+        connections = m_connections;
+        connLock.unlock();
+
+        uniqueLockT lock( m_connectedMutex );
+        if( connections == m_connections )
+        {
+            m_connected = false;
+            std::cerr << "Message from rtimvServer: " << status.error_message() << std::endl;
+        }
+    }
 
     if( shuttingDown )
     {
@@ -2548,12 +2569,12 @@ void rtimvClientBase::stretch( rtimv::stretch cs )
     m_SetColorstretchContext = new grpc::ClientContext;
     m_SetColorstretchContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
 
+    m_setColorstretchPending = true;
+
     stub_->async()->SetColorstretch( m_SetColorstretchContext,
                                      &m_setColorstretchRequest,
                                      &m_setColorstretchReply,
                                      [this]( grpc::Status status ) { this->SetColorstretch_callback( status ); } );
-
-    m_setColorstretchPending = true;
 }
 
 rtimv::stretch rtimvClientBase::stretch()
@@ -2593,12 +2614,12 @@ void rtimvClientBase::minScaleData( float md )
     m_SetMinScaleContext = new grpc::ClientContext;
     m_SetMinScaleContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
 
+    m_setMinScalePending = true;
+
     stub_->async()->SetMinScale( m_SetMinScaleContext,
                                  &m_setMinScaleRequest,
                                  &m_setMinScaleReply,
                                  [this]( grpc::Status status ) { this->SetMinScale_callback( status ); } );
-
-    m_setMinScalePending = true;
 }
 
 float rtimvClientBase::minScaleData()
@@ -2638,12 +2659,12 @@ void rtimvClientBase::maxScaleData( float md )
     m_SetMaxScaleContext = new grpc::ClientContext;
     m_SetMaxScaleContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
 
+    m_setMaxScalePending = true;
+
     stub_->async()->SetMaxScale( m_SetMaxScaleContext,
                                  &m_setMaxScaleRequest,
                                  &m_setMaxScaleReply,
                                  [this]( grpc::Status status ) { this->SetMaxScale_callback( status ); } );
-
-    m_setMaxScalePending = true;
 }
 
 float rtimvClientBase::maxScaleData()

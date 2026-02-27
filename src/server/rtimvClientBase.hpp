@@ -333,6 +333,11 @@ class rtimvClientBase : public mx::app::application
     /// Request an image from the server
     void ImagePlease();
 
+  protected:
+    /// Launch the asynchronous ImagePlease RPC.
+    virtual void dispatchImagePleaseAsync();
+
+  public:
     /// Request an updated calibrated pixel value.
     void requestPixelValue( uint32_t x, /**< [in] x coordinate of the pixel */
                             uint32_t y /**< [in] y coordinate of the pixel */ );
