@@ -10,9 +10,12 @@
 #include "rtimvFilterGRPC.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <thread>
 
-#include <QTimer>
+#include <QMetaObject>
+#include <QPointer>
 
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
@@ -1214,8 +1217,17 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
     }
     else if( action == 1 )
     {
-        // Avoid a tight no-image polling loop when streams are missing.
-        QTimer::singleShot( 1000, m_foundation, SLOT( ImagePlease() ) );
+        // Avoid a tight no-image polling loop, and queue the retry onto the Qt thread.
+        QPointer<rtimvBaseObject> foundation = m_foundation;
+        std::thread( [foundation]()
+                     {
+                         std::this_thread::sleep_for( std::chrono::milliseconds( 1000 ) );
+                         if( foundation )
+                         {
+                             QMetaObject::invokeMethod( foundation, "ImagePlease", Qt::QueuedConnection );
+                         }
+                     } )
+            .detach();
     }
 
     // if action stays -1 we just return
