@@ -178,6 +178,21 @@ bool rtimvServerThread::asleep()
     return m_asleep.load( std::memory_order_relaxed );
 }
 
+void rtimvServerThread::rpcBegin()
+{
+    m_activeRpc.fetch_add( 1, std::memory_order_relaxed );
+}
+
+void rtimvServerThread::rpcEnd()
+{
+    m_activeRpc.fetch_sub( 1, std::memory_order_relaxed );
+}
+
+uint32_t rtimvServerThread::rpcActive()
+{
+    return m_activeRpc.load( std::memory_order_relaxed );
+}
+
 void rtimvServerThread::emit_gotosleep()
 {
     emit gotosleep();

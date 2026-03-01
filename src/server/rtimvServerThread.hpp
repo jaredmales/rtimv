@@ -34,6 +34,8 @@ class rtimvServerThread : public QThread, public rtimvBase
 
     std::atomic<int> m_configured{ 0 }; ///< 0 is unconfigured, 1 is configured, -1 is configuration error
 
+    std::atomic<uint32_t> m_activeRpc{ 0 }; ///< Number of active RPC handlers currently using this thread.
+
   public:
     rtimvServerThread( const std::string &uri,                         /**< [in] client uri */
                        std::shared_ptr<std::vector<std::string>> argv, /**< [in] The argv vector. */
@@ -83,6 +85,12 @@ class rtimvServerThread : public QThread, public rtimvBase
     double sinceLastRequest();
 
     bool asleep();
+
+    void rpcBegin();
+
+    void rpcEnd();
+
+    uint32_t rpcActive();
 
   signals:
 

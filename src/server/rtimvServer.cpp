@@ -29,6 +29,25 @@ std::string logClientPrefix( const std::string &peer, const std::string &image0 
 {
     return std::format( "client={} image0={} ", peer, image0.empty() ? "unknown" : image0 );
 }
+
+struct rpcActivityGuard
+{
+    rtimvServerThread *m_imageTh{ nullptr };
+
+    rpcActivityGuard() = default;
+
+    explicit rpcActivityGuard( rtimvServerThread *imageTh ) : m_imageTh( imageTh )
+    {
+    }
+
+    ~rpcActivityGuard()
+    {
+        if( m_imageTh )
+        {
+            m_imageTh->rpcEnd();
+        }
+    }
+};
 } // namespace
 
 // The boilerplate preparation for responding to an rpc
@@ -58,7 +77,12 @@ std::string logClientPrefix( const std::string &peer, const std::string &image0 
     if( imageTh->asleep() )                                                                                            \
     {                                                                                                                  \
         imageTh->emit_awaken();                                                                                        \
-    }
+    }                                                                                                                  \
+                                                                                                                       \
+    imageTh->rpcBegin();                                                                                               \
+    rpcActivityGuard rpcGuard( imageTh );                                                                              \
+                                                                                                                       \
+    slock.unlock();
 
 rtimvServer::rtimvServer( int argc, char **argv, QObject *Parent ) : QObject( Parent )
 {
@@ -213,6 +237,12 @@ void rtimvServer::startServer()
 
                 if( slr > m_clientDisconnect )
                 {
+                    if( imageTh->rpcActive() > 0 )
+                    {
+                        ++client;
+                        continue;
+                    }
+
                     // get key,
                     std::string ckey = client->first; // save this b/c it's going away
                     std::string image0 = image0OrUnknown( imageTh );

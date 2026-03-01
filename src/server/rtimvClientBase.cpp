@@ -504,9 +504,11 @@ void rtimvClientBase::loadConfig()
 
 void rtimvClientBase::startup()
 {
-    Configure();
-
-    m_foundation->emit_ImageNeeded();
+    if( m_foundation )
+    {
+        // Defer initial connection so window construction is never blocked by Configure().
+        QMetaObject::invokeMethod( m_foundation, "reconnect", Qt::QueuedConnection );
+    }
 }
 
 bool rtimvClientBase::connected()
@@ -1143,6 +1145,7 @@ void rtimvClientBase::ImageReceived()
 void rtimvClientBase::ImagePlease_callback( grpc::Status status )
 {
     int action = -1;
+    int retryMs = 0;
     bool shuttingDown = false;
     bool disconnected = false;
     uint64_t connections = 0;
@@ -1162,14 +1165,19 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
             if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_VALID )
             {
                 action = 0;
+                m_imageRetryBackoffMs = 500;
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_NO_IMAGE )
             {
                 action = 1;
+                m_imageRetryBackoffMs = std::min( 5000, std::max( 1000, m_imageRetryBackoffMs ) * 2 );
+                retryMs = m_imageRetryBackoffMs;
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_TIMEOUT )
             {
                 action = 3;
+                m_imageRetryBackoffMs = std::min( 5000, std::max( 500, m_imageRetryBackoffMs ) * 2 );
+                retryMs = m_imageRetryBackoffMs;
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_NOT_CONFIGURED )
             {
@@ -1240,7 +1248,7 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
     else if( action == 1 )
     {
         // Avoid a tight no-image polling loop.
-        scheduleImageRetry( 1000 );
+        scheduleImageRetry( retryMs > 0 ? retryMs : 1000 );
     }
     else if( action == 2 )
     {
@@ -1250,7 +1258,7 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
     else if( action == 3 )
     {
         // For no-new-frame timeouts, avoid re-processing stale image state for every client.
-        scheduleImageRetry( 500 );
+        scheduleImageRetry( retryMs > 0 ? retryMs : 500 );
     }
 
     // if action stays -1 we just return
