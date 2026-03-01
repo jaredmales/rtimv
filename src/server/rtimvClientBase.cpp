@@ -1169,7 +1169,7 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_TIMEOUT )
             {
-                action = 0;
+                action = 3;
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_NOT_CONFIGURED )
             {
@@ -1219,28 +1219,38 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
         return;
     }
 
-    if( action == 0 )
+    auto scheduleImageRetry = [this]( int ms )
     {
-        m_foundation->emit_ImageWaiting();
-    }
-    else if( action == 1 )
-    {
-        // Avoid a tight no-image polling loop, and queue the retry onto the Qt thread.
         QPointer<rtimvBaseObject> foundation = m_foundation;
-        std::thread( [foundation]()
+        std::thread( [foundation, ms]()
                      {
-                         std::this_thread::sleep_for( std::chrono::milliseconds( 1000 ) );
+                         std::this_thread::sleep_for( std::chrono::milliseconds( ms ) );
                          if( foundation )
                          {
                              QMetaObject::invokeMethod( foundation, "ImagePlease", Qt::QueuedConnection );
                          }
                      } )
             .detach();
+    };
+
+    if( action == 0 )
+    {
+        m_foundation->emit_ImageWaiting();
+    }
+    else if( action == 1 )
+    {
+        // Avoid a tight no-image polling loop.
+        scheduleImageRetry( 1000 );
     }
     else if( action == 2 )
     {
         // Deadline expired waiting on the server; retry without disconnect/reconfigure churn.
         m_foundation->emit_ImageNeeded();
+    }
+    else if( action == 3 )
+    {
+        // For no-new-frame timeouts, avoid re-processing stale image state for every client.
+        scheduleImageRetry( 500 );
     }
 
     // if action stays -1 we just return
