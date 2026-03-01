@@ -35,7 +35,7 @@
                                                                                                                        \
     uniqueLockT lock( m_connectedMutex );                                                                              \
                                                                                                                        \
-    if( connections == m_connections )                                                                                 \
+    if( status.error_code() != grpc::StatusCode::DEADLINE_EXCEEDED && connections == m_connections )                 \
     {                                                                                                                  \
         m_connected = false;                                                                                           \
                                                                                                                        \
@@ -660,7 +660,7 @@ void rtimvClientBase::ImagePlease()
         }
 
         m_ImagePleaseContext = new grpc::ClientContext;
-        m_ImagePleaseContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+        m_ImagePleaseContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 10000 ) );
 
         m_imageRequestPending = true;
     }
@@ -1180,7 +1180,15 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
         }
         else
         {
-            disconnected = true;
+            if( status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED )
+            {
+                // Under heavy server load this can be transient; continue polling without forcing reconnect.
+                action = 2;
+            }
+            else
+            {
+                disconnected = true;
+            }
         }
 
         delete m_ImagePleaseContext;
@@ -1228,6 +1236,11 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
                          }
                      } )
             .detach();
+    }
+    else if( action == 2 )
+    {
+        // Deadline expired waiting on the server; retry without disconnect/reconfigure churn.
+        m_foundation->emit_ImageNeeded();
     }
 
     // if action stays -1 we just return
