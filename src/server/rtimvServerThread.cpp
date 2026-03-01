@@ -28,7 +28,7 @@ void rtimvServerThread::configure()
 {
     if( !m_argv )
     {
-        m_configured = -1;
+        m_configured.store( -1, std::memory_order_relaxed );
         return;
     }
 
@@ -40,28 +40,28 @@ void rtimvServerThread::configure()
 
     m_argv = nullptr;
 
-    m_configured = 0;
+    m_configured.store( 0, std::memory_order_relaxed );
     try
     {
         setup( argv.size() - 1, const_cast<char **>( argv.data() ) );
-        m_configured = 1;
+        m_configured.store( 1, std::memory_order_relaxed );
         m_foundation->m_imageTimer.start( m_imageTimeout );
     }
     catch( ... )
     {
-        m_configured = -1;
+        m_configured.store( -1, std::memory_order_relaxed );
     }
 }
 
 int rtimvServerThread::configured()
 {
-    return m_configured;
+    return m_configured.load( std::memory_order_relaxed );
 }
 
 void rtimvServerThread::onConnect()
 {
     m_connected = true;
-    m_asleep = false;
+    m_asleep.store( false, std::memory_order_relaxed );
 }
 
 void rtimvServerThread::mtxL_postSetImsize( const uniqueLockT &lock )
@@ -153,7 +153,7 @@ void rtimvServerThread::quality( int q )
 
 double rtimvServerThread::lastRequest()
 {
-    return m_lastRequest;
+    return m_lastRequest.load( std::memory_order_relaxed );
 }
 
 void rtimvServerThread::lastRequest( double lr )
@@ -163,19 +163,19 @@ void rtimvServerThread::lastRequest( double lr )
         lr = mx::sys::get_curr_time();
     }
 
-    m_lastRequest = lr;
+    m_lastRequest.store( lr, std::memory_order_relaxed );
 }
 
 double rtimvServerThread::sinceLastRequest()
 {
     double now = mx::sys::get_curr_time();
 
-    return now - m_lastRequest;
+    return now - m_lastRequest.load( std::memory_order_relaxed );
 }
 
 bool rtimvServerThread::asleep()
 {
-    return m_asleep;
+    return m_asleep.load( std::memory_order_relaxed );
 }
 
 void rtimvServerThread::emit_gotosleep()
@@ -191,11 +191,11 @@ void rtimvServerThread::emit_awaken()
 void rtimvServerThread::sleep()
 {
     m_foundation->m_imageTimer.stop();
-    m_asleep = true;
+    m_asleep.store( true, std::memory_order_relaxed );
 }
 
 void rtimvServerThread::wakeup()
 {
     m_foundation->m_imageTimer.start();
-    m_asleep = false;
+    m_asleep.store( false, std::memory_order_relaxed );
 }

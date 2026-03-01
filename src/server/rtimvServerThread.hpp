@@ -28,11 +28,11 @@ class rtimvServerThread : public QThread, public rtimvBase
 
     std::atomic<int> m_quality{ 50 }; ///< The JPEG quality factor (0-100).  Default is 50.
 
-    double m_lastRequest{ 0 }; ///< The time of the last request for an image
+    std::atomic<double> m_lastRequest{ 0 }; ///< The time of the last request for an image
 
-    bool m_asleep{ false };
+    std::atomic<bool> m_asleep{ false };
 
-    int m_configured{ 0 }; ///< 0 is unconfigured, 1 is configured, -1 is configuration error
+    std::atomic<int> m_configured{ 0 }; ///< 0 is unconfigured, 1 is configured, -1 is configuration error
 
   public:
     rtimvServerThread( const std::string &uri,                         /**< [in] client uri */

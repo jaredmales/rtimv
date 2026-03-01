@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include <QTimer>
+
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
 
@@ -520,7 +522,33 @@ void rtimvClientBase::reconnect()
 
     lock.unlock();
 
-    Configure();
+    bool shouldConfigure = true;
+    if( stub_ )
+    {
+        remote_rtimv::ImageNameRequest request;
+        remote_rtimv::ImageNameResponse response;
+        grpc::ClientContext context;
+        request.set_image( 0 );
+
+        grpc::Status status = stub_->GetImageName( &context, request, &response );
+        if( status.ok() )
+        {
+            uniqueLockT ulock( m_connectedMutex );
+            m_connected = true;
+            m_connectionFailReported = false;
+            shouldConfigure = false;
+        }
+        else if( status.error_code() != grpc::StatusCode::FAILED_PRECONDITION )
+        {
+            // Transport/server error; keep disconnected and let timer retry.
+            shouldConfigure = false;
+        }
+    }
+
+    if( shouldConfigure )
+    {
+        Configure();
+    }
 
     lock.lock();
 
@@ -1186,8 +1214,8 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
     }
     else if( action == 1 )
     {
-        m_foundation->emit_ImageNeeded();
-        // updateAge();
+        // Avoid a tight no-image polling loop when streams are missing.
+        QTimer::singleShot( 1000, m_foundation, SLOT( ImagePlease() ) );
     }
 
     // if action stays -1 we just return
