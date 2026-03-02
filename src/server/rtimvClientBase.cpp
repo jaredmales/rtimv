@@ -10,7 +10,12 @@
 #include "rtimvFilterGRPC.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <thread>
+
+#include <QMetaObject>
+#include <QPointer>
 
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
@@ -30,7 +35,7 @@
                                                                                                                        \
     uniqueLockT lock( m_connectedMutex );                                                                              \
                                                                                                                        \
-    if( connections == m_connections )                                                                                 \
+    if( status.error_code() != grpc::StatusCode::DEADLINE_EXCEEDED && connections == m_connections )                   \
     {                                                                                                                  \
         m_connected = false;                                                                                           \
                                                                                                                        \
@@ -499,9 +504,11 @@ void rtimvClientBase::loadConfig()
 
 void rtimvClientBase::startup()
 {
-    Configure();
-
-    m_foundation->emit_ImageNeeded();
+    if( m_foundation )
+    {
+        // Defer initial connection so window construction is never blocked by Configure().
+        QMetaObject::invokeMethod( m_foundation, "reconnect", Qt::QueuedConnection );
+    }
 }
 
 bool rtimvClientBase::connected()
@@ -520,7 +527,33 @@ void rtimvClientBase::reconnect()
 
     lock.unlock();
 
-    Configure();
+    bool shouldConfigure = true;
+    if( stub_ )
+    {
+        remote_rtimv::ImageNameRequest request;
+        remote_rtimv::ImageNameResponse response;
+        grpc::ClientContext context;
+        request.set_image( 0 );
+
+        grpc::Status status = stub_->GetImageName( &context, request, &response );
+        if( status.ok() )
+        {
+            uniqueLockT ulock( m_connectedMutex );
+            m_connected = true;
+            m_connectionFailReported = false;
+            shouldConfigure = false;
+        }
+        else if( status.error_code() != grpc::StatusCode::FAILED_PRECONDITION )
+        {
+            // Transport/server error; keep disconnected and let timer retry.
+            shouldConfigure = false;
+        }
+    }
+
+    if( shouldConfigure )
+    {
+        Configure();
+    }
 
     lock.lock();
 
@@ -624,12 +657,13 @@ void rtimvClientBase::ImagePlease()
 
         if( m_ImagePleaseContext )
         {
-            std::cerr << "bug: in ImagePlease but ImagePleaseContext is allocated " << __FILE__ << ' ' << __LINE__ << '\n';
+            std::cerr << "bug: in ImagePlease but ImagePleaseContext is allocated " << __FILE__ << ' ' << __LINE__
+                      << '\n';
             return;
         }
 
         m_ImagePleaseContext = new grpc::ClientContext;
-        m_ImagePleaseContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+        m_ImagePleaseContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 10000 ) );
 
         m_imageRequestPending = true;
     }
@@ -1112,6 +1146,7 @@ void rtimvClientBase::ImageReceived()
 void rtimvClientBase::ImagePlease_callback( grpc::Status status )
 {
     int action = -1;
+    int retryMs = 0;
     bool shuttingDown = false;
     bool disconnected = false;
     uint64_t connections = 0;
@@ -1131,14 +1166,19 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
             if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_VALID )
             {
                 action = 0;
+                m_imageRetryBackoffMs = 500;
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_NO_IMAGE )
             {
                 action = 1;
+                m_imageRetryBackoffMs = std::min( 5000, std::max( 1000, m_imageRetryBackoffMs ) * 2 );
+                retryMs = m_imageRetryBackoffMs;
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_TIMEOUT )
             {
-                action = 0;
+                action = 3;
+                m_imageRetryBackoffMs = std::min( 5000, std::max( 500, m_imageRetryBackoffMs ) * 2 );
+                retryMs = m_imageRetryBackoffMs;
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_NOT_CONFIGURED )
             {
@@ -1149,7 +1189,15 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
         }
         else
         {
-            disconnected = true;
+            if( status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED )
+            {
+                // Under heavy server load this can be transient; continue polling without forcing reconnect.
+                action = 2;
+            }
+            else
+            {
+                disconnected = true;
+            }
         }
 
         delete m_ImagePleaseContext;
@@ -1180,14 +1228,39 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
         return;
     }
 
+    auto scheduleImageRetry = [this]( int ms )
+    {
+        QPointer<rtimvBaseObject> foundation = m_foundation;
+        std::thread(
+            [foundation, ms]()
+            {
+                std::this_thread::sleep_for( std::chrono::milliseconds( ms ) );
+                if( foundation )
+                {
+                    QMetaObject::invokeMethod( foundation, "ImagePlease", Qt::QueuedConnection );
+                }
+            } )
+            .detach();
+    };
+
     if( action == 0 )
     {
         m_foundation->emit_ImageWaiting();
     }
     else if( action == 1 )
     {
+        // Avoid a tight no-image polling loop.
+        scheduleImageRetry( retryMs > 0 ? retryMs : 1000 );
+    }
+    else if( action == 2 )
+    {
+        // Deadline expired waiting on the server; retry without disconnect/reconfigure churn.
         m_foundation->emit_ImageNeeded();
-        // updateAge();
+    }
+    else if( action == 3 )
+    {
+        // For no-new-frame timeouts, avoid re-processing stale image state for every client.
+        scheduleImageRetry( retryMs > 0 ? retryMs : 500 );
     }
 
     // if action stays -1 we just return

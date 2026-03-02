@@ -182,6 +182,9 @@ class rtimvClientBase : public mx::app::application
     /// Last ImagePlease response payload from the server.
     remote_rtimv::Image m_grpcImage;
 
+    /// Backoff delay for ImagePlease retries when no new image data is available, ms.
+    int m_imageRetryBackoffMs{ 500 };
+
     /// Mutex guarding asynchronous unary RPC state for GetPixel/ColorBox/StatsBox.
     std::mutex m_asyncRpcMutex;
 

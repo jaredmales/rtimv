@@ -7,6 +7,49 @@
 
 #include "rtimvServer.hpp"
 
+namespace
+{
+std::string image0OrUnknown( rtimvServerThread *imageTh )
+{
+    if( imageTh == nullptr )
+    {
+        return "unknown";
+    }
+
+    std::string im0 = imageTh->imageName( 0 );
+    if( im0.empty() )
+    {
+        return "unknown";
+    }
+
+    return im0;
+}
+
+std::string logClientPrefix( const std::string &peer, const std::string &image0 )
+{
+    return std::format( "client={} image0={} ", peer, image0.empty() ? "unknown" : image0 );
+}
+
+struct rpcActivityGuard
+{
+    rtimvServerThread *m_imageTh{ nullptr };
+
+    rpcActivityGuard() = default;
+
+    explicit rpcActivityGuard( rtimvServerThread *imageTh ) : m_imageTh( imageTh )
+    {
+    }
+
+    ~rpcActivityGuard()
+    {
+        if( m_imageTh )
+        {
+            m_imageTh->rpcEnd();
+        }
+    }
+};
+} // namespace
+
 // The boilerplate preparation for responding to an rpc
 #define PREPARE_RPC_REACTOR                                                                                            \
     ServerUnaryReactor *reactor = context->DefaultReactor();                                                           \
@@ -14,13 +57,14 @@
     /* We need a shared lock b/c we access the thread */                                                               \
     sharedLockT slock( m_clientMutex );                                                                                \
                                                                                                                        \
-    if( m_clients.count( context->peer() ) == 0 )                                                                      \
+    auto clientIt = m_clients.find( context->peer() );                                                                 \
+    if( clientIt == m_clients.end() )                                                                                  \
     {                                                                                                                  \
         reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "not configured" ) );                                \
         return reactor;                                                                                                \
     }                                                                                                                  \
                                                                                                                        \
-    rtimvServerThread *imageTh = m_clients[context->peer()];                                                           \
+    rtimvServerThread *imageTh = clientIt->second;                                                                     \
                                                                                                                        \
     if( imageTh == nullptr ) /* Something has gone wrong. Here we expect the client to reconnect */                    \
     {                                                                                                                  \
@@ -33,7 +77,12 @@
     if( imageTh->asleep() )                                                                                            \
     {                                                                                                                  \
         imageTh->emit_awaken();                                                                                        \
-    }
+    }                                                                                                                  \
+                                                                                                                       \
+    imageTh->rpcBegin();                                                                                               \
+    rpcActivityGuard rpcGuard( imageTh );                                                                              \
+                                                                                                                       \
+    slock.unlock();
 
 rtimvServer::rtimvServer( int argc, char **argv, QObject *Parent ) : QObject( Parent )
 {
@@ -165,18 +214,20 @@ void rtimvServer::startServer()
 
             if( imageTh == nullptr )
             {
-                std::cerr << "got nullptr\n";
+                std::string ckey = client->first;
+                std::cerr << "rtimvServer: " << logClientPrefix( ckey, "unknown" ) << "null client thread entry\n";
 
                 // get key, give up shared mutex, get exclusive lock, then delete using key lookup.
-
-                std::string key = client->first;
 
                 slock.unlock();
 
                 uniqueLockT ulock( m_clientMutex );
 
-                client = m_clients.find( key );
-                m_clients.erase( client );
+                auto staleClient = m_clients.find( ckey );
+                if( staleClient != m_clients.end() )
+                {
+                    m_clients.erase( staleClient );
+                }
 
                 break; // give up mutex and start loop over
             }
@@ -186,28 +237,43 @@ void rtimvServer::startServer()
 
                 if( slr > m_clientDisconnect )
                 {
+                    if( imageTh->rpcActive() > 0 )
+                    {
+                        ++client;
+                        continue;
+                    }
+
                     // get key,
                     std::string ckey = client->first; // save this b/c it's going away
+                    std::string image0 = image0OrUnknown( imageTh );
 
                     // give up shared mutex,
                     slock.unlock();
-                    // so we can get exclusive lock,
-                    uniqueLockT ulock( m_clientMutex );
-                    // Now reset client in case something changed curing the re-lock
-                    client = m_clients.find( ckey );
-
-                    imageTh = client->second;
-
-                    imageTh->quit();
-
-                    if( !imageTh->wait( 1000 ) )
+                    // erase under exclusive lock, then do thread shutdown without holding the client lock.
+                    rtimvServerThread *staleThread = nullptr;
                     {
-                        std::cerr << "QThread for client " << ckey << " didn't quit.  Terminating.\n";
-                        imageTh->terminate();
+                        uniqueLockT ulock( m_clientMutex );
+                        auto staleClient = m_clients.find( ckey );
+                        if( staleClient != m_clients.end() )
+                        {
+                            staleThread = staleClient->second;
+                            m_clients.erase( staleClient );
+                        }
                     }
 
-                    imageTh->deleteLater();
-                    m_clients.erase( client );
+                    if( staleThread != nullptr )
+                    {
+                        staleThread->quit();
+
+                        if( !staleThread->wait( 1000 ) )
+                        {
+                            std::cerr << "rtimvServer: " << logClientPrefix( ckey, image0 )
+                                      << "QThread didn't quit, terminating\n";
+                            staleThread->terminate();
+                        }
+
+                        staleThread->deleteLater();
+                    }
 
                     std::cout << "Client " << ckey << " disconnected.\n";
 
@@ -239,52 +305,64 @@ ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context,
                                             const remote_rtimv::Config *config,
                                             remote_rtimv::ConfigResult *result )
 {
-    // We don't lock client mutex here b/c we are just checking count and don't access the values.
+    const std::string peer = context->peer();
+    const std::string reqImage0 = config ? config->image_key() : "";
 
-    if( m_clients.count( context->peer() ) > 0 )
-    {
-        std::cerr << "Attempt to reconfigure " << context->peer() << '\n';
-
-        result->set_result( -2 );
+    { // mutex scope
+        sharedLockT lock( m_clientMutex );
+        if( m_clients.find( peer ) != m_clients.end() )
+        {
+            std::cerr << "rtimvServer: " << logClientPrefix( peer, reqImage0 ) << "attempt to reconfigure\n";
+            result->set_result( -2 );
+        }
     }
-    else
+
+    if( result->result() != -2 )
     {
-        configSpec *cspec = new configSpec( context->peer(), config );
+        configSpec *cspec = new configSpec( peer, config );
         emit gotConfigure( cspec );
 
         // Now we wait for configuration to finish
-
-        while( m_clients.count( context->peer() ) == 0 )
+        bool seenClient = false;
+        while( true )
         {
-            sleep( 1 );
-        }
+            int configured = 0;
+            bool haveClient = false;
+            {
+                sharedLockT lock( m_clientMutex );
+                auto clientIt = m_clients.find( peer );
+                if( clientIt != m_clients.end() )
+                {
+                    haveClient = true;
+                    seenClient = true;
 
-        // now we need a shared lock b/c we access the thread
-        sharedLockT lock( m_clientMutex );
+                    if( clientIt->second == nullptr )
+                    {
+                        std::cerr << "rtimvServer: " << logClientPrefix( peer, reqImage0 )
+                                  << "null thread during configure wait\n";
+                        configured = -1;
+                    }
+                    else
+                    {
+                        configured = clientIt->second->configured();
+                    }
+                }
+            }
 
-        // Now check that it wasn't deleted while we waited for lock:
-        if( m_clients.count( context->peer() ) == 0 )
-        {
-            // thread wires crossed during configure
+            if( !haveClient && seenClient )
+            {
+                ServerUnaryReactor *reactor = context->DefaultReactor();
+                reactor->Finish( grpc::Status( grpc::INTERNAL, "client disappeared during configure" ) );
+                return reactor;
+            }
 
-            ServerUnaryReactor *reactor = context->DefaultReactor();
-            reactor->Finish( grpc::Status( grpc::INTERNAL, "sorry" ) );
+            if( configured != 0 )
+            {
+                result->set_result( configured == 1 ? 0 : -1 );
+                break;
+            }
 
-            return reactor;
-        }
-
-        while( m_clients[context->peer()]->configured() == 0 )
-        {
-            sleep( 1 );
-        }
-
-        if( m_clients[context->peer()]->configured() == 1 )
-        {
-            result->set_result( 0 );
-        }
-        else
-        {
-            result->set_result( -1 );
+            mx::sys::milliSleep( 50 );
         }
     }
 
@@ -993,6 +1071,7 @@ ServerUnaryReactor *rtimvServer::StatsBox( CallbackServerContext *context,
 void rtimvServer::doConfigure( const configSpec *cspec )
 {
     std::string uri = cspec->m_uri;
+    std::string reqImage0 = cspec->m_config.image_key();
 
     std::shared_ptr<std::vector<std::string>> argv = std::make_shared<std::vector<std::string>>();
 
@@ -1099,7 +1178,7 @@ void rtimvServer::doConfigure( const configSpec *cspec )
 
         if( m_clients.count( uri ) > 0 )
         {
-            std::cerr << "error: client " << uri << " already configured\n";
+            std::cerr << "rtimvServer: " << logClientPrefix( uri, reqImage0 ) << "already configured\n";
             return;
         }
 
@@ -1110,10 +1189,20 @@ void rtimvServer::doConfigure( const configSpec *cspec )
         ///\todo check errors on insert!
     }
 
-    // Now switch to a shared lock for thread access
-    sharedLockT slock( m_clientMutex );
-
-    rtimvServerThread *imageTh = m_clients[uri]; // previous imageTh inside mutex scope
+    rtimvServerThread *imageTh = nullptr;
+    {
+        sharedLockT slock( m_clientMutex );
+        auto clientIt = m_clients.find( uri );
+        if( clientIt != m_clients.end() )
+        {
+            imageTh = clientIt->second;
+        }
+    }
+    if( imageTh == nullptr )
+    {
+        std::cerr << "rtimvServer: " << logClientPrefix( uri, reqImage0 ) << "missing thread after insert\n";
+        return;
+    }
 
     imageTh->configure();
 
@@ -1126,7 +1215,7 @@ void rtimvServer::doConfigure( const configSpec *cspec )
     }
     else
     {
-        std::cerr << "Client " << uri << " configuration failed\n";
+        std::cerr << "rtimvServer: " << logClientPrefix( uri, image0OrUnknown( imageTh ) ) << "configuration failed\n";
         ///\todo should we delete here?
     }
 }
