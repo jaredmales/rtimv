@@ -35,7 +35,7 @@
                                                                                                                        \
     uniqueLockT lock( m_connectedMutex );                                                                              \
                                                                                                                        \
-    if( status.error_code() != grpc::StatusCode::DEADLINE_EXCEEDED && connections == m_connections )                 \
+    if( status.error_code() != grpc::StatusCode::DEADLINE_EXCEEDED && connections == m_connections )                   \
     {                                                                                                                  \
         m_connected = false;                                                                                           \
                                                                                                                        \
@@ -657,7 +657,8 @@ void rtimvClientBase::ImagePlease()
 
         if( m_ImagePleaseContext )
         {
-            std::cerr << "bug: in ImagePlease but ImagePleaseContext is allocated " << __FILE__ << ' ' << __LINE__ << '\n';
+            std::cerr << "bug: in ImagePlease but ImagePleaseContext is allocated " << __FILE__ << ' ' << __LINE__
+                      << '\n';
             return;
         }
 
@@ -1230,14 +1231,15 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
     auto scheduleImageRetry = [this]( int ms )
     {
         QPointer<rtimvBaseObject> foundation = m_foundation;
-        std::thread( [foundation, ms]()
-                     {
-                         std::this_thread::sleep_for( std::chrono::milliseconds( ms ) );
-                         if( foundation )
-                         {
-                             QMetaObject::invokeMethod( foundation, "ImagePlease", Qt::QueuedConnection );
-                         }
-                     } )
+        std::thread(
+            [foundation, ms]()
+            {
+                std::this_thread::sleep_for( std::chrono::milliseconds( ms ) );
+                if( foundation )
+                {
+                    QMetaObject::invokeMethod( foundation, "ImagePlease", Qt::QueuedConnection );
+                }
+            } )
             .detach();
     };
 
