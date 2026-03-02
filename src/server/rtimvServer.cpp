@@ -308,7 +308,7 @@ ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context,
     const std::string peer = context->peer();
     const std::string reqImage0 = config ? config->image_key() : "";
 
-    { // mutex scope
+    { //mutex scope
         sharedLockT lock( m_clientMutex );
         if( m_clients.find( peer ) != m_clients.end() )
         {
@@ -1171,7 +1171,7 @@ void rtimvServer::doConfigure( const configSpec *cspec )
 
     delete cspec;
 
-    { // mutex scope
+    { //mutex scope
 
         // Get a unique lock on clients to insert
         uniqueLockT ulock( m_clientMutex );

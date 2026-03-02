@@ -86,10 +86,13 @@ class rtimvServerThread : public QThread, public rtimvBase
 
     bool asleep();
 
+    /// Increment active RPC counter.
     void rpcBegin();
 
+    /// Decrement active RPC counter.
     void rpcEnd();
 
+    /// Get current active RPC count.
     uint32_t rpcActive();
 
   signals:
