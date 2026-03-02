@@ -1,4 +1,6 @@
 #include "rtimvServerThread.hpp"
+#include "rtimvLog.hpp"
+
 #include <QBuffer>
 
 rtimvServerThread::rtimvServerThread( const std::string &uri,
@@ -15,7 +17,13 @@ rtimvServerThread::rtimvServerThread( const std::string &uri,
 
     lastRequest( -1 ); // set to now
 
-    std::cout << "Client: " << uri << " thread started\n";
+    rtimv::logContext ctx;
+    ctx.calledName = "rtimvServer";
+    ctx.clientId = uri;
+    ctx.image0 = "";
+    ctx.includeClient = true;
+
+    std::cout << rtimv::formatLogMessage( ctx, "thread started" ) << '\n';
 
     m_argv = argv;
 }

@@ -6,6 +6,9 @@
  */
 
 #include "rtimvServer.hpp"
+#include "rtimvLog.hpp"
+
+#include <filesystem>
 
 namespace
 {
@@ -25,9 +28,20 @@ std::string image0OrUnknown( rtimvServerThread *imageTh )
     return im0;
 }
 
-std::string logClientPrefix( const std::string &peer, const std::string &image0 )
+std::string serverLogMessage( const std::string &calledName,
+                              bool includeAppName,
+                              const std::string &peer,
+                              const std::string &image0,
+                              std::string_view message )
 {
-    return std::format( "client={} image0={} ", peer, image0.empty() ? "unknown" : image0 );
+    rtimv::logContext ctx;
+    ctx.calledName = calledName;
+    ctx.image0 = image0;
+    ctx.clientId = peer;
+    ctx.includeAppName = includeAppName;
+    ctx.includeClient = true;
+
+    return rtimv::formatLogMessage( ctx, message );
 }
 
 struct rpcActivityGuard
@@ -86,6 +100,11 @@ struct rpcActivityGuard
 
 rtimvServer::rtimvServer( int argc, char **argv, QObject *Parent ) : QObject( Parent )
 {
+    if( argv != nullptr && argv[0] != nullptr )
+    {
+        m_calledName = std::filesystem::path( argv[0] ).filename().string();
+    }
+
     m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; // Tells mx::application to look for this env var.
 
     setup( argc, argv );
@@ -170,6 +189,26 @@ void rtimvServer::setupConfig()
                 false,
                 "real",
                 "Time in seconds after which a thread with no requests will be disconnected. Default is 120 s." );
+
+    config.add( "log.appname",
+                "",
+                "log.appname",
+                mx::app::argType::Required,
+                "log",
+                "appname",
+                false,
+                "bool",
+                "Set true/false to include/exclude called-name in log prefixes." );
+
+    config.add( "no-log-appname",
+                "",
+                "no-log-appname",
+                mx::app::argType::True,
+                "log",
+                "no-appname",
+                false,
+                "bool",
+                "Disable called-name in log prefixes." );
 }
 
 void rtimvServer::loadConfig()
@@ -180,6 +219,21 @@ void rtimvServer::loadConfig()
     config( m_waitSleep, "image.sleep" );
     config( m_clientSleep, "client.sleep" );
     config( m_clientDisconnect, "client.disconnect" );
+
+    if( config.isSet( "log.appname" ) )
+    {
+        config( m_logAppName, "log.appname" );
+    }
+
+    if( config.isSet( "no-log-appname" ) )
+    {
+        bool noLogAppName = false;
+        config( noLogAppName, "no-log-appname" );
+        if( noLogAppName )
+        {
+            m_logAppName = false;
+        }
+    }
 }
 
 void rtimvServer::startServer()
@@ -200,7 +254,11 @@ void rtimvServer::startServer()
 
     // Finally assemble the server.
     std::unique_ptr<Server> server( builder.BuildAndStart() );
-    std::cout << "Server listening on " << server_address << '\n';
+    rtimv::logContext serverCtx;
+    serverCtx.calledName = m_calledName;
+    serverCtx.includeAppName = m_logAppName;
+    serverCtx.image0 = "";
+    std::cout << rtimv::formatLogMessage( serverCtx, std::format( "listening on {}", server_address ) ) << '\n';
 
     while( 1 )
     {
@@ -215,7 +273,8 @@ void rtimvServer::startServer()
             if( imageTh == nullptr )
             {
                 std::string ckey = client->first;
-                std::cerr << "rtimvServer: " << logClientPrefix( ckey, "unknown" ) << "null client thread entry\n";
+                std::cerr << serverLogMessage( m_calledName, m_logAppName, ckey, "unknown", "null client thread entry" )
+                          << '\n';
 
                 // get key, give up shared mutex, get exclusive lock, then delete using key lookup.
 
@@ -267,15 +326,19 @@ void rtimvServer::startServer()
 
                         if( !staleThread->wait( 1000 ) )
                         {
-                            std::cerr << "rtimvServer: " << logClientPrefix( ckey, image0 )
-                                      << "QThread didn't quit, terminating\n";
+                            std::cerr << serverLogMessage( m_calledName,
+                                                           m_logAppName,
+                                                           ckey,
+                                                           image0,
+                                                           "QThread didn't quit, terminating" )
+                                      << '\n';
                             staleThread->terminate();
                         }
 
                         staleThread->deleteLater();
                     }
 
-                    std::cout << "Client " << ckey << " disconnected.\n";
+                    std::cout << serverLogMessage( m_calledName, m_logAppName, ckey, image0, "disconnected" ) << '\n';
 
                     break; // give up mutex and start loop over
                 }
@@ -284,7 +347,12 @@ void rtimvServer::startServer()
                     if( !imageTh->asleep() )
                     {
                         imageTh->emit_gotosleep();
-                        std::cout << "Client " << client->first << " put to sleep\n";
+                        std::cout << serverLogMessage( m_calledName,
+                                                       m_logAppName,
+                                                       client->first,
+                                                       image0OrUnknown( imageTh ),
+                                                       "put to sleep" )
+                                  << '\n';
                     }
                 }
             }
@@ -307,12 +375,14 @@ ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context,
 {
     const std::string peer = context->peer();
     const std::string reqImage0 = config ? config->image_key() : "";
+    result->set_client_id( peer );
 
     { // mutex scope
         sharedLockT lock( m_clientMutex );
         if( m_clients.find( peer ) != m_clients.end() )
         {
-            std::cerr << "rtimvServer: " << logClientPrefix( peer, reqImage0 ) << "attempt to reconfigure\n";
+            std::cerr << serverLogMessage( m_calledName, m_logAppName, peer, reqImage0, "attempt to reconfigure" )
+                      << '\n';
             result->set_result( -2 );
         }
     }
@@ -338,8 +408,12 @@ ServerUnaryReactor *rtimvServer::Configure( CallbackServerContext *context,
 
                     if( clientIt->second == nullptr )
                     {
-                        std::cerr << "rtimvServer: " << logClientPrefix( peer, reqImage0 )
-                                  << "null thread during configure wait\n";
+                        std::cerr << serverLogMessage( m_calledName,
+                                                       m_logAppName,
+                                                       peer,
+                                                       reqImage0,
+                                                       "null thread during configure wait" )
+                                  << '\n';
                         configured = -1;
                     }
                     else
@@ -1178,7 +1252,7 @@ void rtimvServer::doConfigure( const configSpec *cspec )
 
         if( m_clients.count( uri ) > 0 )
         {
-            std::cerr << "rtimvServer: " << logClientPrefix( uri, reqImage0 ) << "already configured\n";
+            std::cerr << serverLogMessage( m_calledName, m_logAppName, uri, reqImage0, "already configured" ) << '\n';
             return;
         }
 
@@ -1200,7 +1274,8 @@ void rtimvServer::doConfigure( const configSpec *cspec )
     }
     if( imageTh == nullptr )
     {
-        std::cerr << "rtimvServer: " << logClientPrefix( uri, reqImage0 ) << "missing thread after insert\n";
+        std::cerr << serverLogMessage( m_calledName, m_logAppName, uri, reqImage0, "missing thread after insert" )
+                  << '\n';
         return;
     }
 
@@ -1211,11 +1286,14 @@ void rtimvServer::doConfigure( const configSpec *cspec )
         imageTh->start();
         imageTh->lastRequest( -1 ); // sets to now
 
-        std::cout << "Client " << uri << " configured\n";
+        std::cout << serverLogMessage( m_calledName, m_logAppName, uri, image0OrUnknown( imageTh ), "configured" )
+                  << '\n';
     }
     else
     {
-        std::cerr << "rtimvServer: " << logClientPrefix( uri, image0OrUnknown( imageTh ) ) << "configuration failed\n";
+        std::cerr << serverLogMessage(
+                         m_calledName, m_logAppName, uri, image0OrUnknown( imageTh ), "configuration failed" )
+                  << '\n';
         ///\todo should we delete here?
     }
 }

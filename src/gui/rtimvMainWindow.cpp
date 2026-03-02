@@ -103,7 +103,7 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
     for( QObject *plugin : staticInstances )
     {
         static_cast<void>( plugin );
-        std::cerr << "loaded static plugins\n";
+        std::cerr << formatBaseLogMessage( "loaded static plugins" ) << '\n';
     }
 
     QDir pluginsDir = QDir( QCoreApplication::applicationDirPath() );
@@ -144,12 +144,13 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
                 {
                     if( !loader.unload() )
                     {
-                        std::cerr << "rtimv: unloading an unused plugin failed\n";
+                        std::cerr << formatBaseLogMessage( "unloading an unused plugin failed" ) << '\n';
                     }
                 }
                 else
                 {
-                    std::cerr << "rtimv: loaded plugin " << fileName.toStdString() << "\n";
+                    std::cerr << formatBaseLogMessage( std::string( "loaded plugin " ) + fileName.toStdString() )
+                              << '\n';
                     m_pluginFileNames += fileName;
                 }
             }
@@ -1419,7 +1420,7 @@ void rtimvMainWindow::mtxTry_colorBoxMoved( StretchBox *sb )
 
     if( colormode() != rtimv::colormode::minmaxbox )
     {
-        std::cerr << "bug: got colorbar moved but not in color box mode\n";
+        std::cerr << formatBaseLogMessage( "bug: got colorbar moved but not in color box mode" ) << '\n';
         return;
     }
 
@@ -2336,7 +2337,7 @@ void rtimvMainWindow::mtxL_postColormode( rtimv::colormode m, const sharedLockT 
         }
         else
         {
-            std::cerr << "bug: set colormode to box but no color box allocated\n";
+            std::cerr << formatBaseLogMessage( "bug: set colormode to box but no color box allocated" ) << '\n';
         }
     }
     else
@@ -3214,7 +3215,7 @@ void rtimvMainWindow::mtxL_fontLuminance( QTextEdit *qte, const sharedLockT &loc
 
     if( print )
     {
-        std::cerr << "avgLum: " << avgLum << "\n";
+        std::cerr << formatBaseLogMessage( std::string( "avgLum: " ) + std::to_string( avgLum ) ) << '\n';
     }
 
     if( avgLum <= m_lumThresh )
@@ -3288,7 +3289,8 @@ int rtimvMainWindow::loadPlugin( QObject *plugin )
 
         if( arv < 0 )
         {
-            std::cerr << "Error from attachDictionary: " << arv << "\n";
+            std::cerr << formatBaseLogMessage( std::string( "Error from attachDictionary: " ) + std::to_string( arv ) )
+                      << '\n';
             return arv;
         }
         else if( arv > 0 )
@@ -3318,7 +3320,8 @@ int rtimvMainWindow::loadPlugin( QObject *plugin )
 
         if( arv < 0 )
         {
-            std::cerr << "Error from attachOverlay: " << arv << "\n";
+            std::cerr << formatBaseLogMessage( std::string( "Error from attachOverlay: " ) + std::to_string( arv ) )
+                      << '\n';
             return arv;
         }
         else if( arv > 0 )

@@ -7,6 +7,7 @@
 
 #include "rtimvBase.hpp"
 #include "rtimvBaseObject.hpp"
+#include "rtimvLog.hpp"
 
 #include <cmath>
 
@@ -21,6 +22,7 @@
 #endif
 
 #include <mx/math/vectorUtils.hpp>
+#include <QCoreApplication>
 
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
@@ -212,6 +214,26 @@ void rtimvBase::setupConfig()
                 "int",
                 "The default port for milkzmq.  The default default is 5556.  This will be overridden by an image "
                 "specific port specified in a key." );
+
+    config.add( "log.appname",
+                "",
+                "log.appname",
+                mx::app::argType::Required,
+                "log",
+                "appname",
+                false,
+                "bool",
+                "Set true/false to include/exclude called-name in log prefixes." );
+
+    config.add( "no-log-appname",
+                "",
+                "no-log-appname",
+                mx::app::argType::True,
+                "log",
+                "no-appname",
+                false,
+                "bool",
+                "Disable called-name in log prefixes." );
 }
 
 void rtimvBase::loadConfig()
@@ -231,6 +253,27 @@ void rtimvBase::loadConfig()
     config( m_mzmqAlways, "mzmq.always" );
     config( m_mzmqServer, "mzmq.server" );
     config( m_mzmqPort, "mzmq.port" );
+
+    m_calledName = QCoreApplication::applicationName().toStdString();
+    if( m_calledName.empty() )
+    {
+        m_calledName = "rtimv";
+    }
+
+    if( config.isSet( "log.appname" ) )
+    {
+        config( m_logAppName, "log.appname" );
+    }
+
+    if( config.isSet( "no-log-appname" ) )
+    {
+        bool noLogAppName = false;
+        config( noLogAppName, "no-log-appname" );
+        if( noLogAppName )
+        {
+            m_logAppName = false;
+        }
+    }
 
     // Check for use of deprecated shmim_name keyword by itself, but use key if available
     config( imKey, "image.key" );
@@ -438,6 +481,27 @@ void rtimvBase::onConnect()
 bool rtimvBase::connected()
 {
     return m_connected;
+}
+
+std::string rtimvBase::logImage0() const
+{
+    if( m_imageNames.size() > 0 && !m_imageNames[0].empty() )
+    {
+        return m_imageNames[0];
+    }
+
+    return "";
+}
+
+std::string rtimvBase::formatBaseLogMessage( std::string_view message ) const
+{
+    rtimv::logContext ctx;
+    ctx.calledName = m_calledName;
+    ctx.image0 = logImage0();
+    ctx.includeAppName = m_logAppName;
+    ctx.includeClient = false;
+
+    return rtimv::formatLogMessage( ctx, message );
 }
 
 bool rtimvBase::imageValid()
