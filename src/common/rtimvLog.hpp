@@ -67,6 +67,23 @@ inline std::string formatLogMessage( const logContext &ctx, std::string_view mes
     return out;
 }
 
+/// Format a standardized server/client log message with client context included.
+inline std::string formatServerLogMessage( const std::string &calledName,
+                                           bool includeAppName,
+                                           const std::string &clientId,
+                                           const std::string &image0,
+                                           std::string_view message )
+{
+    logContext ctx;
+    ctx.calledName = calledName;
+    ctx.image0 = image0;
+    ctx.clientId = clientId;
+    ctx.includeAppName = includeAppName;
+    ctx.includeClient = true;
+
+    return formatLogMessage( ctx, message );
+}
+
 } // namespace rtimv
 
 #endif // rtimv_rtimvLog_hpp
