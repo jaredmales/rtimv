@@ -1,4 +1,11 @@
 
+/** \file rtimvMainWindow.cpp
+ * \brief Definitions for the rtimvMainWindow class
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #include "rtimvMainWindow.hpp"
 #include <QMetaType>
 
