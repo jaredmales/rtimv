@@ -136,6 +136,12 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
                     m_pluginFileNames += fileName;
                 }
             }
+            else
+            {
+                std::cerr << formatBaseLogMessage( std::string( "failed to load plugin " ) + fileName.toStdString() +
+                                                   ": " + loader.errorString().toStdString() )
+                          << '\n';
+            }
         }
     };
 
