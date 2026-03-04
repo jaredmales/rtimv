@@ -102,6 +102,7 @@ SET_TARGET_PROPERTIES(rtimv-shared PROPERTIES OUTPUT_NAME rtimv CLEAN_DIRECT_OUT
 SET_TARGET_PROPERTIES(rtimv-static PROPERTIES OUTPUT_NAME rtimv CLEAN_DIRECT_OUTPUT 1)
 
 install (FILES src/librtimv/rtimvInterfaces.hpp
+               src/common/rtimvLog.hpp
                src/librtimv/rtimvGraphicsView.hpp
                src/librtimv/StretchGraphicsItem.hpp
                src/librtimv/StretchBox.hpp

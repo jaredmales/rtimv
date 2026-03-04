@@ -3331,7 +3331,13 @@ void rtimvMainWindow::mtxTry_fontLuminance()
 int rtimvMainWindow::loadPlugin( QObject *plugin )
 {
     auto rdi = qobject_cast<rtimvDictionaryInterface *>( plugin );
-    rtimvInterface *ri{ nullptr };
+    rtimvInterface *ri = dynamic_cast<rtimvInterface *>( plugin );
+
+    if( ri )
+    {
+        ri->setLogContext( m_calledName, m_logAppName, logImage0() );
+        ri->setPluginName( plugin->metaObject()->className() );
+    }
 
     if( rdi )
     {
