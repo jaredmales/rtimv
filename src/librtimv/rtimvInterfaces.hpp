@@ -287,10 +287,7 @@ class rtimvInterface : public QObject
         ctx.image0 = m_logImage0;
         ctx.includeAppName = m_logIncludeAppName;
 
-        std::string pluginMessage = "[" + m_pluginName + "] ";
-        pluginMessage += message;
-
-        return rtimv::formatLogMessage( ctx, pluginMessage );
+        return rtimv::formatLogMessage( ctx, std::format("[plugin: {}] {}", m_pluginName, message) );
     }
 
     /// Write a standardized plugin info message to stdout.
