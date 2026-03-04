@@ -32,7 +32,7 @@ target_link_libraries(rtimvClientBaseAsyncRaceTest PRIVATE rtimv-shared)
 target_link_libraries(rtimvClientBaseAsyncRaceTest PRIVATE protobuf::libprotobuf)
 target_link_libraries(rtimvClientBaseAsyncRaceTest PRIVATE PkgConfig::GRPCPP)
 target_link_libraries(rtimvClientBaseAsyncRaceTest PRIVATE -lgrpc++_reflection)
-target_link_libraries(rtimvClientBaseAsyncRaceTest PUBLIC Qt5::Widgets)
+target_link_libraries(rtimvClientBaseAsyncRaceTest PUBLIC ${RTIMV_QT_PACKAGE}::Widgets)
 target_link_libraries(rtimvClientBaseAsyncRaceTest PUBLIC PkgConfig::MXLIB)
 
 add_test(NAME rtimvClientBase_async_race COMMAND rtimvClientBaseAsyncRaceTest)
