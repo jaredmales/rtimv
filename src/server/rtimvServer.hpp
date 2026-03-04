@@ -62,6 +62,10 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
     float m_clientDisconnect{ 120 }; /**< Time in seconds after which a thread with no requests will be disconnected.
                                           Default is 120 s.*/
 
+    bool m_logAppName{ true }; ///< True to include called-name in log prefixes.
+
+    std::string m_calledName{ "rtimvServer" }; ///< Program called-name used in standardized log prefixes.
+
     /// Mutex for locking access to the client list
     /** Most uses require non-exclusive shared-locking for readings.
      *  Is exclusively locked for insertion and deletion.

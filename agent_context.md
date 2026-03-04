@@ -89,7 +89,7 @@ Follow these code style and documentation rules exactly.
 
 18) Scoped Block Comments
   - For any `{}` block used only to control lock/mutex lifetime, annotate the opening brace as:
-    - `{ //mutex scope`
+    - `{ // mutex scope`
 
 19) Keep This File Current
   - Add new standing style/documentation instructions and coding conventions to `agent_context.md` as they are introduced.

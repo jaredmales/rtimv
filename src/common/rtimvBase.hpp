@@ -11,6 +11,7 @@
 #include <vector>
 #include <mutex>
 #include <shared_mutex>
+#include <string_view>
 
 #include <QImage>
 
@@ -96,6 +97,10 @@ class rtimvBase : public mx::app::application
 
     rtimvBaseObject *m_foundation{ nullptr };
 
+    bool m_logAppName{ true }; ///< True to include called-name in log prefixes.
+
+    std::string m_calledName{ "rtimv" }; ///< Program called-name used in standardized log prefixes.
+
     /** @name Connection Data
      *
      * @{
@@ -143,6 +148,15 @@ class rtimvBase : public mx::app::application
      */
     bool connected();
 
+  protected:
+    /// Get the main image name/key for log context.
+    std::string logImage0() const;
+
+    /// Format a standardized base log message.
+    std::string
+    formatBaseLogMessage( std::string_view message /**< [in] text to append after standardized prefix */ ) const;
+
+  public:
     /// Function called on connection
     /**
      * This function must set m_connected to true if successful.

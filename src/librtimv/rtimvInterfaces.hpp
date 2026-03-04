@@ -3,6 +3,9 @@
 #define rtimvInterfaces_hpp
 
 #include <unordered_set>
+#include <string>
+#include <string_view>
+#include <iostream>
 
 #include <QtPlugin>
 #include <QGraphicsScene>
@@ -17,6 +20,8 @@
 #include <mutex>
 
 #include <mx/app/application.hpp>
+
+#include "rtimvLog.hpp"
 
 /// The rtimv namespace
 /**
@@ -224,7 +229,22 @@ typedef std::map<std::string, rtimvDictBlob>::iterator dictionaryIteratorT;
  */
 class rtimvInterface : public QObject
 {
+  protected:
+    /// Program called-name used in standardized plugin log prefixes.
+    std::string m_logCalledName{ "rtimv" };
+
+    /// True to include called-name in standardized plugin log prefixes.
+    bool m_logIncludeAppName{ true };
+
+    /// Image key/name used in standardized plugin log prefixes.
+    std::string m_logImage0{ "unknown" };
+
+    /// Plugin label added to plugin log message text.
+    std::string m_pluginName{ "plugin" };
+
   public:
+    virtual ~rtimvInterface() = default;
+
     /// Get the information about this plugin for user display
     /** The first entry should start with the plugin name and type, e.g.:
      * \verbatim
@@ -234,6 +254,53 @@ class rtimvInterface : public QObject
      * Subsequent entries should start with spaces to move past the name and type.
      */
     virtual std::vector<std::string> info() = 0;
+
+    /// Set context used by standardized plugin log formatters.
+    void setLogContext( const std::string &calledName, /**< [in] Program called-name for log prefix. */
+                        bool includeAppName,           /**< [in] True to include called-name in log prefix. */
+                        const std::string &image0      /**< [in] Image key/name to include in log prefix. */
+    )
+    {
+        m_logCalledName = calledName;
+        m_logIncludeAppName = includeAppName;
+        m_logImage0 = image0.empty() ? "unknown" : image0;
+    }
+
+    /// Set plugin label included in plugin log message text.
+    void setPluginName( const std::string &pluginName /**< [in] Plugin label for plugin log message text. */ )
+    {
+        if( pluginName.empty() )
+        {
+            m_pluginName = "plugin";
+        }
+        else
+        {
+            m_pluginName = pluginName;
+        }
+    }
+
+    /// Format a standardized plugin log message.
+    std::string formatPluginLogMessage( std::string_view message /**< [in] Message text to append. */ ) const
+    {
+        rtimv::logContext ctx;
+        ctx.calledName = m_logCalledName;
+        ctx.image0 = m_logImage0;
+        ctx.includeAppName = m_logIncludeAppName;
+
+        return rtimv::formatLogMessage( ctx, std::format("[plugin: {}] {}", m_pluginName, message) );
+    }
+
+    /// Write a standardized plugin info message to stdout.
+    void pluginLogInfo( std::string_view message /**< [in] Message text to append. */ ) const
+    {
+        std::cout << formatPluginLogMessage( message ) << '\n';
+    }
+
+    /// Write a standardized plugin error message to stderr.
+    void pluginLogError( std::string_view message /**< [in] Message text to append. */ ) const
+    {
+        std::cerr << formatPluginLogMessage( message ) << '\n';
+    }
 };
 
 class rtimvDictionaryInterface : public rtimvInterface
@@ -253,7 +320,7 @@ class rtimvDictionaryInterface : public rtimvInterface
                                   ) = 0;
 };
 
-#define rtimvDictionaryInterface_iid "rtimv.dictionaryInterface/1.2"
+#define rtimvDictionaryInterface_iid "rtimv.dictionaryInterface/1.3"
 
 Q_DECLARE_INTERFACE( rtimvDictionaryInterface, rtimvDictionaryInterface_iid )
 
@@ -334,7 +401,7 @@ class rtimvOverlayInterface : public rtimvInterface
     virtual void disableOverlay() = 0;
 };
 
-#define rtimvOverlayInterface_iid "rtimv.overlayInterface/1.2"
+#define rtimvOverlayInterface_iid "rtimv.overlayInterface/1.3"
 
 Q_DECLARE_INTERFACE( rtimvOverlayInterface, rtimvOverlayInterface_iid )
 

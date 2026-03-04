@@ -12,6 +12,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <condition_variable>
+#include <string_view>
 
 #include <QImage>
 
@@ -79,6 +80,12 @@ class rtimvClientBase : public mx::app::application
     std::string m_server{ "localhost" };
     int m_port{ 7000 };
 
+    bool m_logAppName{ true }; ///< True to include called-name in log prefixes.
+
+    std::string m_calledName{ "rtimvClient" }; ///< Program called-name used in standardized log prefixes.
+
+    std::string m_clientId; ///< Client id returned by server Configure, if provided.
+
     virtual void setupConfig();
 
     virtual void loadConfig();
@@ -130,6 +137,13 @@ class rtimvClientBase : public mx::app::application
     void reconnect();
 
   protected:
+    /// Get the main image name/key for log context.
+    std::string logImage0() const;
+
+    /// Format a standardized client log message.
+    std::string
+    formatBaseLogMessage( std::string_view message /**< [in] text to append after standardized prefix */ ) const;
+
     /// Refresh configured image names from the server.
     void updateImageNamesFromServer();
 
@@ -181,6 +195,9 @@ class rtimvClientBase : public mx::app::application
 
     /// Last ImagePlease response payload from the server.
     remote_rtimv::Image m_grpcImage;
+
+    /// Backoff delay for ImagePlease retries when no new image data is available, ms.
+    int m_imageRetryBackoffMs{ 500 };
 
     /// Mutex guarding asynchronous unary RPC state for GetPixel/ColorBox/StatsBox.
     std::mutex m_asyncRpcMutex;
@@ -333,6 +350,11 @@ class rtimvClientBase : public mx::app::application
     /// Request an image from the server
     void ImagePlease();
 
+  protected:
+    /// Launch the asynchronous ImagePlease RPC.
+    virtual void dispatchImagePleaseAsync();
+
+  public:
     /// Request an updated calibrated pixel value.
     void requestPixelValue( uint32_t x, /**< [in] x coordinate of the pixel */
                             uint32_t y /**< [in] y coordinate of the pixel */ );
