@@ -106,31 +106,13 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
         std::cerr << formatBaseLogMessage( "loaded static plugins" ) << '\n';
     }
 
-    QDir pluginsDir = QDir( QCoreApplication::applicationDirPath() );
-
-    // clang-format off
-    #if defined( Q_OS_WIN ) // clang-format on
-
-    if( pluginsDir.dirName().toLower() == "debug" || pluginsDir.dirName().toLower() == "release" )
+    auto loadPluginsFromDir = [this]( const QDir &pluginsDir )
     {
-        pluginsDir.cdUp();
-    }
+        if( !pluginsDir.exists() )
+        {
+            return;
+        }
 
-    // clang-format off
-    #elif defined( Q_OS_MAC ) // clang-format on
-
-    if( pluginsDir.dirName() == "MacOS" )
-    {
-        pluginsDir.cdUp();
-        pluginsDir.cdUp();
-        pluginsDir.cdUp();
-    }
-
-    // clang-format off
-    #endif // clang-format on
-
-    if( pluginsDir.cd( "plugins" ) )
-    {
         const auto entryList = pluginsDir.entryList( QDir::Files );
 
         for( const QString &fileName : entryList )
@@ -155,6 +137,61 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
                 }
             }
         }
+    };
+
+    QStringList pluginSearchDirs;
+
+    QByteArray pluginPathEnv = qgetenv( "RTIMV_PLUGIN_PATH" );
+    if( !pluginPathEnv.isEmpty() )
+    {
+        const QStringList envDirs =
+            QString::fromLocal8Bit( pluginPathEnv ).split( QDir::listSeparator(), Qt::SkipEmptyParts );
+        for( const QString &dir : envDirs )
+        {
+            const QString cleanDir = QDir::cleanPath( dir.trimmed() );
+            if( !cleanDir.isEmpty() && !pluginSearchDirs.contains( cleanDir ) )
+            {
+                pluginSearchDirs += cleanDir;
+            }
+        }
+    }
+
+    QDir appPluginsDir = QDir( QCoreApplication::applicationDirPath() );
+
+    // clang-format off
+    #if defined( Q_OS_WIN ) // clang-format on
+
+    if( appPluginsDir.dirName().toLower() == "debug" || appPluginsDir.dirName().toLower() == "release" )
+    {
+        appPluginsDir.cdUp();
+    }
+
+    // clang-format off
+    #elif defined( Q_OS_MAC ) // clang-format on
+
+    if( appPluginsDir.dirName() == "MacOS" )
+    {
+        appPluginsDir.cdUp();
+        appPluginsDir.cdUp();
+        appPluginsDir.cdUp();
+    }
+
+    // clang-format off
+    #endif // clang-format on
+
+    if( appPluginsDir.cd( "plugins" ) )
+    {
+        const QString appPluginPath = appPluginsDir.absolutePath();
+        if( !pluginSearchDirs.contains( appPluginPath ) )
+        {
+            pluginSearchDirs += appPluginPath;
+        }
+    }
+
+    for( const QString &dir : pluginSearchDirs )
+    {
+        std::cerr << formatBaseLogMessage( std::string( "scanning plugin directory " ) + dir.toStdString() ) << '\n';
+        loadPluginsFromDir( QDir( dir ) );
     }
 
     startup();
