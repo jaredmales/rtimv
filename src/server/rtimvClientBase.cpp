@@ -6,11 +6,18 @@
  */
 
 #include "rtimvClientBase.hpp"
+#include "rtimvLog.hpp"
 #include "rtimvColorGRPC.hpp"
 #include "rtimvFilterGRPC.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <thread>
+
+#include <QMetaObject>
+#include <QPointer>
+#include <QCoreApplication>
 
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
@@ -30,11 +37,12 @@
                                                                                                                        \
     uniqueLockT lock( m_connectedMutex );                                                                              \
                                                                                                                        \
-    if( connections == m_connections )                                                                                 \
+    if( status.error_code() != grpc::StatusCode::DEADLINE_EXCEEDED && connections == m_connections )                   \
     {                                                                                                                  \
         m_connected = false;                                                                                           \
                                                                                                                        \
-        std::cerr << "Message from rtimvServer: " << status.error_message() << std::endl;                              \
+        std::cerr << formatBaseLogMessage( std::string( "Message from rtimvServer: " ) + status.error_message() )      \
+                  << '\n';                                                                                             \
     }
 
 rtimvClientBase::rtimvClientBase()
@@ -61,7 +69,7 @@ rtimvClientBase::~rtimvClientBase()
         {
             if( m_imageRequestCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
             {
-                std::cerr << "rtimvClient: waiting for ImagePlease callback during shutdown.\n";
+                std::cerr << formatBaseLogMessage( "waiting for ImagePlease callback during shutdown." ) << '\n';
             }
         }
     }
@@ -116,7 +124,7 @@ rtimvClientBase::~rtimvClientBase()
         {
             if( m_asyncRpcCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
             {
-                std::cerr << "rtimvClient: waiting for async unary RPC callbacks during shutdown.\n";
+                std::cerr << formatBaseLogMessage( "waiting for async unary RPC callbacks during shutdown." ) << '\n';
             }
         }
     }
@@ -292,6 +300,26 @@ void rtimvClientBase::setupConfig()
                 "int",
                 "The default port for milkzmq.  The default default is 5556.  This will be overridden by an image "
                 "specific port specified in a key." );
+
+    config.add( "log.appname",
+                "",
+                "log.appname",
+                mx::app::argType::Required,
+                "log",
+                "appname",
+                false,
+                "bool",
+                "Set true/false to include/exclude called-name in log prefixes." );
+
+    config.add( "no-log-appname",
+                "",
+                "no-log-appname",
+                mx::app::argType::True,
+                "log",
+                "no-appname",
+                false,
+                "bool",
+                "Disable called-name in log prefixes." );
 }
 
 void rtimvClientBase::loadConfig()
@@ -314,6 +342,27 @@ void rtimvClientBase::loadConfig()
 
     config( m_server, "server" );
     config( m_port, "port" );
+
+    m_calledName = QCoreApplication::applicationName().toStdString();
+    if( m_calledName.empty() )
+    {
+        m_calledName = "rtimvClient";
+    }
+
+    if( config.isSet( "log.appname" ) )
+    {
+        config( m_logAppName, "log.appname" );
+    }
+
+    if( config.isSet( "no-log-appname" ) )
+    {
+        bool noLogAppName = false;
+        config( noLogAppName, "no-log-appname" );
+        if( noLogAppName )
+        {
+            m_logAppName = false;
+        }
+    }
 
     std::string imKey;
     config( imKey, "image.key" );
@@ -499,14 +548,43 @@ void rtimvClientBase::loadConfig()
 
 void rtimvClientBase::startup()
 {
-    Configure();
-
-    m_foundation->emit_ImageNeeded();
+    if( m_foundation )
+    {
+        // Defer initial connection so window construction is never blocked by Configure().
+        QMetaObject::invokeMethod( m_foundation, "reconnect", Qt::QueuedConnection );
+    }
 }
 
 bool rtimvClientBase::connected()
 {
     return m_connected;
+}
+
+std::string rtimvClientBase::logImage0() const
+{
+    if( m_imageNames.size() > 0 && !m_imageNames[0].empty() )
+    {
+        return m_imageNames[0];
+    }
+
+    if( m_configReq && !m_configReq->image_key().empty() )
+    {
+        return m_configReq->image_key();
+    }
+
+    return "unknown";
+}
+
+std::string rtimvClientBase::formatBaseLogMessage( std::string_view message ) const
+{
+    rtimv::logContext ctx;
+    ctx.calledName = m_calledName;
+    ctx.image0 = logImage0();
+    ctx.clientId = m_clientId;
+    ctx.includeAppName = m_logAppName;
+    ctx.includeClient = true;
+
+    return rtimv::formatLogMessage( ctx, message );
 }
 
 void rtimvClientBase::reconnect()
@@ -520,7 +598,33 @@ void rtimvClientBase::reconnect()
 
     lock.unlock();
 
-    Configure();
+    bool shouldConfigure = true;
+    if( stub_ )
+    {
+        remote_rtimv::ImageNameRequest request;
+        remote_rtimv::ImageNameResponse response;
+        grpc::ClientContext context;
+        request.set_image( 0 );
+
+        grpc::Status status = stub_->GetImageName( &context, request, &response );
+        if( status.ok() )
+        {
+            uniqueLockT ulock( m_connectedMutex );
+            m_connected = true;
+            m_connectionFailReported = false;
+            shouldConfigure = false;
+        }
+        else if( status.error_code() != grpc::StatusCode::FAILED_PRECONDITION )
+        {
+            // Transport/server error; keep disconnected and let timer retry.
+            shouldConfigure = false;
+        }
+    }
+
+    if( shouldConfigure )
+    {
+        Configure();
+    }
 
     lock.lock();
 
@@ -554,17 +658,19 @@ void rtimvClientBase::Configure()
     // Act upon its status.
     if( status.ok() )
     {
+        m_clientId = result.client_id();
         m_connected = true;
         updateImageNamesFromServer();
-        std::cerr << "rtimvClient connected to: " << m_server << ':' << m_port << '\n';
+        std::cerr << formatBaseLogMessage( std::format( "connected to {}:{}", m_server, m_port ) ) << '\n';
         m_connectionFailReported = false;
     }
     else
     {
+        m_clientId.clear();
         m_connected = false;
         if( !m_connectionFailReported )
         {
-            std::cerr << "rtimvClient: " << status.error_message() << std::endl;
+            std::cerr << formatBaseLogMessage( status.error_message() ) << '\n';
             m_connectionFailReported = true;
         }
     }
@@ -607,36 +713,47 @@ void rtimvClientBase::ImagePlease()
 
     SHARED_CONN_LOCK
 
-    std::lock_guard<std::mutex> lock( m_imageRequestMutex );
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_imageRequestMutex );
 
-    if( m_shuttingDown )
-    {
-        return;
+        if( m_shuttingDown )
+        {
+            return;
+        }
+
+        if( m_imageRequestPending )
+        {
+
+            std::cerr << formatBaseLogMessage( std::format(
+                             "bug: in ImagePlease but imageRequestPending is true {} {}", __FILE__, __LINE__ ) )
+                      << '\n';
+            return;
+        }
+
+        if( m_ImagePleaseContext )
+        {
+            std::cerr << formatBaseLogMessage( std::format(
+                             "bug: in ImagePlease but ImagePleaseContext is allocated {} {}", __FILE__, __LINE__ ) )
+                      << '\n';
+            return;
+        }
+
+        m_ImagePleaseContext = new grpc::ClientContext;
+        m_ImagePleaseContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 10000 ) );
+
+        m_imageRequestPending = true;
     }
 
-    if( m_imageRequestPending )
-    {
+    connLock.unlock();
+    dispatchImagePleaseAsync();
+}
 
-        std::cerr << "bug: in ImagePlease but imageRequestPending is true " << __FILE__ << ' ' << __LINE__ << '\n';
-        return;
-    }
-
-    if( m_ImagePleaseContext )
-    {
-        std::cerr << "bug: in ImagePlease but ImagePleaseContext is allocated " << __FILE__ << ' ' << __LINE__ << '\n';
-        return;
-    }
-
-    m_ImagePleaseContext = new grpc::ClientContext;
-    m_ImagePleaseContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
-
-    // The actual RPC.
+void rtimvClientBase::dispatchImagePleaseAsync()
+{
     stub_->async()->ImagePlease( m_ImagePleaseContext,
                                  &m_grpcImageRequest,
                                  &m_grpcImage,
                                  [this]( grpc::Status status ) { this->ImagePlease_callback( status ); } );
-
-    m_imageRequestPending = true;
 }
 
 void rtimvClientBase::requestPixelValue( uint32_t x, uint32_t y )
@@ -670,7 +787,8 @@ void rtimvClientBase::requestPixelValue( uint32_t x, uint32_t y )
 
     if( m_GetPixelContext )
     {
-        std::cerr << "bug: in requestPixelValue but GetPixelContext is allocated " << __FILE__ << ' ' << __LINE__
+        std::cerr << formatBaseLogMessage( std::format(
+                         "bug: in requestPixelValue but GetPixelContext is allocated {} {}", __FILE__, __LINE__ ) )
                   << '\n';
         return;
     }
@@ -683,12 +801,12 @@ void rtimvClientBase::requestPixelValue( uint32_t x, uint32_t y )
     m_GetPixelContext = new grpc::ClientContext;
     m_GetPixelContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
 
+    m_getPixelPending = true;
+
     stub_->async()->GetPixel( m_GetPixelContext,
                               &m_getPixelRequest,
                               &m_getPixelReply,
                               [this]( grpc::Status status ) { this->GetPixel_callback( status ); } );
-
-    m_getPixelPending = true;
 }
 
 void rtimvClientBase::requestColorBoxValues()
@@ -720,7 +838,8 @@ void rtimvClientBase::requestColorBoxValues()
 
     if( m_ColorBoxContext )
     {
-        std::cerr << "bug: in requestColorBoxValues but ColorBoxContext is allocated " << __FILE__ << ' ' << __LINE__
+        std::cerr << formatBaseLogMessage( std::format(
+                         "bug: in requestColorBoxValues but ColorBoxContext is allocated {} {}", __FILE__, __LINE__ ) )
                   << '\n';
         return;
     }
@@ -738,12 +857,12 @@ void rtimvClientBase::requestColorBoxValues()
     m_ColorBoxContext = new grpc::ClientContext;
     m_ColorBoxContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
 
+    m_colorBoxPending = true;
+
     stub_->async()->ColorBox( m_ColorBoxContext,
                               &m_colorBoxRequest,
                               &m_colorBoxReply,
                               [this]( grpc::Status status ) { this->ColorBox_callback( status ); } );
-
-    m_colorBoxPending = true;
 }
 
 void rtimvClientBase::requestStatsBoxValues()
@@ -775,7 +894,8 @@ void rtimvClientBase::requestStatsBoxValues()
 
     if( m_StatsBoxContext )
     {
-        std::cerr << "bug: in requestStatsBoxValues but StatsBoxContext is allocated " << __FILE__ << ' ' << __LINE__
+        std::cerr << formatBaseLogMessage( std::format(
+                         "bug: in requestStatsBoxValues but StatsBoxContext is allocated {} {}", __FILE__, __LINE__ ) )
                   << '\n';
         return;
     }
@@ -793,12 +913,12 @@ void rtimvClientBase::requestStatsBoxValues()
     m_StatsBoxContext = new grpc::ClientContext;
     m_StatsBoxContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
 
+    m_statsBoxPending = true;
+
     stub_->async()->StatsBox( m_StatsBoxContext,
                               &m_statsBoxRequest,
                               &m_statsBoxReply,
                               [this]( grpc::Status status ) { this->StatsBox_callback( status ); } );
-
-    m_statsBoxPending = true;
 }
 
 void rtimvClientBase::ImageReceived()
@@ -848,7 +968,8 @@ void rtimvClientBase::ImageReceived()
 
         if( m_imageRequestPending )
         {
-            std::cerr << "bug: in ImageRecieved but imageRequestPending is true " << __FILE__ << ' ' << __LINE__
+            std::cerr << formatBaseLogMessage( std::format(
+                             "bug: in ImageRecieved but imageRequestPending is true {} {}", __FILE__, __LINE__ ) )
                       << '\n';
             return;
         }
@@ -1105,14 +1226,18 @@ void rtimvClientBase::ImageReceived()
 void rtimvClientBase::ImagePlease_callback( grpc::Status status )
 {
     int action = -1;
+    int retryMs = 0;
     bool shuttingDown = false;
+    bool disconnected = false;
+    uint64_t connections = 0;
 
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
 
         if( !m_imageRequestPending )
         {
-            std::cerr << "bug: in ImagePlease_callback but imageRequestPending is false \n";
+            std::cerr << formatBaseLogMessage( "bug: in ImagePlease_callback but imageRequestPending is false" )
+                      << '\n';
             return;
         }
 
@@ -1122,14 +1247,19 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
             if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_VALID )
             {
                 action = 0;
+                m_imageRetryBackoffMs = 500;
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_NO_IMAGE )
             {
                 action = 1;
+                m_imageRetryBackoffMs = std::min( 5000, std::max( 1000, m_imageRetryBackoffMs ) * 2 );
+                retryMs = m_imageRetryBackoffMs;
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_TIMEOUT )
             {
-                action = 0;
+                action = 3;
+                m_imageRetryBackoffMs = std::min( 5000, std::max( 500, m_imageRetryBackoffMs ) * 2 );
+                retryMs = m_imageRetryBackoffMs;
             }
             else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_NOT_CONFIGURED )
             {
@@ -1140,9 +1270,15 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
         }
         else
         {
-            SHARED_CONN_LOCK
-            REPORT_SERVER_DISCONNECTED
-            // don't return here so deallocation happens
+            if( status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED )
+            {
+                // Under heavy server load this can be transient; continue polling without forcing reconnect.
+                action = 2;
+            }
+            else
+            {
+                disconnected = true;
+            }
         }
 
         delete m_ImagePleaseContext;
@@ -1154,10 +1290,40 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
 
     m_imageRequestCv.notify_all();
 
+    if( disconnected )
+    {
+        sharedLockT connLock( m_connectedMutex );
+        connections = m_connections;
+        connLock.unlock();
+
+        uniqueLockT lock( m_connectedMutex );
+        if( connections == m_connections )
+        {
+            m_connected = false;
+            std::cerr << formatBaseLogMessage( std::string( "Message from rtimvServer: " ) + status.error_message() )
+                      << '\n';
+        }
+    }
+
     if( shuttingDown )
     {
         return;
     }
+
+    auto scheduleImageRetry = [this]( int ms )
+    {
+        QPointer<rtimvBaseObject> foundation = m_foundation;
+        std::thread(
+            [foundation, ms]()
+            {
+                std::this_thread::sleep_for( std::chrono::milliseconds( ms ) );
+                if( foundation )
+                {
+                    QMetaObject::invokeMethod( foundation, "ImagePlease", Qt::QueuedConnection );
+                }
+            } )
+            .detach();
+    };
 
     if( action == 0 )
     {
@@ -1165,8 +1331,18 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
     }
     else if( action == 1 )
     {
+        // Avoid a tight no-image polling loop.
+        scheduleImageRetry( retryMs > 0 ? retryMs : 1000 );
+    }
+    else if( action == 2 )
+    {
+        // Deadline expired waiting on the server; retry without disconnect/reconfigure churn.
         m_foundation->emit_ImageNeeded();
-        // updateAge();
+    }
+    else if( action == 3 )
+    {
+        // For no-new-frame timeouts, avoid re-processing stale image state for every client.
+        scheduleImageRetry( retryMs > 0 ? retryMs : 500 );
     }
 
     // if action stays -1 we just return
@@ -1187,7 +1363,7 @@ void rtimvClientBase::GetPixel_callback( grpc::Status status )
 
         if( !m_getPixelPending )
         {
-            std::cerr << "bug: in GetPixel_callback but getPixelPending is false\n";
+            std::cerr << formatBaseLogMessage( "bug: in GetPixel_callback but getPixelPending is false" ) << '\n';
             return;
         }
 
@@ -1243,7 +1419,7 @@ void rtimvClientBase::ColorBox_callback( grpc::Status status )
 
         if( !m_colorBoxPending )
         {
-            std::cerr << "bug: in ColorBox_callback but colorBoxPending is false\n";
+            std::cerr << formatBaseLogMessage( "bug: in ColorBox_callback but colorBoxPending is false" ) << '\n';
             return;
         }
 
@@ -1307,7 +1483,7 @@ void rtimvClientBase::StatsBox_callback( grpc::Status status )
 
         if( !m_statsBoxPending )
         {
-            std::cerr << "bug: in StatsBox_callback but statsBoxPending is false\n";
+            std::cerr << formatBaseLogMessage( "bug: in StatsBox_callback but statsBoxPending is false" ) << '\n';
             return;
         }
 
@@ -1378,7 +1554,8 @@ void rtimvClientBase::SetColorstretch_callback( grpc::Status status )
 
         if( !m_setColorstretchPending )
         {
-            std::cerr << "bug: in SetColorstretch_callback but setColorstretchPending is false\n";
+            std::cerr << formatBaseLogMessage( "bug: in SetColorstretch_callback but setColorstretchPending is false" )
+                      << '\n';
             return;
         }
 
@@ -1415,7 +1592,7 @@ void rtimvClientBase::SetMinScale_callback( grpc::Status status )
 
         if( !m_setMinScalePending )
         {
-            std::cerr << "bug: in SetMinScale_callback but setMinScalePending is false\n";
+            std::cerr << formatBaseLogMessage( "bug: in SetMinScale_callback but setMinScalePending is false" ) << '\n';
             return;
         }
 
@@ -1455,7 +1632,7 @@ void rtimvClientBase::SetMaxScale_callback( grpc::Status status )
 
         if( !m_setMaxScalePending )
         {
-            std::cerr << "bug: in SetMaxScale_callback but setMaxScalePending is false\n";
+            std::cerr << formatBaseLogMessage( "bug: in SetMaxScale_callback but setMaxScalePending is false" ) << '\n';
             return;
         }
 
@@ -1493,7 +1670,7 @@ void rtimvClientBase::EmptyRpc_callback( grpc::ClientContext *context, grpc::Sta
         auto it = std::find( m_emptyRpcContexts.begin(), m_emptyRpcContexts.end(), context );
         if( it == m_emptyRpcContexts.end() )
         {
-            std::cerr << "bug: in EmptyRpc_callback but context is not tracked\n";
+            std::cerr << formatBaseLogMessage( "bug: in EmptyRpc_callback but context is not tracked" ) << '\n';
         }
         else
         {
@@ -1502,7 +1679,7 @@ void rtimvClientBase::EmptyRpc_callback( grpc::ClientContext *context, grpc::Sta
 
         if( m_emptyRpcPending == 0 )
         {
-            std::cerr << "bug: in EmptyRpc_callback but emptyRpcPending is zero\n";
+            std::cerr << formatBaseLogMessage( "bug: in EmptyRpc_callback but emptyRpcPending is zero" ) << '\n';
         }
         else
         {
@@ -2539,7 +2716,9 @@ void rtimvClientBase::stretch( rtimv::stretch cs )
 
     if( m_SetColorstretchContext )
     {
-        std::cerr << "bug: in stretch but SetColorstretchContext is allocated " << __FILE__ << ' ' << __LINE__ << '\n';
+        std::cerr << formatBaseLogMessage( std::format(
+                         "bug: in stretch but SetColorstretchContext is allocated {} {}", __FILE__, __LINE__ ) )
+                  << '\n';
         return;
     }
 
@@ -2548,12 +2727,12 @@ void rtimvClientBase::stretch( rtimv::stretch cs )
     m_SetColorstretchContext = new grpc::ClientContext;
     m_SetColorstretchContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
 
+    m_setColorstretchPending = true;
+
     stub_->async()->SetColorstretch( m_SetColorstretchContext,
                                      &m_setColorstretchRequest,
                                      &m_setColorstretchReply,
                                      [this]( grpc::Status status ) { this->SetColorstretch_callback( status ); } );
-
-    m_setColorstretchPending = true;
 }
 
 rtimv::stretch rtimvClientBase::stretch()
@@ -2582,7 +2761,9 @@ void rtimvClientBase::minScaleData( float md )
 
     if( m_SetMinScaleContext )
     {
-        std::cerr << "bug: in minScaleData but SetMinScaleContext is allocated " << __FILE__ << ' ' << __LINE__ << '\n';
+        std::cerr << formatBaseLogMessage( std::format(
+                         "bug: in minScaleData but SetMinScaleContext is allocated {} {}", __FILE__, __LINE__ ) )
+                  << '\n';
         return;
     }
 
@@ -2593,12 +2774,12 @@ void rtimvClientBase::minScaleData( float md )
     m_SetMinScaleContext = new grpc::ClientContext;
     m_SetMinScaleContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
 
+    m_setMinScalePending = true;
+
     stub_->async()->SetMinScale( m_SetMinScaleContext,
                                  &m_setMinScaleRequest,
                                  &m_setMinScaleReply,
                                  [this]( grpc::Status status ) { this->SetMinScale_callback( status ); } );
-
-    m_setMinScalePending = true;
 }
 
 float rtimvClientBase::minScaleData()
@@ -2627,7 +2808,9 @@ void rtimvClientBase::maxScaleData( float md )
 
     if( m_SetMaxScaleContext )
     {
-        std::cerr << "bug: in maxScaleData but SetMaxScaleContext is allocated " << __FILE__ << ' ' << __LINE__ << '\n';
+        std::cerr << formatBaseLogMessage( std::format(
+                         "bug: in maxScaleData but SetMaxScaleContext is allocated {} {}", __FILE__, __LINE__ ) )
+                  << '\n';
         return;
     }
 
@@ -2638,12 +2821,12 @@ void rtimvClientBase::maxScaleData( float md )
     m_SetMaxScaleContext = new grpc::ClientContext;
     m_SetMaxScaleContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
 
+    m_setMaxScalePending = true;
+
     stub_->async()->SetMaxScale( m_SetMaxScaleContext,
                                  &m_setMaxScaleRequest,
                                  &m_setMaxScaleReply,
                                  [this]( grpc::Status status ) { this->SetMaxScale_callback( status ); } );
-
-    m_setMaxScalePending = true;
 }
 
 float rtimvClientBase::maxScaleData()

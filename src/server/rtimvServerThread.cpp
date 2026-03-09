@@ -1,10 +1,34 @@
 #include "rtimvServerThread.hpp"
+#include "rtimvLog.hpp"
+
 #include <QBuffer>
+
+namespace
+{
+std::string image0OrUnknown( rtimvServerThread *imageTh )
+{
+    if( imageTh == nullptr )
+    {
+        return "unknown";
+    }
+
+    std::string im0 = imageTh->imageName( 0 );
+    if( im0.empty() )
+    {
+        return "unknown";
+    }
+
+    return im0;
+}
+
+} // namespace
 
 rtimvServerThread::rtimvServerThread( const std::string &uri,
                                       std::shared_ptr<std::vector<std::string>> argv,
+                                      const std::string &calledName,
+                                      bool includeAppName,
                                       QObject *parent )
-    : QThread( parent ), m_uri( uri )
+    : QThread( parent ), m_uri( uri ), m_calledName( calledName ), m_includeAppName( includeAppName )
 {
     m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; // Tells mx::application to look for this env var.
 
@@ -15,7 +39,9 @@ rtimvServerThread::rtimvServerThread( const std::string &uri,
 
     lastRequest( -1 ); // set to now
 
-    std::cout << "Client: " << uri << " thread started\n";
+    std::cout << rtimv::formatServerLogMessage(
+                     m_calledName, m_includeAppName, m_uri, image0OrUnknown( this ), "thread started" )
+              << '\n';
 
     m_argv = argv;
 }
@@ -28,7 +54,13 @@ void rtimvServerThread::configure()
 {
     if( !m_argv )
     {
-        m_configured = -1;
+        std::cerr << rtimv::formatServerLogMessage( m_calledName,
+                                                    m_includeAppName,
+                                                    m_uri,
+                                                    image0OrUnknown( this ),
+                                                    "configure failed: missing argv" )
+                  << '\n';
+        m_configured.store( -1, std::memory_order_relaxed );
         return;
     }
 
@@ -40,28 +72,41 @@ void rtimvServerThread::configure()
 
     m_argv = nullptr;
 
-    m_configured = 0;
+    m_configured.store( 0, std::memory_order_relaxed );
+    std::cout << rtimv::formatServerLogMessage(
+                     m_calledName, m_includeAppName, m_uri, image0OrUnknown( this ), "configuring" )
+              << '\n';
+
     try
     {
         setup( argv.size() - 1, const_cast<char **>( argv.data() ) );
-        m_configured = 1;
+        m_configured.store( 1, std::memory_order_relaxed );
         m_foundation->m_imageTimer.start( m_imageTimeout );
+        std::cout << rtimv::formatServerLogMessage(
+                         m_calledName, m_includeAppName, m_uri, image0OrUnknown( this ), "configured" )
+                  << '\n';
     }
     catch( ... )
     {
-        m_configured = -1;
+        std::cerr << rtimv::formatServerLogMessage(
+                         m_calledName, m_includeAppName, m_uri, image0OrUnknown( this ), "configure failed: exception" )
+                  << '\n';
+        m_configured.store( -1, std::memory_order_relaxed );
     }
 }
 
 int rtimvServerThread::configured()
 {
-    return m_configured;
+    return m_configured.load( std::memory_order_relaxed );
 }
 
 void rtimvServerThread::onConnect()
 {
     m_connected = true;
-    m_asleep = false;
+    m_asleep.store( false, std::memory_order_relaxed );
+    std::cout << rtimv::formatServerLogMessage(
+                     m_calledName, m_includeAppName, m_uri, image0OrUnknown( this ), "image connected" )
+              << '\n';
 }
 
 void rtimvServerThread::mtxL_postSetImsize( const uniqueLockT &lock )
@@ -153,7 +198,7 @@ void rtimvServerThread::quality( int q )
 
 double rtimvServerThread::lastRequest()
 {
-    return m_lastRequest;
+    return m_lastRequest.load( std::memory_order_relaxed );
 }
 
 void rtimvServerThread::lastRequest( double lr )
@@ -163,19 +208,34 @@ void rtimvServerThread::lastRequest( double lr )
         lr = mx::sys::get_curr_time();
     }
 
-    m_lastRequest = lr;
+    m_lastRequest.store( lr, std::memory_order_relaxed );
 }
 
 double rtimvServerThread::sinceLastRequest()
 {
     double now = mx::sys::get_curr_time();
 
-    return now - m_lastRequest;
+    return now - m_lastRequest.load( std::memory_order_relaxed );
 }
 
 bool rtimvServerThread::asleep()
 {
-    return m_asleep;
+    return m_asleep.load( std::memory_order_relaxed );
+}
+
+void rtimvServerThread::rpcBegin()
+{
+    m_activeRpc.fetch_add( 1, std::memory_order_relaxed );
+}
+
+void rtimvServerThread::rpcEnd()
+{
+    m_activeRpc.fetch_sub( 1, std::memory_order_relaxed );
+}
+
+uint32_t rtimvServerThread::rpcActive()
+{
+    return m_activeRpc.load( std::memory_order_relaxed );
 }
 
 void rtimvServerThread::emit_gotosleep()
@@ -191,11 +251,17 @@ void rtimvServerThread::emit_awaken()
 void rtimvServerThread::sleep()
 {
     m_foundation->m_imageTimer.stop();
-    m_asleep = true;
+    m_asleep.store( true, std::memory_order_relaxed );
+    std::cout << rtimv::formatServerLogMessage(
+                     m_calledName, m_includeAppName, m_uri, image0OrUnknown( this ), "sleeping" )
+              << '\n';
 }
 
 void rtimvServerThread::wakeup()
 {
     m_foundation->m_imageTimer.start();
-    m_asleep = false;
+    m_asleep.store( false, std::memory_order_relaxed );
+    std::cout << rtimv::formatServerLogMessage(
+                     m_calledName, m_includeAppName, m_uri, image0OrUnknown( this ), "awake" )
+              << '\n';
 }

@@ -28,16 +28,24 @@ class rtimvServerThread : public QThread, public rtimvBase
 
     std::atomic<int> m_quality{ 50 }; ///< The JPEG quality factor (0-100).  Default is 50.
 
-    double m_lastRequest{ 0 }; ///< The time of the last request for an image
+    std::atomic<double> m_lastRequest{ 0 }; ///< The time of the last request for an image
 
-    bool m_asleep{ false };
+    std::atomic<bool> m_asleep{ false };
 
-    int m_configured{ 0 }; ///< 0 is unconfigured, 1 is configured, -1 is configuration error
+    std::atomic<int> m_configured{ 0 }; ///< 0 is unconfigured, 1 is configured, -1 is configuration error
+
+    std::atomic<uint32_t> m_activeRpc{ 0 }; ///< Number of active RPC handlers currently using this thread.
+
+    std::string m_calledName{ "rtimvServer" }; ///< Program called-name used in standardized log prefixes.
+
+    bool m_includeAppName{ true }; ///< True to include called-name in log prefixes.
 
   public:
     rtimvServerThread( const std::string &uri,                         /**< [in] client uri */
                        std::shared_ptr<std::vector<std::string>> argv, /**< [in] The argv vector. */
-                       QObject *parent = nullptr                       /**< [in] [opt] the parent of this thread */
+                       const std::string &calledName, /**< [in] Program called-name for log prefixes. */
+                       bool includeAppName,           /**< [in] True to include called-name in log prefixes. */
+                       QObject *parent = nullptr      /**< [in] [opt] the parent of this thread */
     );
 
     ~rtimvServerThread();
@@ -83,6 +91,15 @@ class rtimvServerThread : public QThread, public rtimvBase
     double sinceLastRequest();
 
     bool asleep();
+
+    /// Increment active RPC counter.
+    void rpcBegin();
+
+    /// Decrement active RPC counter.
+    void rpcEnd();
+
+    /// Get current active RPC count.
+    uint32_t rpcActive();
 
   signals:
 
