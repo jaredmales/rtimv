@@ -1,0 +1,492 @@
+syntax="proto3";
+
+package remote_rtimv;
+
+service rtimv
+{
+    rpc Configure(Config) returns (ConfigResult);
+
+    rpc SetColorbar(ColorbarRequest) returns (ColorbarResponse);
+
+    rpc SetColormode(ColormodeRequest) returns (ColormodeResponse);
+
+    rpc SetColorstretch(ColorstretchRequest) returns (ColorstretchResponse);
+
+    rpc SetMinScale(ScaleRequest) returns (ScaleResponse);
+
+    rpc SetMaxScale(ScaleRequest) returns (ScaleResponse);
+
+    rpc SetImageTimeout(ImageTimeoutRequest) returns (ImageTimeoutResponse);
+
+    rpc SetQuality(QualityRequest) returns (QualityResponse);
+
+    rpc Restretch(RestretchRequest) returns (RestretchResponse);
+
+    rpc SetAutoscale(AutoscaleRequest) returns (AutoscaleResponse);
+
+    rpc SetSubDark(SubDarkRequest) returns (SubDarkResponse);
+
+    rpc SetApplyMask(ApplyMaskRequest) returns (ApplyMaskResponse);
+
+    rpc SetApplySatMask(ApplySatMaskRequest) returns (ApplySatMaskResponse);
+
+    rpc SetHPFilter(HPFilterRequest) returns (HPFilterResponse);
+
+    rpc SetHPFW(FilterWidthRequest) returns (FilterWidthResponse);
+
+    rpc SetApplyHPFilter(ApplyFilterRequest) returns (ApplyFilterResponse);
+
+    rpc SetLPFilter(LPFilterRequest) returns (LPFilterResponse);
+
+    rpc SetLPFW(FilterWidthRequest) returns (FilterWidthResponse);
+
+    rpc SetApplyLPFilter(ApplyFilterRequest) returns (ApplyFilterResponse);
+
+    rpc ImagePlease(ImageRequest) returns (Image);
+
+    rpc CubeDir(CubeDirRequest) returns (CubeDirResponse);
+
+    rpc CubeFrame(CubeFrameRequest) returns (CubeFrameResponse);
+
+    rpc UpdateCube(UpdateCubeRequest) returns (UpdateCubeResponse);
+
+    rpc CubeFrameDelta(CubeFrameDeltaRequest) returns (CubeFrameDeltaResponse);
+
+    rpc GetPixel(Coord) returns(Pixel);
+
+    rpc GetImageName(ImageNameRequest) returns (ImageNameResponse);
+
+    rpc GetInfo(InfoRequest) returns (InfoResponse);
+
+    rpc GetImageNo(ImageNoRequest) returns (ImageNoResponse);
+
+    rpc ColorBox(Box) returns (MinvalMaxval);
+
+    rpc Recolor(RecolorRequest) returns (RecolorResponse);
+
+    rpc StatsBox(Box) returns(StatsValues);
+
+}
+
+message Config
+{
+    string file = 1;
+    string image_key = 2;
+    string dark_key = 3;
+    string flat_key = 4;
+    string mask_key = 5;
+    string sat_mask_key = 6;
+
+// change numbers
+
+    bool update_timeout_set = 9;
+    uint32 update_timeout = 10;
+
+    bool update_cube_fps_set = 11;
+    float update_cube_fps = 12;
+
+    bool autoscale_set = 13;
+    bool autoscale = 14;
+
+    bool darksub_set = 15;
+    bool darksub = 16;
+
+    bool satlevel_set = 17;
+    float satlevel = 18;
+
+    bool mask_sat_set = 19;
+    bool mask_sat = 20;
+
+    bool mzmq_always_set = 21;
+    bool mzmq_always = 22;
+
+    string mzmq_server = 23;
+
+    bool mzmq_port_set = 24;
+    uint32 mzmq_port = 25;
+}
+
+message ConfigResult
+{
+    int32 result = 1;
+    string client_id = 2;
+}
+
+enum Colorbar
+{
+    COLORBAR_UNKNOWN = 0;
+    COLORBAR_GREY = 1;
+    COLORBAR_JET = 2;
+    COLORBAR_HOT = 3;
+    COLORBAR_BONE = 4;
+    COLORBAR_RED = 5;
+    COLORBAR_GREEN = 6;
+    COLORBAR_BLUE = 7;
+}
+
+// A message specifying the color bar.
+message ColorbarRequest
+{
+    Colorbar colorbar = 1;
+    bool update = 2;
+}
+
+message ColorbarResponse
+{
+}
+
+enum Colormode
+{
+    COLORMODE_UNKNOWN = 0;
+    COLORMODE_GLOBAL = 1;
+    COLORMODE_BOX = 2;
+    COLORMODE_USER = 3;
+}
+
+// A message specifying the color mode.
+message ColormodeRequest
+{
+    Colormode colormode = 1;
+}
+
+message ColormodeResponse
+{
+}
+
+enum Colorstretch
+{
+    COLORSTRETCH_UNKNOWN = 0;
+    COLORSTRETCH_LINEAR = 1;
+    COLORSTRETCH_LOG = 2;
+    COLORSTRETCH_POW = 3;
+    COLORSTRETCH_SQRT = 4;
+    COLORSTRETCH_SQUARE = 5;
+}
+
+// A message specifying the color stretch.
+message ColorstretchRequest
+{
+    Colorstretch colorstretch = 1;
+}
+
+message ColorstretchResponse
+{
+}
+
+message ScaleRequest
+{
+    float value = 2;
+}
+
+message ScaleResponse
+{
+}
+
+message ImageTimeoutRequest
+{
+    int32 timeout = 1;
+}
+
+message ImageTimeoutResponse
+{
+}
+
+message QualityRequest
+{
+    int32 quality = 1;
+}
+
+message QualityResponse
+{
+}
+
+message RestretchRequest
+{
+}
+
+message RestretchResponse
+{
+}
+
+message AutoscaleRequest
+{
+    bool autoscale = 1;
+}
+
+message AutoscaleResponse
+{
+}
+
+message SubDarkRequest
+{
+    bool subtract_dark = 1;
+}
+
+message SubDarkResponse
+{
+}
+
+message ApplyMaskRequest
+{
+    bool apply_mask = 1;
+}
+
+message ApplyMaskResponse
+{
+}
+
+message ApplySatMaskRequest
+{
+    bool apply_sat_mask = 1;
+}
+
+message ApplySatMaskResponse
+{
+}
+
+enum HPFilter
+{
+    HPFILTER_UNKNOWN = 0;
+    HPFILTER_NONE = 1;
+    HPFILTER_GAUSSIAN = 2;
+    HPFILTER_MEDIAN = 3;
+    HPFILTER_MEAN = 4;
+    HPFILTER_FOURIER = 5;
+    HPFILTER_RADPROF = 6;
+}
+
+message HPFilterRequest
+{
+    HPFilter hp_filter = 1;
+}
+
+message HPFilterResponse
+{
+}
+
+enum LPFilter
+{
+    LPFILTER_UNKNOWN = 0;
+    LPFILTER_NONE = 1;
+    LPFILTER_GAUSSIAN = 2;
+    LPFILTER_MEDIAN = 3;
+    LPFILTER_MEAN = 4;
+}
+
+message LPFilterRequest
+{
+    LPFilter lp_filter = 1;
+}
+
+message LPFilterResponse
+{
+}
+
+message FilterWidthRequest
+{
+    float width = 1;
+}
+
+message FilterWidthResponse
+{
+}
+
+message ApplyFilterRequest
+{
+    bool apply_filter = 1;
+}
+
+message ApplyFilterResponse
+{
+}
+
+message UpdateCubeRequest
+{
+}
+
+message UpdateCubeResponse
+{
+}
+
+message CubeDirRequest
+{
+    int32 dir = 1;
+}
+
+message CubeDirResponse
+{
+}
+
+message CubeFrameRequest
+{
+    uint32 frame = 1;
+}
+
+message CubeFrameResponse
+{
+}
+
+message CubeFrameDeltaRequest
+{
+    int32 delta = 1;
+}
+
+message CubeFrameDeltaResponse
+{
+}
+
+message ImageRequest
+{
+}
+
+enum ImageStatus
+{
+    IMAGE_STATUS_VALID = 0;
+    IMAGE_STATUS_NO_IMAGE = 1;
+    IMAGE_STATUS_TIMEOUT = 2;
+    IMAGE_STATUS_NOT_CONFIGURED = 3;
+    IMAGE_STATUS_ERROR = 4;
+}
+
+message Image
+{
+    ImageStatus status = 1;
+
+    uint32 nx = 10; // x-size of source image
+    uint32 ny = 11; // y-size of source image
+    uint32 nz = 12; // z-size of source image
+
+    uint32 no = 20; // image number within the cube
+
+    double atime = 30; // acquisition time of source image
+    double fps = 31; // FPS of stream (measured)
+
+    bytes image = 100; // The image data
+
+    uint32 saturated = 105; // The number of saturated pixels
+
+    float min_image_data = 110;
+    float max_image_data = 111;
+    float min_scale_data = 112;
+    float max_scale_data = 113;
+
+    Colorbar  colorbar = 115;
+    Colormode colormode = 120;
+    Colorstretch colorstretch = 125;
+
+    bool autoscale = 130;
+
+    bool subtract_dark = 150;
+//    bool apply_flat = 155;
+    bool apply_mask = 160;
+    bool apply_sat_mask = 165;
+
+    int32 image_timeout = 170;
+    int32 cube_dir = 175;
+    int32 quality = 180;
+
+    HPFilter hp_filter = 185;
+    float hpf_fw = 186;
+    bool apply_hp_filter = 187;
+
+    LPFilter lp_filter = 188;
+    float lpf_fw = 189;
+    bool apply_lp_filter = 190;
+
+    bool stats_box = 191;
+    uint32 stats_box_i0 = 192;
+    uint32 stats_box_i1 = 193;
+    uint32 stats_box_j0 = 194;
+    uint32 stats_box_j1 = 195;
+    float stats_box_min = 196;
+    float stats_box_max = 197;
+    float stats_box_mean = 198;
+    float stats_box_median = 199;
+
+    bool color_box = 200;
+    uint32 color_box_i0 = 201;
+    uint32 color_box_i1 = 202;
+    uint32 color_box_j0 = 203;
+    uint32 color_box_j1 = 204;
+    float color_box_min = 205;
+    float color_box_max = 206;
+}
+
+message Coord
+{
+    uint32 x = 1;
+    uint32 y = 2;
+}
+
+message Pixel
+{
+    bool valid = 1;
+    float value = 2;
+}
+
+message ImageNoRequest
+{
+    uint32 image = 1;
+}
+
+message ImageNameRequest
+{
+    uint32 image = 1;
+}
+
+message ImageNameResponse
+{
+    bool valid = 1;
+    string name = 2;
+}
+
+message InfoRequest
+{
+    uint32 image = 1;
+}
+
+message InfoResponse
+{
+    bool valid = 1;
+    repeated string info = 2;
+}
+
+message ImageNoResponse
+{
+    bool valid = 1;
+    uint32 no = 2;
+}
+
+message MinvalMaxval
+{
+    bool valid = 1;
+    float max = 2;
+    float min = 3;
+}
+
+message Box
+{
+    Coord upper_left = 1;
+    Coord lower_right = 2;
+}
+
+message RecolorRequest
+{
+}
+
+message RecolorResponse
+{
+}
+
+message StatsValues
+{
+    bool valid = 1;
+    uint32 i0 = 2;
+    uint32 i1 = 3;
+    uint32 j0 = 4;
+    uint32 j1 = 5;
+    float min = 6;
+    float max = 7;
+    float mean = 8;
+    float median = 9;
+}
