@@ -56,7 +56,15 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt5 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 COMPONENTS Widgets QUIET)
+if(Qt6_FOUND)
+    set(RTIMV_QT_PACKAGE Qt6)
+else()
+    find_package(Qt5 REQUIRED COMPONENTS Widgets)
+    set(RTIMV_QT_PACKAGE Qt5)
+endif()
+
+message(STATUS "Using ${RTIMV_QT_PACKAGE}::Widgets")
 
 ############################################
 # mxlib setup
@@ -80,7 +88,7 @@ add_library(objlib OBJECT src/librtimv/rtimvGraphicsView.cpp
                           src/librtimv/StretchCircle.cpp
                           src/librtimv/StretchLine.cpp)
 
-target_link_libraries(objlib PUBLIC Qt5::Widgets)
+target_link_libraries(objlib PUBLIC ${RTIMV_QT_PACKAGE}::Widgets)
 
 
 # shared libraries need PIC
@@ -94,6 +102,7 @@ SET_TARGET_PROPERTIES(rtimv-shared PROPERTIES OUTPUT_NAME rtimv CLEAN_DIRECT_OUT
 SET_TARGET_PROPERTIES(rtimv-static PROPERTIES OUTPUT_NAME rtimv CLEAN_DIRECT_OUTPUT 1)
 
 install (FILES src/librtimv/rtimvInterfaces.hpp
+               src/common/rtimvLog.hpp
                src/librtimv/rtimvGraphicsView.hpp
                src/librtimv/StretchGraphicsItem.hpp
                src/librtimv/StretchBox.hpp
@@ -145,7 +154,7 @@ else()
     message(STATUS "not using CUDA for MILK")
 endif()
 
-target_link_libraries(commonlib PUBLIC Qt5::Widgets)
+target_link_libraries(commonlib PUBLIC ${RTIMV_QT_PACKAGE}::Widgets)
 target_link_libraries(commonlib PUBLIC PkgConfig::MXLIB)
 
 if(LIBZMQ_FOUND)
@@ -287,7 +296,7 @@ if(Protobuf_FOUND AND GRPCPP_FOUND )
     target_link_libraries(rtimvClient PRIVATE protobuf::libprotobuf)
     target_link_libraries(rtimvClient PRIVATE PkgConfig::GRPCPP)
     target_link_libraries(rtimvClient PRIVATE -lgrpc++_reflection)
-    target_link_libraries(rtimvClient PUBLIC Qt5::Widgets)
+    target_link_libraries(rtimvClient PUBLIC ${RTIMV_QT_PACKAGE}::Widgets)
     target_link_libraries(rtimvClient PUBLIC PkgConfig::MXLIB)
 
     install (TARGETS rtimvClient DESTINATION bin)

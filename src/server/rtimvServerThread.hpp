@@ -36,10 +36,16 @@ class rtimvServerThread : public QThread, public rtimvBase
 
     std::atomic<uint32_t> m_activeRpc{ 0 }; ///< Number of active RPC handlers currently using this thread.
 
+    std::string m_calledName{ "rtimvServer" }; ///< Program called-name used in standardized log prefixes.
+
+    bool m_includeAppName{ true }; ///< True to include called-name in log prefixes.
+
   public:
     rtimvServerThread( const std::string &uri,                         /**< [in] client uri */
                        std::shared_ptr<std::vector<std::string>> argv, /**< [in] The argv vector. */
-                       QObject *parent = nullptr                       /**< [in] [opt] the parent of this thread */
+                       const std::string &calledName, /**< [in] Program called-name for log prefixes. */
+                       bool includeAppName,           /**< [in] True to include called-name in log prefixes. */
+                       QObject *parent = nullptr      /**< [in] [opt] the parent of this thread */
     );
 
     ~rtimvServerThread();

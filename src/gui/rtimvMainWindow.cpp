@@ -1,4 +1,11 @@
 
+/** \file rtimvMainWindow.cpp
+ * \brief Definitions for the rtimvMainWindow class
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #include "rtimvMainWindow.hpp"
 #include <QMetaType>
 
@@ -103,34 +110,16 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
     for( QObject *plugin : staticInstances )
     {
         static_cast<void>( plugin );
-        std::cerr << "loaded static plugins\n";
+        std::cerr << formatBaseLogMessage( "loaded static plugins" ) << '\n';
     }
 
-    QDir pluginsDir = QDir( QCoreApplication::applicationDirPath() );
-
-    // clang-format off
-    #if defined( Q_OS_WIN ) // clang-format on
-
-    if( pluginsDir.dirName().toLower() == "debug" || pluginsDir.dirName().toLower() == "release" )
+    auto loadPluginsFromDir = [this]( const QDir &pluginsDir )
     {
-        pluginsDir.cdUp();
-    }
+        if( !pluginsDir.exists() )
+        {
+            return;
+        }
 
-    // clang-format off
-    #elif defined( Q_OS_MAC ) // clang-format on
-
-    if( pluginsDir.dirName() == "MacOS" )
-    {
-        pluginsDir.cdUp();
-        pluginsDir.cdUp();
-        pluginsDir.cdUp();
-    }
-
-    // clang-format off
-    #endif // clang-format on
-
-    if( pluginsDir.cd( "plugins" ) )
-    {
         const auto entryList = pluginsDir.entryList( QDir::Files );
 
         for( const QString &fileName : entryList )
@@ -144,16 +133,78 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
                 {
                     if( !loader.unload() )
                     {
-                        std::cerr << "rtimv: unloading an unused plugin failed\n";
+                        std::cerr << formatBaseLogMessage( "unloading an unused plugin failed" ) << '\n';
                     }
                 }
                 else
                 {
-                    std::cerr << "rtimv: loaded plugin " << fileName.toStdString() << "\n";
+                    std::cerr << formatBaseLogMessage( std::string( "loaded plugin " ) + fileName.toStdString() )
+                              << '\n';
                     m_pluginFileNames += fileName;
                 }
             }
+            else
+            {
+                std::cerr << formatBaseLogMessage( std::string( "failed to load plugin " ) + fileName.toStdString() +
+                                                   ": " + loader.errorString().toStdString() )
+                          << '\n';
+            }
         }
+    };
+
+    QStringList pluginSearchDirs;
+
+    QByteArray pluginPathEnv = qgetenv( "RTIMV_PLUGIN_PATH" );
+    if( !pluginPathEnv.isEmpty() )
+    {
+        const QStringList envDirs =
+            QString::fromLocal8Bit( pluginPathEnv ).split( QDir::listSeparator(), Qt::SkipEmptyParts );
+        for( const QString &dir : envDirs )
+        {
+            const QString cleanDir = QDir::cleanPath( dir.trimmed() );
+            if( !cleanDir.isEmpty() && !pluginSearchDirs.contains( cleanDir ) )
+            {
+                pluginSearchDirs += cleanDir;
+            }
+        }
+    }
+
+    QDir appPluginsDir = QDir( QCoreApplication::applicationDirPath() );
+
+    // clang-format off
+    #if defined( Q_OS_WIN ) // clang-format on
+
+    if( appPluginsDir.dirName().toLower() == "debug" || appPluginsDir.dirName().toLower() == "release" )
+    {
+        appPluginsDir.cdUp();
+    }
+
+    // clang-format off
+    #elif defined( Q_OS_MAC ) // clang-format on
+
+    if( appPluginsDir.dirName() == "MacOS" )
+    {
+        appPluginsDir.cdUp();
+        appPluginsDir.cdUp();
+        appPluginsDir.cdUp();
+    }
+
+    // clang-format off
+    #endif // clang-format on
+
+    if( appPluginsDir.cd( "plugins" ) )
+    {
+        const QString appPluginPath = appPluginsDir.absolutePath();
+        if( !pluginSearchDirs.contains( appPluginPath ) )
+        {
+            pluginSearchDirs += appPluginPath;
+        }
+    }
+
+    for( const QString &dir : pluginSearchDirs )
+    {
+        std::cerr << formatBaseLogMessage( std::string( "scanning plugin directory " ) + dir.toStdString() ) << '\n';
+        loadPluginsFromDir( QDir( dir ) );
     }
 
     startup();
@@ -1419,7 +1470,7 @@ void rtimvMainWindow::mtxTry_colorBoxMoved( StretchBox *sb )
 
     if( colormode() != rtimv::colormode::minmaxbox )
     {
-        std::cerr << "bug: got colorbar moved but not in color box mode\n";
+        std::cerr << formatBaseLogMessage( "bug: got colorbar moved but not in color box mode" ) << '\n';
         return;
     }
 
@@ -2336,7 +2387,7 @@ void rtimvMainWindow::mtxL_postColormode( rtimv::colormode m, const sharedLockT 
         }
         else
         {
-            std::cerr << "bug: set colormode to box but no color box allocated\n";
+            std::cerr << formatBaseLogMessage( "bug: set colormode to box but no color box allocated" ) << '\n';
         }
     }
     else
@@ -3214,7 +3265,7 @@ void rtimvMainWindow::mtxL_fontLuminance( QTextEdit *qte, const sharedLockT &loc
 
     if( print )
     {
-        std::cerr << "avgLum: " << avgLum << "\n";
+        std::cerr << formatBaseLogMessage( std::string( "avgLum: " ) + std::to_string( avgLum ) ) << '\n';
     }
 
     if( avgLum <= m_lumThresh )
@@ -3280,7 +3331,13 @@ void rtimvMainWindow::mtxTry_fontLuminance()
 int rtimvMainWindow::loadPlugin( QObject *plugin )
 {
     auto rdi = qobject_cast<rtimvDictionaryInterface *>( plugin );
-    rtimvInterface *ri{ nullptr };
+    rtimvInterface *ri = dynamic_cast<rtimvInterface *>( plugin );
+
+    if( ri )
+    {
+        ri->setLogContext( m_calledName, m_logAppName, logImage0() );
+        ri->setPluginName( plugin->metaObject()->className() );
+    }
 
     if( rdi )
     {
@@ -3288,7 +3345,8 @@ int rtimvMainWindow::loadPlugin( QObject *plugin )
 
         if( arv < 0 )
         {
-            std::cerr << "Error from attachDictionary: " << arv << "\n";
+            std::cerr << formatBaseLogMessage( std::string( "Error from attachDictionary: " ) + std::to_string( arv ) )
+                      << '\n';
             return arv;
         }
         else if( arv > 0 )
@@ -3318,7 +3376,8 @@ int rtimvMainWindow::loadPlugin( QObject *plugin )
 
         if( arv < 0 )
         {
-            std::cerr << "Error from attachOverlay: " << arv << "\n";
+            std::cerr << formatBaseLogMessage( std::string( "Error from attachOverlay: " ) + std::to_string( arv ) )
+                      << '\n';
             return arv;
         }
         else if( arv > 0 )
