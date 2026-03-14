@@ -105,9 +105,9 @@ struct rtimvImage : public QObject
     /** If not a cube this will have no effect.
      *
      */
-    virtual void imageNo(uint32_t ino /**< [in] then new image number to display */)
+    virtual void imageNo( uint32_t ino /**< [in] then new image number to display */ )
     {
-        static_cast<void>(ino);
+        static_cast<void>( ino );
     }
 
     /// Increment the current image number.
@@ -136,9 +136,9 @@ struct rtimvImage : public QObject
      *  next call to update().
      *
      */
-    virtual void deltaImageNo(int32_t dino /**< [in] the change in image number */)
+    virtual void deltaImageNo( int32_t dino /**< [in] the change in image number */ )
     {
-        static_cast<void>(dino);
+        static_cast<void>( dino );
     }
 
     /// Get the image acquisition time
@@ -187,16 +187,23 @@ struct rtimvImage : public QObject
      */
     virtual float fpsEst() = 0;
 
+    /// Get the number of bytes in one source pixel sample.
+    /**
+     * \returns the native source bytes per pixel.
+     */
+    virtual size_t bytesPerPixel() = 0;
+
     virtual std::vector<std::string> info()
     {
         std::vector<std::string> vinfo;
 
         vinfo.push_back( imageName() );
-        vinfo.push_back( "size: [" + std::to_string( nx() ) + "x" + std::to_string( ny() ) + "x" + std::to_string( nz() ) + "]" );
+        vinfo.push_back( "size: [" + std::to_string( nx() ) + "x" + std::to_string( ny() ) + "x" +
+                         std::to_string( nz() ) + "]" );
         double age = mx::sys::get_curr_time() - imageTime();
         if( age > 10 )
         {
-            vinfo.push_back(std::string("age: ") + std::to_string( (int)age ) + " sec" );
+            vinfo.push_back( std::string( "age: " ) + std::to_string( (int)age ) + " sec" );
         }
 
         return vinfo;

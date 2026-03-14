@@ -226,6 +226,17 @@ void rtimvClientBase::setupConfig()
                 "real",
                 "Specify the image cube update rate in FPS.  Default is 20 FPS." );
 
+    config.add( "update.rollingStatsFrames",
+                "",
+                "update.rollingStatsFrames",
+                mx::app::argType::Required,
+                "update",
+                "rollingStatsFrames",
+                false,
+                "int",
+                "Specify the number of frames used for rolling averages of compression ratio and frame rate. "
+                "Default is 10." );
+
     config.add( "autoscale",
                 "",
                 "autoscale",
@@ -481,6 +492,15 @@ void rtimvClientBase::loadConfig()
         config( cubeFPS, "update.cubeFPS" );
         m_configReq->set_update_cube_fps( cubeFPS );
         m_configReq->set_update_cube_fps_set( true );
+    }
+
+    if( config.isSet( "update.rollingStatsFrames" ) )
+    {
+        config( m_rollingStatsFrames, "update.rollingStatsFrames" );
+        if( m_rollingStatsFrames < 1 )
+        {
+            m_rollingStatsFrames = 1;
+        }
     }
 
     if( config.isSet( "autoscale" ) )
@@ -936,6 +956,7 @@ void rtimvClientBase::ImageReceived()
     float fpsEst;
     double imageTime;
     uint32_t saturated;
+    uint32_t sourceBytesPerPixel;
     float minsc, maxsc, minim, maxim;
     int imageTimeout;
     int quality;
@@ -962,6 +983,7 @@ void rtimvClientBase::ImageReceived()
     float colorBox_min, colorBox_max;
     int cubeDir;
     bool hasImagePayload{ false };
+    size_t compressedBytes{ 0 };
 
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
@@ -1002,6 +1024,7 @@ void rtimvClientBase::ImageReceived()
 
         if( m_grpcImage.image().size() > 0 )
         {
+            compressedBytes = static_cast<size_t>( m_grpcImage.image().size() );
             hasImagePayload = m_qim->loadFromData(
                 reinterpret_cast<const uchar *>( m_grpcImage.image().data() ), m_grpcImage.image().size(), "jpeg" );
         }
@@ -1010,6 +1033,7 @@ void rtimvClientBase::ImageReceived()
         fpsEst = m_grpcImage.fps();
 
         saturated = m_grpcImage.saturated();
+        sourceBytesPerPixel = m_grpcImage.source_bytes_per_pixel();
 
         minim = m_grpcImage.min_image_data();
         maxim = m_grpcImage.max_image_data();
@@ -1075,6 +1099,7 @@ void rtimvClientBase::ImageReceived()
     }
 
     m_fpsEst = fpsEst;
+    updateRollingTransportStats( nx, ny, compressedBytes, sourceBytesPerPixel, hasImagePayload );
     m_imageTime = imageTime;
     m_imageNo = imageNo;
     m_saturated = saturated;
@@ -1740,6 +1765,21 @@ double rtimvClientBase::fpsEst( size_t n )
     return 0;
 }
 
+double rtimvClientBase::lastCompressionRatio()
+{
+    return m_lastCompressionRatio;
+}
+
+double rtimvClientBase::avgCompressionRatio()
+{
+    return m_avgCompressionRatio;
+}
+
+double rtimvClientBase::avgFrameRate()
+{
+    return m_avgFrameRate;
+}
+
 std::string rtimvClientBase::imageName( size_t n )
 {
     if( n >= m_imageNames.size() )
@@ -2061,6 +2101,69 @@ void rtimvClientBase::setCurrImageTimeout()
         }
 
         m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
+    }
+}
+
+void rtimvClientBase::updateRollingTransportStats(
+    uint32_t nx, uint32_t ny, size_t compressedBytes, uint32_t sourceBytesPerPixel, bool validPayload )
+{
+    if( m_rollingStatsFrames < 1 )
+    {
+        m_rollingStatsFrames = 1;
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+    if( m_lastArrivalTime != std::chrono::steady_clock::time_point{} )
+    {
+        const std::chrono::duration<double> dt = now - m_lastArrivalTime;
+        const double seconds = dt.count();
+        if( seconds > 0 )
+        {
+            const double arrivalFps = 1.0 / seconds;
+            m_recentFps.push_back( arrivalFps );
+            m_fpsRollingSum += arrivalFps;
+
+            while( static_cast<int>( m_recentFps.size() ) > m_rollingStatsFrames )
+            {
+                m_fpsRollingSum -= m_recentFps.front();
+                m_recentFps.pop_front();
+            }
+
+            if( !m_recentFps.empty() )
+            {
+                m_avgFrameRate = m_fpsRollingSum / static_cast<double>( m_recentFps.size() );
+            }
+        }
+    }
+    m_lastArrivalTime = now;
+
+    if( !validPayload || compressedBytes == 0 || sourceBytesPerPixel == 0 )
+    {
+        return;
+    }
+
+    const double sourceBytes =
+        static_cast<double>( nx ) * static_cast<double>( ny ) * static_cast<double>( sourceBytesPerPixel );
+    if( sourceBytes <= 0 )
+    {
+        return;
+    }
+
+    const double compressionRatio = sourceBytes / static_cast<double>( compressedBytes );
+    m_lastCompressionRatio = compressionRatio;
+
+    m_recentCompressionRatios.push_back( compressionRatio );
+    m_compressionRollingSum += compressionRatio;
+
+    while( static_cast<int>( m_recentCompressionRatios.size() ) > m_rollingStatsFrames )
+    {
+        m_compressionRollingSum -= m_recentCompressionRatios.front();
+        m_recentCompressionRatios.pop_front();
+    }
+
+    if( !m_recentCompressionRatios.empty() )
+    {
+        m_avgCompressionRatio = m_compressionRollingSum / static_cast<double>( m_recentCompressionRatios.size() );
     }
 }
 

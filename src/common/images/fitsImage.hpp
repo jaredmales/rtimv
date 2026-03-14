@@ -124,7 +124,7 @@ struct fitsImage : public rtimvImage
     /// Set the current image in the cube.
     /**
      */
-    void imageNo(uint32_t ino /**< [in] the new image number to display */);
+    void imageNo( uint32_t ino /**< [in] the new image number to display */ );
 
     /// Increment the current image number.
     /** If not a cube this has no effect.  If it is a cube it
@@ -147,7 +147,7 @@ struct fitsImage : public rtimvImage
      *  next call to update().
      *
      */
-    void deltaImageNo(int32_t dino /**< [in] the change in image number */);
+    void deltaImageNo( int32_t dino /**< [in] the change in image number */ );
 
     /// Get the image acquisition time
     /** Gets the acquisition time converted to double, giving time since the epoch.
@@ -209,6 +209,12 @@ struct fitsImage : public rtimvImage
 
   public:
     float pixel( size_t n );
+
+    /// Get the native source bytes per pixel.
+    size_t bytesPerPixel()
+    {
+        return sizeof( float );
+    }
 
     virtual std::vector<std::string> info();
 };

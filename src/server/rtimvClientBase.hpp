@@ -12,6 +12,8 @@
 #include <mutex>
 #include <shared_mutex>
 #include <condition_variable>
+#include <chrono>
+#include <deque>
 #include <string_view>
 
 #include <QImage>
@@ -422,6 +424,24 @@ class rtimvClientBase : public mx::app::application
 
     float m_fpsEst;
 
+    int m_rollingStatsFrames{ 10 }; ///< Number of frames used for rolling transport-stat averages.
+
+    double m_lastCompressionRatio{ 0 }; ///< Compression ratio of the most recently received image payload.
+
+    double m_avgCompressionRatio{ 0 }; ///< Rolling average compression ratio over recent received frames.
+
+    double m_avgFrameRate{ 0 }; ///< Rolling average frame rate over recent received frames.
+
+    double m_fpsRollingSum{ 0 }; ///< Running sum for the rolling frame-rate average.
+
+    double m_compressionRollingSum{ 0 }; ///< Running sum for the rolling compression-ratio average.
+
+    std::deque<double> m_recentFps; ///< Recent FPS samples used to form the rolling average.
+
+    std::deque<double> m_recentCompressionRatios; ///< Recent compression-ratio samples used to form the average.
+
+    std::chrono::steady_clock::time_point m_lastArrivalTime; ///< Monotonic arrival time of the previous received frame.
+
     double m_imageTime{ 0 };
 
     uint32_t m_imageNo{ 0 };
@@ -595,6 +615,14 @@ class rtimvClientBase : public mx::app::application
   private:
     void setCurrImageTimeout();
 
+    /// Update rolling transport statistics from the latest received frame.
+    void updateRollingTransportStats( uint32_t nx /**< [in] frame width in pixels */,
+                                      uint32_t ny /**< [in] frame height in pixels */,
+                                      size_t compressedBytes /**< [in] compressed JPEG payload size in bytes */,
+                                      uint32_t sourceBytesPerPixel /**< [in] native source bytes per pixel */,
+                                      bool validPayload /**< [in] true if a JPEG payload was received and decoded */
+    );
+
   public:
     /// Set the image display timeout.
     /** This sets the maximum display frame rate, e.g. a timeout of 50 msec will
@@ -642,6 +670,15 @@ class rtimvClientBase : public mx::app::application
 
     /// Change the cube frame number by a delta
     void cubeFrameDelta( int32_t dfno /**< [in] the change in image number */ );
+
+    /// Get the compression ratio of the most recently received frame.
+    double lastCompressionRatio();
+
+    /// Get the rolling average compression ratio.
+    double avgCompressionRatio();
+
+    /// Get the rolling average frame rate.
+    double avgFrameRate();
 
     /// @}
 

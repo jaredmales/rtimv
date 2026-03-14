@@ -73,6 +73,10 @@ Follow these code style and documentation rules exactly.
 14) Header Declaration Parameter Docs
 - In headers, prefer inline parameter documentation on declarations (`type name /**< ... */`) rather than separate `\param` lists, unless there is a specific reason to deviate.
 
+14.1) Multi-Line Declaration Closing Paren Style
+- For multi-line function declarations, prefer placing the closing `)` on its own line.
+- This is preferred when using inline parameter documentation so `clang-format` can align the trailing comment blocks cleanly.
+
 15) PR Prompt Attribution
 - At the top of PR descriptions, include an explicit attribution line when work was performed with Codex.
 - Preferred format:

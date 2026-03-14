@@ -175,6 +175,9 @@ struct shmimImage : public rtimvImage
      * \returns the latest FPS estimate.
      */
     float fpsEst();
+
+    /// Get the native source bytes per pixel.
+    size_t bytesPerPixel();
 };
 
 #endif // MXLIB_MILK

@@ -369,6 +369,7 @@ message Image
     float max_image_data = 111;
     float min_scale_data = 112;
     float max_scale_data = 113;
+    uint32 source_bytes_per_pixel = 114;
 
     Colorbar  colorbar = 115;
     Colormode colormode = 120;
