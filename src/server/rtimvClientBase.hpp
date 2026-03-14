@@ -436,7 +436,7 @@ class rtimvClientBase : public mx::app::application
 
     double m_compressionRollingSum{ 0 }; ///< Running sum for the rolling compression-ratio average.
 
-    std::deque<double> m_recentFps; ///< Recent FPS samples used to form the rolling average.
+    std::deque<double> m_recentFrameIntervals; ///< Recent inter-arrival times used to form the rolling average.
 
     std::deque<double> m_recentCompressionRatios; ///< Recent compression-ratio samples used to form the average.
 

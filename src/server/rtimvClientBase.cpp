@@ -2119,19 +2119,22 @@ void rtimvClientBase::updateRollingTransportStats(
         const double seconds = dt.count();
         if( seconds > 0 )
         {
-            const double arrivalFps = 1.0 / seconds;
-            m_recentFps.push_back( arrivalFps );
-            m_fpsRollingSum += arrivalFps;
+            m_recentFrameIntervals.push_back( seconds );
+            m_fpsRollingSum += seconds;
 
-            while( static_cast<int>( m_recentFps.size() ) > m_rollingStatsFrames )
+            while( static_cast<int>( m_recentFrameIntervals.size() ) > m_rollingStatsFrames )
             {
-                m_fpsRollingSum -= m_recentFps.front();
-                m_recentFps.pop_front();
+                m_fpsRollingSum -= m_recentFrameIntervals.front();
+                m_recentFrameIntervals.pop_front();
             }
 
-            if( !m_recentFps.empty() )
+            if( !m_recentFrameIntervals.empty() )
             {
-                m_avgFrameRate = m_fpsRollingSum / static_cast<double>( m_recentFps.size() );
+                const double avgFrameInterval = m_fpsRollingSum / static_cast<double>( m_recentFrameIntervals.size() );
+                if( avgFrameInterval > 0 )
+                {
+                    m_avgFrameRate = 1.0 / avgFrameInterval;
+                }
             }
         }
     }
