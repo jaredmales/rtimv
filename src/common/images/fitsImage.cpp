@@ -69,11 +69,11 @@ uint32_t fitsImage::imageNo()
     return m_imageNo;
 }
 
-void fitsImage::imageNo(uint32_t ino)
+void fitsImage::imageNo( uint32_t ino )
 {
     if( ino > nz() - 1 )
     {
-        m_nextImageNo = nz()-1;
+        m_nextImageNo = nz() - 1;
     }
     else
     {
@@ -91,45 +91,41 @@ void fitsImage::incImageNo()
     {
         m_nextImageNo = m_imageNo + 1;
     }
-
 }
 
 void fitsImage::decImageNo()
 {
     if( m_imageNo == 0 )
     {
-        m_nextImageNo = m_nz-1;
+        m_nextImageNo = m_nz - 1;
     }
     else
     {
         m_nextImageNo = m_imageNo - 1;
     }
-
 }
 
-void fitsImage::deltaImageNo(int32_t dino)
+void fitsImage::deltaImageNo( int32_t dino )
 {
-    if(abs(dino) > nz())
+    if( abs( dino ) > nz() )
     {
         dino %= nz();
     }
 
-    uint32_t absdino = abs(dino);
+    uint32_t absdino = abs( dino );
 
-    if(dino < 0 && absdino > m_imageNo)
+    if( dino < 0 && absdino > m_imageNo )
     {
-        m_nextImageNo = nz() + (m_imageNo+dino);
+        m_nextImageNo = nz() + ( m_imageNo + dino );
     }
-    else if(dino > 0 && absdino > (nz()-1 - m_imageNo))
+    else if( dino > 0 && absdino > ( nz() - 1 - m_imageNo ) )
     {
-        m_nextImageNo = dino - (nz() - m_imageNo);
+        m_nextImageNo = dino - ( nz() - m_imageNo );
     }
     else
     {
         m_nextImageNo += dino;
     }
-
-
 }
 
 double fitsImage::imageTime()
@@ -192,6 +188,39 @@ int fitsImage::readImage()
 
         return -1;
     }
+
+    int bitpix;
+    fits_get_img_type( fptr, &bitpix, &fstatus );
+    if( fstatus )
+    {
+        if( m_reported == m_reportThresh )
+        {
+            std::cerr << "rtimv: error getting data type in file " << m_imagePath << "\n";
+        }
+        ++m_reported;
+
+        fstatus = 0;
+        fits_close_file( fptr, &fstatus );
+
+        return -1;
+    }
+
+    const size_t typeSize = static_cast<size_t>( bitpix < 0 ? -bitpix : bitpix ) / 8;
+    if( typeSize == 0 )
+    {
+        if( m_reported == m_reportThresh )
+        {
+            std::cerr << "rtimv: unsupported data type in file " << m_imagePath << "\n";
+        }
+        ++m_reported;
+
+        fstatus = 0;
+        fits_close_file( fptr, &fstatus );
+
+        return -1;
+    }
+
+    m_typeSize = typeSize;
 
     long *naxes = new long[naxis];
 
@@ -394,7 +423,7 @@ float fitsImage::pixel( size_t n )
 std::vector<std::string> fitsImage::info()
 {
     std::vector<std::string> info = rtimvImage::info();
-    info.push_back( std::string("path: ") + imageKey() );
+    info.push_back( std::string( "path: " ) + imageKey() );
 
     return info;
 }

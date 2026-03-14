@@ -48,6 +48,8 @@ struct fitsImage : public rtimvImage
 
     uint32_t m_nextImageNo{ 0 }; ///< The next image number.
 
+    size_t m_typeSize{ sizeof( float ) }; ///< Native source bytes per pixel as stored in the FITS file.
+
     char *m_data{ nullptr }; ///< Pointer to the image data
 
     char *m_currData{ nullptr }; ///< Pointer to the image data
@@ -213,7 +215,7 @@ struct fitsImage : public rtimvImage
     /// Get the native source bytes per pixel.
     size_t bytesPerPixel()
     {
-        return sizeof( float );
+        return m_typeSize;
     }
 
     virtual std::vector<std::string> info();

@@ -70,11 +70,11 @@ uint32_t fitsDirectory::imageNo()
     return m_imageNo;
 }
 
-void fitsDirectory::imageNo(uint32_t ino)
+void fitsDirectory::imageNo( uint32_t ino )
 {
     if( ino > nz() - 1 )
     {
-        m_nextImageNo = nz()-1;
+        m_nextImageNo = nz() - 1;
     }
     else
     {
@@ -106,30 +106,28 @@ void fitsDirectory::decImageNo()
     }
 }
 
-void fitsDirectory::deltaImageNo(int32_t dino)
+void fitsDirectory::deltaImageNo( int32_t dino )
 {
-    if(abs(dino) > nz())
+    if( abs( dino ) > nz() )
     {
         dino %= nz();
     }
 
-    uint32_t absdino = abs(dino);
+    uint32_t absdino = abs( dino );
 
-    if(dino < 0 && absdino > m_imageNo)
+    if( dino < 0 && absdino > m_imageNo )
     {
-        m_nextImageNo = nz() + (m_imageNo+dino);
+        m_nextImageNo = nz() + ( m_imageNo + dino );
     }
-    else if(dino > 0 && absdino > (nz()-1 - m_imageNo))
+    else if( dino > 0 && absdino > ( nz() - 1 - m_imageNo ) )
     {
-        m_nextImageNo = dino - (nz() - m_imageNo);
+        m_nextImageNo = dino - ( nz() - m_imageNo );
     }
     else
     {
         m_nextImageNo += dino;
     }
-
 }
-
 
 double fitsDirectory::imageTime()
 {
@@ -184,6 +182,35 @@ int fitsDirectory::readImage( size_t imno )
         return -1;
     }
     m_reported = false;
+
+    int bitpix;
+    fits_get_img_type( fptr, &bitpix, &fstatus );
+    if( fstatus )
+    {
+        if( !m_reported )
+            std::cerr << "rtimv: error getting data type in file " << m_fileList[imno] << "\n";
+        m_reported = true;
+
+        fstatus = 0;
+        fits_close_file( fptr, &fstatus );
+
+        return -1;
+    }
+    m_reported = false;
+
+    const size_t typeSize = static_cast<size_t>( bitpix < 0 ? -bitpix : bitpix ) / 8;
+    if( typeSize == 0 )
+    {
+        if( !m_reported )
+            std::cerr << "rtimv: unsupported data type in file " << m_fileList[imno] << "\n";
+        m_reported = true;
+
+        fstatus = 0;
+        fits_close_file( fptr, &fstatus );
+
+        return -1;
+    }
+    m_typeSize = typeSize;
 
     long *naxes = new long[naxis];
 
@@ -277,9 +304,9 @@ void fitsDirectory::imConnect()
 
     mx::error_t errc = mx::ioutils::getFileNames( m_fileList, m_dirPath, "", "", ".fits" );
 
-    if(errc != mx::error_t::noerror)
+    if( errc != mx::error_t::noerror )
     {
-        mx::error_report<mx::verbose::vvv>(errc);
+        mx::error_report<mx::verbose::vvv>( errc );
         return;
     }
 
@@ -369,8 +396,7 @@ float fitsDirectory::pixel( size_t n )
 std::vector<std::string> fitsDirectory::info()
 {
     std::vector<std::string> info = rtimvImage::info();
-    info.push_back( std::string("path: ") + imageKey() );
+    info.push_back( std::string( "path: " ) + imageKey() );
 
     return info;
 }
-
