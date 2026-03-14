@@ -393,6 +393,11 @@ float fitsDirectory::pixel( size_t n )
     return pixget( m_data, n );
 }
 
+size_t fitsDirectory::bytesPerPixel()
+{
+    return m_typeSize;
+}
+
 std::vector<std::string> fitsDirectory::info()
 {
     std::vector<std::string> info = rtimvImage::info();

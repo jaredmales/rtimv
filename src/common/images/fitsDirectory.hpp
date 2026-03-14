@@ -217,10 +217,7 @@ struct fitsDirectory : public rtimvImage
     float pixel( size_t n );
 
     /// Get the native source bytes per pixel.
-    size_t bytesPerPixel()
-    {
-        return m_typeSize;
-    }
+    size_t bytesPerPixel();
 
     std::vector<std::string> info();
 };

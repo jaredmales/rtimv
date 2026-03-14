@@ -420,6 +420,11 @@ float fitsImage::pixel( size_t n )
     return pixget( m_currData, n );
 }
 
+size_t fitsImage::bytesPerPixel()
+{
+    return m_typeSize;
+}
+
 std::vector<std::string> fitsImage::info()
 {
     std::vector<std::string> info = rtimvImage::info();
