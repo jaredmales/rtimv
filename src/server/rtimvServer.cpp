@@ -769,6 +769,7 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
         reply->set_max_image_data( imageTh->maxImageData() );
         reply->set_min_scale_data( imageTh->minScaleData() );
         reply->set_max_scale_data( imageTh->maxScaleData() );
+        reply->set_source_bytes_per_pixel( imageTh->bytesPerPixel( 0 ) );
 
         reply->set_colorbar( rtimv::colorbar2grpc( imageTh->colorbar() ) );
 

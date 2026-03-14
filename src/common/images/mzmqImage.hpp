@@ -197,6 +197,9 @@ struct mzmqImage : public rtimvImage
      */
     float fpsEst();
 
+    /// Get the native source bytes per pixel.
+    size_t bytesPerPixel();
+
     virtual std::vector<std::string> info();
 };
 

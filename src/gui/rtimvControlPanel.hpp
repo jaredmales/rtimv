@@ -263,6 +263,9 @@ class rtimvControlPanel : public QWidget
     /// Synchronize JPEG quality entry from model state.
     void update_qualityEntry();
 
+    /// Synchronize the displayed transport statistics from model state.
+    void update_transportStats();
+
     /// Synchronize high-pass filter controls from model state.
     void update_hpFilter();
 

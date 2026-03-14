@@ -234,6 +234,13 @@ class rtimvBase : public mx::app::application
      */
     std::vector<std::string> info( size_t n /**< [in] the image number */ );
 
+    /// Get the native source bytes per pixel for an image.
+    /**
+     * \returns native source bytes per pixel if valid
+     * \returns 0 if not valid
+     */
+    size_t bytesPerPixel( size_t n /**< [in] the image number */ );
+
     ///@}
 
     /** @name Image Size Data

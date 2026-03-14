@@ -584,6 +584,16 @@ std::vector<std::string> rtimvBase::info( size_t n )
     return m_images[n]->info();
 }
 
+size_t rtimvBase::bytesPerPixel( size_t n )
+{
+    if( !imageValid( n ) )
+    {
+        return 0;
+    }
+
+    return m_images[n]->bytesPerPixel();
+}
+
 void rtimvBase::mtxL_setImsize( uint32_t x, uint32_t y, uint32_t z, const uniqueLockT &lock )
 {
     assert( lock.owns_lock() );

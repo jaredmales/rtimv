@@ -577,6 +577,11 @@ float mzmqImage::fpsEst()
     return m_fpsEst;
 }
 
+size_t mzmqImage::bytesPerPixel()
+{
+    return m_typeSize;
+}
+
 std::vector<std::string> mzmqImage::info()
 {
     std::vector<std::string> info = rtimvImage::info();
