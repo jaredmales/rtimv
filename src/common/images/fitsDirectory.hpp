@@ -31,8 +31,8 @@ struct fitsDirectory : public rtimvImage
 
     bool m_reported{ false }; ///< Switch to provide reporting errors only once.
 
-    std::filesystem::file_time_type
-        m_lastWriteTime; ///< The last write time of the directory.  Used for tracking changes.
+    std::filesystem::file_time_type m_lastWriteTime; /**< The last write time of the directory.
+                                                          Used for tracking changes.*/
 
     int m_imageTimeout{ 1000 }; ///< The timeout for checking for shared memory file existence.
 
@@ -46,6 +46,8 @@ struct fitsDirectory : public rtimvImage
     uint32_t m_imageNo{ 0 }; ///< The current image number.
 
     uint32_t m_nextImageNo{ 0 }; ///< The next image number.
+
+    size_t m_typeSize{ sizeof( float ) }; ///< Native source bytes per pixel as stored in the FITS file.
 
     char *m_data{ nullptr }; ///< Pointer to the image data
 
@@ -130,7 +132,7 @@ struct fitsDirectory : public rtimvImage
     /// Set the current image in the cube.
     /**
      */
-    virtual void imageNo(uint32_t ino /**< [in] the new image number to display */);
+    virtual void imageNo( uint32_t ino /**< [in] the new image number to display */ );
 
     /// Increment the current image number.
     /** Cause the next image in the cube to be presented as an update on the
@@ -151,7 +153,7 @@ struct fitsDirectory : public rtimvImage
      *  next call to update().
      *
      */
-    virtual void deltaImageNo(int32_t dino /**< [in] the change in image number */);
+    virtual void deltaImageNo( int32_t dino /**< [in] the change in image number */ );
 
     /// Get the image acquisition time
     /** Gets the acquisition time converted to double, giving time since the epoch.
@@ -213,6 +215,9 @@ struct fitsDirectory : public rtimvImage
 
   public:
     float pixel( size_t n );
+
+    /// Get the native source bytes per pixel.
+    size_t bytesPerPixel();
 
     std::vector<std::string> info();
 };

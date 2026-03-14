@@ -40,6 +40,9 @@ Follow these code style and documentation rules exactly.
 - Keep non-trivial definitions out of headers.
 - Move implementations to `.cpp` unless intentionally inline.
 
+7.1) Accessor Definition Placement
+- Even simple accessors such as `bytesPerPixel()` should be defined in `.cpp` files rather than inline in headers unless there is a specific reason to keep them inline.
+
 8) Editing Discipline
 - Preserve existing behavior unless explicitly requested.
 - When renaming members/APIs, update all dependent call sites.
@@ -73,6 +76,10 @@ Follow these code style and documentation rules exactly.
 14) Header Declaration Parameter Docs
 - In headers, prefer inline parameter documentation on declarations (`type name /**< ... */`) rather than separate `\param` lists, unless there is a specific reason to deviate.
 
+14.1) Multi-Line Declaration Closing Paren Style
+- For multi-line function declarations, prefer placing the closing `)` on its own line.
+- This is preferred when using inline parameter documentation so `clang-format` can align the trailing comment blocks cleanly.
+
 15) PR Prompt Attribution
 - At the top of PR descriptions, include an explicit attribution line when work was performed with Codex.
 - Preferred format:
@@ -92,7 +99,7 @@ Follow these code style and documentation rules exactly.
     - `{ // mutex scope`
 
 19) Keep This File Current
-  - Add new standing style/documentation instructions and coding conventions to `agent_context.md` as they are introduced.
+  - Add new standing style/documentation instructions and coding conventions to `AGENTS.md` as they are introduced.
 
 When you finish:
 - Summarize what changed.

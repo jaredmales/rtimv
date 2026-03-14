@@ -11,6 +11,15 @@ rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, Qt::WindowFlags f ) : 
     m_ui.setupUi( this );
     m_imv = v;
 
+    const int colorTabIndex = m_ui.tabWidget->indexOf( m_ui.tabColor );
+    if( colorTabIndex > 0 )
+    {
+        const QString colorTabText = m_ui.tabWidget->tabText( colorTabIndex );
+        const QIcon colorTabIcon = m_ui.tabWidget->tabIcon( colorTabIndex );
+        m_ui.tabWidget->removeTab( colorTabIndex );
+        m_ui.tabWidget->insertTab( 0, m_ui.tabColor, colorTabIcon, colorTabText );
+    }
+
     setupMode();
     setupCombos();
     m_ui.tabWidget->setCurrentIndex( 0 );
@@ -60,10 +69,22 @@ rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, Qt::WindowFlags f ) : 
     m_ui.qualityLabel->setVisible( true );
     m_ui.qualitySlider->setVisible( true );
     m_ui.qualityEntry->setVisible( true );
+    m_ui.lastCompressionRatioLabel->setVisible( true );
+    m_ui.lastCompressionRatioEntry->setVisible( true );
+    m_ui.avgCompressionRatioLabel->setVisible( true );
+    m_ui.avgCompressionRatioEntry->setVisible( true );
+    m_ui.avgFrameRateLabel->setVisible( true );
+    m_ui.avgFrameRateEntry->setVisible( true );
 #else
     m_ui.qualityLabel->setVisible( false );
     m_ui.qualitySlider->setVisible( false );
     m_ui.qualityEntry->setVisible( false );
+    m_ui.lastCompressionRatioLabel->setVisible( false );
+    m_ui.lastCompressionRatioEntry->setVisible( false );
+    m_ui.avgCompressionRatioLabel->setVisible( false );
+    m_ui.avgCompressionRatioEntry->setVisible( false );
+    m_ui.avgFrameRateLabel->setVisible( false );
+    m_ui.avgFrameRateEntry->setVisible( false );
 #endif
 
     init_panel();
@@ -134,6 +155,7 @@ void rtimvControlPanel::init_panel()
 #ifdef RTIMV_GRPC
     update_qualitySlider();
     update_qualityEntry();
+    update_transportStats();
 #endif
     update_hpFilter();
     update_lpFilter();
@@ -175,6 +197,7 @@ void rtimvControlPanel::update_panel()
 #ifdef RTIMV_GRPC
     update_qualitySlider();
     update_qualityEntry();
+    update_transportStats();
 #endif
 
     update_hpFilter();
@@ -765,6 +788,15 @@ void rtimvControlPanel::update_qualityEntry()
         m_ui.qualityEntry->setText( QString::number( m_imv->quality() ) );
         m_ui.qualityEntry->blockSignals( false );
     }
+#endif
+}
+
+void rtimvControlPanel::update_transportStats()
+{
+#ifdef RTIMV_GRPC
+    m_ui.lastCompressionRatioEntry->setText( QString::number( m_imv->lastCompressionRatio(), 'f', 1 ) + ":1" );
+    m_ui.avgCompressionRatioEntry->setText( QString::number( m_imv->avgCompressionRatio(), 'f', 1 ) + ":1" );
+    m_ui.avgFrameRateEntry->setText( QString::number( m_imv->avgFrameRate(), 'f', 1 ) );
 #endif
 }
 

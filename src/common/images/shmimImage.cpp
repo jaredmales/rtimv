@@ -367,4 +367,9 @@ float shmimImage::fpsEst()
     return m_fpsEst;
 }
 
+size_t shmimImage::bytesPerPixel()
+{
+    return m_typeSize;
+}
+
 #endif // MXLIB_MILK
