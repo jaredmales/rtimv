@@ -1,7 +1,15 @@
+/** \file rtimvServerThread.cpp
+ * \brief Definitions for the rtimvServerThread class
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #include "rtimvServerThread.hpp"
 #include "rtimvLog.hpp"
 
 #include <QBuffer>
+#include <algorithm>
 
 namespace
 {
@@ -25,10 +33,12 @@ std::string image0OrUnknown( rtimvServerThread *imageTh )
 
 rtimvServerThread::rtimvServerThread( const std::string &uri,
                                       std::shared_ptr<std::vector<std::string>> argv,
+                                      int defaultQuality,
                                       const std::string &calledName,
                                       bool includeAppName,
                                       QObject *parent )
-    : QThread( parent ), m_uri( uri ), m_calledName( calledName ), m_includeAppName( includeAppName )
+    : QThread( parent ), m_uri( uri ), m_defaultQuality( defaultQuality ), m_calledName( calledName ),
+      m_includeAppName( includeAppName )
 {
     m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; // Tells mx::application to look for this env var.
 
@@ -48,6 +58,30 @@ rtimvServerThread::rtimvServerThread( const std::string &uri,
 
 rtimvServerThread::~rtimvServerThread()
 {
+}
+
+void rtimvServerThread::setupConfig()
+{
+    rtimvBase::setupConfig();
+
+    config.add( "quality",
+                "",
+                "quality",
+                mx::app::argType::Required,
+                "",
+                "quality",
+                false,
+                "int",
+                "JPEG transport quality for this image stream.  Range is 0 to 100." );
+}
+
+void rtimvServerThread::loadConfig()
+{
+    rtimvBase::loadConfig();
+
+    m_startupQualitySet = config.isSet( "quality" );
+    config( m_startupQuality, "quality" );
+    m_startupQuality = std::clamp( m_startupQuality, 0, 100 );
 }
 
 void rtimvServerThread::configure()
@@ -80,6 +114,11 @@ void rtimvServerThread::configure()
     try
     {
         setup( argv.size() - 1, const_cast<char **>( argv.data() ) );
+        quality( m_defaultQuality );
+        if( m_startupQualitySet )
+        {
+            quality( m_startupQuality );
+        }
         m_configured.store( 1, std::memory_order_relaxed );
         m_foundation->m_imageTimer.start( m_imageTimeout );
         std::cout << rtimv::formatServerLogMessage(

@@ -8,6 +8,7 @@
 #include "rtimvServer.hpp"
 #include "rtimvLog.hpp"
 
+#include <algorithm>
 #include <filesystem>
 
 namespace
@@ -174,6 +175,16 @@ void rtimvServer::setupConfig()
                 "real",
                 "Time in seconds after which a thread with no requests will be disconnected. Default is 120 s." );
 
+    config.add( "quality",
+                "",
+                "quality",
+                mx::app::argType::Required,
+                "",
+                "quality",
+                false,
+                "int",
+                "Default JPEG quality for served images when no per-image quality is configured." );
+
     config.add( "log.appname",
                 "",
                 "log.appname",
@@ -203,6 +214,8 @@ void rtimvServer::loadConfig()
     config( m_waitSleep, "image.sleep" );
     config( m_clientSleep, "client.sleep" );
     config( m_clientDisconnect, "client.disconnect" );
+    config( m_qualityDefault, "quality" );
+    m_qualityDefault = std::clamp( m_qualityDefault, 0, 100 );
 
     if( config.isSet( "log.appname" ) )
     {
@@ -1232,6 +1245,12 @@ void rtimvServer::doConfigure( const configSpec *cspec )
         argv->push_back( std::to_string( cspec->m_config.mzmq_port() ) );
     }
 
+    if( cspec->m_config.quality_set() )
+    {
+        argv->push_back( "--quality" );
+        argv->push_back( std::to_string( cspec->m_config.quality() ) );
+    }
+
     delete cspec;
 
     { // mutex scope
@@ -1247,8 +1266,11 @@ void rtimvServer::doConfigure( const configSpec *cspec )
             return;
         }
 
-        rtimvServerThread *imageTh =
-            new rtimvServerThread( uri, argv, m_calledName, m_logAppName ); // takes ownership of argv
+        rtimvServerThread *imageTh = new rtimvServerThread( uri,
+                                                            argv,
+                                                            m_qualityDefault,
+                                                            m_calledName,
+                                                            m_logAppName ); // takes ownership of argv
 
         m_clients.insert( clientT( uri, imageTh ) );
 
