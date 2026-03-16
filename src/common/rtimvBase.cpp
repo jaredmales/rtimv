@@ -8,7 +8,6 @@
 #include "rtimvBase.hpp"
 #include "rtimvBaseObject.hpp"
 #include "rtimvLog.hpp"
-
 #include <cmath>
 
 #ifdef MXLIB_MILK

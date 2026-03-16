@@ -226,6 +226,16 @@ void rtimvClientBase::setupConfig()
                 "real",
                 "Specify the image cube update rate in FPS.  Default is 20 FPS." );
 
+    config.add( "quality",
+                "",
+                "quality",
+                mx::app::argType::Required,
+                "",
+                "quality",
+                false,
+                "int",
+                "JPEG transport quality for this remote image stream.  Range is 0 to 100." );
+
     config.add( "update.rollingStatsFrames",
                 "",
                 "update.rollingStatsFrames",
@@ -395,7 +405,7 @@ void rtimvClientBase::loadConfig()
     config( flatKey, "flat.key" );
     if( flatKey != "" )
     {
-        m_configReq->set_mask_key( flatKey );
+        m_configReq->set_flat_key( flatKey );
     }
 
     std::string maskKey;
@@ -492,6 +502,15 @@ void rtimvClientBase::loadConfig()
         config( cubeFPS, "update.cubeFPS" );
         m_configReq->set_update_cube_fps( cubeFPS );
         m_configReq->set_update_cube_fps_set( true );
+    }
+
+    if( config.isSet( "quality" ) )
+    {
+        int quality;
+        config( quality, "quality" );
+        quality = std::clamp( quality, 0, 100 );
+        m_configReq->set_quality( quality );
+        m_configReq->set_quality_set( true );
     }
 
     if( config.isSet( "update.rollingStatsFrames" ) )
