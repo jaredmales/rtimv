@@ -81,9 +81,10 @@ Follow these code style and documentation rules exactly.
 - This is preferred when using inline parameter documentation so `clang-format` can align the trailing comment blocks cleanly.
 
 15) PR Prompt Attribution
-- At the top of PR descriptions, include an explicit attribution line when work was performed with Codex.
+- At the top of PR descriptions, include an explicit attribution line when work was performed with an AI agent.
 - Preferred format:
-  - `This work was performed by GPT-5.3-Codex in response to the prompt: "...".`
+  - `This work was performed by <current agent model name> in response to the prompt: "...".`
+- Substitute the actual model name used for the work instead of hardcoding a specific release name.
 - Include the primary user prompt verbatim (or a faithful condensed version if it is extremely long).
 
 16) Stats Architecture Rule
