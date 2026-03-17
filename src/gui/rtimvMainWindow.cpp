@@ -7,6 +7,7 @@
  */
 
 #include "rtimvMainWindow.hpp"
+#include <algorithm>
 #include <QMetaType>
 
 rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::WindowFlags f ) : QWidget( Parent, f )
@@ -2473,6 +2474,28 @@ void rtimvMainWindow::keyPressEvent( QKeyEvent *ke )
             if( key == 'p' )
                 return launchControlPanel();
             break;
+        case Qt::Key_Q:
+#ifdef RTIMV_GRPC
+            if( key == 'q' || key == 'Q' )
+            {
+                int newQuality = quality();
+                if( key == 'Q' )
+                {
+                    newQuality += 5;
+                }
+                else
+                {
+                    newQuality -= 5;
+                }
+
+                newQuality = std::clamp( newQuality, 0, 100 );
+
+                quality( newQuality );
+                showQualityMessage( newQuality );
+                return;
+            }
+#endif
+            break;
         case Qt::Key_R:
             if( key == 'r' )
                 return mtxUL_reStretch();
@@ -2529,31 +2552,6 @@ void rtimvMainWindow::keyPressEvent( QKeyEvent *ke )
             return squareUp();
         /*case Qt::Key_Up:
            return;*/
-        case Qt::Key_W:
-            if( key == 'w' )
-            {
-                if( m_borderWarningLevel == rtimv::warningLevel::normal )
-                {
-                    return borderWarningLevel( rtimv::warningLevel::info );
-                }
-                else if( m_borderWarningLevel == rtimv::warningLevel::info )
-                {
-                    return borderWarningLevel( rtimv::warningLevel::caution );
-                }
-                else if( m_borderWarningLevel == rtimv::warningLevel::caution )
-                {
-                    return borderWarningLevel( rtimv::warningLevel::warning );
-                }
-                if( m_borderWarningLevel == rtimv::warningLevel::warning )
-                {
-                    return borderWarningLevel( rtimv::warningLevel::alert );
-                }
-                else
-                {
-                    return borderWarningLevel( rtimv::warningLevel::normal );
-                }
-            }
-            break;
         default:
             break;
         }
@@ -2962,6 +2960,13 @@ void rtimvMainWindow::toggleTarget()
     }
 }
 
+void rtimvMainWindow::showQualityMessage( int q )
+{
+    QByteArray qualityText = QString( "jpeg quality %1" ).arg( q ).toUtf8();
+    ui.graphicsView->zoomText( qualityText.constData() );
+    mtxTry_fontLuminance( ui.graphicsView->zoomText() );
+}
+
 std::string rtimvMainWindow::generateHelp()
 {
     std::string help;
@@ -2975,14 +2980,28 @@ std::string rtimvMainWindow::generateHelp()
     help += "h: toggle help                i: toggle info                 \n";
     help += "l: add line                                                  \n";
     help += "n: toggle north arrow         p: launch control panel        \n";
+#ifdef RTIMV_GRPC
+    help += "q: lower JPEG quality         r: re-stretch color table      \n";
+#else
     help += "r: re-stretch color table     s: toggle statistics box       \n";
+#endif
+#ifdef RTIMV_GRPC
+    help += "s: toggle statistics box      t: toggle target cross         \n";
+#else
     help += "t: toggle target cross        x: freeze real-time            \n";
+#endif
+#ifdef RTIMV_GRPC
+    help += "x: freeze real-time                                           \n";
+#endif
     help += "z: toggle color box\n";
 
     help += "\n";
     help += "C: toggle cube control        D: toggle dark subtraction     \n";
     help += "F: toggle filters             L: toggle log scale           \n";
     help += "M: toggle mask                S: toggle saturation mask      \n";
+#ifdef RTIMV_GRPC
+    help += "Q: raise JPEG quality\n";
+#endif
 
     help += "\n";
     help += "1-9: change zoom level        ctrl +: zoom in\n";
