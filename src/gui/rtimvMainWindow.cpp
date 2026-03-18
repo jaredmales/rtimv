@@ -3306,14 +3306,24 @@ void rtimvMainWindow::mtxL_fontLuminance( QTextEdit *qte, const sharedLockT &loc
 
 void rtimvMainWindow::mtxTry_fontLuminance( QTextEdit *qte, bool print )
 {
-    sharedLockT lock( m_calMutex );
+    if( !m_calMutex.try_lock_shared() )
+    {
+        return;
+    }
+
+    sharedLockT lock( m_calMutex, std::adopt_lock );
 
     return mtxL_fontLuminance( qte, lock, print );
 }
 
 void rtimvMainWindow::mtxTry_fontLuminance()
 {
-    sharedLockT lock( m_calMutex );
+    if( !m_calMutex.try_lock_shared() )
+    {
+        return;
+    }
+
+    sharedLockT lock( m_calMutex, std::adopt_lock );
 
     mtxL_fontLuminance( ui.graphicsView->fpsGage(), lock );
 
