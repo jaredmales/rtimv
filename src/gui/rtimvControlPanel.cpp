@@ -1021,6 +1021,7 @@ void rtimvControlPanel::on_qualitySlider_valueChanged( int value )
 {
 #ifdef RTIMV_GRPC
     m_imv->quality( value );
+    m_imv->showQualityMessage( value );
     update_qualityEntry();
 #else
     static_cast<void>( value );
@@ -1049,6 +1050,7 @@ void rtimvControlPanel::on_qualityEntry_editingFinished()
     }
 
     m_imv->quality( q );
+    m_imv->showQualityMessage( q );
     update_qualitySlider();
     update_qualityEntry();
 #endif

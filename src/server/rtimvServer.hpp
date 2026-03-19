@@ -62,6 +62,8 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
     float m_clientDisconnect{ 120 }; /**< Time in seconds after which a thread with no requests will be disconnected.
                                           Default is 120 s.*/
 
+    int m_qualityDefault{ 50 }; ///< Default JPEG quality for new image threads when no per-image value is configured.
+
     bool m_logAppName{ true }; ///< True to include called-name in log prefixes.
 
     std::string m_calledName{ "rtimvServer" }; ///< Program called-name used in standardized log prefixes.

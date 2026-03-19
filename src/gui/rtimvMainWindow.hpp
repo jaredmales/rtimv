@@ -781,6 +781,9 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
     void toggleTarget();
 
+    /// Show the transient JPEG quality status text.
+    void showQualityMessage( int q /**< [in] JPEG quality value to display */ );
+
     bool m_helpVisible{ false };
     std::string generateHelp();
 

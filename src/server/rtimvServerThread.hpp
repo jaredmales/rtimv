@@ -1,3 +1,9 @@
+/** \file rtimvServerThread.hpp
+ * \brief Declarations for the rtimvServerThread class
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
 
 #ifndef rtimvServerThread_hpp
 #define rtimvServerThread_hpp
@@ -24,6 +30,15 @@ class rtimvServerThread : public QThread, public rtimvBase
     std::shared_ptr<std::vector<std::string>> m_argv; /**< The command line argv.  This is set in the constructor, and
                                                       destroyed after configure is called.*/
 
+    /// Default JPEG quality to use when no per-image startup quality is configured.
+    int m_defaultQuality{ 50 };
+
+    /// Configured startup JPEG quality for this image stream.
+    int m_startupQuality{ 50 };
+
+    /// True when startup JPEG quality was explicitly configured.
+    bool m_startupQualitySet{ false };
+
     std::atomic<bool> m_newImage{ false }; ///< Flag indicating a new image is ready after the last render.
 
     std::atomic<int> m_quality{ 50 }; ///< The JPEG quality factor (0-100).  Default is 50.
@@ -43,12 +58,19 @@ class rtimvServerThread : public QThread, public rtimvBase
   public:
     rtimvServerThread( const std::string &uri,                         /**< [in] client uri */
                        std::shared_ptr<std::vector<std::string>> argv, /**< [in] The argv vector. */
+                       int defaultQuality,            /**< [in] default JPEG quality when not configured per image */
                        const std::string &calledName, /**< [in] Program called-name for log prefixes. */
                        bool includeAppName,           /**< [in] True to include called-name in log prefixes. */
                        QObject *parent = nullptr      /**< [in] [opt] the parent of this thread */
     );
 
     ~rtimvServerThread();
+
+    /// Register server-thread-specific config options, including per-image JPEG quality.
+    virtual void setupConfig();
+
+    /// Load server-thread-specific config values after the base image configuration is parsed.
+    virtual void loadConfig();
 
     void configure();
 

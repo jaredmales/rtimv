@@ -8,7 +8,6 @@
 #include "rtimvBase.hpp"
 #include "rtimvBaseObject.hpp"
 #include "rtimvLog.hpp"
-
 #include <cmath>
 
 #ifdef MXLIB_MILK
@@ -1881,6 +1880,7 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
     }
 
     bool resized = false;
+    bool resetZoom = false;
 
     if( newdata )
     { // mutex scope
@@ -2120,7 +2120,7 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
         if( resized )
         {
             // Always switch to zoom 1 after a resize occurs
-            zoomLevel( 1 );
+            resetZoom = true;
         }
 
         RTIMV_DEBUG_BREADCRUMB
@@ -2128,6 +2128,11 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
     } // shared mutex scope. - at this point we're done with calData
 
     RTIMV_DEBUG_BREADCRUMB
+
+    if( resetZoom )
+    {
+        zoomLevel( 1 );
+    }
 
 } // void rtimvBase::mtxUL_changeImdata()
 

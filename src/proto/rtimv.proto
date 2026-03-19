@@ -104,6 +104,9 @@ message Config
 
     bool mzmq_port_set = 24;
     uint32 mzmq_port = 25;
+
+    bool quality_set = 26;
+    int32 quality = 27;
 }
 
 message ConfigResult
