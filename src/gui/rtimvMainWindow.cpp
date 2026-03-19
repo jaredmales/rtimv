@@ -440,7 +440,29 @@ void rtimvMainWindow::mtxL_postSetImsize( const uniqueLockT &lock )
 
     statsBoxRemove( m_statsBox );
 
-    colorBoxRemove( m_colorBox );
+    if( m_colorBox )
+    {
+        if( m_colorBox->isSelected() )
+        {
+            colorBoxDeselected( m_colorBox );
+        }
+
+        m_colormode = rtimv::colormode::minmaxglobal;
+        m_colorBoxRequestPending = false;
+        m_colorBoxTimer.stop();
+
+        m_colorBox->disconnect();
+        disconnect( m_colorBox );
+        m_colorBox->deleteLater();
+        m_colorBox = nullptr;
+
+        ui.graphicsView->userItemSize()->setVisible( false );
+        ui.graphicsView->userItemMouseCoords()->setVisible( false );
+        m_objCenH->setVisible( false );
+        m_objCenV->setVisible( false );
+        m_nullMouseCoords = false;
+        m_userItemSelected = false;
+    }
 
     auto ubit = m_userBoxes.begin();
     while( ubit != m_userBoxes.end() )
@@ -1324,7 +1346,12 @@ void rtimvMainWindow::updateNC()
 
 void rtimvMainWindow::mtxTry_userItemMouseCoords( float mx, float my, float dx, float dy )
 {
-    sharedLockT lock( m_calMutex );
+    if( !m_calMutex.try_lock_shared() )
+    {
+        return;
+    }
+
+    sharedLockT lock( m_calMutex, std::adopt_lock );
 
     if( m_qpmi == nullptr )
         return;
@@ -1457,7 +1484,12 @@ void rtimvMainWindow::userItemCross( const QPointF &pos, const QRectF &rect, con
 
 void rtimvMainWindow::mtxTry_colorBoxMoved( StretchBox *sb )
 {
-    sharedLockT lock( m_calMutex );
+    if( !m_calMutex.try_lock_shared() )
+    {
+        return;
+    }
+
+    sharedLockT lock( m_calMutex, std::adopt_lock );
 
     if( !m_colorBox )
     {
@@ -2110,7 +2142,12 @@ void rtimvMainWindow::addUserLine()
 
 void rtimvMainWindow::mtxTry_userLineSize( StretchLine *sl )
 {
-    sharedLockT lock( m_calMutex );
+    if( !m_calMutex.try_lock_shared() )
+    {
+        return;
+    }
+
+    sharedLockT lock( m_calMutex, std::adopt_lock );
 
     if( !m_qpmi )
         return;
