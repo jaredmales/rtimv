@@ -866,6 +866,7 @@ WARN_LOGFILE           =
 
 INPUT                  = ../readme.md \
                          ./Installation.md \
+                         ./PluginGuide.md \
                          ./UserGuide.md
 
 # This tag can be used to specify the character encoding of the source files

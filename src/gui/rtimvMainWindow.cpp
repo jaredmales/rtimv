@@ -8,6 +8,7 @@
 
 #include "rtimvMainWindow.hpp"
 #include <algorithm>
+#include <cctype>
 #include <QMetaType>
 
 rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::WindowFlags f ) : QWidget( Parent, f )
@@ -41,6 +42,9 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
     m_qgs->installEventFilter( this );
 
     ui.graphicsView->setScene( m_qgs );
+
+    registerTextOverlay( 'h', "help", [this]() { return generateHelp(); }, "rtimv" );
+    registerTextOverlay( 'i', "info", [this]() { return generateInfo(); }, "rtimv" );
 
     rightClickDragging = false;
 
@@ -2457,7 +2461,16 @@ void rtimvMainWindow::keyPressEvent( QKeyEvent *ke )
     }
     else // Finally deal with unmodified keys
     {
-        char key = ke->text()[0].toLatin1();
+        char key = '\0';
+        if( !ke->text().isEmpty() )
+        {
+            key = ke->text()[0].toLatin1();
+        }
+
+        if( key != '\0' && hasTextOverlay( key ) )
+        {
+            return toggleTextOverlay( key );
+        }
 
         switch( ke->key() )
         {
@@ -2484,14 +2497,6 @@ void rtimvMainWindow::keyPressEvent( QKeyEvent *ke )
                 return toggleFPSGage();
             if( key == 'F' )
                 return toggleFilter();
-            break;
-        case Qt::Key_H:
-            if( key == 'h' )
-                return toggleHelp();
-            break;
-        case Qt::Key_I:
-            if( key == 'i' )
-                return toggleInfo();
             break;
         case Qt::Key_L:
             if( key == 'l' )
@@ -3004,6 +3009,80 @@ void rtimvMainWindow::showQualityMessage( int q )
     mtxTry_fontLuminance( ui.graphicsView->zoomText() );
 }
 
+bool rtimvMainWindow::registerTextOverlay( char key,
+                                           const std::string &title,
+                                           std::function<std::string()> provider,
+                                           const std::string &source )
+{
+    if( key == '\0' || !provider || !std::isprint( static_cast<unsigned char>( key ) ) ||
+        std::isspace( static_cast<unsigned char>( key ) ) )
+    {
+        std::cerr << formatBaseLogMessage( std::string( "invalid text overlay registration from " ) + source ) << '\n';
+        return false;
+    }
+
+    if( m_textOverlays.contains( key ) )
+    {
+        std::cerr << formatBaseLogMessage( std::string( "skipping text overlay registration from " ) + source +
+                                           ": shortcut '" + key + "' is already registered" )
+                  << '\n';
+        return false;
+    }
+
+    textOverlayEntry toe;
+    toe.m_title = title.empty() ? source : title;
+    toe.m_textProvider = std::move( provider );
+    toe.m_builtin = ( source == "rtimv" );
+    toe.m_source = source;
+
+    m_textOverlays[key] = std::move( toe );
+    return true;
+}
+
+bool rtimvMainWindow::hasTextOverlay( char key ) const
+{
+    return m_textOverlays.contains( key );
+}
+
+void rtimvMainWindow::hideTextOverlay()
+{
+    ui.graphicsView->helpText()->setVisible( false );
+    m_activeTextOverlayKey = '\0';
+}
+
+void rtimvMainWindow::showTextOverlay( char key )
+{
+    auto it = m_textOverlays.find( key );
+    if( it == m_textOverlays.end() )
+    {
+        return;
+    }
+
+    std::string text = it->second.m_textProvider();
+    if( text.empty() )
+    {
+        std::cerr << formatBaseLogMessage( std::string( "text overlay '" ) + key + "' from " + it->second.m_source +
+                                           " returned empty text" )
+                  << '\n';
+        return;
+    }
+
+    ui.graphicsView->helpTextText( text.c_str() );
+    ui.graphicsView->helpText()->setVisible( true );
+    m_activeTextOverlayKey = key;
+    mtxTry_fontLuminance( ui.graphicsView->helpText() );
+}
+
+void rtimvMainWindow::toggleTextOverlay( char key )
+{
+    if( m_activeTextOverlayKey == key )
+    {
+        return hideTextOverlay();
+    }
+
+    return showTextOverlay( key );
+}
+
 std::string rtimvMainWindow::generateHelp()
 {
     std::string help;
@@ -3032,6 +3111,16 @@ std::string rtimvMainWindow::generateHelp()
 #endif
     help += "z: toggle color box\n";
 
+    for( const auto &[key, overlay] : m_textOverlays )
+    {
+        if( overlay.m_builtin )
+        {
+            continue;
+        }
+
+        help += std::string( 1, key ) + ": toggle " + overlay.m_title + "\n";
+    }
+
     help += "\n";
     help += "C: toggle cube control        D: toggle dark subtraction     \n";
     help += "F: toggle filters             L: toggle log scale           \n";
@@ -3053,19 +3142,7 @@ std::string rtimvMainWindow::generateHelp()
 
 void rtimvMainWindow::toggleHelp()
 {
-    if( m_helpVisible )
-    {
-        ui.graphicsView->helpText()->setVisible( false );
-        m_helpVisible = false;
-    }
-    else
-    {
-        std::string help = generateHelp();
-        ui.graphicsView->helpTextText( help.c_str() );
-        ui.graphicsView->helpText()->setVisible( true );
-        m_helpVisible = true;
-        m_infoVisible = false;
-    }
+    return toggleTextOverlay( 'h' );
 }
 
 std::string rtimvMainWindow::generateInfo()
@@ -3165,19 +3242,7 @@ std::string rtimvMainWindow::generateInfo()
 
 void rtimvMainWindow::toggleInfo()
 {
-    if( m_infoVisible )
-    {
-        ui.graphicsView->helpText()->setVisible( false );
-        m_infoVisible = false;
-    }
-    else
-    {
-        std::string info = generateInfo();
-        ui.graphicsView->helpTextText( info.c_str() );
-        ui.graphicsView->helpText()->setVisible( true );
-        m_infoVisible = true;
-        m_helpVisible = false;
-    }
+    return toggleTextOverlay( 'i' );
 }
 
 void rtimvMainWindow::borderWarningLevel( rtimv::warningLevel lvl )
@@ -3391,6 +3456,11 @@ void rtimvMainWindow::mtxTry_fontLuminance()
 
     mtxL_fontLuminance( ui.graphicsView->saveBox(), lock );
 
+    if( ui.graphicsView->helpText()->isVisible() )
+    {
+        mtxL_fontLuminance( ui.graphicsView->helpText(), lock );
+    }
+
     return;
 }
 
@@ -3460,6 +3530,15 @@ int rtimvMainWindow::loadPlugin( QObject *plugin )
     // If ri is not null, we store it.  Note this could be many types of interfaces at once.
     if( ri )
     {
+        if( ri->hasTextOverlay() )
+        {
+            registerTextOverlay(
+                ri->textOverlayKey(),
+                ri->textOverlayTitle(),
+                [ri]() { return ri->textOverlayText(); },
+                plugin->metaObject()->className() );
+        }
+
         m_plugins.push_back( ri );
         return 0;
     }
