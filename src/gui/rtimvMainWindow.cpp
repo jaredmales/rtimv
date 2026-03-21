@@ -730,7 +730,7 @@ void rtimvMainWindow::launchControlPanel()
 {
     if( !imcp )
     {
-        imcp = new rtimvControlPanel( this, Qt::Tool );
+        imcp = new rtimvControlPanel( this, Qt::Dialog );
         connect( imcp, SIGNAL( launchStatsBox() ), this, SLOT( doLaunchStatsBox() ) );
         connect( imcp, SIGNAL( hideStatsBox() ), this, SLOT( doHideStatsBox() ) );
     }
