@@ -1,3 +1,10 @@
+/** \file rtimvControlPanel.cpp
+ * \brief Definitions for the rtimvControlPanel GUI class.
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #include "rtimvControlPanel.hpp"
 
 #include <algorithm>
@@ -6,7 +13,7 @@ rtimvControlPanel::rtimvControlPanel()
 {
 }
 
-rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, Qt::WindowFlags f ) : QWidget( 0, f )
+rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, Qt::WindowFlags f ) : QWidget( v, f )
 {
     m_ui.setupUi( this );
     m_imv = v;
