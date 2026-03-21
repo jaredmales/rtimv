@@ -1,8 +1,17 @@
 
+/** \file rtimvMainWindow.hpp
+ * \brief Declaration of the rtimvMainWindow class.
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #ifndef rtimvMainWindow_hpp_inc
 #define rtimvMainWindow_hpp_inc
 
 #include <cstdio>
+#include <functional>
+#include <map>
 #include <unordered_set>
 
 #include <QWidget>
@@ -784,15 +793,78 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     /// Show the transient JPEG quality status text.
     void showQualityMessage( int q /**< [in] JPEG quality value to display */ );
 
-    bool m_helpVisible{ false };
+    /** \name Text Overlays - Data
+     *
+     * Shared state for the full-screen text overlays toggled by shortcut keys.
+     *
+     * @{
+     */
+  protected:
+    /// Describes one registered text overlay entry.
+    struct textOverlayEntry
+    {
+        /// Short title used in the built-in help listing.
+        std::string m_title;
+
+        /// Generates the current overlay text on demand.
+        std::function<std::string()> m_textProvider;
+
+        /// True when this entry is one of the built-in overlays.
+        bool m_builtin{ false };
+
+        /// Source label used in log messages.
+        std::string m_source;
+    };
+
+    /// Registry of overlay shortcuts to text providers.
+    std::map<char, textOverlayEntry> m_textOverlays;
+
+    /// Active text overlay shortcut, or `'\0'` when hidden.
+    char m_activeTextOverlayKey{ '\0' };
+
+    ///@}
+
+    /** \name Text Overlays
+     *
+     * Helpers for registering and toggling shared text overlays.
+     *
+     * @{
+     */
+  public:
+    /// Register a toggleable text overlay shortcut.
+    bool
+    registerTextOverlay( char key,                              /**< [in] Shortcut key used to toggle the overlay. */
+                         const std::string &title,              /**< [in] Short title shown in the help listing. */
+                         std::function<std::string()> provider, /**< [in] Generator for the current overlay text. */
+                         const std::string &source              /**< [in] Source label for collision log messages. */
+    );
+
+    /// Check if a shortcut has a registered text overlay.
+    bool hasTextOverlay( char key /**< [in] Shortcut key to look up. */ ) const;
+
+  protected:
+    /// Hide the shared text overlay widget.
+    void hideTextOverlay();
+
+    /// Show the shared text overlay widget for a registered shortcut.
+    void showTextOverlay( char key /**< [in] Shortcut key identifying the overlay to show. */ );
+
+    /// Toggle the shared text overlay widget for a registered shortcut.
+    void toggleTextOverlay( char key /**< [in] Shortcut key identifying the overlay to toggle. */ );
+
+    ///@}
+
+  public:
+    /// Generate the built-in keyboard help overlay.
     std::string generateHelp();
 
+    /// Toggle the built-in keyboard help overlay.
     void toggleHelp();
 
-    bool m_infoVisible{ false };
-
+    /// Generate the built-in image and plugin info overlay.
     std::string generateInfo();
 
+    /// Toggle the built-in image and plugin info overlay.
     void toggleInfo();
 
     /** \name Border Colors
