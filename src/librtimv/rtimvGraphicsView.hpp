@@ -115,6 +115,8 @@ class rtimvGraphicsView : public QGraphicsView
 
     float m_userItemSizeFontSize{ 22.0 }; ///< Font size for the user item size
 
+    QTextEdit *m_statsBoxText; ///< The stats-box overlay text edit field
+
     QTextEdit *m_userItemMouseCoords; ///< The user item mouse coordinates text edit
 
     float m_userItemMouseCoordsFontSize{ 22.0 }; ///< Font size for the user item mouse coordinates
@@ -523,6 +525,25 @@ class rtimvGraphicsView : public QGraphicsView
      */
     void userItemSizeText( const char *nt,  ///< [in] the new User Item Size text
                            const QRect &pos ///< [in] the position of the User Item Size text
+    );
+
+    /// Get a pointer to the stats-box overlay text edit.
+    /**
+     * \returns m_statsBoxText
+     */
+    QTextEdit *statsBoxText();
+
+    /// Set the stats-box overlay text.
+    void statsBoxText( const char *nt /**< [in] the new stats-box overlay text */ );
+
+    /// Set the stats-box overlay text and move it.
+    void statsBoxText( const char *nt,   ///< [in] the new stats-box overlay text
+                       const QPoint &pos ///< [in] the position of the stats-box overlay text
+    );
+
+    /// Set the stats-box overlay text and resize and move it.
+    void statsBoxText( const char *nt,  ///< [in] the new stats-box overlay text
+                       const QRect &pos ///< [in] the position of the stats-box overlay text
     );
 
     /// Get a pointer to the User Item Mouse Coords text edit.

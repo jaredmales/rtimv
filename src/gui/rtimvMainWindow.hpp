@@ -1,8 +1,18 @@
 
+/** \file rtimvMainWindow.hpp
+ * \brief Declaration of the rtimvMainWindow class.
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #ifndef rtimvMainWindow_hpp_inc
 #define rtimvMainWindow_hpp_inc
 
 #include <cstdio>
+#include <cmath>
+#include <functional>
+#include <map>
 #include <unordered_set>
 
 #include <QWidget>
@@ -547,13 +557,44 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
   protected:
     StretchBox *m_statsBox{ nullptr };
 
-    rtimvStats *imStats;
+    /// Display modes for the stats-box results.
+    enum statsDisplayMode
+    {
+        statsDisplayOverlay = 0, ///< Render stats as an overlay near the stats box.
+        statsDisplayDialog = 1   ///< Render stats in the standalone dialog window.
+    };
+
+    rtimvStats *imStats{ nullptr }; ///< Optional dialog displaying stats-box values.
+
+    /// Current presentation mode for stats-box values.
+    int m_statsDisplayMode{ statsDisplayOverlay };
+
+    /// True to open the stats box in dialog mode during startup.
+    bool m_statsShowDialogOnStartup{ false };
 
     QTimer m_statsBoxTimer;                                   ///< Debounce timer for stats-box requests.
     int m_statsBoxTimeout{ RTIMV_STATS_BOX_TIMEOUT_DEFAULT }; ///< Debounce timeout for stats-box requests, ms.
     bool m_statsBoxRequestPending{ false };                   ///< True when stats-box request should be dispatched.
 
+    /// Format one stats-box value for display.
+    std::string formatStatsValue( float value /**< [in] value to format */ ) const;
+
+    /// Update the stats-box overlay placement and contents.
+    void mtxTry_updateStatsBoxOverlay( StretchBox *sb, /**< [in] stats box to annotate */
+                                       bool valid,     /**< [in] true when stats values are valid */
+                                       float minVal,   /**< [in] minimum value */
+                                       float maxVal,   /**< [in] maximum value */
+                                       float meanVal,  /**< [in] mean value */
+                                       float medianVal /**< [in] median value */
+    );
+
+    /// Show or hide the stats-box overlay based on current state.
+    void updateStatsBoxOverlayVisibility();
+
   public slots:
+
+    /// Set the active stats display mode.
+    void statsDisplayMode( int mode /**< [in] requested stats display mode */ );
 
     void doLaunchStatsBox();
 
@@ -566,9 +607,25 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     /// Dispatch the debounced stats-box request.
     void dispatchStatsBoxRequest();
 
+    /// Update the stats-box presentation after a backend refresh.
+    void statsBoxUpdated( int64_t i0,   /**< [in] upper-left x coordinate */
+                          int64_t i1,   /**< [in] lower-right x coordinate */
+                          int64_t j0,   /**< [in] upper-left y coordinate */
+                          int64_t j1,   /**< [in] lower-right y coordinate */
+                          float min,    /**< [in] minimum value */
+                          float max,    /**< [in] maximum value */
+                          float mean,   /**< [in] mean value */
+                          float median, /**< [in] median value */
+                          bool valid    /**< [in] true when stats are valid */
+    );
+
     void mtxTry_statsBoxSelected( StretchBox * );
 
     void statsBoxRemove( StretchBox * );
+
+  public:
+    /// Get the active stats display mode.
+    int statsDisplayMode() const;
 
     /*---- user boxes ----*/
 
@@ -784,15 +841,78 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     /// Show the transient JPEG quality status text.
     void showQualityMessage( int q /**< [in] JPEG quality value to display */ );
 
-    bool m_helpVisible{ false };
+    /** \name Text Overlays - Data
+     *
+     * Shared state for the full-screen text overlays toggled by shortcut keys.
+     *
+     * @{
+     */
+  protected:
+    /// Describes one registered text overlay entry.
+    struct textOverlayEntry
+    {
+        /// Short title used in the built-in help listing.
+        std::string m_title;
+
+        /// Generates the current overlay text on demand.
+        std::function<std::string()> m_textProvider;
+
+        /// True when this entry is one of the built-in overlays.
+        bool m_builtin{ false };
+
+        /// Source label used in log messages.
+        std::string m_source;
+    };
+
+    /// Registry of overlay shortcuts to text providers.
+    std::map<char, textOverlayEntry> m_textOverlays;
+
+    /// Active text overlay shortcut, or `'\0'` when hidden.
+    char m_activeTextOverlayKey{ '\0' };
+
+    ///@}
+
+    /** \name Text Overlays
+     *
+     * Helpers for registering and toggling shared text overlays.
+     *
+     * @{
+     */
+  public:
+    /// Register a toggleable text overlay shortcut.
+    bool
+    registerTextOverlay( char key,                              /**< [in] Shortcut key used to toggle the overlay. */
+                         const std::string &title,              /**< [in] Short title shown in the help listing. */
+                         std::function<std::string()> provider, /**< [in] Generator for the current overlay text. */
+                         const std::string &source              /**< [in] Source label for collision log messages. */
+    );
+
+    /// Check if a shortcut has a registered text overlay.
+    bool hasTextOverlay( char key /**< [in] Shortcut key to look up. */ ) const;
+
+  protected:
+    /// Hide the shared text overlay widget.
+    void hideTextOverlay();
+
+    /// Show the shared text overlay widget for a registered shortcut.
+    void showTextOverlay( char key /**< [in] Shortcut key identifying the overlay to show. */ );
+
+    /// Toggle the shared text overlay widget for a registered shortcut.
+    void toggleTextOverlay( char key /**< [in] Shortcut key identifying the overlay to toggle. */ );
+
+    ///@}
+
+  public:
+    /// Generate the built-in keyboard help overlay.
     std::string generateHelp();
 
+    /// Toggle the built-in keyboard help overlay.
     void toggleHelp();
 
-    bool m_infoVisible{ false };
-
+    /// Generate the built-in image and plugin info overlay.
     std::string generateInfo();
 
+    /// Toggle the built-in image and plugin info overlay.
     void toggleInfo();
 
     /** \name Border Colors

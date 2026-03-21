@@ -333,6 +333,9 @@ class rtimvControlPanel : public QWidget
     /// Handle image timer update interval changes.
     void on_imtimerspinBox_valueChanged( int timeout /**< [in] new image timeout value*/ );
 
+    /// Handle stats display mode changes.
+    void on_statsDisplayModeCombo_activated( int mode /**< [in] selected stats display mode*/ );
+
     /// Handle JPEG quality slider changes.
     void on_qualitySlider_valueChanged( int value /**< [in] new quality value*/ );
 
