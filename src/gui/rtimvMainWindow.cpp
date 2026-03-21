@@ -3067,10 +3067,10 @@ void rtimvMainWindow::showTextOverlay( char key )
         return;
     }
 
-    ui.graphicsView->helpTextText( text.c_str() );
     ui.graphicsView->helpText()->setVisible( true );
     m_activeTextOverlayKey = key;
     mtxTry_fontLuminance( ui.graphicsView->helpText() );
+    ui.graphicsView->helpTextText( text.c_str() );
 }
 
 void rtimvMainWindow::toggleTextOverlay( char key )
