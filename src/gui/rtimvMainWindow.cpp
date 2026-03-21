@@ -1971,6 +1971,9 @@ void rtimvMainWindow::mtxTry_updateStatsBoxOverlay(
 
     ui.graphicsView->statsBoxText( tmp, textRect );
     ui.graphicsView->statsBoxText()->setVisible( m_statsBox != nullptr && m_statsBox->isVisible() );
+    ui.graphicsView->statsBoxText()->raise();
+    ui.graphicsView->statsBoxText()->update();
+    ui.graphicsView->viewport()->update();
 
     mtxTry_fontLuminance( ui.graphicsView->statsBoxText() );
 }
