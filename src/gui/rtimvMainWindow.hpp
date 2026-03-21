@@ -10,6 +10,7 @@
 #define rtimvMainWindow_hpp_inc
 
 #include <cstdio>
+#include <cmath>
 #include <functional>
 #include <map>
 #include <unordered_set>
@@ -556,13 +557,44 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
   protected:
     StretchBox *m_statsBox{ nullptr };
 
-    rtimvStats *imStats;
+    /// Display modes for the stats-box results.
+    enum statsDisplayMode
+    {
+        statsDisplayOverlay = 0, ///< Render stats as an overlay near the stats box.
+        statsDisplayDialog = 1   ///< Render stats in the standalone dialog window.
+    };
+
+    rtimvStats *imStats{ nullptr }; ///< Optional dialog displaying stats-box values.
+
+    /// Current presentation mode for stats-box values.
+    int m_statsDisplayMode{ statsDisplayOverlay };
+
+    /// True to open the stats box in dialog mode during startup.
+    bool m_statsShowDialogOnStartup{ false };
 
     QTimer m_statsBoxTimer;                                   ///< Debounce timer for stats-box requests.
     int m_statsBoxTimeout{ RTIMV_STATS_BOX_TIMEOUT_DEFAULT }; ///< Debounce timeout for stats-box requests, ms.
     bool m_statsBoxRequestPending{ false };                   ///< True when stats-box request should be dispatched.
 
+    /// Format one stats-box value for display.
+    std::string formatStatsValue( float value /**< [in] value to format */ ) const;
+
+    /// Update the stats-box overlay placement and contents.
+    void mtxTry_updateStatsBoxOverlay( StretchBox *sb, /**< [in] stats box to annotate */
+                                       bool valid,     /**< [in] true when stats values are valid */
+                                       float minVal,   /**< [in] minimum value */
+                                       float maxVal,   /**< [in] maximum value */
+                                       float meanVal,  /**< [in] mean value */
+                                       float medianVal /**< [in] median value */
+    );
+
+    /// Show or hide the stats-box overlay based on current state.
+    void updateStatsBoxOverlayVisibility();
+
   public slots:
+
+    /// Set the active stats display mode.
+    void statsDisplayMode( int mode /**< [in] requested stats display mode */ );
 
     void doLaunchStatsBox();
 
@@ -575,9 +607,25 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     /// Dispatch the debounced stats-box request.
     void dispatchStatsBoxRequest();
 
+    /// Update the stats-box presentation after a backend refresh.
+    void statsBoxUpdated( int64_t i0,   /**< [in] upper-left x coordinate */
+                          int64_t i1,   /**< [in] lower-right x coordinate */
+                          int64_t j0,   /**< [in] upper-left y coordinate */
+                          int64_t j1,   /**< [in] lower-right y coordinate */
+                          float min,    /**< [in] minimum value */
+                          float max,    /**< [in] maximum value */
+                          float mean,   /**< [in] mean value */
+                          float median, /**< [in] median value */
+                          bool valid    /**< [in] true when stats are valid */
+    );
+
     void mtxTry_statsBoxSelected( StretchBox * );
 
     void statsBoxRemove( StretchBox * );
+
+  public:
+    /// Get the active stats display mode.
+    int statsDisplayMode() const;
 
     /*---- user boxes ----*/
 
