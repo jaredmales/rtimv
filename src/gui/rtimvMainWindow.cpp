@@ -726,6 +726,16 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT &lock )
 
     RTIMV_DEBUG_BREADCRUMB
 
+    if( m_statsDisplayMode == statsDisplayOverlay && m_statsBox != nullptr && m_statsBox->isVisible() &&
+        !m_statsBoxRequestPending )
+    {
+        mtxTry_updateStatsBoxOverlay(
+            m_statsBox, true, statsBox_min(), statsBox_max(), statsBox_mean(), statsBox_median() );
+        updateStatsBoxOverlayVisibility();
+    }
+
+    RTIMV_DEBUG_BREADCRUMB
+
     if( imcp )
     {
         imcp->update_panel();
