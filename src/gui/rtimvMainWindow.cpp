@@ -1977,8 +1977,8 @@ void rtimvMainWindow::mtxTry_updateStatsBoxOverlay(
 
 void rtimvMainWindow::updateStatsBoxOverlayVisibility()
 {
-    const bool showOverlay = m_statsDisplayMode == statsDisplayOverlay && m_statsBox != nullptr &&
-                             m_statsBox->isVisible() && statsBox() && !m_statsBox->isSelected();
+    const bool showOverlay =
+        m_statsDisplayMode == statsDisplayOverlay && m_statsBox != nullptr && m_statsBox->isVisible() && statsBox();
 
     ui.graphicsView->statsBoxText()->setVisible( showOverlay );
 
