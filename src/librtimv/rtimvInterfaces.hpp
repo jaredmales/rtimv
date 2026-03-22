@@ -1,4 +1,11 @@
 
+/** \file rtimvInterfaces.hpp
+ * \brief Interface definitions shared by rtimv plugins and overlays.
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #ifndef rtimvInterfaces_hpp
 #define rtimvInterfaces_hpp
 
@@ -255,6 +262,30 @@ class rtimvInterface : public QObject
      */
     virtual std::vector<std::string> info() = 0;
 
+    /// Report whether this plugin provides a toggleable text overlay.
+    virtual bool hasTextOverlay()
+    {
+        return false;
+    }
+
+    /// Get the shortcut key used to toggle the plugin text overlay.
+    virtual char textOverlayKey()
+    {
+        return '\0';
+    }
+
+    /// Get the short title used to describe the plugin text overlay.
+    virtual std::string textOverlayTitle()
+    {
+        return "";
+    }
+
+    /// Generate the plugin text overlay contents on demand.
+    virtual std::string textOverlayText()
+    {
+        return "";
+    }
+
     /// Set context used by standardized plugin log formatters.
     void setLogContext( const std::string &calledName, /**< [in] Program called-name for log prefix. */
                         bool includeAppName,           /**< [in] True to include called-name in log prefix. */
@@ -287,7 +318,7 @@ class rtimvInterface : public QObject
         ctx.image0 = m_logImage0;
         ctx.includeAppName = m_logIncludeAppName;
 
-        return rtimv::formatLogMessage( ctx, std::format("[plugin: {}] {}", m_pluginName, message) );
+        return rtimv::formatLogMessage( ctx, std::format( "[plugin: {}] {}", m_pluginName, message ) );
     }
 
     /// Write a standardized plugin info message to stdout.
@@ -320,7 +351,7 @@ class rtimvDictionaryInterface : public rtimvInterface
                                   ) = 0;
 };
 
-#define rtimvDictionaryInterface_iid "rtimv.dictionaryInterface/1.3"
+#define rtimvDictionaryInterface_iid "rtimv.dictionaryInterface/1.4"
 
 Q_DECLARE_INTERFACE( rtimvDictionaryInterface, rtimvDictionaryInterface_iid )
 
@@ -401,7 +432,7 @@ class rtimvOverlayInterface : public rtimvInterface
     virtual void disableOverlay() = 0;
 };
 
-#define rtimvOverlayInterface_iid "rtimv.overlayInterface/1.3"
+#define rtimvOverlayInterface_iid "rtimv.overlayInterface/1.4"
 
 Q_DECLARE_INTERFACE( rtimvOverlayInterface, rtimvOverlayInterface_iid )
 

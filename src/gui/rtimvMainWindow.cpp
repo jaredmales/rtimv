@@ -8,7 +8,9 @@
 
 #include "rtimvMainWindow.hpp"
 #include <algorithm>
+#include <cctype>
 #include <QMetaType>
+#include <QFontMetrics>
 
 rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::WindowFlags f ) : QWidget( Parent, f )
 {
@@ -41,6 +43,9 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
     m_qgs->installEventFilter( this );
 
     ui.graphicsView->setScene( m_qgs );
+
+    registerTextOverlay( 'h', "help", [this]() { return generateHelp(); }, "rtimv" );
+    registerTextOverlay( 'i', "info", [this]() { return generateInfo(); }, "rtimv" );
 
     rightClickDragging = false;
 
@@ -75,6 +80,10 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
              SIGNAL( colorBoxUpdated( int64_t, int64_t, int64_t, int64_t, float, float, bool ) ),
              this,
              SLOT( colorBoxUpdated( int64_t, int64_t, int64_t, int64_t, float, float, bool ) ) );
+    connect( m_foundation,
+             SIGNAL( statsBoxUpdated( int64_t, int64_t, int64_t, int64_t, float, float, float, float, bool ) ),
+             this,
+             SLOT( statsBoxUpdated( int64_t, int64_t, int64_t, int64_t, float, float, float, float, bool ) ) );
 
     m_northArrow = m_qgs->addLine( QLineF( 512, 400, 512, 624 ), QColor( ui.graphicsView->gageFontColor() ) );
     m_northArrowTip = m_qgs->addLine( QLineF( 512, 400, 536, 424 ), QColor( ui.graphicsView->gageFontColor() ) );
@@ -209,6 +218,12 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
     }
 
     startup();
+
+    if( m_statsShowDialogOnStartup && m_nx > 0 && m_ny > 0 )
+    {
+        statsDisplayMode( statsDisplayDialog );
+        toggleStatsBox();
+    }
 
     std::string imageTitle = imageName( 0 );
     if( imageTitle != "" )
@@ -371,6 +386,16 @@ void rtimvMainWindow::setupConfig()
                 false,
                 "float",
                 "The width of the warning border in screen pixels.  Default is 5." );
+
+    config.add( "stats.showDialog",
+                "",
+                "stats.showDialog",
+                mx::app::argType::Required,
+                "stats",
+                "showDialog",
+                false,
+                "bool",
+                "Show the stats box in dialog mode at startup. Default is false." );
 }
 
 void rtimvMainWindow::loadConfig()
@@ -401,6 +426,7 @@ void rtimvMainWindow::loadConfig()
     config( m_userItemCrossWidthFract, "tools.crossWidthFract" );
     config( m_userItemCrossWidthMin, "tools.crossWidthMin" );
     config( m_warningBorderWidth, "tools.warningBorderWidth" );
+    config( m_statsShowDialogOnStartup, "stats.showDialog" );
 }
 
 void rtimvMainWindow::onConnect()
@@ -700,6 +726,16 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT &lock )
 
     RTIMV_DEBUG_BREADCRUMB
 
+    if( m_statsDisplayMode == statsDisplayOverlay && m_statsBox != nullptr && m_statsBox->isVisible() &&
+        !m_statsBoxRequestPending )
+    {
+        mtxTry_updateStatsBoxOverlay(
+            m_statsBox, true, statsBox_min(), statsBox_max(), statsBox_mean(), statsBox_median() );
+        updateStatsBoxOverlayVisibility();
+    }
+
+    RTIMV_DEBUG_BREADCRUMB
+
     if( imcp )
     {
         imcp->update_panel();
@@ -726,7 +762,7 @@ void rtimvMainWindow::launchControlPanel()
 {
     if( !imcp )
     {
-        imcp = new rtimvControlPanel( this, Qt::Tool );
+        imcp = new rtimvControlPanel( this, Qt::Dialog );
         connect( imcp, SIGNAL( launchStatsBox() ), this, SLOT( doLaunchStatsBox() ) );
         connect( imcp, SIGNAL( hideStatsBox() ), this, SLOT( doHideStatsBox() ) );
     }
@@ -1666,19 +1702,27 @@ void rtimvMainWindow::doLaunchStatsBox()
 
     m_statsBox->setVisible( true );
 
-    if( !imStats )
-    {
-        imStats = new rtimvStats( this, this, Qt::WindowFlags() );
-        imStats->setAttribute( Qt::WA_DeleteOnClose ); // Qt will delete imstats when it closes.
-        connect( imStats, SIGNAL( finished( int ) ), this, SLOT( imStatsClosed( int ) ) );
-    }
-
     statsBox( true );
     mtxTry_statsBoxMoved( m_statsBox );
+    if( m_statsBoxRequestPending )
+    {
+        m_statsBoxTimer.stop();
+        dispatchStatsBoxRequest();
+    }
+    updateStatsBoxOverlayVisibility();
 
-    imStats->show();
+    if( m_statsDisplayMode == statsDisplayDialog )
+    {
+        if( !imStats )
+        {
+            imStats = new rtimvStats( this, this, Qt::WindowFlags() );
+            imStats->setAttribute( Qt::WA_DeleteOnClose ); // Qt will delete imstats when it closes.
+            connect( imStats, SIGNAL( finished( int ) ), this, SLOT( imStatsClosed( int ) ) );
+        }
 
-    imStats->activateWindow();
+        imStats->show();
+        imStats->activateWindow();
+    }
 }
 
 void rtimvMainWindow::doHideStatsBox()
@@ -1686,6 +1730,7 @@ void rtimvMainWindow::doHideStatsBox()
     statsBox( false );
     m_statsBoxRequestPending = false;
     m_statsBoxTimer.stop();
+    updateStatsBoxOverlayVisibility();
 
     if( imStats )
     {
@@ -1746,6 +1791,11 @@ void rtimvMainWindow::mtxTry_statsBoxMoved( StretchBox *sb )
         m_statsBoxTimer.start( m_statsBoxTimeout );
     }
 
+    if( m_statsDisplayMode == statsDisplayOverlay )
+    {
+        ui.graphicsView->statsBoxText()->setVisible( false );
+    }
+
     mtxTry_userBoxMoved( sb );
 }
 
@@ -1758,6 +1808,270 @@ void rtimvMainWindow::dispatchStatsBoxRequest()
 
     m_statsBoxRequestPending = false;
     requestStatsBoxValues();
+}
+
+std::string rtimvMainWindow::formatStatsValue( float value ) const
+{
+    char txt[64];
+
+    if( std::fabs( value ) < 1e-1 )
+    {
+        snprintf( txt, sizeof( txt ), "%0.04g", value );
+    }
+    else
+    {
+        snprintf( txt, sizeof( txt ), "%0.02f", value );
+    }
+
+    return txt;
+}
+
+void rtimvMainWindow::mtxTry_updateStatsBoxOverlay(
+    StretchBox *sb, bool valid, float minVal, float maxVal, float meanVal, float medianVal )
+{
+    if( sb == nullptr || m_statsDisplayMode != statsDisplayOverlay )
+    {
+        ui.graphicsView->statsBoxText()->setVisible( false );
+        return;
+    }
+
+    std::string minText;
+    std::string maxText;
+    std::string meanText;
+    std::string medianText;
+
+    if( valid )
+    {
+        minText = formatStatsValue( minVal );
+        maxText = formatStatsValue( maxVal );
+        meanText = formatStatsValue( meanVal );
+        medianText = formatStatsValue( medianVal );
+    }
+
+    char tmp[256];
+    snprintf( tmp,
+              sizeof( tmp ),
+              "min: %s\nmax: %s\nmean: %s\nmedian: %s",
+              minText.c_str(),
+              maxText.c_str(),
+              meanText.c_str(),
+              medianText.c_str() );
+
+    QFontMetrics fm( ui.graphicsView->statsBoxText()->currentFont() );
+    QSize textSize = fm.size( 0, tmp );
+
+    constexpr int pad = 6;
+    constexpr int gap = 8;
+
+    QRectF sbr = sb->sceneBoundingRect();
+    QPoint topLeft = ui.graphicsView->mapFromScene( sbr.topLeft() );
+    QPoint bottomRight = ui.graphicsView->mapFromScene( sbr.bottomRight() );
+
+    QRect boxRect( topLeft, bottomRight );
+    boxRect = boxRect.normalized();
+
+    const int textWidth = textSize.width() + 5;
+    const int textHeight = textSize.height() + 5;
+
+    QRect textRect( boxRect.left() + pad, boxRect.top() + pad, textWidth, textHeight );
+
+    const int viewportWidth = ui.graphicsView->viewport()->width();
+    const int viewportHeight = ui.graphicsView->viewport()->height();
+
+    const QPoint rightPos( boxRect.right() + gap, boxRect.top() );
+    const QPoint leftPos( boxRect.left() - textWidth - gap, boxRect.top() );
+    const QPoint belowPos( boxRect.left(), boxRect.bottom() + gap );
+    const QPoint abovePos( boxRect.left(), boxRect.top() - textHeight - gap );
+
+    auto overlapsStatusOverlay = [this]( const QRect &candidate )
+    {
+        for( size_t n = 0; n < ui.graphicsView->statusTextNo(); ++n )
+        {
+            QTextEdit *status = ui.graphicsView->statusText( n );
+
+            if( status->toPlainText().isEmpty() )
+            {
+                continue;
+            }
+
+            if( candidate.intersects( status->geometry() ) )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    auto candidateFits = [&]( const QPoint &pos )
+    {
+        QRect candidate( pos.x(), pos.y(), textWidth, textHeight );
+
+        return candidate.left() >= 0 && candidate.top() >= 0 && candidate.right() <= viewportWidth &&
+               candidate.bottom() <= viewportHeight && !overlapsStatusOverlay( candidate );
+    };
+
+    const bool rightFits = candidateFits( rightPos );
+    const bool leftFits = candidateFits( leftPos );
+    const bool belowFits = candidateFits( belowPos );
+    const bool aboveFits = candidateFits( abovePos );
+
+    const bool preferOutside = rightFits || leftFits || belowFits || aboveFits ||
+                               boxRect.width() < 0.5 * viewportWidth || boxRect.height() < 0.5 * viewportHeight;
+
+    if( preferOutside )
+    {
+        if( rightFits )
+        {
+            textRect.moveTopLeft( rightPos );
+        }
+        else if( leftFits )
+        {
+            textRect.moveTopLeft( leftPos );
+        }
+        else if( belowFits )
+        {
+            textRect.moveTopLeft( belowPos );
+        }
+        else if( aboveFits )
+        {
+            textRect.moveTopLeft( abovePos );
+        }
+        else if( boxRect.right() + gap + textWidth <= viewportWidth )
+        {
+            textRect.moveTopLeft( rightPos );
+        }
+        else if( boxRect.left() - gap - textWidth >= 0 )
+        {
+            textRect.moveTopLeft( leftPos );
+        }
+        else if( boxRect.bottom() + gap + textHeight <= viewportHeight )
+        {
+            textRect.moveTopLeft( belowPos );
+        }
+        else if( boxRect.top() - gap - textHeight >= 0 )
+        {
+            textRect.moveTopLeft( abovePos );
+        }
+        else
+        {
+            textRect.moveTopLeft( rightPos );
+        }
+
+        if( textRect.left() < 0 )
+        {
+            textRect.moveLeft( 0 );
+        }
+
+        if( textRect.top() < 0 )
+        {
+            textRect.moveTop( 0 );
+        }
+
+        if( textRect.right() > viewportWidth )
+        {
+            textRect.moveLeft( std::max( 0, viewportWidth - textWidth ) );
+        }
+
+        if( textRect.bottom() > viewportHeight )
+        {
+            textRect.moveTop( std::max( 0, viewportHeight - textHeight ) );
+        }
+    }
+
+    ui.graphicsView->statsBoxText( tmp, textRect );
+    ui.graphicsView->statsBoxText()->setVisible( m_statsBox != nullptr && m_statsBox->isVisible() );
+    ui.graphicsView->statsBoxText()->raise();
+    ui.graphicsView->statsBoxText()->update();
+    ui.graphicsView->viewport()->update();
+
+    mtxTry_fontLuminance( ui.graphicsView->statsBoxText() );
+}
+
+void rtimvMainWindow::updateStatsBoxOverlayVisibility()
+{
+    const bool showOverlay =
+        m_statsDisplayMode == statsDisplayOverlay && m_statsBox != nullptr && m_statsBox->isVisible() && statsBox();
+
+    ui.graphicsView->statsBoxText()->setVisible( showOverlay );
+
+    if( !showOverlay )
+    {
+        ui.graphicsView->statsBoxText( "" );
+    }
+}
+
+void rtimvMainWindow::statsDisplayMode( int mode )
+{
+    if( mode != statsDisplayOverlay && mode != statsDisplayDialog )
+    {
+        return;
+    }
+
+    m_statsDisplayMode = mode;
+
+    updateStatsBoxOverlayVisibility();
+
+    if( !statsBox() )
+    {
+        if( imStats && m_statsDisplayMode != statsDisplayDialog )
+        {
+            delete imStats;
+            imStats = 0;
+        }
+
+        return;
+    }
+
+    if( m_statsDisplayMode == statsDisplayDialog )
+    {
+        ui.graphicsView->statsBoxText()->setVisible( false );
+
+        if( !imStats )
+        {
+            imStats = new rtimvStats( this, this, Qt::WindowFlags() );
+            imStats->setAttribute( Qt::WA_DeleteOnClose ); // Qt will delete imstats when it closes.
+            connect( imStats, SIGNAL( finished( int ) ), this, SLOT( imStatsClosed( int ) ) );
+        }
+
+        imStats->show();
+        imStats->activateWindow();
+    }
+    else
+    {
+        if( imStats )
+        {
+            delete imStats;
+            imStats = 0;
+        }
+
+        if( m_statsBox )
+        {
+            mtxTry_updateStatsBoxOverlay(
+                m_statsBox, true, statsBox_min(), statsBox_max(), statsBox_mean(), statsBox_median() );
+        }
+    }
+}
+
+int rtimvMainWindow::statsDisplayMode() const
+{
+    return m_statsDisplayMode;
+}
+
+void rtimvMainWindow::statsBoxUpdated(
+    int64_t i0, int64_t i1, int64_t j0, int64_t j1, float min, float max, float mean, float median, bool valid )
+{
+    static_cast<void>( i0 );
+    static_cast<void>( i1 );
+    static_cast<void>( j0 );
+    static_cast<void>( j1 );
+
+    if( m_statsDisplayMode == statsDisplayOverlay && m_statsBox != nullptr )
+    {
+        mtxTry_updateStatsBoxOverlay( m_statsBox, valid, min, max, mean, median );
+    }
+
+    updateStatsBoxOverlayVisibility();
 }
 
 void rtimvMainWindow::mtxTry_statsBoxSelected( StretchBox *sb )
@@ -1785,6 +2099,7 @@ void rtimvMainWindow::statsBoxRemove( StretchBox *sb )
 
     m_statsBox = nullptr;
 
+    updateStatsBoxOverlayVisibility();
     ui.graphicsView->userItemSize()->setVisible( false );
     ui.graphicsView->userItemMouseCoords()->setVisible( false );
     m_objCenH->setVisible( false );
@@ -2457,7 +2772,16 @@ void rtimvMainWindow::keyPressEvent( QKeyEvent *ke )
     }
     else // Finally deal with unmodified keys
     {
-        char key = ke->text()[0].toLatin1();
+        char key = '\0';
+        if( !ke->text().isEmpty() )
+        {
+            key = ke->text()[0].toLatin1();
+        }
+
+        if( key != '\0' && hasTextOverlay( key ) )
+        {
+            return toggleTextOverlay( key );
+        }
 
         switch( ke->key() )
         {
@@ -2484,14 +2808,6 @@ void rtimvMainWindow::keyPressEvent( QKeyEvent *ke )
                 return toggleFPSGage();
             if( key == 'F' )
                 return toggleFilter();
-            break;
-        case Qt::Key_H:
-            if( key == 'h' )
-                return toggleHelp();
-            break;
-        case Qt::Key_I:
-            if( key == 'i' )
-                return toggleInfo();
             break;
         case Qt::Key_L:
             if( key == 'l' )
@@ -3004,6 +3320,80 @@ void rtimvMainWindow::showQualityMessage( int q )
     mtxTry_fontLuminance( ui.graphicsView->zoomText() );
 }
 
+bool rtimvMainWindow::registerTextOverlay( char key,
+                                           const std::string &title,
+                                           std::function<std::string()> provider,
+                                           const std::string &source )
+{
+    if( key == '\0' || !provider || !std::isprint( static_cast<unsigned char>( key ) ) ||
+        std::isspace( static_cast<unsigned char>( key ) ) )
+    {
+        std::cerr << formatBaseLogMessage( std::string( "invalid text overlay registration from " ) + source ) << '\n';
+        return false;
+    }
+
+    if( m_textOverlays.contains( key ) )
+    {
+        std::cerr << formatBaseLogMessage( std::string( "skipping text overlay registration from " ) + source +
+                                           ": shortcut '" + key + "' is already registered" )
+                  << '\n';
+        return false;
+    }
+
+    textOverlayEntry toe;
+    toe.m_title = title.empty() ? source : title;
+    toe.m_textProvider = std::move( provider );
+    toe.m_builtin = ( source == "rtimv" );
+    toe.m_source = source;
+
+    m_textOverlays[key] = std::move( toe );
+    return true;
+}
+
+bool rtimvMainWindow::hasTextOverlay( char key ) const
+{
+    return m_textOverlays.contains( key );
+}
+
+void rtimvMainWindow::hideTextOverlay()
+{
+    ui.graphicsView->helpText()->setVisible( false );
+    m_activeTextOverlayKey = '\0';
+}
+
+void rtimvMainWindow::showTextOverlay( char key )
+{
+    auto it = m_textOverlays.find( key );
+    if( it == m_textOverlays.end() )
+    {
+        return;
+    }
+
+    std::string text = it->second.m_textProvider();
+    if( text.empty() )
+    {
+        std::cerr << formatBaseLogMessage( std::string( "text overlay '" ) + key + "' from " + it->second.m_source +
+                                           " returned empty text" )
+                  << '\n';
+        return;
+    }
+
+    ui.graphicsView->helpText()->setVisible( true );
+    m_activeTextOverlayKey = key;
+    mtxTry_fontLuminance( ui.graphicsView->helpText() );
+    ui.graphicsView->helpTextText( text.c_str() );
+}
+
+void rtimvMainWindow::toggleTextOverlay( char key )
+{
+    if( m_activeTextOverlayKey == key )
+    {
+        return hideTextOverlay();
+    }
+
+    return showTextOverlay( key );
+}
+
 std::string rtimvMainWindow::generateHelp()
 {
     std::string help;
@@ -3032,6 +3422,16 @@ std::string rtimvMainWindow::generateHelp()
 #endif
     help += "z: toggle color box\n";
 
+    for( const auto &[key, overlay] : m_textOverlays )
+    {
+        if( overlay.m_builtin )
+        {
+            continue;
+        }
+
+        help += std::string( 1, key ) + ": toggle " + overlay.m_title + "\n";
+    }
+
     help += "\n";
     help += "C: toggle cube control        D: toggle dark subtraction     \n";
     help += "F: toggle filters             L: toggle log scale           \n";
@@ -3053,19 +3453,7 @@ std::string rtimvMainWindow::generateHelp()
 
 void rtimvMainWindow::toggleHelp()
 {
-    if( m_helpVisible )
-    {
-        ui.graphicsView->helpText()->setVisible( false );
-        m_helpVisible = false;
-    }
-    else
-    {
-        std::string help = generateHelp();
-        ui.graphicsView->helpTextText( help.c_str() );
-        ui.graphicsView->helpText()->setVisible( true );
-        m_helpVisible = true;
-        m_infoVisible = false;
-    }
+    return toggleTextOverlay( 'h' );
 }
 
 std::string rtimvMainWindow::generateInfo()
@@ -3165,19 +3553,7 @@ std::string rtimvMainWindow::generateInfo()
 
 void rtimvMainWindow::toggleInfo()
 {
-    if( m_infoVisible )
-    {
-        ui.graphicsView->helpText()->setVisible( false );
-        m_infoVisible = false;
-    }
-    else
-    {
-        std::string info = generateInfo();
-        ui.graphicsView->helpTextText( info.c_str() );
-        ui.graphicsView->helpText()->setVisible( true );
-        m_infoVisible = true;
-        m_helpVisible = false;
-    }
+    return toggleTextOverlay( 'i' );
 }
 
 void rtimvMainWindow::borderWarningLevel( rtimv::warningLevel lvl )
@@ -3391,6 +3767,11 @@ void rtimvMainWindow::mtxTry_fontLuminance()
 
     mtxL_fontLuminance( ui.graphicsView->saveBox(), lock );
 
+    if( ui.graphicsView->helpText()->isVisible() )
+    {
+        mtxL_fontLuminance( ui.graphicsView->helpText(), lock );
+    }
+
     return;
 }
 
@@ -3460,6 +3841,15 @@ int rtimvMainWindow::loadPlugin( QObject *plugin )
     // If ri is not null, we store it.  Note this could be many types of interfaces at once.
     if( ri )
     {
+        if( ri->hasTextOverlay() )
+        {
+            registerTextOverlay(
+                ri->textOverlayKey(),
+                ri->textOverlayTitle(),
+                [ri]() { return ri->textOverlayText(); },
+                plugin->metaObject()->className() );
+        }
+
         m_plugins.push_back( ri );
         return 0;
     }

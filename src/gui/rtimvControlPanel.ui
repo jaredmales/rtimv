@@ -2173,11 +2173,34 @@
       <string>Show Stats Box</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="toolTipCoordsButton">
+    <widget class="QLabel" name="statsDisplayModeLabel">
      <property name="geometry">
       <rect>
        <x>30</x>
        <y>130</y>
+       <width>111</width>
+       <height>24</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Stats Display</string>
+     </property>
+    </widget>
+    <widget class="QComboBox" name="statsDisplayModeCombo">
+     <property name="geometry">
+      <rect>
+       <x>140</x>
+       <y>128</y>
+       <width>111</width>
+       <height>28</height>
+      </rect>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="toolTipCoordsButton">
+     <property name="geometry">
+      <rect>
+       <x>30</x>
+       <y>170</y>
        <width>191</width>
        <height>24</height>
       </rect>
@@ -2190,7 +2213,7 @@
      <property name="geometry">
       <rect>
        <x>30</x>
-       <y>160</y>
+       <y>200</y>
        <width>191</width>
        <height>24</height>
       </rect>

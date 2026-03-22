@@ -1,3 +1,10 @@
+/** \file rtimvControlPanel.cpp
+ * \brief Definitions for the rtimvControlPanel GUI class.
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #include "rtimvControlPanel.hpp"
 
 #include <algorithm>
@@ -6,7 +13,7 @@ rtimvControlPanel::rtimvControlPanel()
 {
 }
 
-rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, Qt::WindowFlags f ) : QWidget( 0, f )
+rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, Qt::WindowFlags f ) : QWidget( v, f )
 {
     m_ui.setupUi( this );
     m_imv = v;
@@ -135,6 +142,10 @@ void rtimvControlPanel::setupCombos()
     m_ui.lpFilterCombo->insertItem( static_cast<int>( rtimv::lpFilter::gaussian ), "Gaussian" );
     m_ui.lpFilterCombo->insertItem( static_cast<int>( rtimv::lpFilter::median ), "Median" );
     m_ui.lpFilterCombo->insertItem( static_cast<int>( rtimv::lpFilter::mean ), "Mean" );
+
+    m_ui.statsDisplayModeCombo->insertItem( 0, "Overlay" );
+    m_ui.statsDisplayModeCombo->insertItem( 1, "Dialog" );
+    m_ui.statsDisplayModeCombo->setCurrentIndex( m_imv->statsDisplayMode() );
 }
 
 void rtimvControlPanel::init_panel()
@@ -151,6 +162,7 @@ void rtimvControlPanel::init_panel()
     targetVisibleChanged( m_imv->targetVisible() );
 
     m_ui.imtimerspinBox->setValue( m_imv->imageTimeout() );
+    m_ui.statsDisplayModeCombo->setCurrentIndex( m_imv->statsDisplayMode() );
 
 #ifdef RTIMV_GRPC
     update_qualitySlider();
@@ -1070,6 +1082,11 @@ void rtimvControlPanel::on_statsBoxButton_clicked()
         m_ui.statsBoxButton->setText( "Hide Stats Box" );
         m_statsBoxButtonState = true;
     }
+}
+
+void rtimvControlPanel::on_statsDisplayModeCombo_activated( int mode )
+{
+    m_imv->statsDisplayMode( mode );
 }
 
 void rtimvControlPanel::viewBoxMoved( const QRectF &vbr )
