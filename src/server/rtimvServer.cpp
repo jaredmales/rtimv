@@ -1195,6 +1195,17 @@ void rtimvServer::doConfigure( const configSpec *cspec )
         argv->push_back( std::to_string( cspec->m_config.update_cube_fps() ) );
     }
 
+    if( cspec->m_config.colorbar_set() )
+    {
+        rtimv::colorbar cb = rtimv::grpc2colorbar( cspec->m_config.colorbar() );
+
+        if( cb != static_cast<rtimv::colorbar>( -1 ) )
+        {
+            argv->push_back( "--colorbar" );
+            argv->push_back( std::string( rtimv::colorbarName( cb ) ) );
+        }
+    }
+
     if( cspec->m_config.autoscale_set() )
     {
         if( cspec->m_config.autoscale() )

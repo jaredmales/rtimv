@@ -11,6 +11,7 @@
 #include "rtimvFilterGRPC.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <thread>
@@ -225,6 +226,16 @@ void rtimvClientBase::setupConfig()
                 false,
                 "real",
                 "Specify the image cube update rate in FPS.  Default is 20 FPS." );
+
+    config.add( "colorbar",
+                "",
+                "colorbar",
+                mx::app::argType::Required,
+                "",
+                "colorbar",
+                false,
+                "string",
+                "Set the startup colorbar. Valid values are grey, jet, hot, heat, bb, bone, red, green, and blue." );
 
     config.add( "quality",
                 "",
@@ -502,6 +513,25 @@ void rtimvClientBase::loadConfig()
         config( cubeFPS, "update.cubeFPS" );
         m_configReq->set_update_cube_fps( cubeFPS );
         m_configReq->set_update_cube_fps_set( true );
+    }
+
+    if( config.isSet( "colorbar" ) )
+    {
+        std::string colorbarName;
+        config( colorbarName, "colorbar" );
+        std::transform( colorbarName.begin(),
+                        colorbarName.end(),
+                        colorbarName.begin(),
+                        []( unsigned char c ) { return static_cast<char>( std::tolower( c ) ); } );
+
+        rtimv::colorbar cb;
+        if( !rtimv::colorbarFromString( cb, colorbarName ) )
+        {
+            throw std::runtime_error( "rtimvClient: invalid colorbar '" + colorbarName + "'" );
+        }
+
+        m_configReq->set_colorbar( rtimv::colorbar2grpc( cb ) );
+        m_configReq->set_colorbar_set( true );
     }
 
     if( config.isSet( "quality" ) )

@@ -27,6 +27,14 @@ inline remote_rtimv::Colorbar colorbar2grpc( rtimv::colorbar cb )
     {
         return remote_rtimv::COLORBAR_HOT;
     }
+    else if( cb == rtimv::colorbar::heat )
+    {
+        return remote_rtimv::COLORBAR_HEAT;
+    }
+    else if( cb == rtimv::colorbar::bb )
+    {
+        return remote_rtimv::COLORBAR_BB;
+    }
     else if( cb == rtimv::colorbar::bone )
     {
         return remote_rtimv::COLORBAR_BONE;
@@ -60,6 +68,14 @@ inline rtimv::colorbar grpc2colorbar( remote_rtimv::Colorbar colorbar )
     else if( colorbar == remote_rtimv::COLORBAR_HOT )
     {
         return rtimv::colorbar::hot;
+    }
+    else if( colorbar == remote_rtimv::COLORBAR_HEAT )
+    {
+        return rtimv::colorbar::heat;
+    }
+    else if( colorbar == remote_rtimv::COLORBAR_BB )
+    {
+        return rtimv::colorbar::bb;
     }
     else if( colorbar == remote_rtimv::COLORBAR_BONE )
     {
