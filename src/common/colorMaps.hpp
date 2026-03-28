@@ -432,6 +432,100 @@ inline int load_colorbar_hot( QImage *qim )
     return i;
 }
 
+/// Heat: load a warm black-red-orange-yellow-white colormap
+inline int load_colorbar_heat( QImage *qim )
+{
+    int i = 0;
+
+    for( ; i <= 253; ++i )
+    {
+        float t = static_cast<float>( i ) / 253.0F;
+
+        float rf = t / 0.45F;
+        if( rf > 1.0F )
+        {
+            rf = 1.0F;
+        }
+
+        float gf = ( t - 0.15F ) / 0.55F;
+        if( gf < 0.0F )
+        {
+            gf = 0.0F;
+        }
+        else if( gf > 1.0F )
+        {
+            gf = 1.0F;
+        }
+
+        float bf = ( t - 0.70F ) / 0.30F;
+        if( bf < 0.0F )
+        {
+            bf = 0.0F;
+        }
+        else if( bf > 1.0F )
+        {
+            bf = 1.0F;
+        }
+
+        qim->setColor( i,
+                       qRgb( static_cast<int>( 255.0F * rf + 0.5F ),
+                             static_cast<int>( 255.0F * gf + 0.5F ),
+                             static_cast<int>( 255.0F * bf + 0.5F ) ) );
+    }
+
+    qim->setColor( i, qRgb( 0, 0, 0 ) );
+    qim->setColor( i + 1, qRgb( 0, 0, 255 ) );
+
+    return i - 1;
+}
+
+/// BB: load the SAOImage DS9 blackbody colormap
+inline int load_colorbar_bb( QImage *qim )
+{
+    int i = 0;
+
+    for( ; i <= 253; ++i )
+    {
+        float t = static_cast<float>( i ) / 253.0F;
+
+        float rf = t / 0.50F;
+        if( rf > 1.0F )
+        {
+            rf = 1.0F;
+        }
+
+        float gf = ( t - 0.25F ) / 0.50F;
+        if( gf < 0.0F )
+        {
+            gf = 0.0F;
+        }
+        else if( gf > 1.0F )
+        {
+            gf = 1.0F;
+        }
+
+        float bf = ( t - 0.50F ) / 0.50F;
+        if( bf < 0.0F )
+        {
+            bf = 0.0F;
+        }
+        else if( bf > 1.0F )
+        {
+            bf = 1.0F;
+        }
+
+        qim->setColor( i,
+                       qRgb( static_cast<int>( 255.0F * rf + 0.5F ),
+                             static_cast<int>( 255.0F * gf + 0.5F ),
+                             static_cast<int>( 255.0F * bf + 0.5F ) ) );
+    }
+
+    qim->setColor( i, qRgb( 0, 0, 0 ) );
+    qim->setColor( i + 1, qRgb( 0, 0, 255 ) );
+
+    return i - 1;
+}
+
 /// Bone: load the Matlab Bone colormap
 inline int load_colorbar_bone( QImage *qim )
 {

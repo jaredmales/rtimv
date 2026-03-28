@@ -8,6 +8,8 @@
 #include "rtimvBase.hpp"
 #include "rtimvBaseObject.hpp"
 #include "rtimvLog.hpp"
+#include <algorithm>
+#include <cctype>
 #include <cmath>
 
 #ifdef MXLIB_MILK
@@ -138,6 +140,16 @@ void rtimvBase::setupConfig()
                 false,
                 "real",
                 "Specify the image cube update rate in FPS.  Default is 20 FPS." );
+
+    config.add( "colorbar",
+                "",
+                "colorbar",
+                mx::app::argType::Required,
+                "",
+                "colorbar",
+                false,
+                "string",
+                "Set the startup colorbar. Valid values are grey, jet, hot, heat, bb, bone, red, green, and blue." );
 
     config.add( "autoscale",
                 "",
@@ -341,6 +353,21 @@ void rtimvBase::loadConfig()
 
     // Now set the actual timeouts
     cubeFPS( m_cubeFPS );
+
+    std::string colorbarName;
+    config( colorbarName, "colorbar" );
+    if( colorbarName != "" )
+    {
+        std::transform( colorbarName.begin(),
+                        colorbarName.end(),
+                        colorbarName.begin(),
+                        []( unsigned char c ) { return static_cast<char>( std::tolower( c ) ); } );
+
+        if( !rtimv::colorbarFromString( m_colorbar, colorbarName ) )
+        {
+            throw std::runtime_error( "rtimv: invalid colorbar '" + colorbarName + "'" );
+        }
+    }
 
     config( m_autoScale, "autoscale" );
     config( m_subtractDark, "darksub" );
@@ -1207,6 +1234,22 @@ void rtimvBase::mtxL_load_colorbarImpl( rtimv::colorbar cb )
     case rtimv::colorbar::hot:
         m_minColor = 0;
         m_maxColor = load_colorbar_hot( m_qim );
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        warning_color = QColor( "cyan" );
+        break;
+    case rtimv::colorbar::heat:
+        m_minColor = 0;
+        m_maxColor = load_colorbar_heat( m_qim );
+        m_maskColor = m_maxColor + 1;
+        m_satColor = m_maxColor + 2;
+        m_nanColor = m_maskColor;
+        warning_color = QColor( "cyan" );
+        break;
+    case rtimv::colorbar::bb:
+        m_minColor = 0;
+        m_maxColor = load_colorbar_bb( m_qim );
         m_maskColor = m_maxColor + 1;
         m_satColor = m_maxColor + 2;
         m_nanColor = m_maskColor;
