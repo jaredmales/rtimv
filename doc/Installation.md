@@ -96,10 +96,10 @@ These options are available when Protobuf + gRPC are found (the same condition u
   Install the `rtimvServer` systemd unit file.
 
 - `RTIMV_SERVER_SYSTEMD_USER` (default: `rtimv`)  
-  User account for running `rtimvServer` under systemd.
+  User account for running `rtimvServer` under systemd. This account must exist on the target system.
 
 - `RTIMV_SERVER_SYSTEMD_GROUP` (default: `rtimv`)  
-  Group account for running `rtimvServer` under systemd.
+  Group account for running `rtimvServer` under systemd. This group must exist on the target system.
 
 - `RTIMV_SERVER_SYSTEMD_ENVIRONMENT_FILE` (default: `/etc/default/rtimvServer`)  
   Environment file path referenced by the unit via `EnvironmentFile=-...`.
@@ -130,7 +130,12 @@ cmake --build _build -j
 sudo cmake --install _build
 ```
 
-Note: on Fedora 42 additionally specify `-DRTIMV_SERVER_SYSTEMD_UNIT_DIR=/usr/lib/systemd/system`
+If the service should run as `xsup` instead of the default `rtimv` account, set both
+`RTIMV_SERVER_SYSTEMD_USER` and `RTIMV_SERVER_SYSTEMD_GROUP` as shown above so the generated
+unit matches the installed service account.
+
+Note: on Fedora 42 and Fedora 43 additionally specify
+`-DRTIMV_SERVER_SYSTEMD_UNIT_DIR=/usr/lib/systemd/system`
 
 ### 2. Provide environment variables (optional but common)
 
