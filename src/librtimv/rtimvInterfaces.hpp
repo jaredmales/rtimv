@@ -286,6 +286,15 @@ class rtimvInterface : public QObject
         return "";
     }
 
+    /// Generate one line of plugin text overlay contents on demand.
+    /** Return an empty string to request that the caller regenerate the full overlay text instead.
+     */
+    virtual std::string textOverlayLine( size_t line /**< [in] Zero-based line index to regenerate. */ )
+    {
+        static_cast<void>( line );
+        return "";
+    }
+
     /// Set context used by standardized plugin log formatters.
     void setLogContext( const std::string &calledName, /**< [in] Program called-name for log prefix. */
                         bool includeAppName,           /**< [in] True to include called-name in log prefix. */

@@ -9,6 +9,7 @@
 #include "rtimvMainWindow.hpp"
 #include <algorithm>
 #include <cctype>
+#include <sstream>
 #include <QMetaType>
 #include <QFontMetrics>
 
@@ -44,8 +45,10 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
 
     ui.graphicsView->setScene( m_qgs );
 
-    registerTextOverlay( 'h', "help", [this]() { return generateHelp(); }, "rtimv" );
-    registerTextOverlay( 'i', "info", [this]() { return generateInfo(); }, "rtimv" );
+    registerTextOverlay(
+        'h', "help", [this]() { return generateHelp(); }, []( size_t ) { return std::string(); }, "rtimv" );
+    registerTextOverlay(
+        'i', "info", [this]() { return generateInfo(); }, []( size_t ) { return std::string(); }, "rtimv" );
 
     rightClickDragging = false;
 
@@ -1328,6 +1331,8 @@ void rtimvMainWindow::updateAge()
     // Check the font luminance to make sure it is visible
     mtxTry_fontLuminance();
 
+    refreshActiveTextOverlay();
+
     if( m_showFPSGage && imageValid() )
     {
         struct timespec tstmp;
@@ -1374,6 +1379,8 @@ void rtimvMainWindow::updateAge()
 
 void rtimvMainWindow::updateNC()
 {
+    refreshActiveTextOverlay();
+
     for( size_t n = 0; n < m_overlays.size(); ++n )
     {
         m_overlays[n]->updateOverlay();
@@ -3320,9 +3327,46 @@ void rtimvMainWindow::showQualityMessage( int q )
     mtxTry_fontLuminance( ui.graphicsView->zoomText() );
 }
 
+std::vector<std::string> rtimvMainWindow::splitTextOverlayLines( const std::string &text ) const
+{
+    std::vector<std::string> lines;
+    std::stringstream sstr( text );
+    std::string line;
+
+    while( std::getline( sstr, line ) )
+    {
+        lines.push_back( line );
+    }
+
+    if( !text.empty() && text.back() == '\n' )
+    {
+        lines.push_back( "" );
+    }
+
+    return lines;
+}
+
+std::string rtimvMainWindow::joinTextOverlayLines( const std::vector<std::string> &lines ) const
+{
+    std::string text;
+
+    for( size_t n = 0; n < lines.size(); ++n )
+    {
+        text += lines[n];
+
+        if( n + 1 < lines.size() )
+        {
+            text += '\n';
+        }
+    }
+
+    return text;
+}
+
 bool rtimvMainWindow::registerTextOverlay( char key,
                                            const std::string &title,
                                            std::function<std::string()> provider,
+                                           std::function<std::string( size_t )> lineProvider,
                                            const std::string &source )
 {
     if( key == '\0' || !provider || !std::isprint( static_cast<unsigned char>( key ) ) ||
@@ -3343,6 +3387,7 @@ bool rtimvMainWindow::registerTextOverlay( char key,
     textOverlayEntry toe;
     toe.m_title = title.empty() ? source : title;
     toe.m_textProvider = std::move( provider );
+    toe.m_lineProvider = std::move( lineProvider );
     toe.m_builtin = ( source == "rtimv" );
     toe.m_source = source;
 
@@ -3359,6 +3404,7 @@ void rtimvMainWindow::hideTextOverlay()
 {
     ui.graphicsView->helpText()->setVisible( false );
     m_activeTextOverlayKey = '\0';
+    m_activeTextOverlayLines.clear();
 }
 
 void rtimvMainWindow::showTextOverlay( char key )
@@ -3380,8 +3426,101 @@ void rtimvMainWindow::showTextOverlay( char key )
 
     ui.graphicsView->helpText()->setVisible( true );
     m_activeTextOverlayKey = key;
+    m_activeTextOverlayLines = splitTextOverlayLines( text );
     mtxTry_fontLuminance( ui.graphicsView->helpText() );
     ui.graphicsView->helpTextText( text.c_str() );
+}
+
+void rtimvMainWindow::refreshActiveTextOverlay()
+{
+    if( m_activeTextOverlayKey == '\0' )
+    {
+        return;
+    }
+
+    refreshTextOverlay( m_activeTextOverlayKey );
+}
+
+void rtimvMainWindow::refreshActiveTextOverlayLine( size_t line )
+{
+    if( m_activeTextOverlayKey == '\0' )
+    {
+        return;
+    }
+
+    refreshTextOverlayLine( m_activeTextOverlayKey, line );
+}
+
+void rtimvMainWindow::refreshTextOverlay( char key )
+{
+    if( m_activeTextOverlayKey != key || !ui.graphicsView->helpText()->isVisible() )
+    {
+        return;
+    }
+
+    auto it = m_textOverlays.find( key );
+    if( it == m_textOverlays.end() )
+    {
+        return;
+    }
+
+    std::string text = it->second.m_textProvider();
+    if( text.empty() )
+    {
+        return;
+    }
+
+    m_activeTextOverlayLines = splitTextOverlayLines( text );
+    mtxTry_fontLuminance( ui.graphicsView->helpText() );
+    ui.graphicsView->helpTextText( text.c_str() );
+}
+
+void rtimvMainWindow::refreshTextOverlayLine( char key, size_t line )
+{
+    if( m_activeTextOverlayKey != key || !ui.graphicsView->helpText()->isVisible() )
+    {
+        return;
+    }
+
+    auto it = m_textOverlays.find( key );
+    if( it == m_textOverlays.end() )
+    {
+        return;
+    }
+
+    if( !it->second.m_lineProvider || line >= m_activeTextOverlayLines.size() )
+    {
+        refreshTextOverlay( key );
+        return;
+    }
+
+    std::string newLine = it->second.m_lineProvider( line );
+    if( newLine.empty() && line < m_activeTextOverlayLines.size() && !m_activeTextOverlayLines[line].empty() )
+    {
+        refreshTextOverlay( key );
+        return;
+    }
+
+    m_activeTextOverlayLines[line] = std::move( newLine );
+
+    std::string text = joinTextOverlayLines( m_activeTextOverlayLines );
+    mtxTry_fontLuminance( ui.graphicsView->helpText() );
+    ui.graphicsView->helpTextText( text.c_str() );
+}
+
+void rtimvMainWindow::textOverlayRefreshRequested( char key )
+{
+    refreshTextOverlay( key );
+}
+
+void rtimvMainWindow::textOverlayLineRefreshRequested( char key, int lineNo )
+{
+    if( lineNo < 0 )
+    {
+        return;
+    }
+
+    refreshTextOverlayLine( key, static_cast<size_t>( lineNo ) );
 }
 
 void rtimvMainWindow::toggleTextOverlay( char key )
@@ -3847,6 +3986,7 @@ int rtimvMainWindow::loadPlugin( QObject *plugin )
                 ri->textOverlayKey(),
                 ri->textOverlayTitle(),
                 [ri]() { return ri->textOverlayText(); },
+                [ri]( size_t line ) { return ri->textOverlayLine( line ); },
                 plugin->metaObject()->className() );
         }
 
