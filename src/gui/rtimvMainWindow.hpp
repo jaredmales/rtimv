@@ -13,7 +13,9 @@
 #include <cmath>
 #include <functional>
 #include <map>
+#include <string>
 #include <unordered_set>
+#include <vector>
 
 #include <QWidget>
 #include <QScrollBar>
@@ -857,6 +859,9 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
         /// Generates the current overlay text on demand.
         std::function<std::string()> m_textProvider;
 
+        /// Generates one line of overlay text on demand, or empty to request a full refresh.
+        std::function<std::string( size_t )> m_lineProvider;
+
         /// True when this entry is one of the built-in overlays.
         bool m_builtin{ false };
 
@@ -870,6 +875,15 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     /// Active text overlay shortcut, or `'\0'` when hidden.
     char m_activeTextOverlayKey{ '\0' };
 
+    /// Cached lines for the currently visible shared text overlay.
+    std::vector<std::string> m_activeTextOverlayLines;
+
+    /// Split overlay text into line cache entries.
+    std::vector<std::string> splitTextOverlayLines( const std::string &text /**< [in] Overlay text to split. */ ) const;
+
+    /// Join cached overlay lines into the text shown by the shared widget.
+    std::string joinTextOverlayLines( const std::vector<std::string> &lines /**< [in] Overlay lines to join. */ ) const;
+
     ///@}
 
     /** \name Text Overlays
@@ -880,11 +894,12 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
      */
   public:
     /// Register a toggleable text overlay shortcut.
-    bool
-    registerTextOverlay( char key,                              /**< [in] Shortcut key used to toggle the overlay. */
-                         const std::string &title,              /**< [in] Short title shown in the help listing. */
-                         std::function<std::string()> provider, /**< [in] Generator for the current overlay text. */
-                         const std::string &source              /**< [in] Source label for collision log messages. */
+    bool registerTextOverlay(
+        char key,                                          /**< [in] Shortcut key used to toggle the overlay. */
+        const std::string &title,                          /**< [in] Short title shown in the help listing. */
+        std::function<std::string()> provider,             /**< [in] Generator for the current overlay text. */
+        std::function<std::string( size_t )> lineProvider, /**< [in] Optional generator for one overlay line. */
+        const std::string &source                          /**< [in] Source label for collision log messages. */
     );
 
     /// Check if a shortcut has a registered text overlay.
@@ -896,6 +911,20 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
     /// Show the shared text overlay widget for a registered shortcut.
     void showTextOverlay( char key /**< [in] Shortcut key identifying the overlay to show. */ );
+
+    /// Refresh the currently active shared text overlay.
+    void refreshActiveTextOverlay();
+
+    /// Refresh one line of the currently active shared text overlay.
+    void refreshActiveTextOverlayLine( size_t line /**< [in] Zero-based line index to refresh. */ );
+
+    /// Refresh the shared text overlay widget for a registered shortcut.
+    void refreshTextOverlay( char key /**< [in] Shortcut key identifying the overlay to refresh. */ );
+
+    /// Refresh one line of the shared text overlay widget for a registered shortcut.
+    void refreshTextOverlayLine( char key,   /**< [in] Shortcut key identifying the overlay to refresh. */
+                                 size_t line /**< [in] Zero-based line index to refresh. */
+    );
 
     /// Toggle the shared text overlay widget for a registered shortcut.
     void toggleTextOverlay( char key /**< [in] Shortcut key identifying the overlay to toggle. */ );
@@ -914,6 +943,15 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
     /// Toggle the built-in image and plugin info overlay.
     void toggleInfo();
+
+  public slots:
+    /// Request a full shared text overlay refresh for a registered shortcut.
+    void textOverlayRefreshRequested( char key /**< [in] Shortcut key identifying the overlay to refresh. */ );
+
+    /// Request a single-line shared text overlay refresh for a registered shortcut.
+    void textOverlayLineRefreshRequested( char key,  /**< [in] Shortcut key identifying the overlay to refresh. */
+                                          int lineNo /**< [in] Zero-based line index to refresh. */
+    );
 
     /** \name Border Colors
      * @{
