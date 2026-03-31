@@ -107,6 +107,9 @@ message Config
 
     bool quality_set = 26;
     int32 quality = 27;
+
+    bool colorbar_set = 28;
+    Colorbar colorbar = 29;
 }
 
 message ConfigResult
@@ -125,6 +128,8 @@ enum Colorbar
     COLORBAR_RED = 5;
     COLORBAR_GREEN = 6;
     COLORBAR_BLUE = 7;
+    COLORBAR_HEAT = 8;
+    COLORBAR_BB = 9;
 }
 
 // A message specifying the color bar.

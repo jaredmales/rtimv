@@ -121,6 +121,8 @@ void rtimvControlPanel::setupCombos()
     m_ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::grey ), "Grey" );
     m_ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::jet ), "Jet" );
     m_ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::hot ), "Hot" );
+    m_ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::heat ), "Heat" );
+    m_ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::bb ), "BB" );
     m_ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::bone ), "Bone" );
     m_ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::red ), "Red" );
     m_ui.colorbarCombo->insertItem( static_cast<int>( rtimv::colorbar::green ), "Green" );
