@@ -202,6 +202,13 @@ find_package(Protobuf)
 #pkg_check_modules(GRPC REQUIRED IMPORTED_TARGET grpc)
 pkg_check_modules(GRPCPP IMPORTED_TARGET grpc++)
 
+if(Protobuf_FOUND AND GRPCPP_FOUND)
+find_program(GRPC_CPP_PLUGIN_EXECUTABLE grpc_cpp_plugin)
+if(NOT GRPC_CPP_PLUGIN_EXECUTABLE)
+    message(FATAL_ERROR "Could not find grpc_cpp_plugin")
+endif()
+endif()
+
 ############################################
 # rtimvServer
 ############################################
@@ -230,7 +237,7 @@ target_include_directories(rtimvServer PRIVATE src/librtimv
 
 make_directory(${CMAKE_CURRENT_BINARY_DIR}/proto)
 protobuf_generate(TARGET rtimvServer APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS src/proto/rtimv.proto)
-protobuf_generate(TARGET rtimvServer LANGUAGE grpc PLUGIN "protoc-gen-grpc=/usr/bin/grpc_cpp_plugin" GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS src/proto/rtimv.proto)
+protobuf_generate(TARGET rtimvServer LANGUAGE grpc PLUGIN "protoc-gen-grpc=${GRPC_CPP_PLUGIN_EXECUTABLE}" GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS src/proto/rtimv.proto)
 
 target_link_libraries(rtimvServer PRIVATE commonlib)
 target_link_libraries(rtimvServer PRIVATE rtimv-shared)
@@ -282,7 +289,7 @@ if(Protobuf_FOUND AND GRPCPP_FOUND )
 
     make_directory(${CMAKE_CURRENT_BINARY_DIR}/proto)
     protobuf_generate(TARGET rtimvClient APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS src/proto/rtimv.proto)
-    protobuf_generate(TARGET rtimvClient LANGUAGE grpc PLUGIN "protoc-gen-grpc=grpc_cpp_plugin" GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS src/proto/rtimv.proto)
+    protobuf_generate(TARGET rtimvClient LANGUAGE grpc PLUGIN "protoc-gen-grpc=${GRPC_CPP_PLUGIN_EXECUTABLE}" GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS src/proto/rtimv.proto)
 
     if(NOT(MXLIB_HAS_MILK EQUAL -1))
         target_compile_definitions(rtimvClient PUBLIC MXLIB_MILK)

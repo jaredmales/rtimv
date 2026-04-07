@@ -18,7 +18,7 @@ target_include_directories(rtimvClientBaseAsyncRaceTest PRIVATE ${CMAKE_SOURCE_D
 
 make_directory(${CMAKE_CURRENT_BINARY_DIR}/proto)
 protobuf_generate(TARGET rtimvClientBaseAsyncRaceTest APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS ${CMAKE_SOURCE_DIR}/src/proto/rtimv.proto)
-protobuf_generate(TARGET rtimvClientBaseAsyncRaceTest LANGUAGE grpc PLUGIN "protoc-gen-grpc=/usr/bin/grpc_cpp_plugin" GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS ${CMAKE_SOURCE_DIR}/src/proto/rtimv.proto)
+protobuf_generate(TARGET rtimvClientBaseAsyncRaceTest LANGUAGE grpc PLUGIN "protoc-gen-grpc=${GRPC_CPP_PLUGIN_EXECUTABLE}" GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS ${CMAKE_SOURCE_DIR}/src/proto/rtimv.proto)
 
 if(NOT(MXLIB_HAS_MILK EQUAL -1))
     target_compile_definitions(rtimvClientBaseAsyncRaceTest PUBLIC MXLIB_MILK)
