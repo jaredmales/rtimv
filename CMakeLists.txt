@@ -200,7 +200,7 @@ install (TARGETS rtimv DESTINATION bin)
 
 find_package(Protobuf)
 #pkg_check_modules(GRPC REQUIRED IMPORTED_TARGET grpc)
-pkg_check_modules(GRPCPP REQUIRED IMPORTED_TARGET grpc++)
+pkg_check_modules(GRPCPP IMPORTED_TARGET grpc++)
 
 ############################################
 # rtimvServer
@@ -282,7 +282,7 @@ if(Protobuf_FOUND AND GRPCPP_FOUND )
 
     make_directory(${CMAKE_CURRENT_BINARY_DIR}/proto)
     protobuf_generate(TARGET rtimvClient APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS src/proto/rtimv.proto)
-    protobuf_generate(TARGET rtimvClient LANGUAGE grpc PLUGIN "protoc-gen-grpc=/usr/bin/grpc_cpp_plugin" GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS src/proto/rtimv.proto)
+    protobuf_generate(TARGET rtimvClient LANGUAGE grpc PLUGIN "protoc-gen-grpc=grpc_cpp_plugin" GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc APPEND_PATH PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto PROTOS src/proto/rtimv.proto)
 
     if(NOT(MXLIB_HAS_MILK EQUAL -1))
         target_compile_definitions(rtimvClient PUBLIC MXLIB_MILK)
