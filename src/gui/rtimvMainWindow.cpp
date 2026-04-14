@@ -13,6 +13,124 @@
 #include <QMetaType>
 #include <QFontMetrics>
 
+namespace
+{
+
+/// Format an on/off state string.
+std::string onOffString( bool state )
+{
+    return state ? "on" : "off";
+}
+
+/// Get a display label for the current color mode.
+std::string colorModeString( rtimv::colormode mode )
+{
+    switch( mode )
+    {
+    case rtimv::colormode::minmaxglobal:
+        return "min/max global";
+    case rtimv::colormode::minmaxbox:
+        return "min/max box";
+    case rtimv::colormode::user:
+        return "user";
+    }
+
+    return "unknown";
+}
+
+/// Get a display label for the current stretch.
+std::string stretchString( rtimv::stretch stretch )
+{
+    switch( stretch )
+    {
+    case rtimv::stretch::linear:
+        return "linear";
+    case rtimv::stretch::log:
+        return "log";
+    case rtimv::stretch::pow:
+        return "power";
+    case rtimv::stretch::sqrt:
+        return "sqrt";
+    case rtimv::stretch::square:
+        return "square";
+    }
+
+    return "unknown";
+}
+
+/// Get a display label for the configured high-pass filter.
+std::string hpFilterString( rtimv::hpFilter filter )
+{
+    switch( filter )
+    {
+    case rtimv::hpFilter::none:
+        return "none";
+    case rtimv::hpFilter::gaussian:
+        return "gaussian";
+    case rtimv::hpFilter::median:
+        return "median";
+    case rtimv::hpFilter::mean:
+        return "mean";
+    case rtimv::hpFilter::fourier:
+        return "fourier";
+    case rtimv::hpFilter::radprof:
+        return "radprof";
+    }
+
+    return "unknown";
+}
+
+/// Get a display label for the configured low-pass filter.
+std::string lpFilterString( rtimv::lpFilter filter )
+{
+    switch( filter )
+    {
+    case rtimv::lpFilter::none:
+        return "none";
+    case rtimv::lpFilter::gaussian:
+        return "gaussian";
+    case rtimv::lpFilter::median:
+        return "median";
+    case rtimv::lpFilter::mean:
+        return "mean";
+    }
+
+    return "unknown";
+}
+
+/// Summarize the active filtering state for display.
+std::string filterStatusString( RTIMV_BASE *imv )
+{
+    std::ostringstream oss;
+    bool any = false;
+
+    if( imv->applyHPFilter() )
+    {
+        oss << "HP " << hpFilterString( imv->hpFilter() ) << " (fw=" << imv->hpfFW() << ")";
+        any = true;
+    }
+
+    if( imv->applyLPFilter() )
+    {
+        if( any )
+        {
+            oss << ", ";
+        }
+
+        oss << "LP " << lpFilterString( imv->lpFilter() ) << " (fw=" << imv->lpfFW() << ")";
+        any = true;
+    }
+
+    if( !any )
+    {
+        return "off";
+    }
+
+    return oss.str();
+}
+
+} // namespace
+
 rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::WindowFlags f ) : QWidget( Parent, f )
 {
     qRegisterMetaType<uint32_t>( "uint32_t" );
@@ -3664,6 +3782,16 @@ std::string rtimvMainWindow::generateInfo()
     {
         info += "  satMask: \n";
     }
+
+    info += "\n";
+    info += "Display:\n";
+    info += "  darksub:   " + onOffString( subtractDark() ) + "\n";
+    info += "  mask:      " + onOffString( applyMask() ) + "\n";
+    info += "  sat-mask:  " + onOffString( applySatMask() ) + "\n";
+    info += "  filtering: " + filterStatusString( this ) + "\n";
+    info += "  color mode: " + colorModeString( colormode() ) + "\n";
+    info += "  stretch:   " + stretchString( stretch() ) + "\n";
+    info += "  color bar: " + std::string( rtimv::colorbarName( colorbar() ) ) + "\n";
 
     info += "\n";
     info += "Plugins:\n";
