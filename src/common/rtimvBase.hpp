@@ -417,6 +417,9 @@ class rtimvBase : public mx::app::application
     /// Whether or not the dark image is subtracted, default is false.
     bool m_subtractDark{ false };
 
+    /// True when the startup dark-subtraction state was set explicitly by config/CLI.
+    bool m_subtractDarkSet{ false };
+
     /// Whether or not the mask is applied, default is false.
     bool m_applyMask{ false };
 
@@ -425,6 +428,9 @@ class rtimvBase : public mx::app::application
      * not change the values returned by rawPixel().
      */
     bool m_applySatMask{ false };
+
+    /// True when the startup saturation-mask state was set explicitly by config/CLI.
+    bool m_applySatMaskSet{ false };
 
     /// Owned buffer that stores unfiltered calibrated pixel data.
     float *m_calDataRaw{ nullptr };

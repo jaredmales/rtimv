@@ -2065,6 +2065,11 @@ int rtimvMainWindow::statsDisplayMode() const
     return m_statsDisplayMode;
 }
 
+bool rtimvMainWindow::statsBoxVisible() const
+{
+    return m_statsBox != nullptr && m_statsBox->isVisible();
+}
+
 void rtimvMainWindow::statsBoxUpdated(
     int64_t i0, int64_t i1, int64_t j0, int64_t j1, float min, float max, float mean, float median, bool valid )
 {
@@ -2945,7 +2950,7 @@ void rtimvMainWindow::autoScale( bool as )
 
 void rtimvMainWindow::toggleAutoScale()
 {
-    if( m_autoScale )
+    if( RTIMV_BASE::autoScale() )
     {
         autoScale( false );
     }
@@ -3156,7 +3161,9 @@ void rtimvMainWindow::setDarkSub( bool ds )
 {
     subtractDark( ds );
 
-    if( subtractDark() )
+    // In gRPC mode the cached state updates on the next ImagePlease response, so
+    // the transient message needs to reflect the requested state immediately.
+    if( ds )
     {
         ui.graphicsView->zoomText( "dark sub. on" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
@@ -3170,21 +3177,14 @@ void rtimvMainWindow::setDarkSub( bool ds )
 
 void rtimvMainWindow::toggleDarkSub()
 {
-    if( m_subtractDark )
-    {
-        return setDarkSub( false );
-    }
-    else
-    {
-        return setDarkSub( true );
-    }
+    return setDarkSub( !subtractDark() );
 }
 
 void rtimvMainWindow::setApplyMask( bool am )
 {
     applyMask( am );
 
-    if( applyMask() )
+    if( am )
     {
         ui.graphicsView->zoomText( "mask on" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
@@ -3198,21 +3198,14 @@ void rtimvMainWindow::setApplyMask( bool am )
 
 void rtimvMainWindow::toggleApplyMask()
 {
-    if( m_applyMask )
-    {
-        return setApplyMask( false );
-    }
-    else
-    {
-        return setApplyMask( true );
-    }
+    return setApplyMask( !applyMask() );
 }
 
 void rtimvMainWindow::setApplySatMask( bool as )
 {
     applySatMask( as );
 
-    if( applySatMask() )
+    if( as )
     {
         ui.graphicsView->zoomText( "sat mask on" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
@@ -3306,7 +3299,7 @@ void rtimvMainWindow::toggleLogLinear()
 
 void rtimvMainWindow::toggleTarget()
 {
-    if( m_targetVisible )
+    if( targetVisible() )
     {
         targetVisible( false );
         ui.graphicsView->zoomText( "target off" );

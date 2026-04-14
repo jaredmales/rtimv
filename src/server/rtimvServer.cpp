@@ -1208,18 +1208,12 @@ void rtimvServer::doConfigure( const configSpec *cspec )
 
     if( cspec->m_config.autoscale_set() )
     {
-        if( cspec->m_config.autoscale() )
-        {
-            argv->push_back( "--autoscale" );
-        }
+        argv->push_back( cspec->m_config.autoscale() ? "--autoscale" : "--autoscale=false" );
     }
 
     if( cspec->m_config.darksub_set() )
     {
-        if( cspec->m_config.darksub() )
-        {
-            argv->push_back( "--darksub" );
-        }
+        argv->push_back( cspec->m_config.darksub() ? "--darksub" : "--darksub=false" );
     }
 
     if( cspec->m_config.satlevel_set() )
@@ -1230,18 +1224,12 @@ void rtimvServer::doConfigure( const configSpec *cspec )
 
     if( cspec->m_config.mask_sat_set() )
     {
-        if( cspec->m_config.mask_sat() )
-        {
-            argv->push_back( "--masksat" );
-        }
+        argv->push_back( cspec->m_config.mask_sat() ? "--masksat" : "--masksat=false" );
     }
 
     if( cspec->m_config.mzmq_always_set() )
     {
-        if( cspec->m_config.mzmq_always() )
-        {
-            argv->push_back( "--mzmq.always" );
-        }
+        argv->push_back( cspec->m_config.mzmq_always() ? "--mzmq.always" : "--mzmq.always=false" );
     }
 
     if( cspec->m_config.mzmq_server() != "" )
