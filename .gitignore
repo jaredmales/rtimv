@@ -11,7 +11,7 @@ res/qrc_imviewer.cpp
 doc/html
 .vscode
 .DS_Store
+.codex
 
-#cmake
 _build
 

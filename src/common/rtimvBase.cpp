@@ -22,11 +22,31 @@
     #include "images/mzmqImage.hpp"
 #endif
 
+#include <mx/ioutils/stringUtils.hpp>
 #include <mx/math/vectorUtils.hpp>
 #include <QCoreApplication>
 
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
+
+namespace
+{
+
+/// Parse a bool config target while preserving bare optional flags as true.
+bool configBoolOption( mx::app::appConfigurator &config, const std::string &name )
+{
+    std::string value;
+    config( value, name );
+
+    if( value.empty() )
+    {
+        return true;
+    }
+
+    return mx::ioutils::stoT<bool>( value );
+}
+
+} // namespace
 
 rtimvBase::rtimvBase()
 {
@@ -154,22 +174,22 @@ void rtimvBase::setupConfig()
     config.add( "autoscale",
                 "",
                 "autoscale",
-                mx::app::argType::True,
+                mx::app::argType::Optional,
                 "",
                 "autoscale",
                 false,
                 "bool",
-                "Set to turn autoscaling on at startup" );
+                "Set autoscaling at startup. Bare --autoscale is true; also accepts =true or =false." );
 
     config.add( "darksub",
                 "",
                 "darksub",
-                mx::app::argType::True,
+                mx::app::argType::Optional,
                 "",
                 "darksub",
                 false,
                 "bool",
-                "Set to false to turn off dark subtraction at startup. "
+                "Set dark subtraction at startup. Bare --darksub is true; also accepts =true or =false. "
                 "If a dark is supplied, darksub is otherwise on." );
 
     config.add( "satLevel",
@@ -185,24 +205,24 @@ void rtimvBase::setupConfig()
     config.add( "masksat",
                 "",
                 "masksat",
-                mx::app::argType::True,
+                mx::app::argType::Optional,
                 "",
                 "masksat",
                 false,
                 "bool",
-                "Set to false to turn off sat-masking at startup. "
-                "If a satMaks is supplied, masksat is otherwise on." );
+                "Set sat-masking at startup. Bare --masksat is true; also accepts =true or =false. "
+                "If a saturation mask is supplied, masksat is otherwise on." );
 
     config.add( "mzmq.always",
                 "Z",
                 "mzmq.always",
-                mx::app::argType::True,
+                mx::app::argType::Optional,
                 "mzmq",
                 "always",
                 false,
                 "bool",
-                "Set to make milkzmq the protocol for bare image names.  Note that local shmims can"
-                "not be used if this is set." );
+                "Set whether milkzmq is the protocol for bare image names. Bare --mzmq.always is true; "
+                "also accepts =true or =false. Note that local shmims can not be used if this is set." );
 
     config.add( "mzmq.server",
                 "s",
@@ -261,7 +281,10 @@ void rtimvBase::loadConfig()
     std::vector<std::string> keys;
 
     // Set up milkzmq
-    config( m_mzmqAlways, "mzmq.always" );
+    if( config.isSet( "mzmq.always" ) )
+    {
+        m_mzmqAlways = configBoolOption( config, "mzmq.always" );
+    }
     config( m_mzmqServer, "mzmq.server" );
     config( m_mzmqPort, "mzmq.port" );
 
@@ -369,8 +392,15 @@ void rtimvBase::loadConfig()
         }
     }
 
-    config( m_autoScale, "autoscale" );
-    config( m_subtractDark, "darksub" );
+    if( config.isSet( "autoscale" ) )
+    {
+        m_autoScale = configBoolOption( config, "autoscale" );
+    }
+    m_subtractDarkSet = config.isSet( "darksub" );
+    if( m_subtractDarkSet )
+    {
+        m_subtractDark = configBoolOption( config, "darksub" );
+    }
 
     float satLevelDefault = m_satLevel;
     config( m_satLevel, "satLevel" );
@@ -382,7 +412,11 @@ void rtimvBase::loadConfig()
     }
 
     // except turn it off if requested
-    config( m_applySatMask, "masksat" );
+    m_applySatMaskSet = config.isSet( "masksat" );
+    if( m_applySatMaskSet )
+    {
+        m_applySatMask = configBoolOption( config, "masksat" );
+    }
 }
 
 void rtimvBase::processKeys( const std::vector<std::string> &shkeys )
@@ -478,7 +512,7 @@ void rtimvBase::processKeys( const std::vector<std::string> &shkeys )
     }
 
     // Turn on features if images exist:
-    if( m_images[1] != nullptr )
+    if( m_images[1] != nullptr && !m_subtractDarkSet )
     {
         m_subtractDark = true;
     }
@@ -488,7 +522,7 @@ void rtimvBase::processKeys( const std::vector<std::string> &shkeys )
         m_applyMask = true;
     }
 
-    if( m_images[3] != nullptr )
+    if( m_images[3] != nullptr && !m_applySatMaskSet )
     {
         m_applySatMask = true;
     }
