@@ -39,7 +39,7 @@ but this is somewhat different than for local `rtimv`.  This config file path wi
 The name and location of an image is specified by its `key`.  The following rules are followed in the given order to determine how to find an image:
 - If the `key` ends in `.fits`, `.fit`, `.FITS`, or `.FIT`, then the image is treated as a FITS file stored on local disk with `key` specifying a valid path.
 - if the `key` ends in `/`, e.g. `/path/to/directory/`, then rtimv will treat the FITS files in that directory as a cube, enabling playback and incrementing through the images in lexical sort order.
-- If the `key` contains `@` or `:`, or the configuration option `--mzmq.always=true` (`-Z`) is set, then the `key` is interpreted as a `milkzmq` address of the form `name@server:port`.  If `mzmq.always` is set, then `@` and `:` are optional. The default server is `localhost` and the default port is `5556`.
+- If the `key` contains `@` or `:`, or the configuration option `--mzmq.always` (`-Z`) or `--mzmq.always=true` is set, then the `key` is interpreted as a `milkzmq` address of the form `name@server:port`. If `mzmq.always` is set, then `@` and `:` are optional. The default server is `localhost` and the default port is `5556`.
 - Otherwise, `key` is treated as a local `milk` `shmim` name and the standard path is followed, e.g. `/milk/shm/image.im.shm` for `key=image`.
 
 ## Cube Mode
@@ -178,14 +178,14 @@ This means local client overrides always win for options/keys set locally, while
 |  | `--update.cubeFPS` | `update.cubeFPS` | real | Specify the image cube update rate in FPS. Default is 20 FPS. |
 |  | `--update.rollingStatsFrames` | `update.rollingStatsFrames` | int | Number of frames used for rolling averages of compression ratio and frame rate. `rtimvClient` only. Default is 10. |
 |  | `--quality` | `quality` | int | JPEG transport quality for the remote image stream. `rtimvClient` only. Range is 0 to 100. |
-|  | `--autoscale` | `autoscale` | bool | Turn autoscaling on at startup. |
+|  | `--autoscale` | `autoscale` | bool | Set autoscaling at startup. Bare `--autoscale` is true; `--autoscale=true` and `--autoscale=false` are also accepted. |
 |  | `--nofpsgage` | `nofpsgage` | bool | Turn the FPS gauge off at startup. |
-|  | `--darksub` | `darksub` | bool | Set to false to turn off dark subtraction at startup. If a dark is supplied, `darksub` is otherwise on. |
+|  | `--darksub` | `darksub` | bool | Set dark subtraction at startup. Bare `--darksub` is true; `--darksub=true` and `--darksub=false` are also accepted. If a dark is supplied, `darksub` is otherwise on. |
 |  | `--satLevel` | `satLevel` | float | The saturation level for this camera. |
-|  | `--masksat` | `masksat` | bool | Set to false to turn off saturation masking at startup. If a saturation mask is supplied, `masksat` is otherwise on. |
+|  | `--masksat` | `masksat` | bool | Set saturation masking at startup. Bare `--masksat` is true; `--masksat=true` and `--masksat=false` are also accepted. If a saturation mask is supplied, `masksat` is otherwise on. |
 |  | `--targetXc` | `targetXc` | float | The fractional x-coordinate of the target, `0 <= x <= 1`. |
 |  | `--targetYc` | `targetYc` | float | The fractional y-coordinate of the target, `0 <= y <= 1`. |
-| `-Z` | `--mzmq.always` | `mzmq.always` | bool | Make `milkzmq` the protocol for bare image names. Local shmims can not be used if this is set. |
+| `-Z` | `--mzmq.always` | `mzmq.always` | bool | Set whether `milkzmq` is the protocol for bare image names. Bare `--mzmq.always` is true; `--mzmq.always=true` and `--mzmq.always=false` are also accepted. Local shmims can not be used if this is set. |
 | `-s` | `--mzmq.server` | `mzmq.server` | string | Default server for `milkzmq`. The default default is `localhost`. Overridden by an image-specific server specified in a key. |
 | `-p` | `--mzmq.port` | `mzmq.port` | int | Default port for `milkzmq`. The default default is `5556`. Overridden by an image-specific port specified in a key. |
 |  | `--mouse.pointerCoords` | `mouse.pointerCoords` | bool | Show or do not show the pointer coordinates. Default is true. |
@@ -200,7 +200,7 @@ This means local client overrides always win for options/keys set locally, while
 |  | `--tools.crossWidthMin` | `tools.crossWidthMin` | float | Minimum half-width of the center cross, in screen pixels. Default is 5. |
 |  | `--tools.warningBorderWidth` | `tools.warningBorderWidth` | float | Width of the warning border in screen pixels. Default is 5. |
 |  | `--log.appname` | `log.appname` | bool | Set true or false to include or exclude the called program name in log prefixes. |
-|  | `--no-log-appname` | `no-log-appname` | bool | Disable the called program name in log prefixes. |
+|  | `--no-log-appname` | `log.no-appname` | bool | Disable the called program name in log prefixes. |
 
 The Config-File options of the form `section.keyword` specify the form
 ```

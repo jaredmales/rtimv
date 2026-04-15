@@ -20,8 +20,29 @@
 #include <QPointer>
 #include <QCoreApplication>
 
+#include <mx/ioutils/stringUtils.hpp>
+
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
+
+namespace
+{
+
+/// Parse a bool config target while preserving bare optional flags as true.
+bool configBoolOption( mx::app::appConfigurator &config, const std::string &name )
+{
+    std::string value;
+    config( value, name );
+
+    if( value.empty() )
+    {
+        return true;
+    }
+
+    return mx::ioutils::stoT<bool>( value );
+}
+
+} // namespace
 
 #define SHARED_CONN_LOCK_RET( rv )                                                                                     \
     sharedLockT connLock( m_connectedMutex );                                                                          \
@@ -261,22 +282,22 @@ void rtimvClientBase::setupConfig()
     config.add( "autoscale",
                 "",
                 "autoscale",
-                mx::app::argType::True,
+                mx::app::argType::Optional,
                 "",
                 "autoscale",
                 false,
                 "bool",
-                "Set to turn autoscaling on at startup" );
+                "Set autoscaling at startup. Bare --autoscale is true; also accepts =true or =false." );
 
     config.add( "darksub",
                 "",
                 "darksub",
-                mx::app::argType::True,
+                mx::app::argType::Optional,
                 "",
                 "darksub",
                 false,
                 "bool",
-                "Set to false to turn off dark subtraction at startup. "
+                "Set dark subtraction at startup. Bare --darksub is true; also accepts =true or =false. "
                 "If a dark is supplied, darksub is otherwise on." );
 
     config.add( "satLevel",
@@ -292,24 +313,24 @@ void rtimvClientBase::setupConfig()
     config.add( "masksat",
                 "",
                 "masksat",
-                mx::app::argType::True,
+                mx::app::argType::Optional,
                 "",
                 "masksat",
                 false,
                 "bool",
-                "Set to false to turn off sat-masking at startup. "
-                "If a satMaks is supplied, masksat is otherwise on." );
+                "Set sat-masking at startup. Bare --masksat is true; also accepts =true or =false. "
+                "If a saturation mask is supplied, masksat is otherwise on." );
 
     config.add( "mzmq.always",
                 "Z",
                 "mzmq.always",
-                mx::app::argType::True,
+                mx::app::argType::Optional,
                 "mzmq",
                 "always",
                 false,
                 "bool",
-                "Set to make milkzmq the protocol for bare image names.  Note that local shmims can"
-                "not be used if this is set." );
+                "Set whether milkzmq is the protocol for bare image names. Bare --mzmq.always is true; "
+                "also accepts =true or =false. Note that local shmims can not be used if this is set." );
 
     config.add( "mzmq.server",
                 "s",
@@ -554,16 +575,14 @@ void rtimvClientBase::loadConfig()
 
     if( config.isSet( "autoscale" ) )
     {
-        bool autoscale;
-        config( autoscale, "autoscale" );
+        bool autoscale = configBoolOption( config, "autoscale" );
         m_configReq->set_autoscale( autoscale );
         m_configReq->set_autoscale_set( true );
     }
 
     if( config.isSet( "darksub" ) )
     {
-        bool darksub;
-        config( darksub, "darksub" );
+        bool darksub = configBoolOption( config, "darksub" );
         m_configReq->set_darksub( darksub );
         m_configReq->set_darksub_set( true );
     }
@@ -578,8 +597,7 @@ void rtimvClientBase::loadConfig()
 
     if( config.isSet( "masksat" ) )
     {
-        bool masksat;
-        config( masksat, "masksat" );
+        bool masksat = configBoolOption( config, "masksat" );
         m_configReq->set_mask_sat( masksat );
         m_configReq->set_mask_sat_set( true );
     }
@@ -588,8 +606,7 @@ void rtimvClientBase::loadConfig()
 
     if( config.isSet( "mzmq.always" ) )
     {
-        bool mzmqalways;
-        config( mzmqalways, "mzmq.always" );
+        bool mzmqalways = configBoolOption( config, "mzmq.always" );
         m_configReq->set_mzmq_always( mzmqalways );
         m_configReq->set_mzmq_always_set( true );
     }

@@ -95,8 +95,6 @@ rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, Qt::WindowFlags f ) : 
 #endif
 
     init_panel();
-
-    m_statsBoxButtonState = false;
 }
 
 void rtimvControlPanel::setupMode()
@@ -152,7 +150,6 @@ void rtimvControlPanel::setupCombos()
 
 void rtimvControlPanel::init_panel()
 {
-
     update_panel();
 
     // initialize the button state for coordinate displays
@@ -162,9 +159,6 @@ void rtimvControlPanel::init_panel()
     targetXcChanged( m_imv->targetXc() );
     targetYcChanged( m_imv->targetYc() );
     targetVisibleChanged( m_imv->targetVisible() );
-
-    m_ui.imtimerspinBox->setValue( m_imv->imageTimeout() );
-    m_ui.statsDisplayModeCombo->setCurrentIndex( m_imv->statsDisplayMode() );
 
 #ifdef RTIMV_GRPC
     update_qualitySlider();
@@ -207,6 +201,17 @@ void rtimvControlPanel::update_panel()
     m_ui.colorbarCombo->blockSignals( true );
     m_ui.colorbarCombo->setCurrentIndex( static_cast<int>( m_imv->colorbar() ) );
     m_ui.colorbarCombo->blockSignals( false );
+
+    m_ui.imtimerspinBox->blockSignals( true );
+    m_ui.imtimerspinBox->setValue( m_imv->imageTimeout() );
+    m_ui.imtimerspinBox->blockSignals( false );
+
+    m_ui.statsDisplayModeCombo->blockSignals( true );
+    m_ui.statsDisplayModeCombo->setCurrentIndex( m_imv->statsDisplayMode() );
+    m_ui.statsDisplayModeCombo->blockSignals( false );
+
+    m_statsBoxButtonState = m_imv->statsBoxVisible();
+    m_ui.statsBoxButton->setText( m_statsBoxButtonState ? "Hide Stats Box" : "Show Stats Box" );
 
 #ifdef RTIMV_GRPC
     update_qualitySlider();

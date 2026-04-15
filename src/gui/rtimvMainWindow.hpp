@@ -629,6 +629,9 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     /// Get the active stats display mode.
     int statsDisplayMode() const;
 
+    /// Get whether the stats box widget is currently visible.
+    bool statsBoxVisible() const;
+
     /*---- user boxes ----*/
 
   protected:

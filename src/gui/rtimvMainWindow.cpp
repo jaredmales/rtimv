@@ -13,6 +13,124 @@
 #include <QMetaType>
 #include <QFontMetrics>
 
+namespace
+{
+
+/// Format an on/off state string.
+std::string onOffString( bool state )
+{
+    return state ? "on" : "off";
+}
+
+/// Get a display label for the current color mode.
+std::string colorModeString( rtimv::colormode mode )
+{
+    switch( mode )
+    {
+    case rtimv::colormode::minmaxglobal:
+        return "min/max global";
+    case rtimv::colormode::minmaxbox:
+        return "min/max box";
+    case rtimv::colormode::user:
+        return "user";
+    }
+
+    return "unknown";
+}
+
+/// Get a display label for the current stretch.
+std::string stretchString( rtimv::stretch stretch )
+{
+    switch( stretch )
+    {
+    case rtimv::stretch::linear:
+        return "linear";
+    case rtimv::stretch::log:
+        return "log";
+    case rtimv::stretch::pow:
+        return "power";
+    case rtimv::stretch::sqrt:
+        return "sqrt";
+    case rtimv::stretch::square:
+        return "square";
+    }
+
+    return "unknown";
+}
+
+/// Get a display label for the configured high-pass filter.
+std::string hpFilterString( rtimv::hpFilter filter )
+{
+    switch( filter )
+    {
+    case rtimv::hpFilter::none:
+        return "none";
+    case rtimv::hpFilter::gaussian:
+        return "gaussian";
+    case rtimv::hpFilter::median:
+        return "median";
+    case rtimv::hpFilter::mean:
+        return "mean";
+    case rtimv::hpFilter::fourier:
+        return "fourier";
+    case rtimv::hpFilter::radprof:
+        return "radprof";
+    }
+
+    return "unknown";
+}
+
+/// Get a display label for the configured low-pass filter.
+std::string lpFilterString( rtimv::lpFilter filter )
+{
+    switch( filter )
+    {
+    case rtimv::lpFilter::none:
+        return "none";
+    case rtimv::lpFilter::gaussian:
+        return "gaussian";
+    case rtimv::lpFilter::median:
+        return "median";
+    case rtimv::lpFilter::mean:
+        return "mean";
+    }
+
+    return "unknown";
+}
+
+/// Summarize the active filtering state for display.
+std::string filterStatusString( RTIMV_BASE *imv )
+{
+    std::ostringstream oss;
+    bool any = false;
+
+    if( imv->applyHPFilter() )
+    {
+        oss << "HP " << hpFilterString( imv->hpFilter() ) << " (fw=" << imv->hpfFW() << ")";
+        any = true;
+    }
+
+    if( imv->applyLPFilter() )
+    {
+        if( any )
+        {
+            oss << ", ";
+        }
+
+        oss << "LP " << lpFilterString( imv->lpFilter() ) << " (fw=" << imv->lpfFW() << ")";
+        any = true;
+    }
+
+    if( !any )
+    {
+        return "off";
+    }
+
+    return oss.str();
+}
+
+} // namespace
+
 rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::WindowFlags f ) : QWidget( Parent, f )
 {
     qRegisterMetaType<uint32_t>( "uint32_t" );
@@ -2065,6 +2183,11 @@ int rtimvMainWindow::statsDisplayMode() const
     return m_statsDisplayMode;
 }
 
+bool rtimvMainWindow::statsBoxVisible() const
+{
+    return m_statsBox != nullptr && m_statsBox->isVisible();
+}
+
 void rtimvMainWindow::statsBoxUpdated(
     int64_t i0, int64_t i1, int64_t j0, int64_t j1, float min, float max, float mean, float median, bool valid )
 {
@@ -2945,7 +3068,7 @@ void rtimvMainWindow::autoScale( bool as )
 
 void rtimvMainWindow::toggleAutoScale()
 {
-    if( m_autoScale )
+    if( RTIMV_BASE::autoScale() )
     {
         autoScale( false );
     }
@@ -3156,7 +3279,9 @@ void rtimvMainWindow::setDarkSub( bool ds )
 {
     subtractDark( ds );
 
-    if( subtractDark() )
+    // In gRPC mode the cached state updates on the next ImagePlease response, so
+    // the transient message needs to reflect the requested state immediately.
+    if( ds )
     {
         ui.graphicsView->zoomText( "dark sub. on" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
@@ -3170,21 +3295,14 @@ void rtimvMainWindow::setDarkSub( bool ds )
 
 void rtimvMainWindow::toggleDarkSub()
 {
-    if( m_subtractDark )
-    {
-        return setDarkSub( false );
-    }
-    else
-    {
-        return setDarkSub( true );
-    }
+    return setDarkSub( !subtractDark() );
 }
 
 void rtimvMainWindow::setApplyMask( bool am )
 {
     applyMask( am );
 
-    if( applyMask() )
+    if( am )
     {
         ui.graphicsView->zoomText( "mask on" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
@@ -3198,21 +3316,14 @@ void rtimvMainWindow::setApplyMask( bool am )
 
 void rtimvMainWindow::toggleApplyMask()
 {
-    if( m_applyMask )
-    {
-        return setApplyMask( false );
-    }
-    else
-    {
-        return setApplyMask( true );
-    }
+    return setApplyMask( !applyMask() );
 }
 
 void rtimvMainWindow::setApplySatMask( bool as )
 {
     applySatMask( as );
 
-    if( applySatMask() )
+    if( as )
     {
         ui.graphicsView->zoomText( "sat mask on" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
@@ -3306,7 +3417,7 @@ void rtimvMainWindow::toggleLogLinear()
 
 void rtimvMainWindow::toggleTarget()
 {
-    if( m_targetVisible )
+    if( targetVisible() )
     {
         targetVisible( false );
         ui.graphicsView->zoomText( "target off" );
@@ -3671,6 +3782,16 @@ std::string rtimvMainWindow::generateInfo()
     {
         info += "  satMask: \n";
     }
+
+    info += "\n";
+    info += "Display:\n";
+    info += "  darksub:   " + onOffString( subtractDark() ) + "\n";
+    info += "  mask:      " + onOffString( applyMask() ) + "\n";
+    info += "  sat-mask:  " + onOffString( applySatMask() ) + "\n";
+    info += "  filtering: " + filterStatusString( this ) + "\n";
+    info += "  color mode: " + colorModeString( colormode() ) + "\n";
+    info += "  stretch:   " + stretchString( stretch() ) + "\n";
+    info += "  color bar: " + std::string( rtimv::colorbarName( colorbar() ) ) + "\n";
 
     info += "\n";
     info += "Plugins:\n";
