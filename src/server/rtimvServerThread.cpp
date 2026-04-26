@@ -37,8 +37,14 @@ std::string image0OrUnknown( rtimvServerThread *imageTh )
 class rtimvServerThread::pendingImageReactor : public grpc::ServerUnaryReactor
 {
   public:
-    explicit pendingImageReactor( std::shared_ptr<pendingImageRequest> request ) : m_request( std::move( request ) )
+    pendingImageReactor( rtimvServerThread *imageTh, std::shared_ptr<pendingImageRequest> request )
+        : m_imageTh( imageTh ), m_request( std::move( request ) )
     {
+        if( m_imageTh )
+        {
+            m_imageTh->rpcBegin();
+        }
+
         if( m_request )
         {
             m_request->m_reactor = this;
@@ -70,6 +76,11 @@ class rtimvServerThread::pendingImageReactor : public grpc::ServerUnaryReactor
             m_request->m_done.store( true, std::memory_order_release );
         }
 
+        if( m_imageTh )
+        {
+            m_imageTh->rpcEnd();
+        }
+
         delete this;
     }
 
@@ -80,6 +91,8 @@ class rtimvServerThread::pendingImageReactor : public grpc::ServerUnaryReactor
             m_request->m_cancelled.store( true, std::memory_order_release );
         }
     }
+
+    rtimvServerThread *m_imageTh{ nullptr }; ///< Owning server thread used to track active reactor lifetimes.
 
     std::shared_ptr<pendingImageRequest> m_request; ///< Shared request state tracked across cancel/done reactions.
 };
@@ -346,7 +359,7 @@ grpc::ServerUnaryReactor *rtimvServerThread::newImagePleaseReactor( remote_rtimv
     request->m_reply = reply;
     request->m_enqueueTime = mx::sys::get_curr_time();
 
-    auto *reactor = new pendingImageReactor( request );
+    auto *reactor = new pendingImageReactor( this, request );
 
     enqueueImageRequest( request );
 

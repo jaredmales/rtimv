@@ -1040,9 +1040,6 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
         imageTh->emit_awaken();
     }
 
-    imageTh->rpcBegin();
-    rpcActivityGuard rpcGuard( imageTh );
-
     ServerUnaryReactor *reactor = imageTh->newImagePleaseReactor( reply );
 
     return reactor;
