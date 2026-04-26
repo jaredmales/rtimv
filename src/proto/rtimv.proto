@@ -369,6 +369,7 @@ enum ImageStatus
 message Image
 {
     ImageStatus status = 1;
+    uint64 response_serial = 2;
 
     uint32 nx = 10; // x-size of source image
     uint32 ny = 11; // y-size of source image

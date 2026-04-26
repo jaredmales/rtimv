@@ -7,6 +7,8 @@
 
 #include "rtimvServerThread.hpp"
 #include "rtimvLog.hpp"
+#include "rtimvColorGRPC.hpp"
+#include "rtimvFilterGRPC.hpp"
 
 #include <QBuffer>
 #include <QMetaObject>
@@ -47,6 +49,7 @@ rtimvServerThread::rtimvServerThread( const std::string &uri,
 
     connect( this, SIGNAL( gotosleep() ), this, SLOT( sleep() ) );
     connect( this, SIGNAL( awaken() ), this, SLOT( wakeup() ) );
+    connect( this, SIGNAL( servicePending() ), this, SLOT( servicePendingImageRequests() ), Qt::QueuedConnection );
 
     lastRequest( -1 ); // set to now
 
@@ -169,14 +172,14 @@ void rtimvServerThread::mtxL_postRecolor( const uniqueLockT &lock )
 {
     static_cast<void>( lock );
 
-    m_newImage = true;
+    markResponseDirty();
 }
 
 void rtimvServerThread::mtxL_postRecolor( const sharedLockT &lock )
 {
     static_cast<void>( lock );
 
-    m_newImage = true;
+    markResponseDirty();
 }
 
 void rtimvServerThread::mtxL_postChangeImdata( const sharedLockT &lock )
@@ -203,13 +206,6 @@ void rtimvServerThread::mtxuL_render( std::string *image )
     m_qim->save( &buffer, "jpeg", m_quality.load( std::memory_order_relaxed ) );
 
     *image = renderedImage.toStdString();
-
-    m_newImage.store( false, std::memory_order_relaxed );
-}
-
-bool rtimvServerThread::newImage()
-{
-    return m_newImage.load( std::memory_order_relaxed );
 }
 
 void rtimvServerThread::setImageTimeout( int to )
@@ -248,7 +244,7 @@ void rtimvServerThread::quality( int q )
 
     if( oldQ != q )
     {
-        m_newImage.store( true, std::memory_order_relaxed );
+        markResponseDirty();
     }
 }
 
@@ -292,6 +288,253 @@ void rtimvServerThread::rpcEnd()
 uint32_t rtimvServerThread::rpcActive()
 {
     return m_activeRpc.load( std::memory_order_relaxed );
+}
+
+void rtimvServerThread::enqueueImageRequest( grpc::CallbackServerContext *context,
+                                             grpc::ServerUnaryReactor *reactor,
+                                             remote_rtimv::Image *reply )
+{
+    if( !connected() )
+    {
+        if( reply != nullptr )
+        {
+            reply->set_status( remote_rtimv::IMAGE_STATUS_NO_IMAGE );
+            std::string *image = new std::string;
+            reply->set_allocated_image( image );
+        }
+
+        if( reactor != nullptr )
+        {
+            reactor->Finish( grpc::Status::OK );
+        }
+
+        return;
+    }
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_pendingImageMutex );
+
+        pendingImageRequest request;
+        request.m_context = context;
+        request.m_reactor = reactor;
+        request.m_reply = reply;
+        request.m_enqueueTime = mx::sys::get_curr_time();
+
+        m_pendingImageRequests.push_back( request );
+    }
+
+    schedulePendingImageService();
+}
+
+void rtimvServerThread::prunePendingImageRequests( double timeoutSeconds )
+{
+    std::deque<pendingImageRequest> timedOutRequests;
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_pendingImageMutex );
+
+        const double now = mx::sys::get_curr_time();
+        auto requestIt = m_pendingImageRequests.begin();
+        while( requestIt != m_pendingImageRequests.end() )
+        {
+            if( requestIt->m_context != nullptr && requestIt->m_context->IsCancelled() )
+            {
+                requestIt = m_pendingImageRequests.erase( requestIt );
+                continue;
+            }
+
+            if( timeoutSeconds > 0 && now - requestIt->m_enqueueTime > timeoutSeconds )
+            {
+                timedOutRequests.push_back( *requestIt );
+                requestIt = m_pendingImageRequests.erase( requestIt );
+                continue;
+            }
+
+            ++requestIt;
+        }
+    }
+
+    for( auto &request : timedOutRequests )
+    {
+        if( request.m_reply == nullptr || request.m_reactor == nullptr )
+        {
+            continue;
+        }
+
+        std::string *image = new std::string;
+        request.m_reply->set_allocated_image( image );
+
+        if( connected() )
+        {
+            request.m_reply->set_status( remote_rtimv::IMAGE_STATUS_TIMEOUT );
+            populateImageReply( request.m_reply );
+        }
+        else
+        {
+            request.m_reply->set_status( remote_rtimv::IMAGE_STATUS_NO_IMAGE );
+        }
+
+        request.m_reactor->Finish( grpc::Status::OK );
+    }
+}
+
+size_t rtimvServerThread::pendingImageRequests()
+{
+    std::lock_guard<std::mutex> lock( m_pendingImageMutex );
+    return m_pendingImageRequests.size();
+}
+
+void rtimvServerThread::servicePendingImageRequests()
+{
+    m_servicePendingScheduled.store( false, std::memory_order_relaxed );
+
+    pendingImageRequest request;
+    bool haveRequest{ false };
+
+    prunePendingImageRequests( 0 );
+
+    if( !connected() || !m_responseDirty.load( std::memory_order_relaxed ) )
+    {
+        return;
+    }
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_pendingImageMutex );
+
+        if( !m_pendingImageRequests.empty() )
+        {
+            request = m_pendingImageRequests.front();
+            m_pendingImageRequests.pop_front();
+            haveRequest = true;
+        }
+    }
+
+    if( !haveRequest )
+    {
+        return;
+    }
+
+    if( request.m_context != nullptr && request.m_context->IsCancelled() )
+    {
+        schedulePendingImageService();
+        return;
+    }
+
+    const uint64_t deliverSerial = m_responseSerial.load( std::memory_order_relaxed );
+
+    std::string *image = new std::string;
+    mtxuL_render( image );
+
+    if( request.m_reply != nullptr )
+    {
+        request.m_reply->set_status( remote_rtimv::IMAGE_STATUS_VALID );
+        request.m_reply->set_response_serial( deliverSerial );
+        populateImageReply( request.m_reply );
+        request.m_reply->set_allocated_image( image );
+    }
+    else
+    {
+        delete image;
+    }
+
+    if( request.m_reactor != nullptr )
+    {
+        request.m_reactor->Finish( grpc::Status::OK );
+    }
+
+    if( m_responseSerial.load( std::memory_order_relaxed ) == deliverSerial )
+    {
+        m_responseDirty.store( false, std::memory_order_relaxed );
+    }
+
+    lastRequest( -1 );
+
+    if( m_responseDirty.load( std::memory_order_relaxed ) && pendingImageRequests() > 0 )
+    {
+        schedulePendingImageService();
+    }
+}
+
+void rtimvServerThread::markResponseDirty()
+{
+    m_responseSerial.fetch_add( 1, std::memory_order_relaxed );
+    m_responseDirty.store( true, std::memory_order_relaxed );
+
+    schedulePendingImageService();
+}
+
+void rtimvServerThread::populateImageReply( remote_rtimv::Image *reply )
+{
+    if( reply == nullptr )
+    {
+        return;
+    }
+
+    reply->set_nx( nx() );
+    reply->set_ny( ny() );
+    reply->set_nz( nz() );
+    reply->set_no( imageNo( 0 ) );
+
+    reply->set_atime( imageTime() );
+    reply->set_fps( fpsEst() );
+
+    reply->set_saturated( saturated() );
+
+    reply->set_min_image_data( minImageData() );
+    reply->set_max_image_data( maxImageData() );
+    reply->set_min_scale_data( minScaleData() );
+    reply->set_max_scale_data( maxScaleData() );
+    reply->set_source_bytes_per_pixel( bytesPerPixel( 0 ) );
+
+    reply->set_colorbar( rtimv::colorbar2grpc( colorbar() ) );
+    reply->set_colormode( rtimv::colormode2grpc( colormode() ) );
+    reply->set_colorstretch( rtimv::stretch2grpc( stretch() ) );
+
+    reply->set_autoscale( autoScale() );
+
+    reply->set_subtract_dark( subtractDark() );
+    reply->set_apply_mask( applyMask() );
+    reply->set_apply_sat_mask( applySatMask() );
+
+    reply->set_image_timeout( imageTimeout() );
+    reply->set_cube_dir( cubeDir() );
+    reply->set_quality( quality() );
+
+    reply->set_hp_filter( rtimv::hpFilter2grpc( hpFilter() ) );
+    reply->set_hpf_fw( hpfFW() );
+    reply->set_apply_hp_filter( applyHPFilter() );
+
+    reply->set_lp_filter( rtimv::lpFilter2grpc( lpFilter() ) );
+    reply->set_lpf_fw( lpfFW() );
+    reply->set_apply_lp_filter( applyLPFilter() );
+
+    reply->set_stats_box( statsBox() );
+    reply->set_stats_box_i0( statsBox_i0() );
+    reply->set_stats_box_i1( statsBox_i1() );
+    reply->set_stats_box_j0( statsBox_j0() );
+    reply->set_stats_box_j1( statsBox_j1() );
+    reply->set_stats_box_min( statsBox_min() );
+    reply->set_stats_box_max( statsBox_max() );
+    reply->set_stats_box_mean( statsBox_mean() );
+    reply->set_stats_box_median( statsBox_median() );
+
+    reply->set_color_box( colormode() == rtimv::colormode::minmaxbox );
+    reply->set_color_box_i0( colorBox_i0() );
+    reply->set_color_box_i1( colorBox_i1() );
+    reply->set_color_box_j0( colorBox_j0() );
+    reply->set_color_box_j1( colorBox_j1() );
+    reply->set_color_box_min( colorBox_min() );
+    reply->set_color_box_max( colorBox_max() );
+}
+
+void rtimvServerThread::schedulePendingImageService()
+{
+    if( m_servicePendingScheduled.exchange( true, std::memory_order_relaxed ) )
+    {
+        return;
+    }
+
+    emit servicePending();
 }
 
 void rtimvServerThread::emit_gotosleep()

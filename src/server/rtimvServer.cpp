@@ -455,11 +455,14 @@ void rtimvServer::startServer()
             }
             else
             {
+                imageTh->prunePendingImageRequests( m_waitTimeout );
+
                 double slr = imageTh->sinceLastRequest();
+                size_t pendingRequests = imageTh->pendingImageRequests();
 
                 if( slr > m_clientDisconnect )
                 {
-                    if( imageTh->rpcActive() > 0 )
+                    if( imageTh->rpcActive() > 0 || pendingRequests > 0 )
                     {
                         ++client;
                         continue;
@@ -509,7 +512,7 @@ void rtimvServer::startServer()
                 }
                 else if( slr > m_clientSleep )
                 {
-                    if( !imageTh->asleep() )
+                    if( pendingRequests == 0 && !imageTh->asleep() )
                     {
                         imageTh->emit_gotosleep();
                         std::cout << rtimv::formatServerLogMessage( m_calledName,
@@ -931,126 +934,7 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
     PREPARE_RPC_REACTOR
     static_cast<void>( request );
 
-    // Check if image has been found
-    if( !imageTh->connected() )
-    {
-        reply->set_status( remote_rtimv::IMAGE_STATUS_NO_IMAGE );
-        std::string *im = new std::string;
-        reply->set_allocated_image( im );
-
-        reactor->Finish( Status::OK );
-        return reactor;
-    }
-
-    int maxWaits;
-
-    const double waitTimeoutMs = std::max(
-        1000.0 * m_waitTimeout, static_cast<double>( imageTh->currImageTimeout() + std::max( m_waitSleep, 0 ) ) );
-
-    if( m_waitSleep <= 0 ) // prevent an infinite busy
-    {
-        maxWaits = 1;
-    }
-    else
-    {
-        // Keep the RPC wait window at least as long as the image thread's current cadence.
-        maxWaits = waitTimeoutMs / m_waitSleep + 1;
-    }
-
-    int nwaits = 0;
-    while( imageTh->newImage() == false && nwaits < maxWaits )
-    {
-        mx::sys::milliSleep( m_waitSleep );
-        ++nwaits;
-    }
-
-    auto populateImageState = [imageTh, reply]()
-    {
-        reply->set_nx( imageTh->nx() );
-        reply->set_ny( imageTh->ny() );
-        reply->set_nz( imageTh->nz() );
-        reply->set_no( imageTh->imageNo( 0 ) );
-
-        reply->set_atime( imageTh->imageTime() );
-        reply->set_fps( imageTh->fpsEst() );
-
-        reply->set_saturated( imageTh->saturated() );
-
-        reply->set_min_image_data( imageTh->minImageData() );
-        reply->set_max_image_data( imageTh->maxImageData() );
-        reply->set_min_scale_data( imageTh->minScaleData() );
-        reply->set_max_scale_data( imageTh->maxScaleData() );
-        reply->set_source_bytes_per_pixel( imageTh->bytesPerPixel( 0 ) );
-
-        reply->set_colorbar( rtimv::colorbar2grpc( imageTh->colorbar() ) );
-
-        reply->set_colormode( rtimv::colormode2grpc( imageTh->colormode() ) );
-
-        reply->set_colorstretch( rtimv::stretch2grpc( imageTh->stretch() ) );
-
-        reply->set_autoscale( imageTh->autoScale() );
-
-        reply->set_subtract_dark( imageTh->subtractDark() );
-        reply->set_apply_mask( imageTh->applyMask() );
-        reply->set_apply_sat_mask( imageTh->applySatMask() );
-
-        reply->set_image_timeout( imageTh->imageTimeout() );
-        reply->set_cube_dir( imageTh->cubeDir() );
-        reply->set_quality( imageTh->quality() );
-
-        reply->set_hp_filter( rtimv::hpFilter2grpc( imageTh->hpFilter() ) );
-        reply->set_hpf_fw( imageTh->hpfFW() );
-        reply->set_apply_hp_filter( imageTh->applyHPFilter() );
-
-        reply->set_lp_filter( rtimv::lpFilter2grpc( imageTh->lpFilter() ) );
-        reply->set_lpf_fw( imageTh->lpfFW() );
-        reply->set_apply_lp_filter( imageTh->applyLPFilter() );
-
-        reply->set_stats_box( imageTh->statsBox() );
-        reply->set_stats_box_i0( imageTh->statsBox_i0() );
-        reply->set_stats_box_i1( imageTh->statsBox_i1() );
-        reply->set_stats_box_j0( imageTh->statsBox_j0() );
-        reply->set_stats_box_j1( imageTh->statsBox_j1() );
-        reply->set_stats_box_min( imageTh->statsBox_min() );
-        reply->set_stats_box_max( imageTh->statsBox_max() );
-        reply->set_stats_box_mean( imageTh->statsBox_mean() );
-        reply->set_stats_box_median( imageTh->statsBox_median() );
-
-        reply->set_color_box( imageTh->colormode() == rtimv::colormode::minmaxbox );
-        reply->set_color_box_i0( imageTh->colorBox_i0() );
-        reply->set_color_box_i1( imageTh->colorBox_i1() );
-        reply->set_color_box_j0( imageTh->colorBox_j0() );
-        reply->set_color_box_j1( imageTh->colorBox_j1() );
-        reply->set_color_box_min( imageTh->colorBox_min() );
-        reply->set_color_box_max( imageTh->colorBox_max() );
-    };
-
-    if( imageTh->newImage() == false )
-    {
-        reply->set_status( remote_rtimv::IMAGE_STATUS_TIMEOUT );
-        populateImageState();
-        std::string *im = new std::string;
-        reply->set_allocated_image( im );
-
-        imageTh->lastRequest( -1 ); // sets to now, again b/c of wait
-
-        reactor->Finish( Status::OK );
-        return reactor;
-    }
-
-    // Now we can render the latest image and send it
-    std::string *im = new std::string;
-
-    imageTh->mtxuL_render( im );
-
-    imageTh->lastRequest( -1 ); // sets to now, again b/c of wait
-
-    reply->set_status( remote_rtimv::IMAGE_STATUS_VALID );
-    populateImageState();
-
-    reply->set_allocated_image( im );
-
-    reactor->Finish( Status::OK );
+    imageTh->enqueueImageRequest( context, reactor, reply );
 
     return reactor;
 }

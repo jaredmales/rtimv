@@ -10,11 +10,17 @@
 
 #include "rtimvBase.hpp"
 
+#include <grpcpp/grpcpp.h>
+
 #include <QThread>
 #include <QByteArray>
 
 #include <mx/app/application.hpp>
 #include <atomic>
+#include <deque>
+#include <mutex>
+
+#include "rtimv.grpc.pb.h"
 
 using namespace mx::app;
 
@@ -39,8 +45,6 @@ class rtimvServerThread : public QThread, public rtimvBase
     /// True when startup JPEG quality was explicitly configured.
     bool m_startupQualitySet{ false };
 
-    std::atomic<bool> m_newImage{ false }; ///< Flag indicating a new image is ready after the last render.
-
     std::atomic<int> m_quality{ 50 }; ///< The JPEG quality factor (0-100).  Default is 50.
 
     std::atomic<double> m_lastRequest{ 0 }; ///< The time of the last request for an image
@@ -54,6 +58,42 @@ class rtimvServerThread : public QThread, public rtimvBase
     std::string m_calledName{ "rtimvServer" }; ///< Program called-name used in standardized log prefixes.
 
     bool m_includeAppName{ true }; ///< True to include called-name in log prefixes.
+
+    /// True when a newer response than the last delivered reply is ready to send.
+    std::atomic<bool> m_responseDirty{ false };
+
+    /// Monotonic serial assigned to each newly renderable response state.
+    std::atomic<uint64_t> m_responseSerial{ 0 };
+
+    /// True while a queued pending-image service pass is already scheduled.
+    std::atomic<bool> m_servicePendingScheduled{ false };
+
+    /// One queued ImagePlease request waiting for the next deliverable response.
+    struct pendingImageRequest
+    {
+        grpc::CallbackServerContext *m_context{ nullptr }; ///< gRPC callback context used to detect cancellation.
+
+        grpc::ServerUnaryReactor *m_reactor{ nullptr }; ///< Reactor finished when this pending request is served.
+
+        remote_rtimv::Image *m_reply{ nullptr }; ///< Reply payload populated when the request is fulfilled.
+
+        double m_enqueueTime{ 0 }; ///< Monotonic enqueue time in seconds for timeout accounting.
+    };
+
+    /// Mutex guarding the pending ImagePlease queue.
+    std::mutex m_pendingImageMutex;
+
+    /// FIFO queue of pending ImagePlease requests representing client-side credits.
+    std::deque<pendingImageRequest> m_pendingImageRequests;
+
+    /// Mark the current rendered response dirty and advance the response serial.
+    void markResponseDirty();
+
+    /// Populate reply metadata from the current server-thread state.
+    void populateImageReply( remote_rtimv::Image *reply /**< [in] reply payload to populate */ );
+
+    /// Schedule queued servicing of pending image requests on the Qt side.
+    void schedulePendingImageService();
 
   public:
     rtimvServerThread( const std::string &uri,                         /**< [in] client uri */
@@ -98,9 +138,7 @@ class rtimvServerThread : public QThread, public rtimvBase
 
     virtual void mtxL_postColormode( rtimv::colormode m, const sharedLockT &lock );
 
-    void mtxuL_render( std::string *image );
-
-    bool newImage();
+    void mtxuL_render( std::string *image /**< [out] rendered JPEG payload */ );
 
     /// Apply a new minimum image timeout on the Qt event thread.
     void setImageTimeout( int to /**< [in] the new minimum image timeout in ms */ );
@@ -126,7 +164,21 @@ class rtimvServerThread : public QThread, public rtimvBase
     /// Get current active RPC count.
     uint32_t rpcActive();
 
+    /// Queue one pending ImagePlease request for the next deliverable response.
+    void
+    enqueueImageRequest( grpc::CallbackServerContext *context, /**< [in] callback context for cancellation checks */
+                         grpc::ServerUnaryReactor *reactor,    /**< [in] reactor finished when a response is ready */
+                         remote_rtimv::Image *reply            /**< [in] reply payload owned by gRPC */
+    );
+
+    /// Drop cancelled pending requests and expire old ones.
+    void prunePendingImageRequests( double timeoutSeconds /**< [in] timeout applied to queued requests in seconds */ );
+
+    /// Get the number of queued pending ImagePlease requests.
+    size_t pendingImageRequests();
+
   signals:
+    void servicePending();
 
     void gotosleep();
 
@@ -138,6 +190,8 @@ class rtimvServerThread : public QThread, public rtimvBase
     void emit_awaken();
 
   public slots:
+    /// Attempt to serve one pending ImagePlease request with the newest available response.
+    void servicePendingImageRequests();
 
     void sleep();
 

@@ -14,7 +14,9 @@
 #include <condition_variable>
 #include <chrono>
 #include <deque>
+#include <memory>
 #include <string_view>
+#include <unordered_map>
 
 #include <QImage>
 
@@ -149,11 +151,17 @@ class rtimvClientBase : public mx::app::application
     /// Refresh configured image names from the server.
     void updateImageNamesFromServer();
 
-    /// Context for the ImagePlease rpc.
-    /** This has to stay alive until the rpc finishes and can not be reused
-     *
-     */
-    grpc::ClientContext *m_ImagePleaseContext{ nullptr };
+    /// State for one in-flight ImagePlease RPC.
+    struct imageRequestState
+    {
+        std::unique_ptr<grpc::ClientContext> m_context; ///< RPC context kept alive until the callback completes.
+
+        remote_rtimv::ImageRequest m_request; ///< Request payload for this ImagePlease call.
+
+        remote_rtimv::Image m_reply; ///< Response payload returned by the server for this ImagePlease call.
+
+        uint64_t m_connectionGeneration{ 0 }; ///< Connection generation active when this request was dispatched.
+    };
 
     /// Context for the GetPixel rpc.
     grpc::ClientContext *m_GetPixelContext{ nullptr };
@@ -192,14 +200,23 @@ class rtimvClientBase : public mx::app::application
     /// Flag indicating client teardown is in progress.
     bool m_shuttingDown{ false };
 
-    /// True while an ImagePlease RPC is outstanding.
-    bool m_imageRequestPending{ false };
+    /// Desired steady-state number of in-flight ImagePlease RPCs after the first valid image arrives.
+    size_t m_targetImageWindow{ 10 };
 
-    /// Request payload for the ImagePlease RPC.
-    remote_rtimv::ImageRequest m_grpcImageRequest;
+    /// True once at least one valid image has been received and the full image-credit window can be used.
+    bool m_imagePipelinePrimed{ false };
 
-    /// Last ImagePlease response payload from the server.
-    remote_rtimv::Image m_grpcImage;
+    /// Next unique identifier assigned to an ImagePlease request.
+    uint64_t m_nextImageRequestId{ 1 };
+
+    /// In-flight ImagePlease RPCs keyed by their local request identifier.
+    std::unordered_map<uint64_t, std::shared_ptr<imageRequestState>> m_inflightImageRequests;
+
+    /// Completed ImagePlease replies waiting to be applied on the Qt side.
+    std::deque<remote_rtimv::Image> m_completedImageReplies;
+
+    /// Monotonic serial of the newest Image reply already applied to the client state.
+    uint64_t m_lastAppliedResponseSerial{ 0 };
 
     /// Backoff delay for ImagePlease retries when no new image data is available, ms.
     int m_imageRetryBackoffMs{ 500 };
@@ -371,8 +388,11 @@ class rtimvClientBase : public mx::app::application
     /// Launch the asynchronous Ping RPC used for transport RTT measurement.
     void dispatchPingAsync();
 
-    /// Launch the asynchronous ImagePlease RPC.
-    virtual void dispatchImagePleaseAsync();
+    /// Launch one asynchronous ImagePlease RPC state.
+    virtual void
+    dispatchImagePleaseAsync( uint64_t requestId, /**< [in] local identifier for the in-flight request */
+                              std::shared_ptr<imageRequestState> state /**< [in] owned request/reply state */
+    );
 
   public:
     /// Request an updated calibrated pixel value.
@@ -392,8 +412,11 @@ class rtimvClientBase : public mx::app::application
     /// Handle a Ping response from the server.
     void Ping_callback( grpc::Status status );
 
-    /// Handle an ImagePlease response from the server
-    void ImagePlease_callback( grpc::Status status );
+    /// Handle an ImagePlease response from the server.
+    void ImagePlease_callback( uint64_t requestId, /**< [in] local identifier for the completed request */
+                               std::shared_ptr<imageRequestState> state, /**< [in] owned request/reply state */
+                               grpc::Status status                       /**< [in] completion status */
+    );
 
     /// Handle a GetPixel response from the server.
     void GetPixel_callback( grpc::Status status );
