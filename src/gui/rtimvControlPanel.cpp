@@ -82,6 +82,10 @@ rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, Qt::WindowFlags f ) : 
     m_ui.avgCompressionRatioEntry->setVisible( true );
     m_ui.avgFrameRateLabel->setVisible( true );
     m_ui.avgFrameRateEntry->setVisible( true );
+    m_ui.lastRttLabel->setVisible( true );
+    m_ui.lastRttEntry->setVisible( true );
+    m_ui.avgRttLabel->setVisible( true );
+    m_ui.avgRttEntry->setVisible( true );
 #else
     m_ui.qualityLabel->setVisible( false );
     m_ui.qualitySlider->setVisible( false );
@@ -92,6 +96,10 @@ rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, Qt::WindowFlags f ) : 
     m_ui.avgCompressionRatioEntry->setVisible( false );
     m_ui.avgFrameRateLabel->setVisible( false );
     m_ui.avgFrameRateEntry->setVisible( false );
+    m_ui.lastRttLabel->setVisible( false );
+    m_ui.lastRttEntry->setVisible( false );
+    m_ui.avgRttLabel->setVisible( false );
+    m_ui.avgRttEntry->setVisible( false );
 #endif
 
     init_panel();
@@ -816,6 +824,8 @@ void rtimvControlPanel::update_transportStats()
     m_ui.lastCompressionRatioEntry->setText( QString::number( m_imv->lastCompressionRatio(), 'f', 1 ) + ":1" );
     m_ui.avgCompressionRatioEntry->setText( QString::number( m_imv->avgCompressionRatio(), 'f', 1 ) + ":1" );
     m_ui.avgFrameRateEntry->setText( QString::number( m_imv->avgFrameRate(), 'f', 1 ) );
+    m_ui.lastRttEntry->setText( QString::number( m_imv->lastRttMs(), 'f', 1 ) + " ms" );
+    m_ui.avgRttEntry->setText( QString::number( m_imv->avgRttMs(), 'f', 1 ) + " ms" );
 #endif
 }
 

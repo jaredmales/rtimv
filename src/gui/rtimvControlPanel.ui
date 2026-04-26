@@ -1886,6 +1886,64 @@
       <bool>true</bool>
      </property>
     </widget>
+    <widget class="QLabel" name="lastRttLabel">
+     <property name="geometry">
+      <rect>
+       <x>500</x>
+       <y>220</y>
+       <width>171</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Last RTT</string>
+     </property>
+    </widget>
+    <widget class="QLineEdit" name="lastRttEntry">
+     <property name="geometry">
+      <rect>
+       <x>500</x>
+       <y>240</y>
+       <width>171</width>
+       <height>25</height>
+      </rect>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+    </widget>
+    <widget class="QLabel" name="avgRttLabel">
+     <property name="geometry">
+      <rect>
+       <x>500</x>
+       <y>280</y>
+       <width>171</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Avg RTT</string>
+     </property>
+    </widget>
+    <widget class="QLineEdit" name="avgRttEntry">
+     <property name="geometry">
+      <rect>
+       <x>500</x>
+       <y>300</y>
+       <width>171</width>
+       <height>25</height>
+      </rect>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+    </widget>
    </widget>
    <widget class="QWidget" name="tabFilters">
     <attribute name="title">

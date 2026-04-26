@@ -129,6 +129,11 @@ rtimvClientBase::~rtimvClientBase()
             m_SetMaxScaleContext->TryCancel();
         }
 
+        if( m_PingContext )
+        {
+            m_PingContext->TryCancel();
+        }
+
         for( auto *context : m_emptyRpcContexts )
         {
             if( context )
@@ -141,8 +146,8 @@ rtimvClientBase::~rtimvClientBase()
     { // mutex scope
         std::unique_lock<std::mutex> lock( m_asyncRpcMutex );
 
-        while( m_getPixelPending || m_colorBoxPending || m_statsBoxPending || m_setColorstretchPending ||
-               m_setMinScalePending || m_setMaxScalePending || m_emptyRpcPending > 0 )
+        while( m_pingPending || m_getPixelPending || m_colorBoxPending || m_statsBoxPending ||
+               m_setColorstretchPending || m_setMinScalePending || m_setMaxScalePending || m_emptyRpcPending > 0 )
         {
             if( m_asyncRpcCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
             {
@@ -679,6 +684,8 @@ void rtimvClientBase::reconnect()
 
     if( m_connected )
     {
+        lock.unlock();
+        dispatchPingAsync();
         return;
     }
 
@@ -840,6 +847,46 @@ void rtimvClientBase::dispatchImagePleaseAsync()
                                  &m_grpcImageRequest,
                                  &m_grpcImage,
                                  [this]( grpc::Status status ) { this->ImagePlease_callback( status ); } );
+}
+
+void rtimvClientBase::dispatchPingAsync()
+{
+    bool isConnected{ false };
+
+    { // mutex scope
+        sharedLockT connLock( m_connectedMutex );
+        isConnected = m_connected;
+    }
+
+    if( !isConnected || !stub_ )
+    {
+        return;
+    }
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+
+        if( m_shuttingDown || m_pingPending )
+        {
+            return;
+        }
+
+        if( m_PingContext )
+        {
+            std::cerr << formatBaseLogMessage( std::format(
+                             "bug: in dispatchPingAsync but PingContext is allocated {} {}", __FILE__, __LINE__ ) )
+                      << '\n';
+            return;
+        }
+
+        m_PingContext = new grpc::ClientContext;
+        m_PingContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+        m_pingStartTime = std::chrono::steady_clock::now();
+        m_pingPending = true;
+    }
+
+    stub_->async()->Ping(
+        m_PingContext, &m_pingRequest, &m_pingReply, [this]( grpc::Status status ) { this->Ping_callback( status ); } );
 }
 
 void rtimvClientBase::requestPixelValue( uint32_t x, uint32_t y )
@@ -1323,6 +1370,72 @@ void rtimvClientBase::ImageReceived()
 
     // We always go on and get the next one
     m_foundation->emit_ImageNeeded();
+}
+
+void rtimvClientBase::Ping_callback( grpc::Status status )
+{
+    bool shuttingDown{ false };
+    bool disconnect{ false };
+    bool updateRtt{ false };
+    uint64_t connections{ 0 };
+    double rttMs{ 0 };
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+
+        if( !m_pingPending )
+        {
+            std::cerr << formatBaseLogMessage( "bug: in Ping_callback but pingPending is false" ) << '\n';
+            return;
+        }
+
+        if( status.ok() )
+        {
+            const std::chrono::duration<double, std::milli> dt = std::chrono::steady_clock::now() - m_pingStartTime;
+            rttMs = dt.count();
+            updateRtt = true;
+        }
+        else if( status.error_code() != grpc::StatusCode::DEADLINE_EXCEEDED )
+        {
+            disconnect = true;
+        }
+
+        delete m_PingContext;
+        m_PingContext = nullptr;
+
+        m_pingPending = false;
+        shuttingDown = m_shuttingDown;
+    }
+
+    m_asyncRpcCv.notify_all();
+
+    if( shuttingDown )
+    {
+        return;
+    }
+
+    if( updateRtt )
+    {
+        updateRollingRttStats( rttMs );
+    }
+
+    if( !disconnect )
+    {
+        return;
+    }
+
+    { // mutex scope
+        sharedLockT connLock( m_connectedMutex );
+        connections = m_connections;
+    }
+
+    uniqueLockT lock( m_connectedMutex );
+    if( connections == m_connections )
+    {
+        m_connected = false;
+        std::cerr << formatBaseLogMessage( std::string( "Message from rtimvServer: " ) + status.error_message() )
+                  << '\n';
+    }
 }
 
 void rtimvClientBase::ImagePlease_callback( grpc::Status status )
@@ -1857,6 +1970,16 @@ double rtimvClientBase::avgFrameRate()
     return m_avgFrameRate;
 }
 
+double rtimvClientBase::lastRttMs()
+{
+    return m_lastRttMs;
+}
+
+double rtimvClientBase::avgRttMs()
+{
+    return m_avgRttMs;
+}
+
 std::string rtimvClientBase::imageName( size_t n )
 {
     if( n >= m_imageNames.size() )
@@ -2189,6 +2312,30 @@ void rtimvClientBase::setCurrImageTimeout()
     }
 
     m_currImageTimeout = currImageTimeout;
+}
+
+void rtimvClientBase::updateRollingRttStats( double rttMs )
+{
+    if( m_rollingStatsFrames < 1 )
+    {
+        m_rollingStatsFrames = 1;
+    }
+
+    m_lastRttMs = rttMs;
+
+    m_recentRtts.push_back( rttMs );
+    m_rttRollingSum += rttMs;
+
+    while( static_cast<int>( m_recentRtts.size() ) > m_rollingStatsFrames )
+    {
+        m_rttRollingSum -= m_recentRtts.front();
+        m_recentRtts.pop_front();
+    }
+
+    if( !m_recentRtts.empty() )
+    {
+        m_avgRttMs = m_rttRollingSum / static_cast<double>( m_recentRtts.size() );
+    }
 }
 
 void rtimvClientBase::updateRollingTransportStats(

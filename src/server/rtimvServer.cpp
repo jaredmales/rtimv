@@ -895,6 +895,35 @@ ServerUnaryReactor *rtimvServer::SetApplyLPFilter( CallbackServerContext *contex
     return reactor;
 }
 
+ServerUnaryReactor *rtimvServer::Ping( CallbackServerContext *context,
+                                       const remote_rtimv::PingRequest *request,
+                                       remote_rtimv::PingResponse *reply )
+{
+    static_cast<void>( request );
+    static_cast<void>( reply );
+
+    ServerUnaryReactor *reactor = context->DefaultReactor();
+
+    sharedLockT slock( m_clientMutex );
+
+    auto clientIt = m_clients.find( context->peer() );
+    if( clientIt == m_clients.end() )
+    {
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "not configured" ) );
+        return reactor;
+    }
+
+    rtimvServerThread *imageTh = clientIt->second;
+    if( imageTh == nullptr )
+    {
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "reconnect" ) );
+        return reactor;
+    }
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
 ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
                                               const remote_rtimv::ImageRequest *request,
                                               remote_rtimv::Image *reply )

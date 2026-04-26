@@ -42,6 +42,8 @@ service rtimv
 
     rpc SetApplyLPFilter(ApplyFilterRequest) returns (ApplyFilterResponse);
 
+    rpc Ping(PingRequest) returns (PingResponse);
+
     rpc ImagePlease(ImageRequest) returns (Image);
 
     rpc CubeDir(CubeDirRequest) returns (CubeDirResponse);
@@ -196,6 +198,14 @@ message ImageTimeoutRequest
 }
 
 message ImageTimeoutResponse
+{
+}
+
+message PingRequest
+{
+}
+
+message PingResponse
 {
 }
 

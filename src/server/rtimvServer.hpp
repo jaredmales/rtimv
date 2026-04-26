@@ -183,6 +183,11 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
                                           const remote_rtimv::ApplyFilterRequest *request,
                                           remote_rtimv::ApplyFilterResponse *reply ) override;
 
+    /// Respond to a client reachability ping without waking the image thread.
+    ServerUnaryReactor *Ping( CallbackServerContext *context,
+                              const remote_rtimv::PingRequest *request,
+                              remote_rtimv::PingResponse *reply ) override;
+
     ServerUnaryReactor *ImagePlease( CallbackServerContext *context,
                                      const remote_rtimv::ImageRequest *request,
                                      remote_rtimv::Image *reply ) override;

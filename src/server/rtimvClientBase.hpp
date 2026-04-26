@@ -173,6 +173,9 @@ class rtimvClientBase : public mx::app::application
     /// Context for the SetMaxScale rpc.
     grpc::ClientContext *m_SetMaxScaleContext{ nullptr };
 
+    /// Context for the Ping rpc.
+    grpc::ClientContext *m_PingContext{ nullptr };
+
   public:
     /// Configure the server
     /**
@@ -201,11 +204,23 @@ class rtimvClientBase : public mx::app::application
     /// Backoff delay for ImagePlease retries when no new image data is available, ms.
     int m_imageRetryBackoffMs{ 500 };
 
-    /// Mutex guarding asynchronous unary RPC state for GetPixel/ColorBox/StatsBox.
+    /// Mutex guarding asynchronous unary RPC state for Ping/GetPixel/ColorBox/StatsBox.
     std::mutex m_asyncRpcMutex;
 
-    /// Condition variable used to signal completion of GetPixel/ColorBox/StatsBox requests.
+    /// Condition variable used to signal completion of Ping/GetPixel/ColorBox/StatsBox requests.
     std::condition_variable m_asyncRpcCv;
+
+    /// Request payload for Ping.
+    remote_rtimv::PingRequest m_pingRequest;
+
+    /// Response payload for Ping.
+    remote_rtimv::PingResponse m_pingReply;
+
+    /// True while a Ping request is outstanding.
+    bool m_pingPending{ false };
+
+    /// Monotonic send time for the outstanding Ping request.
+    std::chrono::steady_clock::time_point m_pingStartTime;
 
     /// True while a GetPixel request is outstanding.
     bool m_getPixelPending{ false };
@@ -353,6 +368,9 @@ class rtimvClientBase : public mx::app::application
     void ImagePlease();
 
   protected:
+    /// Launch the asynchronous Ping RPC used for transport RTT measurement.
+    void dispatchPingAsync();
+
     /// Launch the asynchronous ImagePlease RPC.
     virtual void dispatchImagePleaseAsync();
 
@@ -371,6 +389,9 @@ class rtimvClientBase : public mx::app::application
     void ImageReceived();
 
   protected:
+    /// Handle a Ping response from the server.
+    void Ping_callback( grpc::Status status );
+
     /// Handle an ImagePlease response from the server
     void ImagePlease_callback( grpc::Status status );
 
@@ -432,13 +453,21 @@ class rtimvClientBase : public mx::app::application
 
     double m_avgFrameRate{ 0 }; ///< Rolling average frame rate over recent received frames.
 
+    double m_lastRttMs{ 0 }; ///< Round-trip time of the most recently completed Ping RPC, in ms.
+
+    double m_avgRttMs{ 0 }; ///< Rolling average Ping round-trip time, in ms.
+
     double m_fpsRollingSum{ 0 }; ///< Running sum for the rolling frame-rate average.
 
     double m_compressionRollingSum{ 0 }; ///< Running sum for the rolling compression-ratio average.
 
+    double m_rttRollingSum{ 0 }; ///< Running sum for the rolling RTT average.
+
     std::deque<double> m_recentFrameIntervals; ///< Recent inter-arrival times used to form the rolling average.
 
     std::deque<double> m_recentCompressionRatios; ///< Recent compression-ratio samples used to form the average.
+
+    std::deque<double> m_recentRtts; ///< Recent Ping RTT samples used to form the rolling average.
 
     std::chrono::steady_clock::time_point m_lastArrivalTime; ///< Monotonic arrival time of the previous received frame.
 
@@ -613,6 +642,9 @@ class rtimvClientBase : public mx::app::application
      */
 
   private:
+    /// Update rolling RTT statistics from a completed Ping RPC.
+    void updateRollingRttStats( double rttMs /**< [in] round-trip time in milliseconds */ );
+
     void setCurrImageTimeout();
 
     /// Update rolling transport statistics from the latest received frame.
@@ -679,6 +711,12 @@ class rtimvClientBase : public mx::app::application
 
     /// Get the rolling average frame rate.
     double avgFrameRate();
+
+    /// Get the RTT of the most recently completed Ping RPC.
+    double lastRttMs();
+
+    /// Get the rolling average Ping RTT.
+    double avgRttMs();
 
     /// @}
 
