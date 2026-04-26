@@ -119,6 +119,109 @@ std::string configValueSource( const mx::app::appConfigurator &config, const std
     return targetIt->second.sources.back();
 }
 
+std::string summarizeBaseConfigOverrides( const rtimvBase::startupConfig &settings,
+                                          const mx::app::appConfigurator &config )
+{
+    std::vector<std::string> parts;
+
+    auto addValue = [&]( const std::string &name, const std::string &value )
+    { parts.push_back( std::format( "{}={} ({})", name, value, configValueSource( config, name ) ) ); };
+
+    if( !settings.m_imageKeys[0].empty() )
+    {
+        addValue( "image.key", settings.m_imageKeys[0] );
+    }
+
+    if( !settings.m_imageKeys[1].empty() )
+    {
+        addValue( "dark.key", settings.m_imageKeys[1] );
+    }
+
+    if( !settings.m_imageKeys[2].empty() )
+    {
+        addValue( "mask.key", settings.m_imageKeys[2] );
+    }
+
+    if( !settings.m_imageKeys[3].empty() )
+    {
+        addValue( "satMask.key", settings.m_imageKeys[3] );
+    }
+
+    if( settings.m_updateTimeoutSet )
+    {
+        const auto updateTimeoutTarget = config.m_targets.find( "update.timeout" );
+        const bool updateTimeoutExplicit =
+            updateTimeoutTarget != config.m_targets.end() && updateTimeoutTarget->second.set;
+        const std::string timeoutSource = updateTimeoutExplicit ? configValueSource( config, "update.timeout" )
+                                                                : configValueSource( config, "update.fps" );
+        parts.push_back( std::format( "update.timeout={} ({})", settings.m_updateTimeout, timeoutSource ) );
+    }
+
+    if( settings.m_updateCubeFPSSet )
+    {
+        addValue( "update.cubeFPS", std::to_string( settings.m_updateCubeFPS ) );
+    }
+
+    if( settings.m_colorbarSet )
+    {
+        addValue( "colorbar", settings.m_colorbarName );
+    }
+
+    if( settings.m_autoscaleSet )
+    {
+        addValue( "autoscale", boolString( settings.m_autoscale ) );
+    }
+
+    if( settings.m_darkSubSet )
+    {
+        addValue( "darksub", boolString( settings.m_darkSub ) );
+    }
+
+    if( settings.m_satLevelSet )
+    {
+        addValue( "satLevel", std::to_string( settings.m_satLevel ) );
+    }
+
+    if( settings.m_maskSatSet )
+    {
+        addValue( "masksat", boolString( settings.m_maskSat ) );
+    }
+
+    if( settings.m_mzmqAlwaysSet )
+    {
+        addValue( "mzmq.always", boolString( settings.m_mzmqAlways ) );
+    }
+
+    if( settings.m_mzmqServerSet )
+    {
+        addValue( "mzmq.server", settings.m_mzmqServer );
+    }
+
+    if( settings.m_mzmqPortSet )
+    {
+        addValue( "mzmq.port", std::to_string( settings.m_mzmqPort ) );
+    }
+
+    if( parts.empty() )
+    {
+        return "<none>";
+    }
+
+    std::string summary;
+
+    for( size_t n = 0; n < parts.size(); ++n )
+    {
+        if( n > 0 )
+        {
+            summary += ", ";
+        }
+
+        summary += parts[n];
+    }
+
+    return summary;
+}
+
 struct rpcActivityGuard
 {
     rtimvServerThread *m_imageTh{ nullptr };
@@ -206,6 +309,8 @@ rtimvServer::~rtimvServer()
 
 void rtimvServer::setupConfig()
 {
+    rtimvBase::setupBaseConfig( config, false );
+
     config.add( "server.port",
                 "p",
                 "server.port",
@@ -275,30 +380,12 @@ void rtimvServer::setupConfig()
                 false,
                 "int",
                 "Default JPEG quality for served images when no per-image quality is configured." );
-
-    config.add( "log.appname",
-                "",
-                "log.appname",
-                mx::app::argType::Required,
-                "log",
-                "appname",
-                false,
-                "bool",
-                "Set true/false to include/exclude called-name in log prefixes." );
-
-    config.add( "no-log-appname",
-                "",
-                "no-log-appname",
-                mx::app::argType::True,
-                "log",
-                "no-appname",
-                false,
-                "bool",
-                "Disable called-name in log prefixes." );
 }
 
 void rtimvServer::loadConfig()
 {
+    rtimvBase::loadBaseConfig( m_baseConfigDefaults, config );
+
     config( m_port, "server.port" );
     config( m_serverAddress, "server.address" );
     config( m_waitTimeout, "image.timeout" );
@@ -308,19 +395,9 @@ void rtimvServer::loadConfig()
     config( m_qualityDefault, "quality" );
     m_qualityDefault = std::clamp( m_qualityDefault, 0, 100 );
 
-    if( config.isSet( "log.appname" ) )
+    if( m_baseConfigDefaults.m_logAppNameSet )
     {
-        config( m_logAppName, "log.appname" );
-    }
-
-    if( config.isSet( "no-log-appname" ) )
-    {
-        bool noLogAppName = false;
-        config( noLogAppName, "no-log-appname" );
-        if( noLogAppName )
-        {
-            m_logAppName = false;
-        }
+        m_logAppName = m_baseConfigDefaults.m_logAppName;
     }
 
     rtimv::logContext serverCtx;
@@ -395,6 +472,11 @@ void rtimvServer::loadConfig()
                                   configValueSource( config, "quality" ),
                                   boolString( m_logAppName ),
                                   logAppNameSource ) )
+              << '\n';
+
+    std::cout << rtimv::formatLogMessage( serverCtx,
+                                          std::format( "rtimvBase default overrides: {}",
+                                                       summarizeBaseConfigOverrides( m_baseConfigDefaults, config ) ) )
               << '\n';
 }
 
@@ -1240,6 +1322,8 @@ void rtimvServer::doConfigure( const configSpec *cspec )
         argv->push_back( "-c" );
         argv->push_back( cspec->m_config.file() );
     }
+
+    rtimvBase::appendBaseConfigArgs( *argv, m_baseConfigDefaults );
 
     if( cspec->m_config.image_key() != "" )
     {

@@ -110,205 +110,407 @@ rtimvBase::~rtimvBase()
     }
 }
 
+void rtimvBase::setupBaseConfig( mx::app::appConfigurator &configurator, bool includeShortOptions )
+{
+    const char *mzmqAlwaysShort = includeShortOptions ? "Z" : "";
+    const char *mzmqServerShort = includeShortOptions ? "s" : "";
+    const char *mzmqPortShort = includeShortOptions ? "p" : "";
+
+    configurator.add( "image.key",
+                      "",
+                      "image.key",
+                      mx::app::argType::Required,
+                      "image",
+                      "key",
+                      false,
+                      "string",
+                      "The main image key. Specifies the protocol, location, and name of the main image." );
+
+    configurator.add( "dark.key",
+                      "",
+                      "dark.key",
+                      mx::app::argType::Required,
+                      "dark",
+                      "key",
+                      false,
+                      "string",
+                      "The dark image key. Specifies the protocol, location, and name of the dark image." );
+
+    configurator.add( "mask.key",
+                      "",
+                      "mask.key",
+                      mx::app::argType::Required,
+                      "mask",
+                      "key",
+                      false,
+                      "string",
+                      "The mask image key. Specifies the protocol, location, and name of the mask image." );
+
+    configurator.add( "satMask.key",
+                      "",
+                      "satMask.key",
+                      mx::app::argType::Required,
+                      "satMask",
+                      "key",
+                      false,
+                      "string",
+                      "The saturation mask image key. Specifies the protocol, location, "
+                      "and name of the saturation mask image." );
+
+    configurator.add( "update.fps",
+                      "",
+                      "update.fps",
+                      mx::app::argType::Required,
+                      "update",
+                      "fps",
+                      false,
+                      "real",
+                      "Specify the image update timeout in FPS.  Overridden by update.timeout if set." );
+
+    configurator.add( "update.timeout",
+                      "",
+                      "update.timeout",
+                      mx::app::argType::Required,
+                      "update",
+                      "timeout",
+                      false,
+                      "real",
+                      "Specify the image update timeout in ms.  Default is 50 ms (20 FPS). Overrides update.fps." );
+
+    configurator.add( "update.cubeFPS",
+                      "",
+                      "update.cubeFPS",
+                      mx::app::argType::Required,
+                      "update",
+                      "cubeFPS",
+                      false,
+                      "real",
+                      "Specify the image cube update rate in FPS.  Default is 20 FPS." );
+
+    configurator.add(
+        "colorbar",
+        "",
+        "colorbar",
+        mx::app::argType::Required,
+        "",
+        "colorbar",
+        false,
+        "string",
+        "Set the startup colorbar. Valid values are grey, jet, hot, heat, bb, bone, red, green, and blue." );
+
+    configurator.add( "autoscale",
+                      "",
+                      "autoscale",
+                      mx::app::argType::Optional,
+                      "",
+                      "autoscale",
+                      false,
+                      "bool",
+                      "Set autoscaling at startup. Bare --autoscale is true; also accepts =true or =false." );
+
+    configurator.add( "darksub",
+                      "",
+                      "darksub",
+                      mx::app::argType::Optional,
+                      "",
+                      "darksub",
+                      false,
+                      "bool",
+                      "Set dark subtraction at startup. Bare --darksub is true; also accepts =true or =false. "
+                      "If a dark is supplied, darksub is otherwise on." );
+
+    configurator.add( "satLevel",
+                      "",
+                      "satLevel",
+                      mx::app::argType::Required,
+                      "",
+                      "satLevel",
+                      false,
+                      "float",
+                      "The saturation level for this camera" );
+
+    configurator.add( "masksat",
+                      "",
+                      "masksat",
+                      mx::app::argType::Optional,
+                      "",
+                      "masksat",
+                      false,
+                      "bool",
+                      "Set sat-masking at startup. Bare --masksat is true; also accepts =true or =false. "
+                      "If a saturation mask is supplied, masksat is otherwise on." );
+
+    configurator.add( "mzmq.always",
+                      mzmqAlwaysShort,
+                      "mzmq.always",
+                      mx::app::argType::Optional,
+                      "mzmq",
+                      "always",
+                      false,
+                      "bool",
+                      "Set whether milkzmq is the protocol for bare image names. Bare --mzmq.always is true; "
+                      "also accepts =true or =false. Note that local shmims can not be used if this is set." );
+
+    configurator.add( "mzmq.server",
+                      mzmqServerShort,
+                      "mzmq.server",
+                      mx::app::argType::Required,
+                      "mzmq",
+                      "server",
+                      false,
+                      "string",
+                      "The default server for milkzmq.  The default default is localhost.  This will be overridden "
+                      "by an image specific server specified in a key." );
+
+    configurator.add( "mzmq.port",
+                      mzmqPortShort,
+                      "mzmq.port",
+                      mx::app::argType::Required,
+                      "mzmq",
+                      "port",
+                      false,
+                      "int",
+                      "The default port for milkzmq.  The default default is 5556.  This will be overridden by an "
+                      "image specific port specified in a key." );
+
+    configurator.add( "log.appname",
+                      "",
+                      "log.appname",
+                      mx::app::argType::Required,
+                      "log",
+                      "appname",
+                      false,
+                      "bool",
+                      "Set true/false to include/exclude called-name in log prefixes." );
+
+    configurator.add( "no-log-appname",
+                      "",
+                      "no-log-appname",
+                      mx::app::argType::True,
+                      "log",
+                      "no-appname",
+                      false,
+                      "bool",
+                      "Disable called-name in log prefixes." );
+}
+
+void rtimvBase::loadBaseConfig( startupConfig &settings, mx::app::appConfigurator &configurator )
+{
+    settings = startupConfig{};
+
+    configurator( settings.m_imageKeys[0], "image.key" );
+    configurator( settings.m_imageKeys[1], "dark.key" );
+    configurator( settings.m_imageKeys[2], "mask.key" );
+    configurator( settings.m_imageKeys[3], "satMask.key" );
+
+    if( configurator.nonOptions.size() > 0 )
+    {
+        settings.m_imageKeys[0] = configurator.nonOptions[0];
+    }
+    if( configurator.nonOptions.size() > 1 )
+    {
+        settings.m_imageKeys[1] = configurator.nonOptions[1];
+    }
+    if( configurator.nonOptions.size() > 2 )
+    {
+        settings.m_imageKeys[2] = configurator.nonOptions[2];
+    }
+    if( configurator.nonOptions.size() > 3 )
+    {
+        settings.m_imageKeys[3] = configurator.nonOptions[3];
+    }
+
+    if( configurator.isSet( "mzmq.always" ) )
+    {
+        settings.m_mzmqAlways = configBoolOption( configurator, "mzmq.always" );
+        settings.m_mzmqAlwaysSet = true;
+    }
+
+    if( configurator.isSet( "mzmq.server" ) )
+    {
+        configurator( settings.m_mzmqServer, "mzmq.server" );
+        settings.m_mzmqServerSet = true;
+    }
+
+    if( configurator.isSet( "mzmq.port" ) )
+    {
+        configurator( settings.m_mzmqPort, "mzmq.port" );
+        settings.m_mzmqPortSet = true;
+    }
+
+    float fps = -999;
+    configurator( fps, "update.fps" );
+    if( fps > 0 )
+    {
+        settings.m_updateTimeout = std::round( 1000. / fps );
+        settings.m_updateTimeoutSet = true;
+    }
+
+    if( configurator.isSet( "update.timeout" ) )
+    {
+        configurator( settings.m_updateTimeout, "update.timeout" );
+        settings.m_updateTimeoutSet = true;
+    }
+
+    if( configurator.isSet( "update.cubeFPS" ) )
+    {
+        configurator( settings.m_updateCubeFPS, "update.cubeFPS" );
+        settings.m_updateCubeFPSSet = true;
+    }
+
+    if( configurator.isSet( "colorbar" ) )
+    {
+        configurator( settings.m_colorbarName, "colorbar" );
+        std::transform( settings.m_colorbarName.begin(),
+                        settings.m_colorbarName.end(),
+                        settings.m_colorbarName.begin(),
+                        []( unsigned char c ) { return static_cast<char>( std::tolower( c ) ); } );
+
+        rtimv::colorbar cb;
+        if( !rtimv::colorbarFromString( cb, settings.m_colorbarName ) )
+        {
+            throw std::runtime_error( "rtimv: invalid colorbar '" + settings.m_colorbarName + "'" );
+        }
+
+        settings.m_colorbarSet = true;
+    }
+
+    if( configurator.isSet( "autoscale" ) )
+    {
+        settings.m_autoscale = configBoolOption( configurator, "autoscale" );
+        settings.m_autoscaleSet = true;
+    }
+
+    if( configurator.isSet( "darksub" ) )
+    {
+        settings.m_darkSub = configBoolOption( configurator, "darksub" );
+        settings.m_darkSubSet = true;
+    }
+
+    if( configurator.isSet( "satLevel" ) )
+    {
+        configurator( settings.m_satLevel, "satLevel" );
+        settings.m_satLevelSet = true;
+    }
+
+    if( configurator.isSet( "masksat" ) )
+    {
+        settings.m_maskSat = configBoolOption( configurator, "masksat" );
+        settings.m_maskSatSet = true;
+    }
+
+    if( configurator.isSet( "log.appname" ) )
+    {
+        configurator( settings.m_logAppName, "log.appname" );
+        settings.m_logAppNameSet = true;
+    }
+
+    if( configurator.isSet( "no-log-appname" ) )
+    {
+        bool noLogAppName = false;
+        configurator( noLogAppName, "no-log-appname" );
+        if( noLogAppName )
+        {
+            settings.m_logAppName = false;
+            settings.m_logAppNameSet = true;
+        }
+    }
+}
+
+void rtimvBase::appendBaseConfigArgs( std::vector<std::string> &argv, const startupConfig &settings )
+{
+    auto appendOption = [&]( const std::string &name, const std::string &value )
+    {
+        argv.push_back( "--" + name );
+        argv.push_back( value );
+    };
+
+    if( !settings.m_imageKeys[0].empty() )
+    {
+        appendOption( "image.key", settings.m_imageKeys[0] );
+    }
+    if( !settings.m_imageKeys[1].empty() )
+    {
+        appendOption( "dark.key", settings.m_imageKeys[1] );
+    }
+    if( !settings.m_imageKeys[2].empty() )
+    {
+        appendOption( "mask.key", settings.m_imageKeys[2] );
+    }
+    if( !settings.m_imageKeys[3].empty() )
+    {
+        appendOption( "satMask.key", settings.m_imageKeys[3] );
+    }
+
+    if( settings.m_updateTimeoutSet )
+    {
+        appendOption( "update.timeout", std::to_string( settings.m_updateTimeout ) );
+    }
+
+    if( settings.m_updateCubeFPSSet )
+    {
+        appendOption( "update.cubeFPS", std::to_string( settings.m_updateCubeFPS ) );
+    }
+
+    if( settings.m_colorbarSet )
+    {
+        appendOption( "colorbar", settings.m_colorbarName );
+    }
+
+    if( settings.m_autoscaleSet )
+    {
+        argv.push_back( settings.m_autoscale ? "--autoscale" : "--autoscale=false" );
+    }
+
+    if( settings.m_darkSubSet )
+    {
+        argv.push_back( settings.m_darkSub ? "--darksub" : "--darksub=false" );
+    }
+
+    if( settings.m_satLevelSet )
+    {
+        appendOption( "satLevel", std::to_string( settings.m_satLevel ) );
+    }
+
+    if( settings.m_maskSatSet )
+    {
+        argv.push_back( settings.m_maskSat ? "--masksat" : "--masksat=false" );
+    }
+
+    if( settings.m_mzmqAlwaysSet )
+    {
+        argv.push_back( settings.m_mzmqAlways ? "--mzmq.always" : "--mzmq.always=false" );
+    }
+
+    if( settings.m_mzmqServerSet )
+    {
+        appendOption( "mzmq.server", settings.m_mzmqServer );
+    }
+
+    if( settings.m_mzmqPortSet )
+    {
+        appendOption( "mzmq.port", std::to_string( settings.m_mzmqPort ) );
+    }
+
+    if( settings.m_logAppNameSet )
+    {
+        appendOption( "log.appname", settings.m_logAppName ? "true" : "false" );
+    }
+}
+
 void rtimvBase::setupConfig()
 {
-    config.add( "image.key",
-                "",
-                "image.key",
-                mx::app::argType::Required,
-                "image",
-                "key",
-                false,
-                "string",
-                "The main image key. Specifies the protocol, location, and name of the main image." );
-
-    config.add( "dark.key",
-                "",
-                "dark.key",
-                mx::app::argType::Required,
-                "dark",
-                "key",
-                false,
-                "string",
-                "The dark image key. Specifies the protocol, location, and name of the dark image." );
-
-    config.add( "mask.key",
-                "",
-                "mask.key",
-                mx::app::argType::Required,
-                "mask",
-                "key",
-                false,
-                "string",
-                "The mask image key. Specifies the protocol, location, and name of the mask image." );
-
-    config.add( "satMask.key",
-                "",
-                "satMask.key",
-                mx::app::argType::Required,
-                "satMask",
-                "key",
-                false,
-                "string",
-                "The saturation mask image key. Specifies the protocol, location, "
-                "and name of the saturation mask image." );
-
-    config.add( "update.fps",
-                "",
-                "update.fps",
-                mx::app::argType::Required,
-                "update",
-                "fps",
-                false,
-                "real",
-                "Specify the image update timeout in FPS.  Overridden by update.timeout if set." );
-
-    config.add( "update.timeout",
-                "",
-                "update.timeout",
-                mx::app::argType::Required,
-                "update",
-                "timeout",
-                false,
-                "real",
-                "Specify the image update timeout in ms.  Default is 50 ms (20 FPS). Overrides update.fps." );
-
-    config.add( "update.cubeFPS",
-                "",
-                "update.cubeFPS",
-                mx::app::argType::Required,
-                "update",
-                "cubeFPS",
-                false,
-                "real",
-                "Specify the image cube update rate in FPS.  Default is 20 FPS." );
-
-    config.add( "colorbar",
-                "",
-                "colorbar",
-                mx::app::argType::Required,
-                "",
-                "colorbar",
-                false,
-                "string",
-                "Set the startup colorbar. Valid values are grey, jet, hot, heat, bb, bone, red, green, and blue." );
-
-    config.add( "autoscale",
-                "",
-                "autoscale",
-                mx::app::argType::Optional,
-                "",
-                "autoscale",
-                false,
-                "bool",
-                "Set autoscaling at startup. Bare --autoscale is true; also accepts =true or =false." );
-
-    config.add( "darksub",
-                "",
-                "darksub",
-                mx::app::argType::Optional,
-                "",
-                "darksub",
-                false,
-                "bool",
-                "Set dark subtraction at startup. Bare --darksub is true; also accepts =true or =false. "
-                "If a dark is supplied, darksub is otherwise on." );
-
-    config.add( "satLevel",
-                "",
-                "satLevel",
-                mx::app::argType::Required,
-                "",
-                "satLevel",
-                false,
-                "float",
-                "The saturation level for this camera" );
-
-    config.add( "masksat",
-                "",
-                "masksat",
-                mx::app::argType::Optional,
-                "",
-                "masksat",
-                false,
-                "bool",
-                "Set sat-masking at startup. Bare --masksat is true; also accepts =true or =false. "
-                "If a saturation mask is supplied, masksat is otherwise on." );
-
-    config.add( "mzmq.always",
-                "Z",
-                "mzmq.always",
-                mx::app::argType::Optional,
-                "mzmq",
-                "always",
-                false,
-                "bool",
-                "Set whether milkzmq is the protocol for bare image names. Bare --mzmq.always is true; "
-                "also accepts =true or =false. Note that local shmims can not be used if this is set." );
-
-    config.add( "mzmq.server",
-                "s",
-                "mzmq.server",
-                mx::app::argType::Required,
-                "mzmq",
-                "server",
-                false,
-                "string",
-                "The default server for milkzmq.  The default default is localhost.  This will be overridden by an "
-                "image specific server specified in a key." );
-
-    config.add( "mzmq.port",
-                "p",
-                "mzmq.port",
-                mx::app::argType::Required,
-                "mzmq",
-                "port",
-                false,
-                "int",
-                "The default port for milkzmq.  The default default is 5556.  This will be overridden by an image "
-                "specific port specified in a key." );
-
-    config.add( "log.appname",
-                "",
-                "log.appname",
-                mx::app::argType::Required,
-                "log",
-                "appname",
-                false,
-                "bool",
-                "Set true/false to include/exclude called-name in log prefixes." );
-
-    config.add( "no-log-appname",
-                "",
-                "no-log-appname",
-                mx::app::argType::True,
-                "log",
-                "no-appname",
-                false,
-                "bool",
-                "Disable called-name in log prefixes." );
+    setupBaseConfig( config );
 }
 
 void rtimvBase::loadConfig()
 {
-    std::string imKey;
-    std::string darkKey;
+    startupConfig settings;
+    loadBaseConfig( settings, config );
 
-    std::string flatKey;
-
-    std::string maskKey;
-
-    std::string satMaskKey;
-
-    std::vector<std::string> keys;
-
-    // Set up milkzmq
-    if( config.isSet( "mzmq.always" ) )
-    {
-        m_mzmqAlways = configBoolOption( config, "mzmq.always" );
-    }
-    config( m_mzmqServer, "mzmq.server" );
-    config( m_mzmqPort, "mzmq.port" );
+    m_mzmqAlways = settings.m_mzmqAlwaysSet ? settings.m_mzmqAlways : false;
+    m_mzmqServer = settings.m_mzmqServer;
+    m_mzmqPort = settings.m_mzmqPort;
 
     m_calledName = QCoreApplication::applicationName().toStdString();
     if( m_calledName.empty() )
@@ -316,55 +518,14 @@ void rtimvBase::loadConfig()
         m_calledName = "rtimv";
     }
 
-    if( config.isSet( "log.appname" ) )
+    if( settings.m_logAppNameSet )
     {
-        config( m_logAppName, "log.appname" );
+        m_logAppName = settings.m_logAppName;
     }
 
-    if( config.isSet( "no-log-appname" ) )
-    {
-        bool noLogAppName = false;
-        config( noLogAppName, "no-log-appname" );
-        if( noLogAppName )
-        {
-            m_logAppName = false;
-        }
-    }
+    m_imageNames = settings.m_imageKeys;
 
-    // Check for use of deprecated shmim_name keyword by itself, but use key if available
-    config( imKey, "image.key" );
-
-    config( darkKey, "dark.key" );
-
-    config( maskKey, "mask.key" );
-
-    config( satMaskKey, "satMask.key" );
-
-    // Populate the key vector, a "" means no image specified
-    keys.resize( 4 );
-
-    if( imKey != "" )
-        keys[0] = imKey;
-    if( darkKey != "" )
-        keys[1] = darkKey;
-    if( maskKey != "" )
-        keys[2] = maskKey;
-    if( satMaskKey != "" )
-        keys[3] = satMaskKey;
-
-    // The command line always overrides the config
-    if( config.nonOptions.size() > 0 )
-        keys[0] = config.nonOptions[0];
-    if( config.nonOptions.size() > 1 )
-        keys[1] = config.nonOptions[1];
-    if( config.nonOptions.size() > 2 )
-        keys[2] = config.nonOptions[2];
-    if( config.nonOptions.size() > 3 )
-        keys[3] = config.nonOptions[3];
-
-    m_imageNames = keys;
-
-    processKeys( keys );
+    processKeys( settings.m_imageKeys );
 
     if( m_images[0] == nullptr )
     {
@@ -381,63 +542,55 @@ void rtimvBase::loadConfig()
         }
     }
 
-    // Now load remaining options, respecting coded defaults.
-
-    // get timeouts.
-    float fps = -999;
-    config( fps, "update.fps" );
-
-    if( fps > 0 ) // fps sets m_imageTimeout
+    if( settings.m_updateTimeoutSet )
     {
-        m_imageTimeout = std::round( 1000. / fps );
+        m_imageTimeout = settings.m_updateTimeout;
     }
 
-    // but update.timeout can override it
-    config( m_imageTimeout, "update.timeout" );
-    config( m_cubeFPS, "update.cubeFPS" );
+    if( settings.m_updateCubeFPSSet )
+    {
+        m_cubeFPS = settings.m_updateCubeFPS;
+    }
 
     // Now set the actual timeouts
     cubeFPS( m_cubeFPS );
 
-    std::string colorbarName;
-    config( colorbarName, "colorbar" );
-    if( colorbarName != "" )
+    if( settings.m_colorbarSet )
     {
-        std::transform( colorbarName.begin(),
-                        colorbarName.end(),
-                        colorbarName.begin(),
-                        []( unsigned char c ) { return static_cast<char>( std::tolower( c ) ); } );
-
-        if( !rtimv::colorbarFromString( m_colorbar, colorbarName ) )
+        if( !rtimv::colorbarFromString( m_colorbar, settings.m_colorbarName ) )
         {
-            throw std::runtime_error( "rtimv: invalid colorbar '" + colorbarName + "'" );
+            throw std::runtime_error( "rtimv: invalid colorbar '" + settings.m_colorbarName + "'" );
         }
     }
 
-    if( config.isSet( "autoscale" ) )
+    if( settings.m_autoscaleSet )
     {
-        m_autoScale = configBoolOption( config, "autoscale" );
+        m_autoScale = settings.m_autoscale;
     }
-    m_subtractDarkSet = config.isSet( "darksub" );
+
+    m_subtractDarkSet = settings.m_darkSubSet;
     if( m_subtractDarkSet )
     {
-        m_subtractDark = configBoolOption( config, "darksub" );
+        m_subtractDark = settings.m_darkSub;
     }
 
     float satLevelDefault = m_satLevel;
-    config( m_satLevel, "satLevel" );
+    if( settings.m_satLevelSet )
+    {
+        m_satLevel = settings.m_satLevel;
+    }
 
     // If we set a sat level or mask, apply it
-    if( m_satLevel != satLevelDefault || satMaskKey != "" )
+    if( m_satLevel != satLevelDefault || !settings.m_imageKeys[3].empty() )
     {
         m_applySatMask = true;
     }
 
     // except turn it off if requested
-    m_applySatMaskSet = config.isSet( "masksat" );
+    m_applySatMaskSet = settings.m_maskSatSet;
     if( m_applySatMaskSet )
     {
-        m_applySatMask = configBoolOption( config, "masksat" );
+        m_applySatMask = settings.m_maskSat;
     }
 }
 

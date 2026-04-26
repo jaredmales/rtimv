@@ -83,6 +83,95 @@ class rtimvBase : public mx::app::application
      *  The mx::app::application interface for command line and config files.
      * @{
      */
+    /// Shared startup settings parsed from an appConfigurator for rtimvBase-compatible options.
+    struct startupConfig
+    {
+        /// Configured image keys by image slot, after applying any non-option overrides.
+        std::vector<std::string> m_imageKeys{ std::vector<std::string>( 4 ) };
+
+        /// True when the image update timeout was explicitly configured, directly or via update.fps.
+        bool m_updateTimeoutSet{ false };
+
+        /// Explicit image update timeout in ms, after resolving update.fps and update.timeout precedence.
+        int m_updateTimeout{ 50 };
+
+        /// True when the cube playback FPS was explicitly configured.
+        bool m_updateCubeFPSSet{ false };
+
+        /// Explicit cube playback FPS.
+        float m_updateCubeFPS{ 20 };
+
+        /// True when the startup colorbar was explicitly configured.
+        bool m_colorbarSet{ false };
+
+        /// Lower-cased startup colorbar name when explicitly configured.
+        std::string m_colorbarName;
+
+        /// True when autoscale was explicitly configured.
+        bool m_autoscaleSet{ false };
+
+        /// Explicit autoscale startup state.
+        bool m_autoscale{ false };
+
+        /// True when dark subtraction was explicitly configured.
+        bool m_darkSubSet{ false };
+
+        /// Explicit dark subtraction startup state.
+        bool m_darkSub{ false };
+
+        /// True when the saturation level was explicitly configured.
+        bool m_satLevelSet{ false };
+
+        /// Explicit saturation level.
+        float m_satLevel{ 0 };
+
+        /// True when saturation masking was explicitly configured.
+        bool m_maskSatSet{ false };
+
+        /// Explicit saturation masking startup state.
+        bool m_maskSat{ false };
+
+        /// True when milkzmq-always behavior was explicitly configured.
+        bool m_mzmqAlwaysSet{ false };
+
+        /// Explicit milkzmq-always startup state.
+        bool m_mzmqAlways{ false };
+
+        /// True when the default milkzmq server was explicitly configured.
+        bool m_mzmqServerSet{ false };
+
+        /// Explicit default milkzmq server.
+        std::string m_mzmqServer;
+
+        /// True when the default milkzmq port was explicitly configured.
+        bool m_mzmqPortSet{ false };
+
+        /// Explicit default milkzmq port.
+        int m_mzmqPort{ 0 };
+
+        /// True when called-name logging was explicitly configured.
+        bool m_logAppNameSet{ false };
+
+        /// Explicit called-name logging startup state.
+        bool m_logAppName{ true };
+    };
+
+    /// Register the shared rtimvBase startup config options on a configurator.
+    static void
+    setupBaseConfig( mx::app::appConfigurator &configurator, /**< [in] configurator to register options on */
+                     bool includeShortOptions = true         /**< [in] true to register legacy short options */
+    );
+
+    /// Load shared rtimvBase startup config values from a configurator.
+    static void loadBaseConfig( startupConfig &settings,               /**< [out] loaded shared startup settings */
+                                mx::app::appConfigurator &configurator /**< [in] configurator to read from */
+    );
+
+    /// Append explicit shared startup settings as long-form command-line arguments.
+    static void appendBaseConfigArgs( std::vector<std::string> &argv, /**< [out] argument vector to append to */
+                                      const startupConfig &settings   /**< [in] shared startup settings to serialize */
+    );
+
     virtual void setupConfig();
 
     virtual void loadConfig();
