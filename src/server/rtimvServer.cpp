@@ -9,7 +9,9 @@
 #include "rtimvLog.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <filesystem>
+#include <vector>
 
 namespace
 {
@@ -27,6 +29,94 @@ std::string image0OrUnknown( rtimvServerThread *imageTh )
     }
 
     return im0;
+}
+
+std::string boolString( bool value )
+{
+    if( value )
+    {
+        return "true";
+    }
+
+    return "false";
+}
+
+std::string quotedOrUnset( const std::string &value )
+{
+    if( value.empty() )
+    {
+        return "<unset>";
+    }
+
+    return "'" + value + "'";
+}
+
+void appendUniqueConfigSources( std::vector<std::string> &loadedFiles, const std::vector<std::string> &sources )
+{
+    for( const auto &source : sources )
+    {
+        if( source.empty() || source == "command line" )
+        {
+            continue;
+        }
+
+        if( std::find( loadedFiles.begin(), loadedFiles.end(), source ) == loadedFiles.end() )
+        {
+            loadedFiles.push_back( source );
+        }
+    }
+}
+
+std::vector<std::string> loadedConfigFiles( const mx::app::appConfigurator &config )
+{
+    std::vector<std::string> loadedFiles;
+
+    for( const auto &[name, target] : config.m_targets )
+    {
+        static_cast<void>( name );
+        appendUniqueConfigSources( loadedFiles, target.sources );
+    }
+
+    for( const auto &[name, target] : config.m_unusedConfigs )
+    {
+        static_cast<void>( name );
+        appendUniqueConfigSources( loadedFiles, target.sources );
+    }
+
+    return loadedFiles;
+}
+
+std::string joinConfigFiles( const std::vector<std::string> &files )
+{
+    if( files.empty() )
+    {
+        return "<none>";
+    }
+
+    std::string joined;
+
+    for( size_t n = 0; n < files.size(); ++n )
+    {
+        if( n > 0 )
+        {
+            joined += ", ";
+        }
+
+        joined += files[n];
+    }
+
+    return joined;
+}
+
+std::string configValueSource( const mx::app::appConfigurator &config, const std::string &name )
+{
+    auto targetIt = config.m_targets.find( name );
+    if( targetIt == config.m_targets.end() || !targetIt->second.set || targetIt->second.sources.empty() )
+    {
+        return "default";
+    }
+
+    return targetIt->second.sources.back();
 }
 
 struct rpcActivityGuard
@@ -91,6 +181,7 @@ rtimvServer::rtimvServer( int argc, char **argv, QObject *Parent ) : QObject( Pa
     }
 
     m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; // Tells mx::application to look for this env var.
+    config.m_sources = true;
 
     setup( argc, argv );
 
@@ -231,6 +322,80 @@ void rtimvServer::loadConfig()
             m_logAppName = false;
         }
     }
+
+    rtimv::logContext serverCtx;
+    serverCtx.calledName = m_calledName;
+    serverCtx.includeAppName = m_logAppName;
+
+    std::string configPathEnvValue;
+    if( !m_configPathCLBase_env.empty() )
+    {
+        const char *envValue = std::getenv( m_configPathCLBase_env.c_str() );
+        if( envValue != nullptr )
+        {
+            configPathEnvValue = envValue;
+        }
+    }
+
+    const std::vector<std::string> configFiles = loadedConfigFiles( config );
+
+    std::string logAppNameSource = configValueSource( config, "log.appname" );
+    if( config.isSet( "no-log-appname" ) )
+    {
+        bool noLogAppName = false;
+        config( noLogAppName, "no-log-appname" );
+        if( noLogAppName )
+        {
+            logAppNameSource = configValueSource( config, "no-log-appname" );
+        }
+    }
+
+    std::cout << rtimv::formatLogMessage(
+                     serverCtx,
+                     std::format( "config env {}={}", m_configPathCLBase_env, quotedOrUnset( configPathEnvValue ) ) )
+              << '\n';
+
+    std::cout << rtimv::formatLogMessage( serverCtx,
+                                          std::format( "config paths: global={} user={} local={} command_line_base={} "
+                                                       "command_line={}",
+                                                       quotedOrUnset( m_configPathGlobal ),
+                                                       quotedOrUnset( m_configPathUser ),
+                                                       quotedOrUnset( m_configPathLocal ),
+                                                       quotedOrUnset( m_configPathCLBase ),
+                                                       quotedOrUnset( m_configPathCL ) ) )
+              << '\n';
+
+    std::cout << rtimv::formatLogMessage( serverCtx,
+                                          std::format( "loaded config files: {}", joinConfigFiles( configFiles ) ) )
+              << '\n';
+
+    std::cout << rtimv::formatLogMessage(
+                     serverCtx,
+                     std::format( "effective config: server.address={} ({}) server.port={} ({}) image.timeout={} ({}) "
+                                  "image.sleep={} ({})",
+                                  m_serverAddress,
+                                  configValueSource( config, "server.address" ),
+                                  m_port,
+                                  configValueSource( config, "server.port" ),
+                                  m_waitTimeout,
+                                  configValueSource( config, "image.timeout" ),
+                                  m_waitSleep,
+                                  configValueSource( config, "image.sleep" ) ) )
+              << '\n';
+
+    std::cout << rtimv::formatLogMessage(
+                     serverCtx,
+                     std::format( "effective config: client.sleep={} ({}) client.disconnect={} ({}) quality={} ({}) "
+                                  "log.appname={} ({})",
+                                  m_clientSleep,
+                                  configValueSource( config, "client.sleep" ),
+                                  m_clientDisconnect,
+                                  configValueSource( config, "client.disconnect" ),
+                                  m_qualityDefault,
+                                  configValueSource( config, "quality" ),
+                                  boolString( m_logAppName ),
+                                  logAppNameSource ) )
+              << '\n';
 }
 
 void rtimvServer::startServer()
