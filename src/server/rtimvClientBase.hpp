@@ -474,7 +474,7 @@ class rtimvClientBase : public mx::app::application
 
     double m_avgCompressionRatio{ 0 }; ///< Rolling average compression ratio over recent received frames.
 
-    double m_avgFrameRate{ 0 }; ///< Rolling average frame rate over recent received frames.
+    double m_avgFrameRate{ 0 }; ///< Rolling average frame rate most recently published for display.
 
     double m_lastRttMs{ 0 }; ///< Round-trip time of the most recently completed Ping RPC, in ms.
 
@@ -493,6 +493,9 @@ class rtimvClientBase : public mx::app::application
     std::deque<double> m_recentRtts; ///< Recent Ping RTT samples used to form the rolling average.
 
     std::chrono::steady_clock::time_point m_lastArrivalTime; ///< Monotonic arrival time of the previous received frame.
+
+    std::chrono::steady_clock::time_point
+        m_lastFrameRatePublishTime; ///< Monotonic time when m_avgFrameRate was last refreshed for display.
 
     double m_imageTime{ 0 };
 
@@ -698,6 +701,12 @@ class rtimvClientBase : public mx::app::application
 
     /// Get the JPEG quality
     int quality();
+
+    /// Set the target number of in-flight ImagePlease RPCs.
+    void imageRequestWindow( int window /**< [in] desired in-flight ImagePlease window */ );
+
+    /// Get the target number of in-flight ImagePlease RPCs.
+    int imageRequestWindow();
 
     /// Get the current image display timeout.
     /**

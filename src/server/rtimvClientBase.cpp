@@ -28,6 +28,10 @@
 namespace
 {
 
+constexpr int minImageRequestWindow = 1;
+constexpr int maxImageRequestWindow = 128;
+constexpr auto avgFrameRatePublishInterval = std::chrono::seconds( 1 );
+
 /// Parse a bool config target while preserving bare optional flags as true.
 bool configBoolOption( mx::app::appConfigurator &config, const std::string &name )
 {
@@ -286,6 +290,17 @@ void rtimvClientBase::setupConfig()
                 false,
                 "int",
                 "Specify the number of frames used for rolling averages of compression ratio and frame rate. "
+                "Default is 10." );
+
+    config.add( "update.imageWindow",
+                "",
+                "update.imageWindow",
+                mx::app::argType::Required,
+                "update",
+                "imageWindow",
+                false,
+                "int",
+                "Specify the target number of in-flight ImagePlease RPCs used to hide transport latency. "
                 "Default is 10." );
 
     config.add( "autoscale",
@@ -582,6 +597,14 @@ void rtimvClientBase::loadConfig()
         }
     }
 
+    if( config.isSet( "update.imageWindow" ) )
+    {
+        int imageWindow{ 10 };
+        config( imageWindow, "update.imageWindow" );
+        m_targetImageWindow =
+            static_cast<size_t>( std::clamp( imageWindow, minImageRequestWindow, maxImageRequestWindow ) );
+    }
+
     if( config.isSet( "autoscale" ) )
     {
         bool autoscale = configBoolOption( config, "autoscale" );
@@ -763,6 +786,19 @@ void rtimvClientBase::Configure()
             m_lastAppliedResponseSerial = 0;
             m_imagePipelinePrimed = false;
         }
+        m_lastCompressionRatio = 0;
+        m_avgCompressionRatio = 0;
+        m_avgFrameRate = 0;
+        m_lastRttMs = 0;
+        m_avgRttMs = 0;
+        m_fpsRollingSum = 0;
+        m_compressionRollingSum = 0;
+        m_rttRollingSum = 0;
+        m_recentFrameIntervals.clear();
+        m_recentCompressionRatios.clear();
+        m_recentRtts.clear();
+        m_lastArrivalTime = std::chrono::steady_clock::time_point{};
+        m_lastFrameRatePublishTime = std::chrono::steady_clock::time_point{};
         updateImageNamesFromServer();
         std::cerr << formatBaseLogMessage( std::format( "connected to {}:{}", m_server, m_port ) ) << '\n';
         m_connectionFailReported = false;
@@ -2374,7 +2410,13 @@ void rtimvClientBase::updateRollingTransportStats(
                 const double avgFrameInterval = m_fpsRollingSum / static_cast<double>( m_recentFrameIntervals.size() );
                 if( avgFrameInterval > 0 )
                 {
-                    m_avgFrameRate = 1.0 / avgFrameInterval;
+                    const double computedAvgFrameRate = 1.0 / avgFrameInterval;
+                    if( m_lastFrameRatePublishTime == std::chrono::steady_clock::time_point{} ||
+                        now - m_lastFrameRatePublishTime >= avgFrameRatePublishInterval )
+                    {
+                        m_avgFrameRate = computedAvgFrameRate;
+                        m_lastFrameRatePublishTime = now;
+                    }
                 }
             }
         }
@@ -2443,6 +2485,31 @@ void rtimvClientBase::imageTimeout( int to )
 int rtimvClientBase::imageTimeout()
 {
     return m_imageTimeout;
+}
+
+void rtimvClientBase::imageRequestWindow( int window )
+{
+    const size_t clampedWindow =
+        static_cast<size_t>( std::clamp( window, minImageRequestWindow, maxImageRequestWindow ) );
+    bool requestMoreImages{ false };
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_imageRequestMutex );
+
+        requestMoreImages = !m_shuttingDown && clampedWindow > m_targetImageWindow;
+        m_targetImageWindow = clampedWindow;
+    }
+
+    if( requestMoreImages && m_foundation != nullptr )
+    {
+        m_foundation->emit_ImageNeeded();
+    }
+}
+
+int rtimvClientBase::imageRequestWindow()
+{
+    std::lock_guard<std::mutex> lock( m_imageRequestMutex );
+    return static_cast<int>( m_targetImageWindow );
 }
 
 int rtimvClientBase::currImageTimeout()

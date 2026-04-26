@@ -263,6 +263,9 @@ class rtimvControlPanel : public QWidget
     /// Synchronize JPEG quality entry from model state.
     void update_qualityEntry();
 
+    /// Synchronize the ImagePlease request-window control from model state.
+    void update_imageRequestWindow();
+
     /// Synchronize the displayed transport statistics from model state.
     void update_transportStats();
 
@@ -341,6 +344,9 @@ class rtimvControlPanel : public QWidget
 
     /// Handle JPEG quality entry edits.
     void on_qualityEntry_editingFinished();
+
+    /// Handle ImagePlease request-window changes.
+    void on_imageWindowSpinBox_valueChanged( int value /**< [in] new in-flight request window*/ );
 
     /// Toggle stats box visibility.
     void on_statsBoxButton_clicked();
