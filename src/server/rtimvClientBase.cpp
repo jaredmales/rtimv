@@ -1258,7 +1258,13 @@ void rtimvClientBase::ImageReceived()
     m_colorBox_j1 = colorBox_j1;
     m_colorBox_min = colorBox_min;
     m_colorBox_max = colorBox_max;
-    m_imageTimeout = imageTimeout;
+    bool imageTimeoutChanged = false;
+    if( m_imageTimeout != imageTimeout )
+    {
+        m_imageTimeout = imageTimeout;
+        imageTimeoutChanged = true;
+    }
+
     m_quality = quality;
     if( m_cubeDir != cubeDir )
     {
@@ -1296,6 +1302,11 @@ void rtimvClientBase::ImageReceived()
     {
         // Always switch to zoom 1 after a resize occurs
         zoomLevel( 1 );
+    }
+
+    if( imageTimeoutChanged )
+    {
+        setCurrImageTimeout();
     }
 
     updateFPS();
@@ -2109,6 +2120,7 @@ void rtimvClientBase::updateCubeFrame()
 void rtimvClientBase::setCurrImageTimeout()
 {
     int cubeTimeout;
+    int currImageTimeout;
 
     if( m_desiredCubeFPS <= 0 || m_nz <= 1 )
     {
@@ -2126,6 +2138,8 @@ void rtimvClientBase::setCurrImageTimeout()
         m_cubeFPS = 0;
 
         m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
+
+        currImageTimeout = m_imageTimeout;
     }
     else // it's a cube, cube mode is on, and FPS > 0
     {
@@ -2137,23 +2151,28 @@ void rtimvClientBase::setCurrImageTimeout()
             cubeTimeout = 1;
         }
 
-        if( cubeTimeout < m_imageTimeout )
+        if( cubeTimeout <= m_imageTimeout )
         {
-            cubeTimeout = m_imageTimeout;
+            // Report reality
+            m_cubeFPS = ( 1000.0 / cubeTimeout ) / m_cubeFPSMult;
+            currImageTimeout = cubeTimeout;
         }
-
-        // Now get reality with imageTimeout
-        int f = std::round( ( 1.0 * cubeTimeout ) / m_imageTimeout );
-        if( f <= 0 )
+        else
         {
-            f = 1;
+            // Now get reality with imageTimeout
+            int f = std::round( ( 1.0 * cubeTimeout ) / m_imageTimeout );
+            if( f <= 0 )
+            {
+                f = 1;
+            }
+
+            // Report reality
+            m_cubeFPS = ( 1000.0 / ( f * m_imageTimeout ) ) / m_cubeFPSMult;
+
+            // Implement reality
+            cubeTimeout = std::round( 1000. / ( m_cubeFPS * m_cubeFPSMult ) );
+            currImageTimeout = m_imageTimeout;
         }
-
-        // Report reality
-        m_cubeFPS = ( 1000.0 / ( f * m_imageTimeout ) ) / m_cubeFPSMult;
-
-        // Implement reality
-        cubeTimeout = std::round( 1000. / ( m_cubeFPS * m_cubeFPSMult ) );
 
         if( m_cubeMode )
         {
@@ -2168,6 +2187,8 @@ void rtimvClientBase::setCurrImageTimeout()
 
         m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
     }
+
+    m_currImageTimeout = currImageTimeout;
 }
 
 void rtimvClientBase::updateRollingTransportStats(
@@ -2268,6 +2289,11 @@ void rtimvClientBase::imageTimeout( int to )
 int rtimvClientBase::imageTimeout()
 {
     return m_imageTimeout;
+}
+
+int rtimvClientBase::currImageTimeout()
+{
+    return m_currImageTimeout;
 }
 
 void rtimvClientBase::quality( int q )

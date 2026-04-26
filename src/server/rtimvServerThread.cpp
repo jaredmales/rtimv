@@ -9,6 +9,7 @@
 #include "rtimvLog.hpp"
 
 #include <QBuffer>
+#include <QMetaObject>
 #include <algorithm>
 
 namespace
@@ -209,6 +210,22 @@ void rtimvServerThread::mtxuL_render( std::string *image )
 bool rtimvServerThread::newImage()
 {
     return m_newImage.load( std::memory_order_relaxed );
+}
+
+void rtimvServerThread::setImageTimeout( int to )
+{
+    if( m_foundation == nullptr )
+    {
+        return;
+    }
+
+    if( QThread::currentThread() == m_foundation->thread() )
+    {
+        m_foundation->imageTimeout( to );
+        return;
+    }
+
+    QMetaObject::invokeMethod( m_foundation, "imageTimeout", Qt::BlockingQueuedConnection, Q_ARG( int, to ) );
 }
 
 int rtimvServerThread::quality()

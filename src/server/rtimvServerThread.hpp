@@ -102,6 +102,9 @@ class rtimvServerThread : public QThread, public rtimvBase
 
     bool newImage();
 
+    /// Apply a new minimum image timeout on the Qt event thread.
+    void setImageTimeout( int to /**< [in] the new minimum image timeout in ms */ );
+
     int quality();
 
     void quality( int q );

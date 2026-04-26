@@ -549,7 +549,7 @@ ServerUnaryReactor *rtimvServer::SetImageTimeout( CallbackServerContext *context
     PREPARE_RPC_REACTOR
     static_cast<void>( reply );
 
-    imageTh->imageTimeout( request->timeout() );
+    imageTh->setImageTimeout( request->timeout() );
 
     reactor->Finish( Status::OK );
     return reactor;
@@ -750,13 +750,17 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
 
     int maxWaits;
 
+    const double waitTimeoutMs = std::max(
+        1000.0 * m_waitTimeout, static_cast<double>( imageTh->currImageTimeout() + std::max( m_waitSleep, 0 ) ) );
+
     if( m_waitSleep <= 0 ) // prevent an infinite busy
     {
         maxWaits = 1;
     }
     else
     {
-        maxWaits = m_waitTimeout / ( m_waitSleep / 1000. ) + 1;
+        // Keep the RPC wait window at least as long as the image thread's current cadence.
+        maxWaits = waitTimeoutMs / m_waitSleep + 1;
     }
 
     int nwaits = 0;

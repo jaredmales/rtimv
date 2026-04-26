@@ -830,6 +830,11 @@ int rtimvBase::imageTimeout()
     return m_imageTimeout;
 }
 
+int rtimvBase::currImageTimeout()
+{
+    return m_currImageTimeout;
+}
+
 void rtimvBase::cubeMode( bool cm )
 {
     m_cubeMode = cm;
