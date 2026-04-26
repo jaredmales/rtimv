@@ -25,6 +25,7 @@
 #include <mx/ioutils/stringUtils.hpp>
 #include <mx/math/vectorUtils.hpp>
 #include <QCoreApplication>
+#include <QThread>
 
 // #define RTIMV_DEBUG_BREADCRUMB std::cerr << __FILE__ << " " << __LINE__ << "\n";
 #define RTIMV_DEBUG_BREADCRUMB
@@ -55,6 +56,18 @@ rtimvBase::rtimvBase()
 
 rtimvBase::~rtimvBase()
 {
+    if( m_foundation )
+    {
+        if( m_foundation->thread() == QThread::currentThread() )
+        {
+            m_foundation->shutdown();
+        }
+        else
+        {
+            QMetaObject::invokeMethod( m_foundation, "shutdown", Qt::BlockingQueuedConnection );
+        }
+    }
+
     if( m_calDataRaw != nullptr )
     {
         delete[] m_calDataRaw;
@@ -84,7 +97,16 @@ rtimvBase::~rtimvBase()
 
     if( m_foundation )
     {
-        m_foundation->deleteLater();
+        if( m_foundation->thread() == QThread::currentThread() )
+        {
+            delete m_foundation;
+        }
+        else
+        {
+            m_foundation->deleteLater();
+        }
+
+        m_foundation = nullptr;
     }
 }
 

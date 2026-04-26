@@ -19,6 +19,7 @@ struct rtimvBaseObject : public QObject
     Q_OBJECT
 
   private:
+    /// Raw back-pointer to the owning base/client object used by queued Qt slots.
     RTIMV_BASE *m_parent{ nullptr };
 
   public:
@@ -32,7 +33,11 @@ struct rtimvBaseObject : public QObject
 
     rtimvBaseObject() = delete;
 
+    /// Construct the Qt helper object that forwards timer and signal activity to the owning base object.
     rtimvBaseObject( RTIMV_BASE *parent, QObject *QParent );
+
+    /// Detach from the owning base object and stop all internal timers/connections for shutdown.
+    Q_INVOKABLE void shutdown();
 
     /// Update the number of images in the cube
     void emit_nzUpdated( uint32_t n /**< [in] the current number of images in the cube */ );
@@ -180,6 +185,9 @@ struct rtimvBaseObject : public QObject
   public slots:
 
     void reconnect();
+
+    /// Schedule a delayed ImagePlease call on the foundation object's Qt thread.
+    void scheduleImagePlease( int delayMs /**< [in] delay before requesting the next image, ms */ );
 
     void ImagePlease();
 

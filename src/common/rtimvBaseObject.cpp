@@ -35,6 +35,18 @@ rtimvBaseObject::rtimvBaseObject( RTIMV_BASE *parent, QObject *QParent ) : QObje
     // clang-format on
 }
 
+void rtimvBaseObject::shutdown()
+{
+    m_parent = nullptr;
+
+    m_imageTimer.stop();
+    m_cubeTimer.stop();
+    m_cubeFrameUpdateTimer.stop();
+    m_connectionTimer.stop();
+
+    disconnect();
+}
+
 void rtimvBaseObject::emit_nzUpdated( uint32_t n )
 {
     emit nzUpdated( n );
@@ -210,6 +222,19 @@ void rtimvBaseObject::reconnect()
 
     m_parent->reconnect();
 
+    #endif
+    // clang-format on
+}
+
+void rtimvBaseObject::scheduleImagePlease( int delayMs )
+{
+    // clang-format off
+    #ifdef RTIMV_GRPC
+
+    QTimer::singleShot( delayMs, this, SLOT( ImagePlease() ) );
+
+    #else
+    static_cast<void>( delayMs );
     #endif
     // clang-format on
 }

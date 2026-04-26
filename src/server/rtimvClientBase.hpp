@@ -380,11 +380,26 @@ class rtimvClientBase : public mx::app::application
     /// Number of in-flight fire-and-forget empty-response unary RPCs.
     size_t m_emptyRpcPending{ 0 };
 
+    /// Mutex guarding the count of callback threads still actively executing client code.
+    std::mutex m_callbackActivityMutex;
+
+    /// Condition variable signaled when an active gRPC callback finishes using this client object.
+    std::condition_variable m_callbackActivityCv;
+
+    /// Number of gRPC callback functions currently executing client-side follow-up logic.
+    size_t m_activeGrpcCallbacks{ 0 };
+
   public:
     /// Request an image from the server
     void ImagePlease();
 
   protected:
+    /// Record entry into a gRPC callback so shutdown can wait for client-side callback work to finish.
+    void beginGrpcCallbackActivity();
+
+    /// Record exit from a gRPC callback and wake shutdown waiters when the active count reaches zero.
+    void endGrpcCallbackActivity();
+
     /// Launch the asynchronous Ping RPC used for transport RTT measurement.
     void dispatchPingAsync();
 

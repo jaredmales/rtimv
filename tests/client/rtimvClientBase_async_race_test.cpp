@@ -102,6 +102,24 @@ class DelayedFailClient : public TestClientBase
     }
 };
 
+class NoImageRetryClient : public TestClientBase
+{
+  protected:
+    /// Complete the queued ImagePlease RPC with a NO_IMAGE response to exercise retry scheduling during teardown.
+    void dispatchImagePleaseAsync( uint64_t requestId,                      /**< [in] local request identifier */
+                                   std::shared_ptr<imageRequestState> state /**< [in] request state */
+                                   ) override
+    {
+        std::thread callbackThread(
+            [this, requestId, state]()
+            {
+                state->m_reply.set_status( remote_rtimv::IMAGE_STATUS_NO_IMAGE );
+                this->ImagePlease_callback( requestId, state, grpc::Status::OK );
+            } );
+        callbackThread.join();
+    }
+};
+
 int main( int argc, char **argv )
 {
     QCoreApplication app( argc, argv );
@@ -134,11 +152,24 @@ int main( int argc, char **argv )
 
         for( int i = 0; i < 200 && !deleted.load(); ++i )
         {
+            QCoreApplication::processEvents();
             std::this_thread::sleep_for( std::chrono::milliseconds( 10 ) );
         }
 
         assert( deleted.load() );
         deleteThread.join();
+    }
+
+    // Regression: a queued no-image retry should be canceled safely during shutdown.
+    {
+        auto *client = new NoImageRetryClient;
+        client->setConnectedForTest( true );
+        client->ImagePlease();
+
+        delete client;
+
+        std::this_thread::sleep_for( std::chrono::milliseconds( 2200 ) );
+        QCoreApplication::processEvents();
     }
 
     return 0;

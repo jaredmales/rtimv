@@ -16,9 +16,10 @@
 #include <cmath>
 #include <thread>
 
-#include <QMetaObject>
-#include <QPointer>
 #include <QCoreApplication>
+#include <QMetaObject>
+#include <QThread>
+#include <QTimer>
 
 #include <mx/ioutils/stringUtils.hpp>
 
@@ -93,6 +94,18 @@ rtimvClientBase::~rtimvClientBase()
         }
     }
 
+    if( m_foundation )
+    {
+        if( m_foundation->thread() == QThread::currentThread() )
+        {
+            m_foundation->shutdown();
+        }
+        else
+        {
+            QMetaObject::invokeMethod( m_foundation, "shutdown", Qt::BlockingQueuedConnection );
+        }
+    }
+
     { // mutex scope
         std::unique_lock<std::mutex> lock( m_imageRequestMutex );
         while( !m_inflightImageRequests.empty() )
@@ -164,6 +177,18 @@ rtimvClientBase::~rtimvClientBase()
         }
     }
 
+    { // mutex scope
+        std::unique_lock<std::mutex> lock( m_callbackActivityMutex );
+
+        while( m_activeGrpcCallbacks > 0 )
+        {
+            if( m_callbackActivityCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
+            {
+                std::cerr << formatBaseLogMessage( "waiting for gRPC callback activity during shutdown." ) << '\n';
+            }
+        }
+    }
+
     if( m_configReq )
     {
         delete m_configReq;
@@ -171,8 +196,41 @@ rtimvClientBase::~rtimvClientBase()
 
     if( m_foundation )
     {
-        m_foundation->deleteLater();
+        if( m_foundation->thread() == QThread::currentThread() )
+        {
+            delete m_foundation;
+        }
+        else
+        {
+            m_foundation->deleteLater();
+        }
+
+        m_foundation = nullptr;
     }
+}
+
+void rtimvClientBase::beginGrpcCallbackActivity()
+{
+    std::lock_guard<std::mutex> lock( m_callbackActivityMutex );
+    ++m_activeGrpcCallbacks;
+}
+
+void rtimvClientBase::endGrpcCallbackActivity()
+{
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_callbackActivityMutex );
+
+        if( m_activeGrpcCallbacks == 0 )
+        {
+            std::cerr << formatBaseLogMessage( "bug: gRPC callback activity underflow during shutdown tracking." )
+                      << '\n';
+            return;
+        }
+
+        --m_activeGrpcCallbacks;
+    }
+
+    m_callbackActivityCv.notify_all();
 }
 
 void rtimvClientBase::setupConfig()
@@ -1409,6 +1467,10 @@ void rtimvClientBase::ImageReceived()
 
 void rtimvClientBase::Ping_callback( grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder;
+
     bool shuttingDown{ false };
     bool disconnect{ false };
     bool updateRtt{ false };
@@ -1435,7 +1497,7 @@ void rtimvClientBase::Ping_callback( grpc::Status status )
             disconnect = true;
         }
 
-        delete m_PingContext;
+        contextHolder.reset( m_PingContext );
         m_PingContext = nullptr;
 
         m_pingPending = false;
@@ -1477,6 +1539,9 @@ void rtimvClientBase::ImagePlease_callback( uint64_t requestId,
                                             std::shared_ptr<imageRequestState> state,
                                             grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+
     int action = -1;
     int retryMs = 0;
     bool shuttingDown = false;
@@ -1570,17 +1635,12 @@ void rtimvClientBase::ImagePlease_callback( uint64_t requestId,
 
     auto scheduleImageRetry = [this]( int ms )
     {
-        QPointer<rtimvBaseObject> foundation = m_foundation;
-        std::thread(
-            [foundation, ms]()
-            {
-                std::this_thread::sleep_for( std::chrono::milliseconds( ms ) );
-                if( foundation )
-                {
-                    QMetaObject::invokeMethod( foundation, "ImagePlease", Qt::QueuedConnection );
-                }
-            } )
-            .detach();
+        if( !m_foundation )
+        {
+            return;
+        }
+
+        QMetaObject::invokeMethod( m_foundation, "scheduleImagePlease", Qt::QueuedConnection, Q_ARG( int, ms ) );
     };
 
     if( action == 0 )
@@ -1608,6 +1668,10 @@ void rtimvClientBase::ImagePlease_callback( uint64_t requestId,
 
 void rtimvClientBase::GetPixel_callback( grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder;
+
     bool queueNext{ false };
     uint32_t nextX{ 0 };
     uint32_t nextY{ 0 };
@@ -1642,7 +1706,7 @@ void rtimvClientBase::GetPixel_callback( grpc::Status status )
             REPORT_SERVER_DISCONNECTED
         }
 
-        delete m_GetPixelContext;
+        contextHolder.reset( m_GetPixelContext );
         m_GetPixelContext = nullptr;
 
         m_getPixelPending = false;
@@ -1659,14 +1723,18 @@ void rtimvClientBase::GetPixel_callback( grpc::Status status )
         m_foundation->emit_pixelValueUpdated( reqX, reqY, value, valid );
     }
 
-    if( queueNext )
+    if( queueNext && m_foundation != nullptr )
     {
-        requestPixelValue( nextX, nextY );
+        QTimer::singleShot( 0, m_foundation, [this, nextX, nextY]() { requestPixelValue( nextX, nextY ); } );
     }
 }
 
 void rtimvClientBase::ColorBox_callback( grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder;
+
     bool queueNext{ false };
     bool valid{ false };
     int64_t i0{ 0 }, i1{ 0 }, j0{ 0 }, j1{ 0 };
@@ -1708,7 +1776,7 @@ void rtimvClientBase::ColorBox_callback( grpc::Status status )
             REPORT_SERVER_DISCONNECTED
         }
 
-        delete m_ColorBoxContext;
+        contextHolder.reset( m_ColorBoxContext );
         m_ColorBoxContext = nullptr;
 
         m_colorBoxPending = false;
@@ -1723,14 +1791,18 @@ void rtimvClientBase::ColorBox_callback( grpc::Status status )
         m_foundation->emit_colorBoxUpdated( i0, i1, j0, j1, min, max, valid );
     }
 
-    if( queueNext )
+    if( queueNext && m_foundation != nullptr )
     {
-        requestColorBoxValues();
+        QTimer::singleShot( 0, m_foundation, [this]() { requestColorBoxValues(); } );
     }
 }
 
 void rtimvClientBase::StatsBox_callback( grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder;
+
     bool queueNext{ false };
     bool valid{ false };
     int64_t i0{ 0 }, i1{ 0 }, j0{ 0 }, j1{ 0 };
@@ -1781,7 +1853,7 @@ void rtimvClientBase::StatsBox_callback( grpc::Status status )
             REPORT_SERVER_DISCONNECTED
         }
 
-        delete m_StatsBoxContext;
+        contextHolder.reset( m_StatsBoxContext );
         m_StatsBoxContext = nullptr;
 
         m_statsBoxPending = false;
@@ -1796,14 +1868,18 @@ void rtimvClientBase::StatsBox_callback( grpc::Status status )
         m_foundation->emit_statsBoxUpdated( i0, i1, j0, j1, min, max, mean, median, valid );
     }
 
-    if( queueNext )
+    if( queueNext && m_foundation != nullptr )
     {
-        requestStatsBoxValues();
+        QTimer::singleShot( 0, m_foundation, [this]() { requestStatsBoxValues(); } );
     }
 }
 
 void rtimvClientBase::SetColorstretch_callback( grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder;
+
     bool queueNext{ false };
     rtimv::stretch nextStretch{ rtimv::stretch::linear };
 
@@ -1823,7 +1899,7 @@ void rtimvClientBase::SetColorstretch_callback( grpc::Status status )
             REPORT_SERVER_DISCONNECTED
         }
 
-        delete m_SetColorstretchContext;
+        contextHolder.reset( m_SetColorstretchContext );
         m_SetColorstretchContext = nullptr;
 
         m_setColorstretchPending = false;
@@ -1834,14 +1910,18 @@ void rtimvClientBase::SetColorstretch_callback( grpc::Status status )
 
     m_asyncRpcCv.notify_all();
 
-    if( queueNext )
+    if( queueNext && m_foundation != nullptr )
     {
-        stretch( nextStretch );
+        QTimer::singleShot( 0, m_foundation, [this, nextStretch]() { stretch( nextStretch ); } );
     }
 }
 
 void rtimvClientBase::SetMinScale_callback( grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder;
+
     bool queueNext{ false };
     float nextValue{ 0 };
 
@@ -1867,21 +1947,25 @@ void rtimvClientBase::SetMinScale_callback( grpc::Status status )
             m_setMinScaleQueued = false;
         }
 
-        delete m_SetMinScaleContext;
+        contextHolder.reset( m_SetMinScaleContext );
         m_SetMinScaleContext = nullptr;
         m_setMinScalePending = false;
     }
 
     m_asyncRpcCv.notify_all();
 
-    if( queueNext )
+    if( queueNext && m_foundation != nullptr )
     {
-        minScaleData( nextValue );
+        QTimer::singleShot( 0, m_foundation, [this, nextValue]() { minScaleData( nextValue ); } );
     }
 }
 
 void rtimvClientBase::SetMaxScale_callback( grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder;
+
     bool queueNext{ false };
     float nextValue{ 0 };
 
@@ -1907,21 +1991,25 @@ void rtimvClientBase::SetMaxScale_callback( grpc::Status status )
             m_setMaxScaleQueued = false;
         }
 
-        delete m_SetMaxScaleContext;
+        contextHolder.reset( m_SetMaxScaleContext );
         m_SetMaxScaleContext = nullptr;
         m_setMaxScalePending = false;
     }
 
     m_asyncRpcCv.notify_all();
 
-    if( queueNext )
+    if( queueNext && m_foundation != nullptr )
     {
-        maxScaleData( nextValue );
+        QTimer::singleShot( 0, m_foundation, [this, nextValue]() { maxScaleData( nextValue ); } );
     }
 }
 
 void rtimvClientBase::EmptyRpc_callback( grpc::ClientContext *context, grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder( context );
+
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
 
@@ -1944,8 +2032,6 @@ void rtimvClientBase::EmptyRpc_callback( grpc::ClientContext *context, grpc::Sta
             --m_emptyRpcPending;
         }
     }
-
-    delete context;
 
     m_asyncRpcCv.notify_all();
 
