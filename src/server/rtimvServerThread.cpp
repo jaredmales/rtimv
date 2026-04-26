@@ -34,6 +34,56 @@ std::string image0OrUnknown( rtimvServerThread *imageTh )
 
 } // namespace
 
+class rtimvServerThread::pendingImageReactor : public grpc::ServerUnaryReactor
+{
+  public:
+    explicit pendingImageReactor( std::shared_ptr<pendingImageRequest> request ) : m_request( std::move( request ) )
+    {
+        if( m_request )
+        {
+            m_request->m_reactor = this;
+        }
+    }
+
+    /// Finish the unary RPC exactly once.
+    void finish( const grpc::Status &status /**< [in] final RPC status */ )
+    {
+        if( !m_request )
+        {
+            return;
+        }
+
+        if( m_request->m_finished.exchange( true, std::memory_order_acq_rel ) )
+        {
+            return;
+        }
+
+        Finish( status );
+    }
+
+  private:
+    void OnDone() override
+    {
+        if( m_request )
+        {
+            m_request->m_reactor = nullptr;
+            m_request->m_done.store( true, std::memory_order_release );
+        }
+
+        delete this;
+    }
+
+    void OnCancel() override
+    {
+        if( m_request )
+        {
+            m_request->m_cancelled.store( true, std::memory_order_release );
+        }
+    }
+
+    std::shared_ptr<pendingImageRequest> m_request; ///< Shared request state tracked across cancel/done reactions.
+};
+
 rtimvServerThread::rtimvServerThread( const std::string &uri,
                                       std::shared_ptr<std::vector<std::string>> argv,
                                       int defaultQuality,
@@ -290,22 +340,38 @@ uint32_t rtimvServerThread::rpcActive()
     return m_activeRpc.load( std::memory_order_relaxed );
 }
 
-void rtimvServerThread::enqueueImageRequest( grpc::CallbackServerContext *context,
-                                             grpc::ServerUnaryReactor *reactor,
-                                             remote_rtimv::Image *reply )
+grpc::ServerUnaryReactor *rtimvServerThread::newImagePleaseReactor( remote_rtimv::Image *reply )
 {
+    std::shared_ptr<pendingImageRequest> request = std::make_shared<pendingImageRequest>();
+    request->m_reply = reply;
+    request->m_enqueueTime = mx::sys::get_curr_time();
+
+    auto *reactor = new pendingImageReactor( request );
+
+    enqueueImageRequest( request );
+
+    return reactor;
+}
+
+void rtimvServerThread::enqueueImageRequest( std::shared_ptr<pendingImageRequest> request )
+{
+    if( !request )
+    {
+        return;
+    }
+
     if( !connected() )
     {
-        if( reply != nullptr )
+        if( request->m_reply != nullptr )
         {
-            reply->set_status( remote_rtimv::IMAGE_STATUS_NO_IMAGE );
+            request->m_reply->set_status( remote_rtimv::IMAGE_STATUS_NO_IMAGE );
             std::string *image = new std::string;
-            reply->set_allocated_image( image );
+            request->m_reply->set_allocated_image( image );
         }
 
-        if( reactor != nullptr )
+        if( request->m_reactor != nullptr )
         {
-            reactor->Finish( grpc::Status::OK );
+            request->m_reactor->finish( grpc::Status::OK );
         }
 
         return;
@@ -313,14 +379,7 @@ void rtimvServerThread::enqueueImageRequest( grpc::CallbackServerContext *contex
 
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_pendingImageMutex );
-
-        pendingImageRequest request;
-        request.m_context = context;
-        request.m_reactor = reactor;
-        request.m_reply = reply;
-        request.m_enqueueTime = mx::sys::get_curr_time();
-
-        m_pendingImageRequests.push_back( request );
+        m_pendingImageRequests.push_back( std::move( request ) );
     }
 
     schedulePendingImageService();
@@ -328,7 +387,8 @@ void rtimvServerThread::enqueueImageRequest( grpc::CallbackServerContext *contex
 
 void rtimvServerThread::prunePendingImageRequests( double timeoutSeconds )
 {
-    std::deque<pendingImageRequest> timedOutRequests;
+    std::deque<std::shared_ptr<pendingImageRequest>> cancelledRequests;
+    std::deque<std::shared_ptr<pendingImageRequest>> timedOutRequests;
 
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_pendingImageMutex );
@@ -337,13 +397,26 @@ void rtimvServerThread::prunePendingImageRequests( double timeoutSeconds )
         auto requestIt = m_pendingImageRequests.begin();
         while( requestIt != m_pendingImageRequests.end() )
         {
-            if( requestIt->m_context != nullptr && requestIt->m_context->IsCancelled() )
+            if( !( *requestIt ) )
             {
                 requestIt = m_pendingImageRequests.erase( requestIt );
                 continue;
             }
 
-            if( timeoutSeconds > 0 && now - requestIt->m_enqueueTime > timeoutSeconds )
+            if( ( *requestIt )->m_done.load( std::memory_order_acquire ) )
+            {
+                requestIt = m_pendingImageRequests.erase( requestIt );
+                continue;
+            }
+
+            if( ( *requestIt )->m_cancelled.load( std::memory_order_acquire ) )
+            {
+                cancelledRequests.push_back( *requestIt );
+                requestIt = m_pendingImageRequests.erase( requestIt );
+                continue;
+            }
+
+            if( timeoutSeconds > 0 && now - ( *requestIt )->m_enqueueTime > timeoutSeconds )
             {
                 timedOutRequests.push_back( *requestIt );
                 requestIt = m_pendingImageRequests.erase( requestIt );
@@ -354,27 +427,38 @@ void rtimvServerThread::prunePendingImageRequests( double timeoutSeconds )
         }
     }
 
+    for( auto &request : cancelledRequests )
+    {
+        if( !request || request->m_reactor == nullptr || request->m_done.load( std::memory_order_acquire ) )
+        {
+            continue;
+        }
+
+        request->m_reactor->finish( grpc::Status::OK );
+    }
+
     for( auto &request : timedOutRequests )
     {
-        if( request.m_reply == nullptr || request.m_reactor == nullptr )
+        if( !request || request->m_reply == nullptr || request->m_reactor == nullptr ||
+            request->m_done.load( std::memory_order_acquire ) )
         {
             continue;
         }
 
         std::string *image = new std::string;
-        request.m_reply->set_allocated_image( image );
+        request->m_reply->set_allocated_image( image );
 
         if( connected() )
         {
-            request.m_reply->set_status( remote_rtimv::IMAGE_STATUS_TIMEOUT );
-            populateImageReply( request.m_reply );
+            request->m_reply->set_status( remote_rtimv::IMAGE_STATUS_TIMEOUT );
+            populateImageReply( request->m_reply );
         }
         else
         {
-            request.m_reply->set_status( remote_rtimv::IMAGE_STATUS_NO_IMAGE );
+            request->m_reply->set_status( remote_rtimv::IMAGE_STATUS_NO_IMAGE );
         }
 
-        request.m_reactor->Finish( grpc::Status::OK );
+        request->m_reactor->finish( grpc::Status::OK );
     }
 }
 
@@ -388,8 +472,7 @@ void rtimvServerThread::servicePendingImageRequests()
 {
     m_servicePendingScheduled.store( false, std::memory_order_relaxed );
 
-    pendingImageRequest request;
-    bool haveRequest{ false };
+    std::shared_ptr<pendingImageRequest> request;
 
     prunePendingImageRequests( 0 );
 
@@ -405,17 +488,27 @@ void rtimvServerThread::servicePendingImageRequests()
         {
             request = m_pendingImageRequests.front();
             m_pendingImageRequests.pop_front();
-            haveRequest = true;
         }
     }
 
-    if( !haveRequest )
+    if( !request )
     {
         return;
     }
 
-    if( request.m_context != nullptr && request.m_context->IsCancelled() )
+    if( request->m_done.load( std::memory_order_acquire ) )
     {
+        schedulePendingImageService();
+        return;
+    }
+
+    if( request->m_cancelled.load( std::memory_order_acquire ) )
+    {
+        if( request->m_reactor != nullptr )
+        {
+            request->m_reactor->finish( grpc::Status::OK );
+        }
+
         schedulePendingImageService();
         return;
     }
@@ -425,21 +518,21 @@ void rtimvServerThread::servicePendingImageRequests()
     std::string *image = new std::string;
     mtxuL_render( image );
 
-    if( request.m_reply != nullptr )
+    if( request->m_reply != nullptr )
     {
-        request.m_reply->set_status( remote_rtimv::IMAGE_STATUS_VALID );
-        request.m_reply->set_response_serial( deliverSerial );
-        populateImageReply( request.m_reply );
-        request.m_reply->set_allocated_image( image );
+        request->m_reply->set_status( remote_rtimv::IMAGE_STATUS_VALID );
+        request->m_reply->set_response_serial( deliverSerial );
+        populateImageReply( request->m_reply );
+        request->m_reply->set_allocated_image( image );
     }
     else
     {
         delete image;
     }
 
-    if( request.m_reactor != nullptr )
+    if( request->m_reactor != nullptr )
     {
-        request.m_reactor->Finish( grpc::Status::OK );
+        request->m_reactor->finish( grpc::Status::OK );
     }
 
     if( m_responseSerial.load( std::memory_order_relaxed ) == deliverSerial )

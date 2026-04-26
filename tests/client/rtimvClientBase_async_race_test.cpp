@@ -38,6 +38,16 @@ class TestClientBase : public rtimvClientBase
         return m_inflightImageRequests.size();
     }
 
+    /// Force the image pipeline state for pipelined shutdown regression coverage.
+    void setImagePipelineForTest( size_t window, /**< [in] desired in-flight window */
+                                  bool primed    /**< [in] true to allow full-window dispatch immediately */
+    )
+    {
+        std::lock_guard<std::mutex> lock( m_imageRequestMutex );
+        m_targetImageWindow = window;
+        m_imagePipelinePrimed = primed;
+    }
+
   protected:
     /// Test stub: no GUI colormode work needed.
     void mtxL_postColormode( rtimv::colormode, const sharedLockT & ) override
@@ -140,6 +150,31 @@ int main( int argc, char **argv )
     {
         auto *client = new DelayedFailClient;
         client->setConnectedForTest( true );
+        client->ImagePlease();
+
+        std::atomic<bool> deleted{ false };
+        std::thread deleteThread(
+            [client, &deleted]()
+            {
+                delete client;
+                deleted = true;
+            } );
+
+        for( int i = 0; i < 200 && !deleted.load(); ++i )
+        {
+            QCoreApplication::processEvents();
+            std::this_thread::sleep_for( std::chrono::milliseconds( 10 ) );
+        }
+
+        assert( deleted.load() );
+        deleteThread.join();
+    }
+
+    // Regression: shutdown while a pipelined image window is in flight should not hang.
+    {
+        auto *client = new DelayedFailClient;
+        client->setConnectedForTest( true );
+        client->setImagePipelineForTest( 8, true );
         client->ImagePlease();
 
         std::atomic<bool> deleted{ false };

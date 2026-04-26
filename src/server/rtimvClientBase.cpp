@@ -32,6 +32,7 @@ namespace
 constexpr int minImageRequestWindow = 1;
 constexpr int maxImageRequestWindow = 128;
 constexpr auto avgFrameRatePublishInterval = std::chrono::seconds( 1 );
+constexpr auto shutdownRpcGracePeriod = std::chrono::milliseconds( 250 );
 
 /// Parse a bool config target while preserving bare optional flags as true.
 bool configBoolOption( mx::app::appConfigurator &config, const std::string &name )
@@ -83,15 +84,6 @@ rtimvClientBase::~rtimvClientBase()
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
         m_shuttingDown = true;
-
-        for( auto &[requestId, state] : m_inflightImageRequests )
-        {
-            static_cast<void>( requestId );
-            if( state && state->m_context )
-            {
-                state->m_context->TryCancel();
-            }
-        }
     }
 
     if( m_foundation )
@@ -108,6 +100,29 @@ rtimvClientBase::~rtimvClientBase()
 
     { // mutex scope
         std::unique_lock<std::mutex> lock( m_imageRequestMutex );
+
+        if( !m_inflightImageRequests.empty() )
+        {
+            const auto deadline = std::chrono::steady_clock::now() + shutdownRpcGracePeriod;
+
+            while( !m_inflightImageRequests.empty() )
+            {
+                if( m_imageRequestCv.wait_until( lock, deadline ) == std::cv_status::timeout )
+                {
+                    break;
+                }
+            }
+        }
+
+        for( auto &[requestId, state] : m_inflightImageRequests )
+        {
+            static_cast<void>( requestId );
+            if( state && state->m_context )
+            {
+                state->m_context->TryCancel();
+            }
+        }
+
         while( !m_inflightImageRequests.empty() )
         {
             if( m_imageRequestCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
@@ -118,7 +133,22 @@ rtimvClientBase::~rtimvClientBase()
     }
 
     { // mutex scope
-        std::lock_guard<std::mutex> asyncLock( m_asyncRpcMutex );
+        std::unique_lock<std::mutex> asyncLock( m_asyncRpcMutex );
+
+        if( m_pingPending || m_getPixelPending || m_colorBoxPending || m_statsBoxPending || m_setColorstretchPending ||
+            m_setMinScalePending || m_setMaxScalePending || m_emptyRpcPending > 0 )
+        {
+            const auto deadline = std::chrono::steady_clock::now() + shutdownRpcGracePeriod;
+
+            while( m_pingPending || m_getPixelPending || m_colorBoxPending || m_statsBoxPending ||
+                   m_setColorstretchPending || m_setMinScalePending || m_setMaxScalePending || m_emptyRpcPending > 0 )
+            {
+                if( m_asyncRpcCv.wait_until( asyncLock, deadline ) == std::cv_status::timeout )
+                {
+                    break;
+                }
+            }
+        }
 
         if( m_GetPixelContext )
         {

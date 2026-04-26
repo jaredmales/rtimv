@@ -18,6 +18,7 @@
 #include <mx/app/application.hpp>
 #include <atomic>
 #include <deque>
+#include <memory>
 #include <mutex>
 
 #include "rtimv.grpc.pb.h"
@@ -68,23 +69,30 @@ class rtimvServerThread : public QThread, public rtimvBase
     /// True while a queued pending-image service pass is already scheduled.
     std::atomic<bool> m_servicePendingScheduled{ false };
 
+    /// Custom unary reactor used for queued ImagePlease replies.
+    class pendingImageReactor;
+
     /// One queued ImagePlease request waiting for the next deliverable response.
     struct pendingImageRequest
     {
-        grpc::CallbackServerContext *m_context{ nullptr }; ///< gRPC callback context used to detect cancellation.
-
-        grpc::ServerUnaryReactor *m_reactor{ nullptr }; ///< Reactor finished when this pending request is served.
+        pendingImageReactor *m_reactor{ nullptr }; ///< Custom reactor finished when this pending request is served.
 
         remote_rtimv::Image *m_reply{ nullptr }; ///< Reply payload populated when the request is fulfilled.
 
         double m_enqueueTime{ 0 }; ///< Monotonic enqueue time in seconds for timeout accounting.
+
+        std::atomic<bool> m_cancelled{ false }; ///< True once gRPC reports client-side cancellation for this request.
+
+        std::atomic<bool> m_done{ false }; ///< True once gRPC has fully completed this request.
+
+        std::atomic<bool> m_finished{ false }; ///< True once Finish has been issued for this request.
     };
 
     /// Mutex guarding the pending ImagePlease queue.
     std::mutex m_pendingImageMutex;
 
     /// FIFO queue of pending ImagePlease requests representing client-side credits.
-    std::deque<pendingImageRequest> m_pendingImageRequests;
+    std::deque<std::shared_ptr<pendingImageRequest>> m_pendingImageRequests;
 
     /// Mark the current rendered response dirty and advance the response serial.
     void markResponseDirty();
@@ -165,11 +173,12 @@ class rtimvServerThread : public QThread, public rtimvBase
     uint32_t rpcActive();
 
     /// Queue one pending ImagePlease request for the next deliverable response.
-    void
-    enqueueImageRequest( grpc::CallbackServerContext *context, /**< [in] callback context for cancellation checks */
-                         grpc::ServerUnaryReactor *reactor,    /**< [in] reactor finished when a response is ready */
-                         remote_rtimv::Image *reply            /**< [in] reply payload owned by gRPC */
+    void enqueueImageRequest( std::shared_ptr<pendingImageRequest> request /**< [in] pending request to enqueue */
     );
+
+    /// Create and enqueue a custom unary reactor for one ImagePlease request.
+    grpc::ServerUnaryReactor *
+    newImagePleaseReactor( remote_rtimv::Image *reply /**< [in] reply payload owned by gRPC */ );
 
     /// Drop cancelled pending requests and expire old ones.
     void prunePendingImageRequests( double timeoutSeconds /**< [in] timeout applied to queued requests in seconds */ );

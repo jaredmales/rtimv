@@ -1013,10 +1013,37 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
                                               const remote_rtimv::ImageRequest *request,
                                               remote_rtimv::Image *reply )
 {
-    PREPARE_RPC_REACTOR
     static_cast<void>( request );
 
-    imageTh->enqueueImageRequest( context, reactor, reply );
+    sharedLockT slock( m_clientMutex );
+
+    auto clientIt = m_clients.find( context->peer() );
+    if( clientIt == m_clients.end() )
+    {
+        ServerUnaryReactor *reactor = context->DefaultReactor();
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "not configured" ) );
+        return reactor;
+    }
+
+    rtimvServerThread *imageTh = clientIt->second;
+    if( imageTh == nullptr )
+    {
+        ServerUnaryReactor *reactor = context->DefaultReactor();
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "reconnect" ) );
+        return reactor;
+    }
+
+    imageTh->lastRequest( -1 );
+
+    if( imageTh->asleep() )
+    {
+        imageTh->emit_awaken();
+    }
+
+    imageTh->rpcBegin();
+    rpcActivityGuard rpcGuard( imageTh );
+
+    ServerUnaryReactor *reactor = imageTh->newImagePleaseReactor( reply );
 
     return reactor;
 }
