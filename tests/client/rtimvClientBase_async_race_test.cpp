@@ -1,3 +1,10 @@
+/** \file rtimvClientBase_async_race_test.cpp
+ * \brief Regression tests for ImagePlease async callback races in rtimvClientBase
+ *
+ * \author Jared R. Males (jaredmales@gmail.com)
+ *
+ */
+
 #include <QCoreApplication>
 
 #include <cassert>
@@ -10,46 +17,68 @@
 class TestClientBase : public rtimvClientBase
 {
   public:
-    void setConnectedForTest( bool connected )
+    /// Force the connected flag for test setup.
+    void setConnectedForTest( bool connected /**< [in] desired test connected state */ )
     {
         uniqueLockT lock( m_connectedMutex );
         m_connected = connected;
     }
 
+    /// Read the connected flag under the normal client lock.
     bool connectedForTest()
     {
         sharedLockT lock( m_connectedMutex );
         return m_connected;
     }
 
-    bool imagePendingForTest()
+    /// Get the number of ImagePlease RPCs currently tracked as in flight.
+    size_t imageRequestCountForTest()
     {
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
-        return m_imageRequestPending;
-    }
-
-    bool imageContextAllocatedForTest()
-    {
-        std::lock_guard<std::mutex> lock( m_imageRequestMutex );
-        return m_ImagePleaseContext != nullptr;
+        return m_inflightImageRequests.size();
     }
 
   protected:
-    void mtxL_postColormode( rtimv::colormode, const sharedLockT & ) override {}
-    void mtxL_postRecolor( const uniqueLockT & ) override {}
-    void mtxL_postRecolor( const sharedLockT & ) override {}
-    void mtxL_postChangeImdata( const sharedLockT & ) override {}
-    void post_zoomLevel() override {}
+    /// Test stub: no GUI colormode work needed.
+    void mtxL_postColormode( rtimv::colormode, const sharedLockT & ) override
+    {
+    }
+
+    /// Test stub: no GUI recolor work needed.
+    void mtxL_postRecolor( const uniqueLockT & ) override
+    {
+    }
+
+    /// Test stub: no GUI recolor work needed.
+    void mtxL_postRecolor( const sharedLockT & ) override
+    {
+    }
+
+    /// Test stub: no GUI image-data work needed.
+    void mtxL_postChangeImdata( const sharedLockT & ) override
+    {
+    }
+
+    /// Test stub: no GUI zoom work needed.
+    void post_zoomLevel() override
+    {
+    }
 };
 
 class ImmediateFailClient : public TestClientBase
 {
   protected:
-    void dispatchImagePleaseAsync() override
+    /// Complete the queued ImagePlease RPC immediately with a transport failure.
+    void dispatchImagePleaseAsync( uint64_t requestId,                      /**< [in] local request identifier */
+                                   std::shared_ptr<imageRequestState> state /**< [in] request state */
+                                   ) override
     {
-        std::thread callbackThread( [this]() {
-            this->ImagePlease_callback( grpc::Status( grpc::StatusCode::UNAVAILABLE, "simulated unavailable server" ) );
-        } );
+        std::thread callbackThread(
+            [this, requestId, state]()
+            {
+                this->ImagePlease_callback(
+                    requestId, state, grpc::Status( grpc::StatusCode::UNAVAILABLE, "simulated unavailable server" ) );
+            } );
         callbackThread.join();
     }
 };
@@ -57,12 +86,18 @@ class ImmediateFailClient : public TestClientBase
 class DelayedFailClient : public TestClientBase
 {
   protected:
-    void dispatchImagePleaseAsync() override
+    /// Complete the queued ImagePlease RPC after a short delay with a transport failure.
+    void dispatchImagePleaseAsync( uint64_t requestId,                      /**< [in] local request identifier */
+                                   std::shared_ptr<imageRequestState> state /**< [in] request state */
+                                   ) override
     {
-        std::thread callbackThread( [this]() {
-            std::this_thread::sleep_for( std::chrono::milliseconds( 50 ) );
-            this->ImagePlease_callback( grpc::Status( grpc::StatusCode::UNAVAILABLE, "simulated unavailable server" ) );
-        } );
+        std::thread callbackThread(
+            [this, requestId, state]()
+            {
+                std::this_thread::sleep_for( std::chrono::milliseconds( 50 ) );
+                this->ImagePlease_callback(
+                    requestId, state, grpc::Status( grpc::StatusCode::UNAVAILABLE, "simulated unavailable server" ) );
+            } );
         callbackThread.detach();
     }
 };
@@ -79,8 +114,7 @@ int main( int argc, char **argv )
 
         client.ImagePlease();
 
-        assert( !client.imagePendingForTest() );
-        assert( !client.imageContextAllocatedForTest() );
+        assert( client.imageRequestCountForTest() == 0 );
         assert( !client.connectedForTest() );
     }
 
@@ -91,10 +125,12 @@ int main( int argc, char **argv )
         client->ImagePlease();
 
         std::atomic<bool> deleted{ false };
-        std::thread deleteThread( [client, &deleted]() {
-            delete client;
-            deleted = true;
-        } );
+        std::thread deleteThread(
+            [client, &deleted]()
+            {
+                delete client;
+                deleted = true;
+            } );
 
         for( int i = 0; i < 200 && !deleted.load(); ++i )
         {
