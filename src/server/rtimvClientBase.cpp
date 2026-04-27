@@ -32,7 +32,7 @@ namespace
 constexpr int minImageRequestWindow = 1;
 constexpr int maxImageRequestWindow = 128;
 constexpr auto avgFrameRatePublishInterval = std::chrono::seconds( 1 );
-constexpr auto shutdownRpcGracePeriod = std::chrono::milliseconds( 250 );
+constexpr auto shutdownRpcGracePeriod = std::chrono::milliseconds( 500 );
 
 /// Parse a bool config target while preserving bare optional flags as true.
 bool configBoolOption( mx::app::appConfigurator &config, const std::string &name )
@@ -241,8 +241,10 @@ rtimvClientBase::~rtimvClientBase()
 
 void rtimvClientBase::beginGrpcCallbackActivity()
 {
-    std::lock_guard<std::mutex> lock( m_callbackActivityMutex );
-    ++m_activeGrpcCallbacks;
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_callbackActivityMutex );
+        ++m_activeGrpcCallbacks;
+    }
 }
 
 void rtimvClientBase::endGrpcCallbackActivity()
@@ -1653,8 +1655,12 @@ void rtimvClientBase::ImagePlease_callback( uint64_t requestId,
         if( currentConnections == m_connections )
         {
             m_connected = false;
-            std::cerr << formatBaseLogMessage( std::string( "Message from rtimvServer: " ) + status.error_message() )
-                      << '\n';
+            if( !( shuttingDown && status.error_code() == grpc::StatusCode::CANCELLED ) )
+            {
+                std::cerr << formatBaseLogMessage( std::string( "Message from rtimvServer: " ) +
+                                                   status.error_message() )
+                          << '\n';
+            }
         }
     }
 
