@@ -86,6 +86,9 @@ class rtimvServerThread : public QThread, public rtimvBase
         std::atomic<bool> m_done{ false }; ///< True once gRPC has fully completed this request.
 
         std::atomic<bool> m_finished{ false }; ///< True once Finish has been issued for this request.
+
+        /// Attempt to finish this request exactly once.
+        bool finish( const grpc::Status &status /**< [in] final RPC status */ );
     };
 
     /// Mutex guarding the pending ImagePlease queue.

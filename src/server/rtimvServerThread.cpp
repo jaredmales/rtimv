@@ -51,28 +51,11 @@ class rtimvServerThread::pendingImageReactor : public grpc::ServerUnaryReactor
         }
     }
 
-    /// Finish the unary RPC exactly once.
-    void finish( const grpc::Status &status /**< [in] final RPC status */ )
-    {
-        if( !m_request )
-        {
-            return;
-        }
-
-        if( m_request->m_finished.exchange( true, std::memory_order_acq_rel ) )
-        {
-            return;
-        }
-
-        Finish( status );
-    }
-
   private:
     void OnDone() override
     {
         if( m_request )
         {
-            m_request->m_reactor = nullptr;
             m_request->m_done.store( true, std::memory_order_release );
         }
 
@@ -96,6 +79,22 @@ class rtimvServerThread::pendingImageReactor : public grpc::ServerUnaryReactor
 
     std::shared_ptr<pendingImageRequest> m_request; ///< Shared request state tracked across cancel/done reactions.
 };
+
+bool rtimvServerThread::pendingImageRequest::finish( const grpc::Status &status )
+{
+    if( m_finished.exchange( true, std::memory_order_acq_rel ) )
+    {
+        return false;
+    }
+
+    if( m_reactor == nullptr )
+    {
+        return false;
+    }
+
+    m_reactor->Finish( status );
+    return true;
+}
 
 rtimvServerThread::rtimvServerThread( const std::string &uri,
                                       std::shared_ptr<std::vector<std::string>> argv,
@@ -384,7 +383,7 @@ void rtimvServerThread::enqueueImageRequest( std::shared_ptr<pendingImageRequest
 
         if( request->m_reactor != nullptr )
         {
-            request->m_reactor->finish( grpc::Status::OK );
+            request->finish( grpc::Status::OK );
         }
 
         return;
@@ -442,18 +441,17 @@ void rtimvServerThread::prunePendingImageRequests( double timeoutSeconds )
 
     for( auto &request : cancelledRequests )
     {
-        if( !request || request->m_reactor == nullptr || request->m_done.load( std::memory_order_acquire ) )
+        if( !request || request->m_done.load( std::memory_order_acquire ) )
         {
             continue;
         }
 
-        request->m_reactor->finish( grpc::Status::OK );
+        request->finish( grpc::Status::OK );
     }
 
     for( auto &request : timedOutRequests )
     {
-        if( !request || request->m_reply == nullptr || request->m_reactor == nullptr ||
-            request->m_done.load( std::memory_order_acquire ) )
+        if( !request || request->m_reply == nullptr || request->m_done.load( std::memory_order_acquire ) )
         {
             continue;
         }
@@ -471,7 +469,7 @@ void rtimvServerThread::prunePendingImageRequests( double timeoutSeconds )
             request->m_reply->set_status( remote_rtimv::IMAGE_STATUS_NO_IMAGE );
         }
 
-        request->m_reactor->finish( grpc::Status::OK );
+        request->finish( grpc::Status::OK );
     }
 }
 
@@ -517,10 +515,7 @@ void rtimvServerThread::servicePendingImageRequests()
 
     if( request->m_cancelled.load( std::memory_order_acquire ) )
     {
-        if( request->m_reactor != nullptr )
-        {
-            request->m_reactor->finish( grpc::Status::OK );
-        }
+        request->finish( grpc::Status::OK );
 
         schedulePendingImageService();
         return;
@@ -543,10 +538,7 @@ void rtimvServerThread::servicePendingImageRequests()
         delete image;
     }
 
-    if( request->m_reactor != nullptr )
-    {
-        request->m_reactor->finish( grpc::Status::OK );
-    }
+    request->finish( grpc::Status::OK );
 
     if( m_responseSerial.load( std::memory_order_relaxed ) == deliverSerial )
     {
