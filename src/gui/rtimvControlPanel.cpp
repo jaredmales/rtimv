@@ -73,25 +73,29 @@ rtimvControlPanel::rtimvControlPanel( rtimvMainWindow *v, Qt::WindowFlags f ) : 
     connect( this, SIGNAL( targetVisible( bool ) ), m_imv, SLOT( targetVisible( bool ) ) );
 
 #ifdef RTIMV_GRPC
+    m_ui.imageWindowLabel->setVisible( true );
+    m_ui.imageWindowSpinBox->setVisible( true );
     m_ui.qualityLabel->setVisible( true );
     m_ui.qualitySlider->setVisible( true );
     m_ui.qualityEntry->setVisible( true );
-    m_ui.lastCompressionRatioLabel->setVisible( true );
-    m_ui.lastCompressionRatioEntry->setVisible( true );
     m_ui.avgCompressionRatioLabel->setVisible( true );
     m_ui.avgCompressionRatioEntry->setVisible( true );
     m_ui.avgFrameRateLabel->setVisible( true );
     m_ui.avgFrameRateEntry->setVisible( true );
+    m_ui.avgRttLabel->setVisible( true );
+    m_ui.avgRttEntry->setVisible( true );
 #else
+    m_ui.imageWindowLabel->setVisible( false );
+    m_ui.imageWindowSpinBox->setVisible( false );
     m_ui.qualityLabel->setVisible( false );
     m_ui.qualitySlider->setVisible( false );
     m_ui.qualityEntry->setVisible( false );
-    m_ui.lastCompressionRatioLabel->setVisible( false );
-    m_ui.lastCompressionRatioEntry->setVisible( false );
     m_ui.avgCompressionRatioLabel->setVisible( false );
     m_ui.avgCompressionRatioEntry->setVisible( false );
     m_ui.avgFrameRateLabel->setVisible( false );
     m_ui.avgFrameRateEntry->setVisible( false );
+    m_ui.avgRttLabel->setVisible( false );
+    m_ui.avgRttEntry->setVisible( false );
 #endif
 
     init_panel();
@@ -161,6 +165,7 @@ void rtimvControlPanel::init_panel()
     targetVisibleChanged( m_imv->targetVisible() );
 
 #ifdef RTIMV_GRPC
+    update_imageRequestWindow();
     update_qualitySlider();
     update_qualityEntry();
     update_transportStats();
@@ -214,6 +219,7 @@ void rtimvControlPanel::update_panel()
     m_ui.statsBoxButton->setText( m_statsBoxButtonState ? "Hide Stats Box" : "Show Stats Box" );
 
 #ifdef RTIMV_GRPC
+    update_imageRequestWindow();
     update_qualitySlider();
     update_qualityEntry();
     update_transportStats();
@@ -810,12 +816,21 @@ void rtimvControlPanel::update_qualityEntry()
 #endif
 }
 
+void rtimvControlPanel::update_imageRequestWindow()
+{
+#ifdef RTIMV_GRPC
+    m_ui.imageWindowSpinBox->blockSignals( true );
+    m_ui.imageWindowSpinBox->setValue( m_imv->imageRequestWindow() );
+    m_ui.imageWindowSpinBox->blockSignals( false );
+#endif
+}
+
 void rtimvControlPanel::update_transportStats()
 {
 #ifdef RTIMV_GRPC
-    m_ui.lastCompressionRatioEntry->setText( QString::number( m_imv->lastCompressionRatio(), 'f', 1 ) + ":1" );
     m_ui.avgCompressionRatioEntry->setText( QString::number( m_imv->avgCompressionRatio(), 'f', 1 ) + ":1" );
     m_ui.avgFrameRateEntry->setText( QString::number( m_imv->avgFrameRate(), 'f', 1 ) );
+    m_ui.avgRttEntry->setText( QString::number( m_imv->avgRttMs(), 'f', 1 ) + " ms" );
 #endif
 }
 
@@ -1072,6 +1087,15 @@ void rtimvControlPanel::on_qualityEntry_editingFinished()
     m_imv->showQualityMessage( q );
     update_qualitySlider();
     update_qualityEntry();
+#endif
+}
+
+void rtimvControlPanel::on_imageWindowSpinBox_valueChanged( int value )
+{
+#ifdef RTIMV_GRPC
+    m_imv->imageRequestWindow( value );
+#else
+    static_cast<void>( value );
 #endif
 }
 

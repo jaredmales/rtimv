@@ -1799,7 +1799,7 @@
       <set>Qt::AlignCenter</set>
      </property>
     </widget>
-    <widget class="QLabel" name="lastCompressionRatioLabel">
+    <widget class="QLabel" name="avgCompressionRatioLabel">
      <property name="geometry">
       <rect>
        <x>500</x>
@@ -1809,10 +1809,10 @@
       </rect>
      </property>
      <property name="text">
-      <string>Last Compression</string>
+      <string>Avg Compression</string>
      </property>
     </widget>
-    <widget class="QLineEdit" name="lastCompressionRatioEntry">
+    <widget class="QLineEdit" name="avgCompressionRatioEntry">
      <property name="geometry">
       <rect>
        <x>500</x>
@@ -1828,7 +1828,7 @@
       <bool>true</bool>
      </property>
     </widget>
-    <widget class="QLabel" name="avgCompressionRatioLabel">
+    <widget class="QLabel" name="avgFrameRateLabel">
      <property name="geometry">
       <rect>
        <x>500</x>
@@ -1838,10 +1838,10 @@
       </rect>
      </property>
      <property name="text">
-      <string>Avg Compression</string>
+      <string>Avg Arrival Rate</string>
      </property>
     </widget>
-    <widget class="QLineEdit" name="avgCompressionRatioEntry">
+    <widget class="QLineEdit" name="avgFrameRateEntry">
      <property name="geometry">
       <rect>
        <x>500</x>
@@ -1857,7 +1857,7 @@
       <bool>true</bool>
      </property>
     </widget>
-    <widget class="QLabel" name="avgFrameRateLabel">
+    <widget class="QLabel" name="avgRttLabel">
      <property name="geometry">
       <rect>
        <x>500</x>
@@ -1867,10 +1867,10 @@
       </rect>
      </property>
      <property name="text">
-      <string>Avg Arrival Rate</string>
+      <string>Avg RTT</string>
      </property>
     </widget>
-    <widget class="QLineEdit" name="avgFrameRateEntry">
+    <widget class="QLineEdit" name="avgRttEntry">
      <property name="geometry">
       <rect>
        <x>500</x>
@@ -2158,6 +2158,41 @@
      </property>
      <property name="text">
       <string>Image get timeout</string>
+     </property>
+    </widget>
+    <widget class="QSpinBox" name="imageWindowSpinBox">
+     <property name="geometry">
+      <rect>
+       <x>490</x>
+       <y>40</y>
+       <width>121</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+     <property name="minimum">
+      <number>1</number>
+     </property>
+     <property name="maximum">
+      <number>128</number>
+     </property>
+     <property name="value">
+      <number>10</number>
+     </property>
+    </widget>
+    <widget class="QLabel" name="imageWindowLabel">
+     <property name="geometry">
+      <rect>
+       <x>340</x>
+       <y>42</y>
+       <width>141</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Image request window</string>
      </property>
     </widget>
     <widget class="QPushButton" name="statsBoxButton">

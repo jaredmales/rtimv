@@ -14,7 +14,9 @@
 #include <condition_variable>
 #include <chrono>
 #include <deque>
+#include <memory>
 #include <string_view>
+#include <unordered_map>
 
 #include <QImage>
 
@@ -149,11 +151,17 @@ class rtimvClientBase : public mx::app::application
     /// Refresh configured image names from the server.
     void updateImageNamesFromServer();
 
-    /// Context for the ImagePlease rpc.
-    /** This has to stay alive until the rpc finishes and can not be reused
-     *
-     */
-    grpc::ClientContext *m_ImagePleaseContext{ nullptr };
+    /// State for one in-flight ImagePlease RPC.
+    struct imageRequestState
+    {
+        std::unique_ptr<grpc::ClientContext> m_context; ///< RPC context kept alive until the callback completes.
+
+        remote_rtimv::ImageRequest m_request; ///< Request payload for this ImagePlease call.
+
+        remote_rtimv::Image m_reply; ///< Response payload returned by the server for this ImagePlease call.
+
+        uint64_t m_connectionGeneration{ 0 }; ///< Connection generation active when this request was dispatched.
+    };
 
     /// Context for the GetPixel rpc.
     grpc::ClientContext *m_GetPixelContext{ nullptr };
@@ -173,6 +181,9 @@ class rtimvClientBase : public mx::app::application
     /// Context for the SetMaxScale rpc.
     grpc::ClientContext *m_SetMaxScaleContext{ nullptr };
 
+    /// Context for the Ping rpc.
+    grpc::ClientContext *m_PingContext{ nullptr };
+
   public:
     /// Configure the server
     /**
@@ -189,23 +200,44 @@ class rtimvClientBase : public mx::app::application
     /// Flag indicating client teardown is in progress.
     bool m_shuttingDown{ false };
 
-    /// True while an ImagePlease RPC is outstanding.
-    bool m_imageRequestPending{ false };
+    /// Desired steady-state number of in-flight ImagePlease RPCs after the first valid image arrives.
+    size_t m_targetImageWindow{ 10 };
 
-    /// Request payload for the ImagePlease RPC.
-    remote_rtimv::ImageRequest m_grpcImageRequest;
+    /// True once at least one valid image has been received and the full image-credit window can be used.
+    bool m_imagePipelinePrimed{ false };
 
-    /// Last ImagePlease response payload from the server.
-    remote_rtimv::Image m_grpcImage;
+    /// Next unique identifier assigned to an ImagePlease request.
+    uint64_t m_nextImageRequestId{ 1 };
+
+    /// In-flight ImagePlease RPCs keyed by their local request identifier.
+    std::unordered_map<uint64_t, std::shared_ptr<imageRequestState>> m_inflightImageRequests;
+
+    /// Completed ImagePlease replies waiting to be applied on the Qt side.
+    std::deque<remote_rtimv::Image> m_completedImageReplies;
+
+    /// Monotonic serial of the newest Image reply already applied to the client state.
+    uint64_t m_lastAppliedResponseSerial{ 0 };
 
     /// Backoff delay for ImagePlease retries when no new image data is available, ms.
     int m_imageRetryBackoffMs{ 500 };
 
-    /// Mutex guarding asynchronous unary RPC state for GetPixel/ColorBox/StatsBox.
+    /// Mutex guarding asynchronous unary RPC state for Ping/GetPixel/ColorBox/StatsBox.
     std::mutex m_asyncRpcMutex;
 
-    /// Condition variable used to signal completion of GetPixel/ColorBox/StatsBox requests.
+    /// Condition variable used to signal completion of Ping/GetPixel/ColorBox/StatsBox requests.
     std::condition_variable m_asyncRpcCv;
+
+    /// Request payload for Ping.
+    remote_rtimv::PingRequest m_pingRequest;
+
+    /// Response payload for Ping.
+    remote_rtimv::PingResponse m_pingReply;
+
+    /// True while a Ping request is outstanding.
+    bool m_pingPending{ false };
+
+    /// Monotonic send time for the outstanding Ping request.
+    std::chrono::steady_clock::time_point m_pingStartTime;
 
     /// True while a GetPixel request is outstanding.
     bool m_getPixelPending{ false };
@@ -348,13 +380,34 @@ class rtimvClientBase : public mx::app::application
     /// Number of in-flight fire-and-forget empty-response unary RPCs.
     size_t m_emptyRpcPending{ 0 };
 
+    /// Mutex guarding the count of callback threads still actively executing client code.
+    std::mutex m_callbackActivityMutex;
+
+    /// Condition variable signaled when an active gRPC callback finishes using this client object.
+    std::condition_variable m_callbackActivityCv;
+
+    /// Number of gRPC callback functions currently executing client-side follow-up logic.
+    size_t m_activeGrpcCallbacks{ 0 };
+
   public:
     /// Request an image from the server
     void ImagePlease();
 
   protected:
-    /// Launch the asynchronous ImagePlease RPC.
-    virtual void dispatchImagePleaseAsync();
+    /// Record entry into a gRPC callback so shutdown can wait for client-side callback work to finish.
+    void beginGrpcCallbackActivity();
+
+    /// Record exit from a gRPC callback and wake shutdown waiters when the active count reaches zero.
+    void endGrpcCallbackActivity();
+
+    /// Launch the asynchronous Ping RPC used for transport RTT measurement.
+    void dispatchPingAsync();
+
+    /// Launch one asynchronous ImagePlease RPC state.
+    virtual void
+    dispatchImagePleaseAsync( uint64_t requestId, /**< [in] local identifier for the in-flight request */
+                              std::shared_ptr<imageRequestState> state /**< [in] owned request/reply state */
+    );
 
   public:
     /// Request an updated calibrated pixel value.
@@ -371,8 +424,14 @@ class rtimvClientBase : public mx::app::application
     void ImageReceived();
 
   protected:
-    /// Handle an ImagePlease response from the server
-    void ImagePlease_callback( grpc::Status status );
+    /// Handle a Ping response from the server.
+    void Ping_callback( grpc::Status status );
+
+    /// Handle an ImagePlease response from the server.
+    void ImagePlease_callback( uint64_t requestId, /**< [in] local identifier for the completed request */
+                               std::shared_ptr<imageRequestState> state, /**< [in] owned request/reply state */
+                               grpc::Status status                       /**< [in] completion status */
+    );
 
     /// Handle a GetPixel response from the server.
     void GetPixel_callback( grpc::Status status );
@@ -430,17 +489,28 @@ class rtimvClientBase : public mx::app::application
 
     double m_avgCompressionRatio{ 0 }; ///< Rolling average compression ratio over recent received frames.
 
-    double m_avgFrameRate{ 0 }; ///< Rolling average frame rate over recent received frames.
+    double m_avgFrameRate{ 0 }; ///< Rolling average frame rate most recently published for display.
+
+    double m_lastRttMs{ 0 }; ///< Round-trip time of the most recently completed Ping RPC, in ms.
+
+    double m_avgRttMs{ 0 }; ///< Rolling average Ping round-trip time, in ms.
 
     double m_fpsRollingSum{ 0 }; ///< Running sum for the rolling frame-rate average.
 
     double m_compressionRollingSum{ 0 }; ///< Running sum for the rolling compression-ratio average.
 
+    double m_rttRollingSum{ 0 }; ///< Running sum for the rolling RTT average.
+
     std::deque<double> m_recentFrameIntervals; ///< Recent inter-arrival times used to form the rolling average.
 
     std::deque<double> m_recentCompressionRatios; ///< Recent compression-ratio samples used to form the average.
 
+    std::deque<double> m_recentRtts; ///< Recent Ping RTT samples used to form the rolling average.
+
     std::chrono::steady_clock::time_point m_lastArrivalTime; ///< Monotonic arrival time of the previous received frame.
+
+    std::chrono::steady_clock::time_point
+        m_lastFrameRatePublishTime; ///< Monotonic time when m_avgFrameRate was last refreshed for display.
 
     double m_imageTime{ 0 };
 
@@ -613,6 +683,9 @@ class rtimvClientBase : public mx::app::application
      */
 
   private:
+    /// Update rolling RTT statistics from a completed Ping RPC.
+    void updateRollingRttStats( double rttMs /**< [in] round-trip time in milliseconds */ );
+
     void setCurrImageTimeout();
 
     /// Update rolling transport statistics from the latest received frame.
@@ -643,6 +716,12 @@ class rtimvClientBase : public mx::app::application
 
     /// Get the JPEG quality
     int quality();
+
+    /// Set the target number of in-flight ImagePlease RPCs.
+    void imageRequestWindow( int window /**< [in] desired in-flight ImagePlease window */ );
+
+    /// Get the target number of in-flight ImagePlease RPCs.
+    int imageRequestWindow();
 
     /// Get the current image display timeout.
     /**
@@ -679,6 +758,12 @@ class rtimvClientBase : public mx::app::application
 
     /// Get the rolling average frame rate.
     double avgFrameRate();
+
+    /// Get the RTT of the most recently completed Ping RPC.
+    double lastRttMs();
+
+    /// Get the rolling average Ping RTT.
+    double avgRttMs();
 
     /// @}
 

@@ -16,9 +16,10 @@
 #include <cmath>
 #include <thread>
 
-#include <QMetaObject>
-#include <QPointer>
 #include <QCoreApplication>
+#include <QMetaObject>
+#include <QThread>
+#include <QTimer>
 
 #include <mx/ioutils/stringUtils.hpp>
 
@@ -27,6 +28,11 @@
 
 namespace
 {
+
+constexpr int minImageRequestWindow = 1;
+constexpr int maxImageRequestWindow = 128;
+constexpr auto avgFrameRatePublishInterval = std::chrono::seconds( 1 );
+constexpr auto shutdownRpcGracePeriod = std::chrono::milliseconds( 500 );
 
 /// Parse a bool config target while preserving bare optional flags as true.
 bool configBoolOption( mx::app::appConfigurator &config, const std::string &name )
@@ -78,16 +84,46 @@ rtimvClientBase::~rtimvClientBase()
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
         m_shuttingDown = true;
+    }
 
-        if( m_ImagePleaseContext )
+    if( m_foundation )
+    {
+        if( m_foundation->thread() == QThread::currentThread() )
         {
-            m_ImagePleaseContext->TryCancel();
+            m_foundation->shutdown();
+        }
+        else
+        {
+            QMetaObject::invokeMethod( m_foundation, "shutdown", Qt::BlockingQueuedConnection );
         }
     }
 
     { // mutex scope
         std::unique_lock<std::mutex> lock( m_imageRequestMutex );
-        while( m_imageRequestPending )
+
+        if( !m_inflightImageRequests.empty() )
+        {
+            const auto deadline = std::chrono::steady_clock::now() + shutdownRpcGracePeriod;
+
+            while( !m_inflightImageRequests.empty() )
+            {
+                if( m_imageRequestCv.wait_until( lock, deadline ) == std::cv_status::timeout )
+                {
+                    break;
+                }
+            }
+        }
+
+        for( auto &[requestId, state] : m_inflightImageRequests )
+        {
+            static_cast<void>( requestId );
+            if( state && state->m_context )
+            {
+                state->m_context->TryCancel();
+            }
+        }
+
+        while( !m_inflightImageRequests.empty() )
         {
             if( m_imageRequestCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
             {
@@ -97,7 +133,22 @@ rtimvClientBase::~rtimvClientBase()
     }
 
     { // mutex scope
-        std::lock_guard<std::mutex> asyncLock( m_asyncRpcMutex );
+        std::unique_lock<std::mutex> asyncLock( m_asyncRpcMutex );
+
+        if( m_pingPending || m_getPixelPending || m_colorBoxPending || m_statsBoxPending || m_setColorstretchPending ||
+            m_setMinScalePending || m_setMaxScalePending || m_emptyRpcPending > 0 )
+        {
+            const auto deadline = std::chrono::steady_clock::now() + shutdownRpcGracePeriod;
+
+            while( m_pingPending || m_getPixelPending || m_colorBoxPending || m_statsBoxPending ||
+                   m_setColorstretchPending || m_setMinScalePending || m_setMaxScalePending || m_emptyRpcPending > 0 )
+            {
+                if( m_asyncRpcCv.wait_until( asyncLock, deadline ) == std::cv_status::timeout )
+                {
+                    break;
+                }
+            }
+        }
 
         if( m_GetPixelContext )
         {
@@ -129,6 +180,11 @@ rtimvClientBase::~rtimvClientBase()
             m_SetMaxScaleContext->TryCancel();
         }
 
+        if( m_PingContext )
+        {
+            m_PingContext->TryCancel();
+        }
+
         for( auto *context : m_emptyRpcContexts )
         {
             if( context )
@@ -141,12 +197,24 @@ rtimvClientBase::~rtimvClientBase()
     { // mutex scope
         std::unique_lock<std::mutex> lock( m_asyncRpcMutex );
 
-        while( m_getPixelPending || m_colorBoxPending || m_statsBoxPending || m_setColorstretchPending ||
-               m_setMinScalePending || m_setMaxScalePending || m_emptyRpcPending > 0 )
+        while( m_pingPending || m_getPixelPending || m_colorBoxPending || m_statsBoxPending ||
+               m_setColorstretchPending || m_setMinScalePending || m_setMaxScalePending || m_emptyRpcPending > 0 )
         {
             if( m_asyncRpcCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
             {
                 std::cerr << formatBaseLogMessage( "waiting for async unary RPC callbacks during shutdown." ) << '\n';
+            }
+        }
+    }
+
+    { // mutex scope
+        std::unique_lock<std::mutex> lock( m_callbackActivityMutex );
+
+        while( m_activeGrpcCallbacks > 0 )
+        {
+            if( m_callbackActivityCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
+            {
+                std::cerr << formatBaseLogMessage( "waiting for gRPC callback activity during shutdown." ) << '\n';
             }
         }
     }
@@ -158,8 +226,43 @@ rtimvClientBase::~rtimvClientBase()
 
     if( m_foundation )
     {
-        m_foundation->deleteLater();
+        if( m_foundation->thread() == QThread::currentThread() )
+        {
+            delete m_foundation;
+        }
+        else
+        {
+            m_foundation->deleteLater();
+        }
+
+        m_foundation = nullptr;
     }
+}
+
+void rtimvClientBase::beginGrpcCallbackActivity()
+{
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_callbackActivityMutex );
+        ++m_activeGrpcCallbacks;
+    }
+}
+
+void rtimvClientBase::endGrpcCallbackActivity()
+{
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_callbackActivityMutex );
+
+        if( m_activeGrpcCallbacks == 0 )
+        {
+            std::cerr << formatBaseLogMessage( "bug: gRPC callback activity underflow during shutdown tracking." )
+                      << '\n';
+            return;
+        }
+
+        --m_activeGrpcCallbacks;
+    }
+
+    m_callbackActivityCv.notify_all();
 }
 
 void rtimvClientBase::setupConfig()
@@ -277,6 +380,17 @@ void rtimvClientBase::setupConfig()
                 false,
                 "int",
                 "Specify the number of frames used for rolling averages of compression ratio and frame rate. "
+                "Default is 10." );
+
+    config.add( "update.imageWindow",
+                "",
+                "update.imageWindow",
+                mx::app::argType::Required,
+                "update",
+                "imageWindow",
+                false,
+                "int",
+                "Specify the target number of in-flight ImagePlease RPCs used to hide transport latency. "
                 "Default is 10." );
 
     config.add( "autoscale",
@@ -573,6 +687,14 @@ void rtimvClientBase::loadConfig()
         }
     }
 
+    if( config.isSet( "update.imageWindow" ) )
+    {
+        int imageWindow{ 10 };
+        config( imageWindow, "update.imageWindow" );
+        m_targetImageWindow =
+            static_cast<size_t>( std::clamp( imageWindow, minImageRequestWindow, maxImageRequestWindow ) );
+    }
+
     if( config.isSet( "autoscale" ) )
     {
         bool autoscale = configBoolOption( config, "autoscale" );
@@ -679,6 +801,8 @@ void rtimvClientBase::reconnect()
 
     if( m_connected )
     {
+        lock.unlock();
+        dispatchPingAsync();
         return;
     }
 
@@ -746,6 +870,25 @@ void rtimvClientBase::Configure()
     {
         m_clientId = result.client_id();
         m_connected = true;
+        { // mutex scope
+            std::lock_guard<std::mutex> imageLock( m_imageRequestMutex );
+            m_completedImageReplies.clear();
+            m_lastAppliedResponseSerial = 0;
+            m_imagePipelinePrimed = false;
+        }
+        m_lastCompressionRatio = 0;
+        m_avgCompressionRatio = 0;
+        m_avgFrameRate = 0;
+        m_lastRttMs = 0;
+        m_avgRttMs = 0;
+        m_fpsRollingSum = 0;
+        m_compressionRollingSum = 0;
+        m_rttRollingSum = 0;
+        m_recentFrameIntervals.clear();
+        m_recentCompressionRatios.clear();
+        m_recentRtts.clear();
+        m_lastArrivalTime = std::chrono::steady_clock::time_point{};
+        m_lastFrameRatePublishTime = std::chrono::steady_clock::time_point{};
         updateImageNamesFromServer();
         std::cerr << formatBaseLogMessage( std::format( "connected to {}:{}", m_server, m_port ) ) << '\n';
         m_connectionFailReported = false;
@@ -799,6 +942,10 @@ void rtimvClientBase::ImagePlease()
 
     SHARED_CONN_LOCK
 
+    const uint64_t connectionGeneration = m_connections;
+
+    std::vector<std::pair<uint64_t, std::shared_ptr<imageRequestState>>> requestsToDispatch;
+
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
 
@@ -807,39 +954,81 @@ void rtimvClientBase::ImagePlease()
             return;
         }
 
-        if( m_imageRequestPending )
+        const size_t targetWindow = m_imagePipelinePrimed ? m_targetImageWindow : 1;
+
+        while( m_inflightImageRequests.size() < targetWindow )
         {
+            auto state = std::make_shared<imageRequestState>();
+            state->m_context = std::make_unique<grpc::ClientContext>();
+            state->m_context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 10000 ) );
+            state->m_connectionGeneration = connectionGeneration;
 
-            std::cerr << formatBaseLogMessage( std::format(
-                             "bug: in ImagePlease but imageRequestPending is true {} {}", __FILE__, __LINE__ ) )
-                      << '\n';
-            return;
+            const uint64_t requestId = m_nextImageRequestId++;
+            m_inflightImageRequests.emplace( requestId, state );
+            requestsToDispatch.emplace_back( requestId, state );
         }
-
-        if( m_ImagePleaseContext )
-        {
-            std::cerr << formatBaseLogMessage( std::format(
-                             "bug: in ImagePlease but ImagePleaseContext is allocated {} {}", __FILE__, __LINE__ ) )
-                      << '\n';
-            return;
-        }
-
-        m_ImagePleaseContext = new grpc::ClientContext;
-        m_ImagePleaseContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 10000 ) );
-
-        m_imageRequestPending = true;
     }
 
     connLock.unlock();
-    dispatchImagePleaseAsync();
+
+    for( auto &[requestId, state] : requestsToDispatch )
+    {
+        dispatchImagePleaseAsync( requestId, state );
+    }
 }
 
-void rtimvClientBase::dispatchImagePleaseAsync()
+void rtimvClientBase::dispatchImagePleaseAsync( uint64_t requestId, std::shared_ptr<imageRequestState> state )
 {
-    stub_->async()->ImagePlease( m_ImagePleaseContext,
-                                 &m_grpcImageRequest,
-                                 &m_grpcImage,
-                                 [this]( grpc::Status status ) { this->ImagePlease_callback( status ); } );
+    if( !state || !state->m_context )
+    {
+        return;
+    }
+
+    stub_->async()->ImagePlease( state->m_context.get(),
+                                 &state->m_request,
+                                 &state->m_reply,
+                                 [this, requestId, state]( grpc::Status status )
+                                 { this->ImagePlease_callback( requestId, state, status ); } );
+}
+
+void rtimvClientBase::dispatchPingAsync()
+{
+    bool isConnected{ false };
+
+    { // mutex scope
+        sharedLockT connLock( m_connectedMutex );
+        isConnected = m_connected;
+    }
+
+    if( !isConnected || !stub_ )
+    {
+        return;
+    }
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+
+        if( m_shuttingDown || m_pingPending )
+        {
+            return;
+        }
+
+        if( m_PingContext )
+        {
+            std::cerr << formatBaseLogMessage( std::format(
+                             "bug: in dispatchPingAsync but PingContext is allocated {} {}", __FILE__, __LINE__ ) )
+                      << '\n';
+            return;
+        }
+
+        m_PingContext = new grpc::ClientContext;
+        m_PingContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+        m_pingStartTime = std::chrono::steady_clock::now();
+        m_pingPending = true;
+    }
+
+    stub_->async()->Ping(
+        m_PingContext, &m_pingRequest, &m_pingReply, [this]( grpc::Status status ) { this->Ping_callback( status ); } );
 }
 
 void rtimvClientBase::requestPixelValue( uint32_t x, uint32_t y )
@@ -1009,138 +1198,121 @@ void rtimvClientBase::requestStatsBoxValues()
 
 void rtimvClientBase::ImageReceived()
 {
+    remote_rtimv::Image grpcImage;
+    bool haveImageReply{ false };
+
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
         if( m_shuttingDown )
         {
             return;
         }
-    }
 
-    uint32_t nx, ny, nz;
-    uint32_t imageNo;
-    float fpsEst;
-    double imageTime;
-    uint32_t saturated;
-    uint32_t sourceBytesPerPixel;
-    float minsc, maxsc, minim, maxim;
-    int imageTimeout;
-    int quality;
-
-    remote_rtimv::Colorbar colorbar;
-    remote_rtimv::Colormode colormode;
-    remote_rtimv::Colorstretch stretch;
-
-    bool autoScale;
-    bool subtractDark;
-    bool applyMask;
-    bool applySatMask;
-    remote_rtimv::HPFilter hpFilter;
-    float hpfFW;
-    bool applyHPFilter;
-    remote_rtimv::LPFilter lpFilter;
-    float lpfFW;
-    bool applyLPFilter;
-    bool statsBox;
-    uint32_t statsBox_i0, statsBox_i1, statsBox_j0, statsBox_j1;
-    float statsBox_min, statsBox_max, statsBox_mean, statsBox_median;
-    bool colorBox;
-    uint32_t colorBox_i0, colorBox_i1, colorBox_j0, colorBox_j1;
-    float colorBox_min, colorBox_max;
-    int cubeDir;
-    bool hasImagePayload{ false };
-    size_t compressedBytes{ 0 };
-
-    { // mutex scope
-        std::lock_guard<std::mutex> lock( m_imageRequestMutex );
-
-        if( m_imageRequestPending )
+        if( m_completedImageReplies.empty() )
         {
-            std::cerr << formatBaseLogMessage( std::format(
-                             "bug: in ImageRecieved but imageRequestPending is true {} {}", __FILE__, __LINE__ ) )
-                      << '\n';
             return;
         }
 
-        nx = m_grpcImage.nx();
-        ny = m_grpcImage.ny();
-        nz = m_grpcImage.nz();
-        imageNo = m_grpcImage.no();
-
-        // Always have at least one pixel
-        if( nx == 0 )
+        auto newestReplyIt = m_completedImageReplies.begin();
+        for( auto replyIt = m_completedImageReplies.begin(); replyIt != m_completedImageReplies.end(); ++replyIt )
         {
-            nx = 1;
+            if( replyIt->response_serial() >= newestReplyIt->response_serial() )
+            {
+                newestReplyIt = replyIt;
+            }
         }
 
-        if( ny == 0 )
+        if( newestReplyIt->response_serial() > m_lastAppliedResponseSerial )
         {
-            ny = 1;
+            grpcImage = std::move( *newestReplyIt );
+            m_lastAppliedResponseSerial = grpcImage.response_serial();
+            haveImageReply = true;
         }
 
-        if( nz == 0 )
-        {
-            nz = 1;
-        }
+        m_completedImageReplies.clear();
+    }
 
-        if( !m_qim )
-        {
-            m_qim = new QImage;
-        }
+    if( !haveImageReply )
+    {
+        m_foundation->emit_ImageNeeded();
+        return;
+    }
 
-        if( m_grpcImage.image().size() > 0 )
-        {
-            compressedBytes = static_cast<size_t>( m_grpcImage.image().size() );
-            hasImagePayload = m_qim->loadFromData(
-                reinterpret_cast<const uchar *>( m_grpcImage.image().data() ), m_grpcImage.image().size(), "jpeg" );
-        }
+    uint32_t nx = grpcImage.nx();
+    uint32_t ny = grpcImage.ny();
+    uint32_t nz = grpcImage.nz();
+    uint32_t imageNo = grpcImage.no();
+    float fpsEst = grpcImage.fps();
+    double imageTime = grpcImage.atime();
+    uint32_t saturated = grpcImage.saturated();
+    uint32_t sourceBytesPerPixel = grpcImage.source_bytes_per_pixel();
+    float minsc = grpcImage.min_scale_data();
+    float maxsc = grpcImage.max_scale_data();
+    float minim = grpcImage.min_image_data();
+    float maxim = grpcImage.max_image_data();
+    int imageTimeout = grpcImage.image_timeout();
+    int quality = grpcImage.quality();
 
-        imageTime = m_grpcImage.atime();
-        fpsEst = m_grpcImage.fps();
+    remote_rtimv::Colorbar colorbar = grpcImage.colorbar();
+    remote_rtimv::Colormode colormode = grpcImage.colormode();
+    remote_rtimv::Colorstretch stretch = grpcImage.colorstretch();
 
-        saturated = m_grpcImage.saturated();
-        sourceBytesPerPixel = m_grpcImage.source_bytes_per_pixel();
+    bool autoScale = grpcImage.autoscale();
+    bool subtractDark = grpcImage.subtract_dark();
+    bool applyMask = grpcImage.apply_mask();
+    bool applySatMask = grpcImage.apply_sat_mask();
+    remote_rtimv::HPFilter hpFilter = grpcImage.hp_filter();
+    float hpfFW = grpcImage.hpf_fw();
+    bool applyHPFilter = grpcImage.apply_hp_filter();
+    remote_rtimv::LPFilter lpFilter = grpcImage.lp_filter();
+    float lpfFW = grpcImage.lpf_fw();
+    bool applyLPFilter = grpcImage.apply_lp_filter();
+    bool statsBox = grpcImage.stats_box();
+    uint32_t statsBox_i0 = grpcImage.stats_box_i0();
+    uint32_t statsBox_i1 = grpcImage.stats_box_i1();
+    uint32_t statsBox_j0 = grpcImage.stats_box_j0();
+    uint32_t statsBox_j1 = grpcImage.stats_box_j1();
+    float statsBox_min = grpcImage.stats_box_min();
+    float statsBox_max = grpcImage.stats_box_max();
+    float statsBox_mean = grpcImage.stats_box_mean();
+    float statsBox_median = grpcImage.stats_box_median();
+    bool colorBox = grpcImage.color_box();
+    uint32_t colorBox_i0 = grpcImage.color_box_i0();
+    uint32_t colorBox_i1 = grpcImage.color_box_i1();
+    uint32_t colorBox_j0 = grpcImage.color_box_j0();
+    uint32_t colorBox_j1 = grpcImage.color_box_j1();
+    float colorBox_min = grpcImage.color_box_min();
+    float colorBox_max = grpcImage.color_box_max();
+    int cubeDir = grpcImage.cube_dir();
+    bool hasImagePayload{ false };
+    size_t compressedBytes{ 0 };
 
-        minim = m_grpcImage.min_image_data();
-        maxim = m_grpcImage.max_image_data();
-        minsc = m_grpcImage.min_scale_data();
-        maxsc = m_grpcImage.max_scale_data();
+    // Always have at least one pixel.
+    if( nx == 0 )
+    {
+        nx = 1;
+    }
 
-        colorbar = m_grpcImage.colorbar();
-        colormode = m_grpcImage.colormode();
-        stretch = m_grpcImage.colorstretch();
+    if( ny == 0 )
+    {
+        ny = 1;
+    }
 
-        autoScale = m_grpcImage.autoscale();
+    if( nz == 0 )
+    {
+        nz = 1;
+    }
 
-        subtractDark = m_grpcImage.subtract_dark();
-        applyMask = m_grpcImage.apply_mask();
-        applySatMask = m_grpcImage.apply_sat_mask();
-        hpFilter = m_grpcImage.hp_filter();
-        hpfFW = m_grpcImage.hpf_fw();
-        applyHPFilter = m_grpcImage.apply_hp_filter();
-        lpFilter = m_grpcImage.lp_filter();
-        lpfFW = m_grpcImage.lpf_fw();
-        applyLPFilter = m_grpcImage.apply_lp_filter();
-        statsBox = m_grpcImage.stats_box();
-        statsBox_i0 = m_grpcImage.stats_box_i0();
-        statsBox_i1 = m_grpcImage.stats_box_i1();
-        statsBox_j0 = m_grpcImage.stats_box_j0();
-        statsBox_j1 = m_grpcImage.stats_box_j1();
-        statsBox_min = m_grpcImage.stats_box_min();
-        statsBox_max = m_grpcImage.stats_box_max();
-        statsBox_mean = m_grpcImage.stats_box_mean();
-        statsBox_median = m_grpcImage.stats_box_median();
-        colorBox = m_grpcImage.color_box();
-        colorBox_i0 = m_grpcImage.color_box_i0();
-        colorBox_i1 = m_grpcImage.color_box_i1();
-        colorBox_j0 = m_grpcImage.color_box_j0();
-        colorBox_j1 = m_grpcImage.color_box_j1();
-        colorBox_min = m_grpcImage.color_box_min();
-        colorBox_max = m_grpcImage.color_box_max();
+    if( !m_qim )
+    {
+        m_qim = new QImage;
+    }
 
-        imageTimeout = m_grpcImage.image_timeout();
-        cubeDir = m_grpcImage.cube_dir();
-        quality = m_grpcImage.quality();
+    if( grpcImage.image().size() > 0 )
+    {
+        compressedBytes = static_cast<size_t>( grpcImage.image().size() );
+        hasImagePayload = m_qim->loadFromData(
+            reinterpret_cast<const uchar *>( grpcImage.image().data() ), grpcImage.image().size(), "jpeg" );
     }
 
     std::shared_mutex dummy; // Used just to satisfy the requirement, not needed
@@ -1258,7 +1430,13 @@ void rtimvClientBase::ImageReceived()
     m_colorBox_j1 = colorBox_j1;
     m_colorBox_min = colorBox_min;
     m_colorBox_max = colorBox_max;
-    m_imageTimeout = imageTimeout;
+    bool imageTimeoutChanged = false;
+    if( m_imageTimeout != imageTimeout )
+    {
+        m_imageTimeout = imageTimeout;
+        imageTimeoutChanged = true;
+    }
+
     m_quality = quality;
     if( m_cubeDir != cubeDir )
     {
@@ -1298,6 +1476,11 @@ void rtimvClientBase::ImageReceived()
         zoomLevel( 1 );
     }
 
+    if( imageTimeoutChanged )
+    {
+        setCurrImageTimeout();
+    }
+
     updateFPS();
 
     if( sendQueuedMinScale )
@@ -1314,48 +1497,134 @@ void rtimvClientBase::ImageReceived()
     m_foundation->emit_ImageNeeded();
 }
 
-void rtimvClientBase::ImagePlease_callback( grpc::Status status )
+void rtimvClientBase::Ping_callback( grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder;
+
+    bool shuttingDown{ false };
+    bool disconnect{ false };
+    bool updateRtt{ false };
+    uint64_t connections{ 0 };
+    double rttMs{ 0 };
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+
+        if( !m_pingPending )
+        {
+            std::cerr << formatBaseLogMessage( "bug: in Ping_callback but pingPending is false" ) << '\n';
+            return;
+        }
+
+        if( status.ok() )
+        {
+            const std::chrono::duration<double, std::milli> dt = std::chrono::steady_clock::now() - m_pingStartTime;
+            rttMs = dt.count();
+            updateRtt = true;
+        }
+        else if( status.error_code() != grpc::StatusCode::DEADLINE_EXCEEDED )
+        {
+            disconnect = true;
+        }
+
+        contextHolder.reset( m_PingContext );
+        m_PingContext = nullptr;
+
+        m_pingPending = false;
+        shuttingDown = m_shuttingDown;
+    }
+
+    m_asyncRpcCv.notify_all();
+
+    if( shuttingDown )
+    {
+        return;
+    }
+
+    if( updateRtt )
+    {
+        updateRollingRttStats( rttMs );
+    }
+
+    if( !disconnect )
+    {
+        return;
+    }
+
+    { // mutex scope
+        sharedLockT connLock( m_connectedMutex );
+        connections = m_connections;
+    }
+
+    uniqueLockT lock( m_connectedMutex );
+    if( connections == m_connections )
+    {
+        m_connected = false;
+        std::cerr << formatBaseLogMessage( std::string( "Message from rtimvServer: " ) + status.error_message() )
+                  << '\n';
+    }
+}
+
+void rtimvClientBase::ImagePlease_callback( uint64_t requestId,
+                                            std::shared_ptr<imageRequestState> state,
+                                            grpc::Status status )
+{
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+
     int action = -1;
     int retryMs = 0;
     bool shuttingDown = false;
     bool disconnected = false;
-    uint64_t connections = 0;
+    bool staleConnection = false;
+
+    sharedLockT connLock( m_connectedMutex );
+    const uint64_t currentConnections = m_connections;
 
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_imageRequestMutex );
 
-        if( !m_imageRequestPending )
+        auto requestIt = m_inflightImageRequests.find( requestId );
+        if( requestIt == m_inflightImageRequests.end() )
         {
-            std::cerr << formatBaseLogMessage( "bug: in ImagePlease_callback but imageRequestPending is false" )
+            std::cerr << formatBaseLogMessage( std::format(
+                             "bug: in ImagePlease_callback missing request {} {} {}", requestId, __FILE__, __LINE__ ) )
                       << '\n';
             return;
         }
 
+        staleConnection = ( state && state->m_connectionGeneration != currentConnections );
+
         // Act upon its status.
-        if( status.ok() )
+        if( staleConnection )
         {
-            if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_VALID )
+        }
+        else if( status.ok() )
+        {
+            if( state && state->m_reply.status() == remote_rtimv::IMAGE_STATUS_VALID )
             {
                 action = 0;
                 m_imageRetryBackoffMs = 500;
+                m_imagePipelinePrimed = true;
+                m_completedImageReplies.push_back( std::move( state->m_reply ) );
             }
-            else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_NO_IMAGE )
+            else if( state && state->m_reply.status() == remote_rtimv::IMAGE_STATUS_NO_IMAGE )
             {
                 action = 1;
+                m_imagePipelinePrimed = false;
                 m_imageRetryBackoffMs = std::min( 5000, std::max( 1000, m_imageRetryBackoffMs ) * 2 );
                 retryMs = m_imageRetryBackoffMs;
             }
-            else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_TIMEOUT )
+            else if( state && state->m_reply.status() == remote_rtimv::IMAGE_STATUS_TIMEOUT )
             {
                 action = 3;
-                m_imageRetryBackoffMs = std::min( 5000, std::max( 500, m_imageRetryBackoffMs ) * 2 );
-                retryMs = m_imageRetryBackoffMs;
             }
-            else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_NOT_CONFIGURED )
+            else if( state && state->m_reply.status() == remote_rtimv::IMAGE_STATUS_NOT_CONFIGURED )
             {
             }
-            else if( m_grpcImage.status() == remote_rtimv::IMAGE_STATUS_ERROR )
+            else if( state && state->m_reply.status() == remote_rtimv::IMAGE_STATUS_ERROR )
             {
             }
         }
@@ -1372,27 +1641,26 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
             }
         }
 
-        delete m_ImagePleaseContext;
-        m_ImagePleaseContext = nullptr;
-
-        m_imageRequestPending = false;
+        m_inflightImageRequests.erase( requestIt );
         shuttingDown = m_shuttingDown;
     }
 
     m_imageRequestCv.notify_all();
 
-    if( disconnected )
-    {
-        sharedLockT connLock( m_connectedMutex );
-        connections = m_connections;
-        connLock.unlock();
+    connLock.unlock();
 
+    if( disconnected && !staleConnection )
+    {
         uniqueLockT lock( m_connectedMutex );
-        if( connections == m_connections )
+        if( currentConnections == m_connections )
         {
             m_connected = false;
-            std::cerr << formatBaseLogMessage( std::string( "Message from rtimvServer: " ) + status.error_message() )
-                      << '\n';
+            if( !( shuttingDown && status.error_code() == grpc::StatusCode::CANCELLED ) )
+            {
+                std::cerr << formatBaseLogMessage( std::string( "Message from rtimvServer: " ) +
+                                                   status.error_message() )
+                          << '\n';
+            }
         }
     }
 
@@ -1403,17 +1671,12 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
 
     auto scheduleImageRetry = [this]( int ms )
     {
-        QPointer<rtimvBaseObject> foundation = m_foundation;
-        std::thread(
-            [foundation, ms]()
-            {
-                std::this_thread::sleep_for( std::chrono::milliseconds( ms ) );
-                if( foundation )
-                {
-                    QMetaObject::invokeMethod( foundation, "ImagePlease", Qt::QueuedConnection );
-                }
-            } )
-            .detach();
+        if( !m_foundation )
+        {
+            return;
+        }
+
+        QMetaObject::invokeMethod( m_foundation, "scheduleImagePlease", Qt::QueuedConnection, Q_ARG( int, ms ) );
     };
 
     if( action == 0 )
@@ -1432,8 +1695,8 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
     }
     else if( action == 3 )
     {
-        // For no-new-frame timeouts, avoid re-processing stale image state for every client.
-        scheduleImageRetry( retryMs > 0 ? retryMs : 500 );
+        // Replenish the credit window and keep waiting for the next fresh image/state update.
+        m_foundation->emit_ImageNeeded();
     }
 
     // if action stays -1 we just return
@@ -1441,6 +1704,10 @@ void rtimvClientBase::ImagePlease_callback( grpc::Status status )
 
 void rtimvClientBase::GetPixel_callback( grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder;
+
     bool queueNext{ false };
     uint32_t nextX{ 0 };
     uint32_t nextY{ 0 };
@@ -1475,7 +1742,7 @@ void rtimvClientBase::GetPixel_callback( grpc::Status status )
             REPORT_SERVER_DISCONNECTED
         }
 
-        delete m_GetPixelContext;
+        contextHolder.reset( m_GetPixelContext );
         m_GetPixelContext = nullptr;
 
         m_getPixelPending = false;
@@ -1492,14 +1759,18 @@ void rtimvClientBase::GetPixel_callback( grpc::Status status )
         m_foundation->emit_pixelValueUpdated( reqX, reqY, value, valid );
     }
 
-    if( queueNext )
+    if( queueNext && m_foundation != nullptr )
     {
-        requestPixelValue( nextX, nextY );
+        QTimer::singleShot( 0, m_foundation, [this, nextX, nextY]() { requestPixelValue( nextX, nextY ); } );
     }
 }
 
 void rtimvClientBase::ColorBox_callback( grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder;
+
     bool queueNext{ false };
     bool valid{ false };
     int64_t i0{ 0 }, i1{ 0 }, j0{ 0 }, j1{ 0 };
@@ -1541,7 +1812,7 @@ void rtimvClientBase::ColorBox_callback( grpc::Status status )
             REPORT_SERVER_DISCONNECTED
         }
 
-        delete m_ColorBoxContext;
+        contextHolder.reset( m_ColorBoxContext );
         m_ColorBoxContext = nullptr;
 
         m_colorBoxPending = false;
@@ -1556,14 +1827,18 @@ void rtimvClientBase::ColorBox_callback( grpc::Status status )
         m_foundation->emit_colorBoxUpdated( i0, i1, j0, j1, min, max, valid );
     }
 
-    if( queueNext )
+    if( queueNext && m_foundation != nullptr )
     {
-        requestColorBoxValues();
+        QTimer::singleShot( 0, m_foundation, [this]() { requestColorBoxValues(); } );
     }
 }
 
 void rtimvClientBase::StatsBox_callback( grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder;
+
     bool queueNext{ false };
     bool valid{ false };
     int64_t i0{ 0 }, i1{ 0 }, j0{ 0 }, j1{ 0 };
@@ -1614,7 +1889,7 @@ void rtimvClientBase::StatsBox_callback( grpc::Status status )
             REPORT_SERVER_DISCONNECTED
         }
 
-        delete m_StatsBoxContext;
+        contextHolder.reset( m_StatsBoxContext );
         m_StatsBoxContext = nullptr;
 
         m_statsBoxPending = false;
@@ -1629,14 +1904,18 @@ void rtimvClientBase::StatsBox_callback( grpc::Status status )
         m_foundation->emit_statsBoxUpdated( i0, i1, j0, j1, min, max, mean, median, valid );
     }
 
-    if( queueNext )
+    if( queueNext && m_foundation != nullptr )
     {
-        requestStatsBoxValues();
+        QTimer::singleShot( 0, m_foundation, [this]() { requestStatsBoxValues(); } );
     }
 }
 
 void rtimvClientBase::SetColorstretch_callback( grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder;
+
     bool queueNext{ false };
     rtimv::stretch nextStretch{ rtimv::stretch::linear };
 
@@ -1656,7 +1935,7 @@ void rtimvClientBase::SetColorstretch_callback( grpc::Status status )
             REPORT_SERVER_DISCONNECTED
         }
 
-        delete m_SetColorstretchContext;
+        contextHolder.reset( m_SetColorstretchContext );
         m_SetColorstretchContext = nullptr;
 
         m_setColorstretchPending = false;
@@ -1667,14 +1946,18 @@ void rtimvClientBase::SetColorstretch_callback( grpc::Status status )
 
     m_asyncRpcCv.notify_all();
 
-    if( queueNext )
+    if( queueNext && m_foundation != nullptr )
     {
-        stretch( nextStretch );
+        QTimer::singleShot( 0, m_foundation, [this, nextStretch]() { stretch( nextStretch ); } );
     }
 }
 
 void rtimvClientBase::SetMinScale_callback( grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder;
+
     bool queueNext{ false };
     float nextValue{ 0 };
 
@@ -1700,21 +1983,25 @@ void rtimvClientBase::SetMinScale_callback( grpc::Status status )
             m_setMinScaleQueued = false;
         }
 
-        delete m_SetMinScaleContext;
+        contextHolder.reset( m_SetMinScaleContext );
         m_SetMinScaleContext = nullptr;
         m_setMinScalePending = false;
     }
 
     m_asyncRpcCv.notify_all();
 
-    if( queueNext )
+    if( queueNext && m_foundation != nullptr )
     {
-        minScaleData( nextValue );
+        QTimer::singleShot( 0, m_foundation, [this, nextValue]() { minScaleData( nextValue ); } );
     }
 }
 
 void rtimvClientBase::SetMaxScale_callback( grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder;
+
     bool queueNext{ false };
     float nextValue{ 0 };
 
@@ -1740,21 +2027,25 @@ void rtimvClientBase::SetMaxScale_callback( grpc::Status status )
             m_setMaxScaleQueued = false;
         }
 
-        delete m_SetMaxScaleContext;
+        contextHolder.reset( m_SetMaxScaleContext );
         m_SetMaxScaleContext = nullptr;
         m_setMaxScalePending = false;
     }
 
     m_asyncRpcCv.notify_all();
 
-    if( queueNext )
+    if( queueNext && m_foundation != nullptr )
     {
-        maxScaleData( nextValue );
+        QTimer::singleShot( 0, m_foundation, [this, nextValue]() { maxScaleData( nextValue ); } );
     }
 }
 
 void rtimvClientBase::EmptyRpc_callback( grpc::ClientContext *context, grpc::Status status )
 {
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    std::unique_ptr<grpc::ClientContext> contextHolder( context );
+
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
 
@@ -1777,8 +2068,6 @@ void rtimvClientBase::EmptyRpc_callback( grpc::ClientContext *context, grpc::Sta
             --m_emptyRpcPending;
         }
     }
-
-    delete context;
 
     m_asyncRpcCv.notify_all();
 
@@ -1844,6 +2133,16 @@ double rtimvClientBase::avgCompressionRatio()
 double rtimvClientBase::avgFrameRate()
 {
     return m_avgFrameRate;
+}
+
+double rtimvClientBase::lastRttMs()
+{
+    return m_lastRttMs;
+}
+
+double rtimvClientBase::avgRttMs()
+{
+    return m_avgRttMs;
 }
 
 std::string rtimvClientBase::imageName( size_t n )
@@ -2109,6 +2408,7 @@ void rtimvClientBase::updateCubeFrame()
 void rtimvClientBase::setCurrImageTimeout()
 {
     int cubeTimeout;
+    int currImageTimeout;
 
     if( m_desiredCubeFPS <= 0 || m_nz <= 1 )
     {
@@ -2126,6 +2426,8 @@ void rtimvClientBase::setCurrImageTimeout()
         m_cubeFPS = 0;
 
         m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
+
+        currImageTimeout = m_imageTimeout;
     }
     else // it's a cube, cube mode is on, and FPS > 0
     {
@@ -2137,23 +2439,28 @@ void rtimvClientBase::setCurrImageTimeout()
             cubeTimeout = 1;
         }
 
-        if( cubeTimeout < m_imageTimeout )
+        if( cubeTimeout <= m_imageTimeout )
         {
-            cubeTimeout = m_imageTimeout;
+            // Report reality
+            m_cubeFPS = ( 1000.0 / cubeTimeout ) / m_cubeFPSMult;
+            currImageTimeout = cubeTimeout;
         }
-
-        // Now get reality with imageTimeout
-        int f = std::round( ( 1.0 * cubeTimeout ) / m_imageTimeout );
-        if( f <= 0 )
+        else
         {
-            f = 1;
+            // Now get reality with imageTimeout
+            int f = std::round( ( 1.0 * cubeTimeout ) / m_imageTimeout );
+            if( f <= 0 )
+            {
+                f = 1;
+            }
+
+            // Report reality
+            m_cubeFPS = ( 1000.0 / ( f * m_imageTimeout ) ) / m_cubeFPSMult;
+
+            // Implement reality
+            cubeTimeout = std::round( 1000. / ( m_cubeFPS * m_cubeFPSMult ) );
+            currImageTimeout = m_imageTimeout;
         }
-
-        // Report reality
-        m_cubeFPS = ( 1000.0 / ( f * m_imageTimeout ) ) / m_cubeFPSMult;
-
-        // Implement reality
-        cubeTimeout = std::round( 1000. / ( m_cubeFPS * m_cubeFPSMult ) );
 
         if( m_cubeMode )
         {
@@ -2167,6 +2474,32 @@ void rtimvClientBase::setCurrImageTimeout()
         }
 
         m_foundation->emit_cubeFPSUpdated( m_cubeFPS, m_desiredCubeFPS );
+    }
+
+    m_currImageTimeout = currImageTimeout;
+}
+
+void rtimvClientBase::updateRollingRttStats( double rttMs )
+{
+    if( m_rollingStatsFrames < 1 )
+    {
+        m_rollingStatsFrames = 1;
+    }
+
+    m_lastRttMs = rttMs;
+
+    m_recentRtts.push_back( rttMs );
+    m_rttRollingSum += rttMs;
+
+    while( static_cast<int>( m_recentRtts.size() ) > m_rollingStatsFrames )
+    {
+        m_rttRollingSum -= m_recentRtts.front();
+        m_recentRtts.pop_front();
+    }
+
+    if( !m_recentRtts.empty() )
+    {
+        m_avgRttMs = m_rttRollingSum / static_cast<double>( m_recentRtts.size() );
     }
 }
 
@@ -2199,7 +2532,13 @@ void rtimvClientBase::updateRollingTransportStats(
                 const double avgFrameInterval = m_fpsRollingSum / static_cast<double>( m_recentFrameIntervals.size() );
                 if( avgFrameInterval > 0 )
                 {
-                    m_avgFrameRate = 1.0 / avgFrameInterval;
+                    const double computedAvgFrameRate = 1.0 / avgFrameInterval;
+                    if( m_lastFrameRatePublishTime == std::chrono::steady_clock::time_point{} ||
+                        now - m_lastFrameRatePublishTime >= avgFrameRatePublishInterval )
+                    {
+                        m_avgFrameRate = computedAvgFrameRate;
+                        m_lastFrameRatePublishTime = now;
+                    }
                 }
             }
         }
@@ -2268,6 +2607,36 @@ void rtimvClientBase::imageTimeout( int to )
 int rtimvClientBase::imageTimeout()
 {
     return m_imageTimeout;
+}
+
+void rtimvClientBase::imageRequestWindow( int window )
+{
+    const size_t clampedWindow =
+        static_cast<size_t>( std::clamp( window, minImageRequestWindow, maxImageRequestWindow ) );
+    bool requestMoreImages{ false };
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_imageRequestMutex );
+
+        requestMoreImages = !m_shuttingDown && clampedWindow > m_targetImageWindow;
+        m_targetImageWindow = clampedWindow;
+    }
+
+    if( requestMoreImages && m_foundation != nullptr )
+    {
+        m_foundation->emit_ImageNeeded();
+    }
+}
+
+int rtimvClientBase::imageRequestWindow()
+{
+    std::lock_guard<std::mutex> lock( m_imageRequestMutex );
+    return static_cast<int>( m_targetImageWindow );
+}
+
+int rtimvClientBase::currImageTimeout()
+{
+    return m_currImageTimeout;
 }
 
 void rtimvClientBase::quality( int q )

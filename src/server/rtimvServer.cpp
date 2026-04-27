@@ -9,7 +9,9 @@
 #include "rtimvLog.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <filesystem>
+#include <vector>
 
 namespace
 {
@@ -27,6 +29,197 @@ std::string image0OrUnknown( rtimvServerThread *imageTh )
     }
 
     return im0;
+}
+
+std::string boolString( bool value )
+{
+    if( value )
+    {
+        return "true";
+    }
+
+    return "false";
+}
+
+std::string quotedOrUnset( const std::string &value )
+{
+    if( value.empty() )
+    {
+        return "<unset>";
+    }
+
+    return "'" + value + "'";
+}
+
+void appendUniqueConfigSources( std::vector<std::string> &loadedFiles, const std::vector<std::string> &sources )
+{
+    for( const auto &source : sources )
+    {
+        if( source.empty() || source == "command line" )
+        {
+            continue;
+        }
+
+        if( std::find( loadedFiles.begin(), loadedFiles.end(), source ) == loadedFiles.end() )
+        {
+            loadedFiles.push_back( source );
+        }
+    }
+}
+
+std::vector<std::string> loadedConfigFiles( const mx::app::appConfigurator &config )
+{
+    std::vector<std::string> loadedFiles;
+
+    for( const auto &[name, target] : config.m_targets )
+    {
+        static_cast<void>( name );
+        appendUniqueConfigSources( loadedFiles, target.sources );
+    }
+
+    for( const auto &[name, target] : config.m_unusedConfigs )
+    {
+        static_cast<void>( name );
+        appendUniqueConfigSources( loadedFiles, target.sources );
+    }
+
+    return loadedFiles;
+}
+
+std::string joinConfigFiles( const std::vector<std::string> &files )
+{
+    if( files.empty() )
+    {
+        return "<none>";
+    }
+
+    std::string joined;
+
+    for( size_t n = 0; n < files.size(); ++n )
+    {
+        if( n > 0 )
+        {
+            joined += ", ";
+        }
+
+        joined += files[n];
+    }
+
+    return joined;
+}
+
+std::string configValueSource( const mx::app::appConfigurator &config, const std::string &name )
+{
+    auto targetIt = config.m_targets.find( name );
+    if( targetIt == config.m_targets.end() || !targetIt->second.set || targetIt->second.sources.empty() )
+    {
+        return "default";
+    }
+
+    return targetIt->second.sources.back();
+}
+
+std::string summarizeBaseConfigOverrides( const rtimvBase::startupConfig &settings,
+                                          const mx::app::appConfigurator &config )
+{
+    std::vector<std::string> parts;
+
+    auto addValue = [&]( const std::string &name, const std::string &value )
+    { parts.push_back( std::format( "{}={} ({})", name, value, configValueSource( config, name ) ) ); };
+
+    if( !settings.m_imageKeys[0].empty() )
+    {
+        addValue( "image.key", settings.m_imageKeys[0] );
+    }
+
+    if( !settings.m_imageKeys[1].empty() )
+    {
+        addValue( "dark.key", settings.m_imageKeys[1] );
+    }
+
+    if( !settings.m_imageKeys[2].empty() )
+    {
+        addValue( "mask.key", settings.m_imageKeys[2] );
+    }
+
+    if( !settings.m_imageKeys[3].empty() )
+    {
+        addValue( "satMask.key", settings.m_imageKeys[3] );
+    }
+
+    if( settings.m_updateTimeoutSet )
+    {
+        const auto updateTimeoutTarget = config.m_targets.find( "update.timeout" );
+        const bool updateTimeoutExplicit =
+            updateTimeoutTarget != config.m_targets.end() && updateTimeoutTarget->second.set;
+        const std::string timeoutSource = updateTimeoutExplicit ? configValueSource( config, "update.timeout" )
+                                                                : configValueSource( config, "update.fps" );
+        parts.push_back( std::format( "update.timeout={} ({})", settings.m_updateTimeout, timeoutSource ) );
+    }
+
+    if( settings.m_updateCubeFPSSet )
+    {
+        addValue( "update.cubeFPS", std::to_string( settings.m_updateCubeFPS ) );
+    }
+
+    if( settings.m_colorbarSet )
+    {
+        addValue( "colorbar", settings.m_colorbarName );
+    }
+
+    if( settings.m_autoscaleSet )
+    {
+        addValue( "autoscale", boolString( settings.m_autoscale ) );
+    }
+
+    if( settings.m_darkSubSet )
+    {
+        addValue( "darksub", boolString( settings.m_darkSub ) );
+    }
+
+    if( settings.m_satLevelSet )
+    {
+        addValue( "satLevel", std::to_string( settings.m_satLevel ) );
+    }
+
+    if( settings.m_maskSatSet )
+    {
+        addValue( "masksat", boolString( settings.m_maskSat ) );
+    }
+
+    if( settings.m_mzmqAlwaysSet )
+    {
+        addValue( "mzmq.always", boolString( settings.m_mzmqAlways ) );
+    }
+
+    if( settings.m_mzmqServerSet )
+    {
+        addValue( "mzmq.server", settings.m_mzmqServer );
+    }
+
+    if( settings.m_mzmqPortSet )
+    {
+        addValue( "mzmq.port", std::to_string( settings.m_mzmqPort ) );
+    }
+
+    if( parts.empty() )
+    {
+        return "<none>";
+    }
+
+    std::string summary;
+
+    for( size_t n = 0; n < parts.size(); ++n )
+    {
+        if( n > 0 )
+        {
+            summary += ", ";
+        }
+
+        summary += parts[n];
+    }
+
+    return summary;
 }
 
 struct rpcActivityGuard
@@ -91,6 +284,7 @@ rtimvServer::rtimvServer( int argc, char **argv, QObject *Parent ) : QObject( Pa
     }
 
     m_configPathCLBase_env = "RTIMV_CONFIG_PATH"; // Tells mx::application to look for this env var.
+    config.m_sources = true;
 
     setup( argc, argv );
 
@@ -115,6 +309,8 @@ rtimvServer::~rtimvServer()
 
 void rtimvServer::setupConfig()
 {
+    rtimvBase::setupBaseConfig( config, false );
+
     config.add( "server.port",
                 "p",
                 "server.port",
@@ -184,30 +380,12 @@ void rtimvServer::setupConfig()
                 false,
                 "int",
                 "Default JPEG quality for served images when no per-image quality is configured." );
-
-    config.add( "log.appname",
-                "",
-                "log.appname",
-                mx::app::argType::Required,
-                "log",
-                "appname",
-                false,
-                "bool",
-                "Set true/false to include/exclude called-name in log prefixes." );
-
-    config.add( "no-log-appname",
-                "",
-                "no-log-appname",
-                mx::app::argType::True,
-                "log",
-                "no-appname",
-                false,
-                "bool",
-                "Disable called-name in log prefixes." );
 }
 
 void rtimvServer::loadConfig()
 {
+    rtimvBase::loadBaseConfig( m_baseConfigDefaults, config );
+
     config( m_port, "server.port" );
     config( m_serverAddress, "server.address" );
     config( m_waitTimeout, "image.timeout" );
@@ -217,20 +395,89 @@ void rtimvServer::loadConfig()
     config( m_qualityDefault, "quality" );
     m_qualityDefault = std::clamp( m_qualityDefault, 0, 100 );
 
-    if( config.isSet( "log.appname" ) )
+    if( m_baseConfigDefaults.m_logAppNameSet )
     {
-        config( m_logAppName, "log.appname" );
+        m_logAppName = m_baseConfigDefaults.m_logAppName;
     }
 
+    rtimv::logContext serverCtx;
+    serverCtx.calledName = m_calledName;
+    serverCtx.includeAppName = m_logAppName;
+
+    std::string configPathEnvValue;
+    if( !m_configPathCLBase_env.empty() )
+    {
+        const char *envValue = std::getenv( m_configPathCLBase_env.c_str() );
+        if( envValue != nullptr )
+        {
+            configPathEnvValue = envValue;
+        }
+    }
+
+    const std::vector<std::string> configFiles = loadedConfigFiles( config );
+
+    std::string logAppNameSource = configValueSource( config, "log.appname" );
     if( config.isSet( "no-log-appname" ) )
     {
         bool noLogAppName = false;
         config( noLogAppName, "no-log-appname" );
         if( noLogAppName )
         {
-            m_logAppName = false;
+            logAppNameSource = configValueSource( config, "no-log-appname" );
         }
     }
+
+    std::cout << rtimv::formatLogMessage(
+                     serverCtx,
+                     std::format( "config env {}={}", m_configPathCLBase_env, quotedOrUnset( configPathEnvValue ) ) )
+              << '\n';
+
+    std::cout << rtimv::formatLogMessage( serverCtx,
+                                          std::format( "config paths: global={} user={} local={} command_line_base={} "
+                                                       "command_line={}",
+                                                       quotedOrUnset( m_configPathGlobal ),
+                                                       quotedOrUnset( m_configPathUser ),
+                                                       quotedOrUnset( m_configPathLocal ),
+                                                       quotedOrUnset( m_configPathCLBase ),
+                                                       quotedOrUnset( m_configPathCL ) ) )
+              << '\n';
+
+    std::cout << rtimv::formatLogMessage( serverCtx,
+                                          std::format( "loaded config files: {}", joinConfigFiles( configFiles ) ) )
+              << '\n';
+
+    std::cout << rtimv::formatLogMessage(
+                     serverCtx,
+                     std::format( "effective config: server.address={} ({}) server.port={} ({}) image.timeout={} ({}) "
+                                  "image.sleep={} ({})",
+                                  m_serverAddress,
+                                  configValueSource( config, "server.address" ),
+                                  m_port,
+                                  configValueSource( config, "server.port" ),
+                                  m_waitTimeout,
+                                  configValueSource( config, "image.timeout" ),
+                                  m_waitSleep,
+                                  configValueSource( config, "image.sleep" ) ) )
+              << '\n';
+
+    std::cout << rtimv::formatLogMessage(
+                     serverCtx,
+                     std::format( "effective config: client.sleep={} ({}) client.disconnect={} ({}) quality={} ({}) "
+                                  "log.appname={} ({})",
+                                  m_clientSleep,
+                                  configValueSource( config, "client.sleep" ),
+                                  m_clientDisconnect,
+                                  configValueSource( config, "client.disconnect" ),
+                                  m_qualityDefault,
+                                  configValueSource( config, "quality" ),
+                                  boolString( m_logAppName ),
+                                  logAppNameSource ) )
+              << '\n';
+
+    std::cout << rtimv::formatLogMessage( serverCtx,
+                                          std::format( "rtimvBase default overrides: {}",
+                                                       summarizeBaseConfigOverrides( m_baseConfigDefaults, config ) ) )
+              << '\n';
 }
 
 void rtimvServer::startServer()
@@ -290,11 +537,14 @@ void rtimvServer::startServer()
             }
             else
             {
+                imageTh->prunePendingImageRequests( m_waitTimeout );
+
                 double slr = imageTh->sinceLastRequest();
+                size_t pendingRequests = imageTh->pendingImageRequests();
 
                 if( slr > m_clientDisconnect )
                 {
-                    if( imageTh->rpcActive() > 0 )
+                    if( imageTh->rpcActive() > 0 || pendingRequests > 0 )
                     {
                         ++client;
                         continue;
@@ -344,7 +594,7 @@ void rtimvServer::startServer()
                 }
                 else if( slr > m_clientSleep )
                 {
-                    if( !imageTh->asleep() )
+                    if( pendingRequests == 0 && !imageTh->asleep() )
                     {
                         imageTh->emit_gotosleep();
                         std::cout << rtimv::formatServerLogMessage( m_calledName,
@@ -549,7 +799,7 @@ ServerUnaryReactor *rtimvServer::SetImageTimeout( CallbackServerContext *context
     PREPARE_RPC_REACTOR
     static_cast<void>( reply );
 
-    imageTh->imageTimeout( request->timeout() );
+    imageTh->setImageTimeout( request->timeout() );
 
     reactor->Finish( Status::OK );
     return reactor;
@@ -730,129 +980,67 @@ ServerUnaryReactor *rtimvServer::SetApplyLPFilter( CallbackServerContext *contex
     return reactor;
 }
 
+ServerUnaryReactor *rtimvServer::Ping( CallbackServerContext *context,
+                                       const remote_rtimv::PingRequest *request,
+                                       remote_rtimv::PingResponse *reply )
+{
+    static_cast<void>( request );
+    static_cast<void>( reply );
+
+    ServerUnaryReactor *reactor = context->DefaultReactor();
+
+    sharedLockT slock( m_clientMutex );
+
+    auto clientIt = m_clients.find( context->peer() );
+    if( clientIt == m_clients.end() )
+    {
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "not configured" ) );
+        return reactor;
+    }
+
+    rtimvServerThread *imageTh = clientIt->second;
+    if( imageTh == nullptr )
+    {
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "reconnect" ) );
+        return reactor;
+    }
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
 ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
                                               const remote_rtimv::ImageRequest *request,
                                               remote_rtimv::Image *reply )
 {
-    PREPARE_RPC_REACTOR
     static_cast<void>( request );
 
-    // Check if image has been found
-    if( !imageTh->connected() )
-    {
-        reply->set_status( remote_rtimv::IMAGE_STATUS_NO_IMAGE );
-        std::string *im = new std::string;
-        reply->set_allocated_image( im );
+    sharedLockT slock( m_clientMutex );
 
-        reactor->Finish( Status::OK );
+    auto clientIt = m_clients.find( context->peer() );
+    if( clientIt == m_clients.end() )
+    {
+        ServerUnaryReactor *reactor = context->DefaultReactor();
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "not configured" ) );
         return reactor;
     }
 
-    int maxWaits;
-
-    if( m_waitSleep <= 0 ) // prevent an infinite busy
+    rtimvServerThread *imageTh = clientIt->second;
+    if( imageTh == nullptr )
     {
-        maxWaits = 1;
-    }
-    else
-    {
-        maxWaits = m_waitTimeout / ( m_waitSleep / 1000. ) + 1;
-    }
-
-    int nwaits = 0;
-    while( imageTh->newImage() == false && nwaits < maxWaits )
-    {
-        mx::sys::milliSleep( m_waitSleep );
-        ++nwaits;
-    }
-
-    auto populateImageState = [imageTh, reply]()
-    {
-        reply->set_nx( imageTh->nx() );
-        reply->set_ny( imageTh->ny() );
-        reply->set_nz( imageTh->nz() );
-        reply->set_no( imageTh->imageNo( 0 ) );
-
-        reply->set_atime( imageTh->imageTime() );
-        reply->set_fps( imageTh->fpsEst() );
-
-        reply->set_saturated( imageTh->saturated() );
-
-        reply->set_min_image_data( imageTh->minImageData() );
-        reply->set_max_image_data( imageTh->maxImageData() );
-        reply->set_min_scale_data( imageTh->minScaleData() );
-        reply->set_max_scale_data( imageTh->maxScaleData() );
-        reply->set_source_bytes_per_pixel( imageTh->bytesPerPixel( 0 ) );
-
-        reply->set_colorbar( rtimv::colorbar2grpc( imageTh->colorbar() ) );
-
-        reply->set_colormode( rtimv::colormode2grpc( imageTh->colormode() ) );
-
-        reply->set_colorstretch( rtimv::stretch2grpc( imageTh->stretch() ) );
-
-        reply->set_autoscale( imageTh->autoScale() );
-
-        reply->set_subtract_dark( imageTh->subtractDark() );
-        reply->set_apply_mask( imageTh->applyMask() );
-        reply->set_apply_sat_mask( imageTh->applySatMask() );
-
-        reply->set_image_timeout( imageTh->imageTimeout() );
-        reply->set_cube_dir( imageTh->cubeDir() );
-        reply->set_quality( imageTh->quality() );
-
-        reply->set_hp_filter( rtimv::hpFilter2grpc( imageTh->hpFilter() ) );
-        reply->set_hpf_fw( imageTh->hpfFW() );
-        reply->set_apply_hp_filter( imageTh->applyHPFilter() );
-
-        reply->set_lp_filter( rtimv::lpFilter2grpc( imageTh->lpFilter() ) );
-        reply->set_lpf_fw( imageTh->lpfFW() );
-        reply->set_apply_lp_filter( imageTh->applyLPFilter() );
-
-        reply->set_stats_box( imageTh->statsBox() );
-        reply->set_stats_box_i0( imageTh->statsBox_i0() );
-        reply->set_stats_box_i1( imageTh->statsBox_i1() );
-        reply->set_stats_box_j0( imageTh->statsBox_j0() );
-        reply->set_stats_box_j1( imageTh->statsBox_j1() );
-        reply->set_stats_box_min( imageTh->statsBox_min() );
-        reply->set_stats_box_max( imageTh->statsBox_max() );
-        reply->set_stats_box_mean( imageTh->statsBox_mean() );
-        reply->set_stats_box_median( imageTh->statsBox_median() );
-
-        reply->set_color_box( imageTh->colormode() == rtimv::colormode::minmaxbox );
-        reply->set_color_box_i0( imageTh->colorBox_i0() );
-        reply->set_color_box_i1( imageTh->colorBox_i1() );
-        reply->set_color_box_j0( imageTh->colorBox_j0() );
-        reply->set_color_box_j1( imageTh->colorBox_j1() );
-        reply->set_color_box_min( imageTh->colorBox_min() );
-        reply->set_color_box_max( imageTh->colorBox_max() );
-    };
-
-    if( imageTh->newImage() == false )
-    {
-        reply->set_status( remote_rtimv::IMAGE_STATUS_TIMEOUT );
-        populateImageState();
-        std::string *im = new std::string;
-        reply->set_allocated_image( im );
-
-        imageTh->lastRequest( -1 ); // sets to now, again b/c of wait
-
-        reactor->Finish( Status::OK );
+        ServerUnaryReactor *reactor = context->DefaultReactor();
+        reactor->Finish( grpc::Status( grpc::FAILED_PRECONDITION, "reconnect" ) );
         return reactor;
     }
 
-    // Now we can render the latest image and send it
-    std::string *im = new std::string;
+    imageTh->lastRequest( -1 );
 
-    imageTh->mtxuL_render( im );
+    if( imageTh->asleep() )
+    {
+        imageTh->emit_awaken();
+    }
 
-    imageTh->lastRequest( -1 ); // sets to now, again b/c of wait
-
-    reply->set_status( remote_rtimv::IMAGE_STATUS_VALID );
-    populateImageState();
-
-    reply->set_allocated_image( im );
-
-    reactor->Finish( Status::OK );
+    ServerUnaryReactor *reactor = imageTh->newImagePleaseReactor( reply );
 
     return reactor;
 }
@@ -1158,6 +1346,8 @@ void rtimvServer::doConfigure( const configSpec *cspec )
         argv->push_back( "-c" );
         argv->push_back( cspec->m_config.file() );
     }
+
+    rtimvBase::appendBaseConfigArgs( *argv, m_baseConfigDefaults );
 
     if( cspec->m_config.image_key() != "" )
     {

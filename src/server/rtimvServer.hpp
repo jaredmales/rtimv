@@ -64,6 +64,9 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
 
     int m_qualityDefault{ 50 }; ///< Default JPEG quality for new image threads when no per-image value is configured.
 
+    /// Shared rtimvBase-compatible startup defaults loaded from the server config.
+    rtimvBase::startupConfig m_baseConfigDefaults;
+
     bool m_logAppName{ true }; ///< True to include called-name in log prefixes.
 
     std::string m_calledName{ "rtimvServer" }; ///< Program called-name used in standardized log prefixes.
@@ -182,6 +185,11 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
     ServerUnaryReactor *SetApplyLPFilter( CallbackServerContext *context,
                                           const remote_rtimv::ApplyFilterRequest *request,
                                           remote_rtimv::ApplyFilterResponse *reply ) override;
+
+    /// Respond to a client reachability ping without waking the image thread.
+    ServerUnaryReactor *Ping( CallbackServerContext *context,
+                              const remote_rtimv::PingRequest *request,
+                              remote_rtimv::PingResponse *reply ) override;
 
     ServerUnaryReactor *ImagePlease( CallbackServerContext *context,
                                      const remote_rtimv::ImageRequest *request,
