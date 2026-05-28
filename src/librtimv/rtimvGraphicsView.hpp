@@ -597,6 +597,9 @@ class rtimvGraphicsView : public QGraphicsView
     float m_xCen; ///< The requested x-coordinate of the  center of the current view, in fractions of the image width
     float m_yCen; ///< The requested y-coordinate of the  center of the current view, in fractions of the image height
 
+    /// Tracks whether the current middle-button press already centered the view.
+    bool m_middlePressedCenter{ false };
+
     ///@}
 
   public:

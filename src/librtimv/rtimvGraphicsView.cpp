@@ -1055,6 +1055,15 @@ void rtimvGraphicsView::leaveEvent( QEvent * )
 
 void rtimvGraphicsView::mousePressEvent( QMouseEvent *e )
 {
+    if( e->button() == Qt::MiddleButton )
+    {
+        m_middlePressedCenter = true;
+        mapCenterToScene( e->pos().x(), e->pos().y() );
+        emit centerChanged();
+        e->accept();
+        return;
+    }
+
     if( e->button() == Qt::LeftButton )
     {
         emit leftPressed( e->pos() ); // mp);
@@ -1074,8 +1083,15 @@ void rtimvGraphicsView::mouseReleaseEvent( QMouseEvent *e )
 {
     if( e->button() == Qt::MiddleButton )
     {
-        mapCenterToScene( e->pos().x(), e->pos().y() );
-        emit centerChanged();
+        if( !m_middlePressedCenter )
+        {
+            mapCenterToScene( e->pos().x(), e->pos().y() );
+            emit centerChanged();
+        }
+
+        m_middlePressedCenter = false;
+        e->accept();
+        return;
     }
 
     if( e->button() == Qt::LeftButton )
