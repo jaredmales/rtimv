@@ -10,10 +10,15 @@ This document describes dependencies, standard CMake usage, and CMake configurat
 - `pkg-config`
 
 ### Required libraries
-- Qt5 Widgets development package
-  - On Fedora 42:
+- Qt Widgets development package
+  - On Fedora 42 (using Qt5):
     ```bash
     sudo dnf install qt6-qt5compat-devel qt5-qtbase-devel
+    ```
+
+  - On Ubuntu 26 (using only Qt6):
+    ```bash
+    sudo apt install qt6-base-dev qt6-declarative-dev qtcreator cmake
     ```
 
 - `mxlib`  [https://github.com/jaredmales/mxlib](https://github.com/jaredmales/mxlib)
@@ -40,11 +45,11 @@ The following are optional. Even if you have none of these installed `rtimv` sho
     - The `xrif` compression protocol: [https://github.com/jaredmales/xrif](https://github.com/jaredmales/xrif)
 
 - For rtimvClient and rtimvServer: `gRPC` for C++
-  - Ubuntu 24:
+  - Ubuntu 24 and 26:
     ```bash
     sudo apt install libgrpc++-dev protobuf-compiler protobuf-compiler-grpc
     ```
-  - Fedora 42:
+  - Fedora 42 and 43:
     ```bash
     sudo dnf install grpc grpc-devel
     ```
