@@ -584,7 +584,7 @@ class rtimvGraphicsView : public QGraphicsView
 
     /** \name Mouse Interaction
      *
-     * A middle click sets the center coordinate, which is used to center the scene in the viewport.
+     * A middle click or ctrl-left-click sets the center coordinate, which is used to center the scene in the viewport.
      *
      * Viewport coordinates of the mouse are reported any time it moves.
      *
@@ -597,8 +597,8 @@ class rtimvGraphicsView : public QGraphicsView
     float m_xCen; ///< The requested x-coordinate of the  center of the current view, in fractions of the image width
     float m_yCen; ///< The requested y-coordinate of the  center of the current view, in fractions of the image height
 
-    /// Tracks whether the current middle-button press already centered the view.
-    bool m_middlePressedCenter{ false };
+    /// Tracks whether the current center-click press already centered the view.
+    bool m_centerPressed{ false };
 
     ///@}
 

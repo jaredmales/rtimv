@@ -110,6 +110,7 @@ In general, if you see the "resize arrows" cursor when your mouse hovers over th
 | `ctrl +` | zoom in | Increase zoom by 0.1. |
 | `ctrl -` | zoom out | Decrease zoom by 0.1. |
 | `ctrl+c` | center the display | Center the displayed image. |
+| middle-click or ctrl-click | center at clicked pixel | Center the display on the clicked pixel. |
 | `delete` | remove selected object | Remove the currently selected overlay item. |
 
 
