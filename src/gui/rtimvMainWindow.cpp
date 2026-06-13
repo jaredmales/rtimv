@@ -1334,6 +1334,11 @@ void rtimvMainWindow::mtxL_updateMouseCoords( const sharedLockT &lock, bool requ
         contrast( contrastStart + dcontrast * ( maxImageData() - minImageData() ) );
 
         mtxL_recolor( lock );
+
+        if( imcp )
+        {
+            imcp->update_panel();
+        }
     }
 
 } // rtimvMainWindow::mtxL_updateMouseCoords
@@ -1645,12 +1650,7 @@ void rtimvMainWindow::userItemCross( const QPointF &pos, const QRectF &rect, con
 
 void rtimvMainWindow::mtxTry_colorBoxMoved( StretchBox *sb )
 {
-    if( !m_calMutex.try_lock_shared() )
-    {
-        return;
-    }
-
-    sharedLockT lock( m_calMutex, std::adopt_lock );
+    sharedLockT lock( m_calMutex );
 
     if( !m_colorBox )
     {
@@ -1774,6 +1774,11 @@ void rtimvMainWindow::colorBoxUpdated(
     mtxTry_updateColorBoxText( m_colorBox, valid, min, max );
 
     mtxL_fontLuminance( ui.graphicsView->userItemSize(), lock );
+
+    if( imcp )
+    {
+        imcp->update_panel();
+    }
 }
 
 void rtimvMainWindow::mtxTry_colorBoxSelected( StretchBox *sb )

@@ -2348,11 +2348,8 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
                 m_colorBox_min = 0;
             }
 
-            if( resized || m_autoScale )
-            {
-                minScaleData( m_colorBox_min );
-                maxScaleData( m_colorBox_max );
-            }
+            minScaleData( m_colorBox_min );
+            maxScaleData( m_colorBox_max );
         }
 
         if( m_statsBox )

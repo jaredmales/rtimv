@@ -1804,6 +1804,8 @@ void rtimvClientBase::ColorBox_callback( grpc::Status status )
                 m_colorBox_j1 = j1;
                 m_colorBox_min = min;
                 m_colorBox_max = max;
+                m_minScaleData = min;
+                m_maxScaleData = max;
             }
         }
         else
@@ -3293,6 +3295,7 @@ void rtimvClientBase::minScaleData( float md )
     }
 
     m_setMinScaleDesired = md;
+    m_minScaleData = md;
 
     if( m_setMinScalePending || m_setMinScaleAwaitImage )
     {
@@ -3340,6 +3343,7 @@ void rtimvClientBase::maxScaleData( float md )
     }
 
     m_setMaxScaleDesired = md;
+    m_maxScaleData = md;
 
     if( m_setMaxScalePending || m_setMaxScaleAwaitImage )
     {
