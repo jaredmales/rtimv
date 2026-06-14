@@ -1267,6 +1267,7 @@ void rtimvClientBase::ImageReceived()
     remote_rtimv::LPFilter lpFilter = grpcImage.lp_filter();
     float lpfFW = grpcImage.lpf_fw();
     bool applyLPFilter = grpcImage.apply_lp_filter();
+    bool applyMTF = grpcImage.apply_mtf();
     bool statsBox = grpcImage.stats_box();
     uint32_t statsBox_i0 = grpcImage.stats_box_i0();
     uint32_t statsBox_i1 = grpcImage.stats_box_i1();
@@ -1415,6 +1416,7 @@ void rtimvClientBase::ImageReceived()
     }
     m_lpfFW = lpfFW;
     m_applyLPFilter = applyLPFilter;
+    m_applyMTF = applyMTF;
     m_statsBox = statsBox;
     m_statsBox_i0 = statsBox_i0;
     m_statsBox_i1 = statsBox_i1;
@@ -2979,6 +2981,40 @@ void rtimvClientBase::applyLPFilter( bool apply )
 bool rtimvClientBase::applyLPFilter()
 {
     return m_applyLPFilter;
+}
+
+void rtimvClientBase::applyMTF( bool apply )
+{
+    SHARED_CONN_LOCK
+
+    auto request = std::make_shared<remote_rtimv::ApplyMTFRequest>();
+    auto response = std::make_shared<remote_rtimv::ApplyMTFResponse>();
+    auto *context = new grpc::ClientContext;
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            delete context;
+            return;
+        }
+        m_emptyRpcContexts.push_back( context );
+        ++m_emptyRpcPending;
+    }
+
+    request->set_apply_mtf( apply );
+
+    context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
+    stub_->async()->SetApplyMTF( context,
+                                 request.get(),
+                                 response.get(),
+                                 [this, context, request, response]( grpc::Status status )
+                                 { this->EmptyRpc_callback( context, status ); } );
+}
+
+bool rtimvClientBase::applyMTF()
+{
+    return m_applyMTF;
 }
 
 float rtimvClientBase::calPixel( uint32_t x, uint32_t y )

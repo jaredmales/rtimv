@@ -121,6 +121,17 @@ std::string filterStatusString( RTIMV_BASE *imv )
         any = true;
     }
 
+    if( imv->applyMTF() )
+    {
+        if( any )
+        {
+            oss << ", ";
+        }
+
+        oss << "MTF";
+        any = true;
+    }
+
     if( !any )
     {
         return "off";
@@ -2897,6 +2908,8 @@ void rtimvMainWindow::keyPressEvent( QKeyEvent *ke )
         case Qt::Key_C:
             mtxUL_center();
             break;
+        case Qt::Key_M:
+            return toggleApplyMTF();
         case Qt::Key_Plus:
             zoomLevel( zoomLevel() + 0.1 );
             break;
@@ -3352,6 +3365,34 @@ void rtimvMainWindow::toggleApplySatMask()
     }
 }
 
+void rtimvMainWindow::setApplyMTF( bool amtf )
+{
+    applyMTF( amtf );
+
+    if( amtf )
+    {
+        ui.graphicsView->zoomText( "MTF on" );
+    }
+    else
+    {
+        ui.graphicsView->zoomText( "MTF off" );
+    }
+
+    mtxTry_fontLuminance( ui.graphicsView->zoomText() );
+
+    if( imcp )
+    {
+        imcp->m_ui.mtfApplyCheck->blockSignals( true );
+        imcp->m_ui.mtfApplyCheck->setChecked( amtf );
+        imcp->m_ui.mtfApplyCheck->blockSignals( false );
+    }
+}
+
+void rtimvMainWindow::toggleApplyMTF()
+{
+    return setApplyMTF( !applyMTF() );
+}
+
 void rtimvMainWindow::toggleFilter()
 {
     if( applyHPFilter() || applyLPFilter() )
@@ -3701,7 +3742,8 @@ std::string rtimvMainWindow::generateHelp()
     help += "\n";
     help += "[: fit horizontal             ]: fit vertical\n";
     help += "\n";
-    help += "ctrl c: center image          delete: remove selected object \n";
+    help += "ctrl c: center image          ctrl m: toggle MTF\n";
+    help += "delete: remove selected object\n";
 
     return help;
 }

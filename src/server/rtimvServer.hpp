@@ -195,6 +195,13 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
                                      const remote_rtimv::ImageRequest *request,
                                      remote_rtimv::Image *reply ) override;
 
+    /// Set whether the server displays the modulation transfer function.
+    ServerUnaryReactor *
+    SetApplyMTF( CallbackServerContext *context,               /**< [in] gRPC callback context */
+                 const remote_rtimv::ApplyMTFRequest *request, /**< [in] requested MTF display state */
+                 remote_rtimv::ApplyMTFResponse *reply         /**< [out] empty response */
+                 ) override;
+
     /// Set the cube playback direction on the server.
     ServerUnaryReactor *CubeDir( CallbackServerContext *context,
                                  const remote_rtimv::CubeDirRequest *request,

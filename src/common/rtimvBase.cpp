@@ -1282,6 +1282,20 @@ bool rtimvBase::applyLPFilter()
     return m_applyLPFilter;
 }
 
+void rtimvBase::applyMTF( bool apply )
+{
+    if( apply != m_applyMTF )
+    {
+        m_applyMTF = apply;
+        mtxUL_changeImdata( false );
+    }
+}
+
+bool rtimvBase::applyMTF()
+{
+    return m_applyMTF;
+}
+
 rtimvBase::pixelF rtimvBase::rawPixel()
 {
     pixelF _pixel = nullptr;
@@ -2246,7 +2260,7 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
 
         // Filter if desired
 
-        if( m_applyHPFilter || m_applyLPFilter )
+        if( m_applyHPFilter || m_applyLPFilter || m_applyMTF )
         {
             mtxL_applyFilter();
             // m_calData is assigned in applyFilter
@@ -2395,7 +2409,7 @@ void rtimvBase::mtxL_applyFilter()
     const bool doHP = m_applyHPFilter && ( m_hpFilter != rtimv::hpFilter::none ) && ( m_hpfFW > 0 );
     const bool doLP = m_applyLPFilter && ( m_lpFilter != rtimv::lpFilter::none ) && ( m_lpfFW > 0 );
 
-    if( !( doHP || doLP ) )
+    if( !( doHP || doLP || m_applyMTF ) )
     {
         m_calData = m_calDataRaw;
         return;
@@ -2416,10 +2430,21 @@ void rtimvBase::mtxL_applyFilter()
             m_calData = m_hpFiltered.data();
         }
     }
-    else
+    else if( doLP )
     {
         rtimv::applyLPFilter( m_lpFiltered, imin, m_lpFilter, m_lpfFW );
         m_calData = m_lpFiltered.data();
+    }
+    else
+    {
+        m_calData = m_calDataRaw;
+    }
+
+    if( m_applyMTF )
+    {
+        mx::improc::eigenMap<float> mtfInput( m_calData, m_nx, m_ny );
+        rtimv::calculateMTF( m_mtfImage, mtfInput, m_mtfContext );
+        m_calData = m_mtfImage.data();
     }
 }
 

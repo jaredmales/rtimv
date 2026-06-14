@@ -1045,6 +1045,25 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
     return reactor;
 }
 
+ServerUnaryReactor *rtimvServer::SetApplyMTF( CallbackServerContext *context,
+                                              const remote_rtimv::ApplyMTFRequest *request,
+                                              remote_rtimv::ApplyMTFResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
+
+    if( !imageTh->connected() )
+    {
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+
+    imageTh->applyMTF( request->apply_mtf() );
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
 ServerUnaryReactor *rtimvServer::UpdateCube( CallbackServerContext *context,
                                              const remote_rtimv::UpdateCubeRequest *request,
                                              remote_rtimv::UpdateCubeResponse *reply )

@@ -46,6 +46,8 @@ service rtimv
 
     rpc ImagePlease(ImageRequest) returns (Image);
 
+    rpc SetApplyMTF(ApplyMTFRequest) returns (ApplyMTFResponse);
+
     rpc CubeDir(CubeDirRequest) returns (CubeDirResponse);
 
     rpc CubeFrame(CubeFrameRequest) returns (CubeFrameResponse);
@@ -318,6 +320,15 @@ message ApplyFilterResponse
 {
 }
 
+message ApplyMTFRequest
+{
+    bool apply_mtf = 1;
+}
+
+message ApplyMTFResponse
+{
+}
+
 message UpdateCubeRequest
 {
 }
@@ -430,6 +441,8 @@ message Image
     uint32 color_box_j1 = 204;
     float color_box_min = 205;
     float color_box_max = 206;
+
+    bool apply_mtf = 207;
 }
 
 message Coord

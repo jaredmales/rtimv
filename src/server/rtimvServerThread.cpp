@@ -606,6 +606,8 @@ void rtimvServerThread::populateImageReply( remote_rtimv::Image *reply )
     reply->set_lpf_fw( lpfFW() );
     reply->set_apply_lp_filter( applyLPFilter() );
 
+    reply->set_apply_mtf( applyMTF() );
+
     reply->set_stats_box( statsBox() );
     reply->set_stats_box_i0( statsBox_i0() );
     reply->set_stats_box_i1( statsBox_i1() );

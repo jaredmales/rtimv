@@ -110,8 +110,15 @@ In general, if you see the "resize arrows" cursor when your mouse hovers over th
 | `ctrl +` | zoom in | Increase zoom by 0.1. |
 | `ctrl -` | zoom out | Decrease zoom by 0.1. |
 | `ctrl+c` | center the display | Center the displayed image. |
+| `ctrl+m` | toggle MTF display | Show or hide the normalized Fourier-modulus MTF display. |
 | middle-click or ctrl-click | center at clicked pixel | Center the display on the clicked pixel. |
 | `delete` | remove selected object | Remove the currently selected overlay item. |
+
+### Filters and MTF
+
+The control panel's Filters tab configures high-pass and low-pass filters and can also display the modulation transfer
+function (MTF) of the current calibrated image. The MTF display is the normalized modulus of the 2-D Fourier transform,
+with zero spatial frequency centered in the image. It can be toggled from the Filters tab or with `ctrl+m`.
 
 
 ### Pixel Coordinates and Value 

@@ -1,3 +1,13 @@
+add_executable(rtimvFiltersMtfTest
+               common/rtimvFilters_mtf_test.cpp
+               ${CMAKE_SOURCE_DIR}/src/common/rtimvFilters.cpp)
+
+target_include_directories(rtimvFiltersMtfTest PRIVATE ${CMAKE_SOURCE_DIR}/src/common)
+
+target_link_libraries(rtimvFiltersMtfTest PRIVATE PkgConfig::MXLIB)
+
+add_test(NAME rtimvFilters_mtf COMMAND rtimvFiltersMtfTest)
+
 if(NOT (Protobuf_FOUND AND GRPCPP_FOUND))
     return()
 endif()

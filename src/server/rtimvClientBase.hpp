@@ -1205,9 +1205,19 @@ class rtimvClientBase : public mx::app::application
     float m_lpfFW{ 3 };                                  ///< Full width for the low-pass filter in pixels.
     bool m_applyLPFilter{ false };                       ///< Whether the low-pass filter is currently enabled.
 
+    /** @name Image MTF - Data
+     *
+     * Controls optional modulation-transfer-function display.
+     * @{
+     */
+    /// Whether the server is displaying the modulation transfer function.
+    bool m_applyMTF{ false };
+
+    ///@}
+
     /// Filtering working buffers are not stored on the client.
-    /** The client receives post-filter state through the Image message; filtering work
-     * is performed on the server side.
+    /** The client receives post-filter and post-MTF display state through the Image message;
+     * filtering and MTF work are performed on the server side.
      */
 
     ///@}
@@ -1253,6 +1263,20 @@ class rtimvClientBase : public mx::app::application
 
     /// Get whether low-pass filtering is enabled.
     bool applyLPFilter();
+
+    ///@}
+
+    /** @name Image MTF
+     *
+     * Public access to modulation-transfer-function display configuration.
+     * @{
+     */
+  public:
+    /// Set whether the modulation transfer function is displayed.
+    void applyMTF( bool apply /**< [in] true enables MTF display */ );
+
+    /// Get whether modulation-transfer-function display is enabled.
+    bool applyMTF();
 
     ///@}
 

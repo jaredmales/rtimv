@@ -837,6 +837,12 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
     void toggleApplySatMask();
 
+    /// Set modulation-transfer-function display state with user feedback.
+    void setApplyMTF( bool amtf /**< [in] true enables MTF display */ );
+
+    /// Toggle modulation-transfer-function display state.
+    void toggleApplyMTF();
+
     void toggleFilter();
 
     void toggleLogLinear();
