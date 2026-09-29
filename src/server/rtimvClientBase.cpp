@@ -14,6 +14,7 @@
 #include <cctype>
 #include <chrono>
 #include <cmath>
+#include <limits>
 #include <thread>
 
 #include <QCoreApplication>
@@ -86,6 +87,11 @@ rtimvClientBase::~rtimvClientBase()
         m_shuttingDown = true;
     }
 
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_infoMutex );
+        m_infoShuttingDown = true;
+    }
+
     if( m_foundation )
     {
         if( m_foundation->thread() == QThread::currentThread() )
@@ -128,6 +134,45 @@ rtimvClientBase::~rtimvClientBase()
             if( m_imageRequestCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
             {
                 std::cerr << formatBaseLogMessage( "waiting for ImagePlease callback during shutdown." ) << '\n';
+            }
+        }
+    }
+
+    { // mutex scope
+        std::unique_lock<std::mutex> lock( m_infoMutex );
+        if( m_pendingAgesRequest && m_pendingAgesRequest->m_context )
+        {
+            m_pendingAgesRequest->m_context->TryCancel();
+        }
+        for( const auto &state : m_pendingInfoRequests )
+        {
+            if( state && state->m_context )
+            {
+                state->m_context->TryCancel();
+            }
+        }
+
+        const auto pending = [this]()
+        {
+            if( m_pendingAgesRequest )
+            {
+                return true;
+            }
+            for( const auto &state : m_pendingInfoRequests )
+            {
+                if( state )
+                {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        while( pending() )
+        {
+            if( m_infoCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
+            {
+                std::cerr << formatBaseLogMessage( "waiting for info RPC callbacks during shutdown." ) << '\n';
             }
         }
     }
@@ -838,8 +883,10 @@ void rtimvClientBase::reconnect()
 
     lock.lock();
 
-    // start getting images again
-    if( m_connected )
+    // Start getting images again without retaining the connection lock through GUI updates.
+    const bool isConnected = m_connected;
+    lock.unlock();
+    if( isConnected )
     {
         m_foundation->emit_ImageNeeded();
     }
@@ -853,6 +900,31 @@ void rtimvClientBase::Configure()
 {
     uniqueLockT lock( m_connectedMutex );
     ++m_connections;
+
+    { // mutex scope
+        std::lock_guard<std::mutex> infoLock( m_infoMutex );
+        for( auto &details : m_infoCache )
+        {
+            details.clear();
+        }
+        for( auto &age : m_ageSamples )
+        {
+            age = {};
+        }
+        m_lastAgePoll = {};
+        m_lastPathPoll.fill( {} );
+        if( m_pendingAgesRequest && m_pendingAgesRequest->m_context )
+        {
+            m_pendingAgesRequest->m_context->TryCancel();
+        }
+        for( const auto &state : m_pendingInfoRequests )
+        {
+            if( state && state->m_context )
+            {
+                state->m_context->TryCancel();
+            }
+        }
+    }
 
     if( !m_configReq )
     {
@@ -2194,41 +2266,187 @@ uint32_t rtimvClientBase::imageNo( size_t n )
 
 std::vector<std::string> rtimvClientBase::info( size_t n )
 {
-    SHARED_CONN_LOCK_RET( std::vector<std::string>( { "" } ) )
-
-    remote_rtimv::InfoRequest request;
-    remote_rtimv::InfoResponse response;
-    grpc::ClientContext context;
-
-    request.set_image( static_cast<uint32_t>( n ) );
-
-    grpc::Status status = stub_->GetInfo( &context, request, &response );
-
-    if( status.ok() )
+    if( n >= m_infoCache.size() )
     {
-        if( !response.valid() )
-        {
-            return std::vector<std::string>( { "" } );
-        }
-
-        std::vector<std::string> info;
-        info.reserve( response.info_size() );
-        for( const auto &s : response.info() )
-        {
-            info.push_back( s );
-        }
-
-        if( info.size() == 0 )
-        {
-            return std::vector<std::string>( { "" } );
-        }
-
-        return info;
+        return { "" };
     }
-    else
+
+    std::vector<std::string> details;
+    ageSample age;
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_infoMutex );
+        details = m_infoCache[n];
+        age = m_ageSamples[n];
+    }
+
+    if( details.empty() )
     {
-        REPORT_SERVER_DISCONNECTED
-        return std::vector<std::string>( { "" } );
+        details.push_back( "" );
+    }
+
+    if( age.m_valid )
+    {
+        const double seconds =
+            age.m_seconds + std::chrono::duration<double>( std::chrono::steady_clock::now() - age.m_received ).count();
+        if( seconds > 10 )
+        {
+            const auto position = details.begin() + std::min<size_t>( 2, details.size() );
+            const int wholeSeconds =
+                static_cast<int>( std::min( seconds, static_cast<double>( std::numeric_limits<int>::max() ) ) );
+            details.insert( position, "age: " + std::to_string( wholeSeconds ) + " sec" );
+        }
+    }
+
+    return details;
+}
+
+void rtimvClientBase::pollInfo()
+{
+    uint64_t connectionGeneration;
+    { // mutex scope
+        sharedLockT lock( m_connectedMutex );
+        if( !m_connected || !stub_ )
+        {
+            return;
+        }
+        connectionGeneration = m_connections;
+    }
+
+    std::shared_ptr<agesRequestState> agesToSend;
+    std::array<std::shared_ptr<infoRequestState>, 4> infoToSend;
+    const auto now = std::chrono::steady_clock::now();
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_infoMutex );
+        if( m_infoShuttingDown )
+        {
+            return;
+        }
+
+        if( !m_pendingAgesRequest && ( m_lastAgePoll == std::chrono::steady_clock::time_point{} ||
+                                       now - m_lastAgePoll >= std::chrono::seconds( 1 ) ) )
+        {
+            agesToSend = std::make_shared<agesRequestState>();
+            agesToSend->m_context = std::make_unique<grpc::ClientContext>();
+            agesToSend->m_context->set_deadline( std::chrono::system_clock::now() + std::chrono::seconds( 2 ) );
+            agesToSend->m_connectionGeneration = connectionGeneration;
+            m_pendingAgesRequest = agesToSend;
+            m_lastAgePoll = now;
+        }
+
+        for( size_t n = 0; n < infoToSend.size(); ++n )
+        {
+            if( m_pendingInfoRequests[n] || ( m_lastPathPoll[n] != std::chrono::steady_clock::time_point{} &&
+                                              now - m_lastPathPoll[n] < std::chrono::seconds( 60 ) ) )
+            {
+                continue;
+            }
+
+            auto state = std::make_shared<infoRequestState>();
+            state->m_context = std::make_unique<grpc::ClientContext>();
+            state->m_context->set_deadline( std::chrono::system_clock::now() + std::chrono::seconds( 2 ) );
+            state->m_request.set_image( static_cast<uint32_t>( n ) );
+            state->m_connectionGeneration = connectionGeneration;
+            m_pendingInfoRequests[n] = state;
+            infoToSend[n] = std::move( state );
+            m_lastPathPoll[n] = now;
+        }
+    }
+
+    if( agesToSend )
+    {
+        stub_->async()->GetAges(
+            agesToSend->m_context.get(),
+            &agesToSend->m_request,
+            &agesToSend->m_reply,
+            [this, agesToSend]( grpc::Status status )
+            {
+                beginGrpcCallbackActivity();
+                auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+
+                bool currentConnection;
+                { // mutex scope
+                    sharedLockT lock( m_connectedMutex );
+                    currentConnection = m_connected && agesToSend->m_connectionGeneration == m_connections;
+                }
+
+                { // mutex scope
+                    std::lock_guard<std::mutex> lock( m_infoMutex );
+                    if( m_pendingAgesRequest == agesToSend )
+                    {
+                        m_pendingAgesRequest.reset();
+                        if( !m_infoShuttingDown && currentConnection && status.ok() )
+                        {
+                            const auto received = std::chrono::steady_clock::now();
+                            for( size_t n = 0; n < m_ageSamples.size(); ++n )
+                            {
+                                const bool valid = n < static_cast<size_t>( agesToSend->m_reply.ages_size() ) &&
+                                                   agesToSend->m_reply.ages( n ).valid();
+                                m_ageSamples[n].m_valid = valid;
+                                if( valid )
+                                {
+                                    m_ageSamples[n].m_seconds = agesToSend->m_reply.ages( n ).seconds();
+                                    m_ageSamples[n].m_received = received;
+                                }
+                                else
+                                {
+                                    m_infoCache[n].clear();
+                                }
+                            }
+                        }
+                    }
+                }
+                m_infoCv.notify_all();
+            } );
+    }
+
+    for( size_t n = 0; n < infoToSend.size(); ++n )
+    {
+        auto state = infoToSend[n];
+        if( !state )
+        {
+            continue;
+        }
+
+        stub_->async()->GetInfo(
+            state->m_context.get(),
+            &state->m_request,
+            &state->m_reply,
+            [this, state, n]( grpc::Status status )
+            {
+                beginGrpcCallbackActivity();
+                auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+
+                bool currentConnection;
+                { // mutex scope
+                    sharedLockT lock( m_connectedMutex );
+                    currentConnection = m_connected && state->m_connectionGeneration == m_connections;
+                }
+
+                { // mutex scope
+                    std::lock_guard<std::mutex> lock( m_infoMutex );
+                    if( m_pendingInfoRequests[n] == state )
+                    {
+                        m_pendingInfoRequests[n].reset();
+                        if( !m_infoShuttingDown && currentConnection && status.ok() )
+                        {
+                            auto &details = m_infoCache[n];
+                            details.clear();
+                            if( state->m_reply.valid() )
+                            {
+                                for( const auto &line : state->m_reply.info() )
+                                {
+                                    if( line.rfind( "age: ", 0 ) != 0 )
+                                    {
+                                        details.push_back( line );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                m_infoCv.notify_all();
+            } );
     }
 }
 

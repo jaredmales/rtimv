@@ -62,6 +62,8 @@ service rtimv
 
     rpc GetInfo(InfoRequest) returns (InfoResponse);
 
+    rpc GetAges(AgesRequest) returns (AgesResponse);
+
     rpc GetImageNo(ImageNoRequest) returns (ImageNoResponse);
 
     rpc ColorBox(Box) returns (MinvalMaxval);
@@ -482,6 +484,21 @@ message InfoResponse
 {
     bool valid = 1;
     repeated string info = 2;
+}
+
+message AgesRequest
+{
+}
+
+message ImageAge
+{
+    bool valid = 1;
+    double seconds = 2;
+}
+
+message AgesResponse
+{
+    repeated ImageAge ages = 1;
 }
 
 message ImageNoResponse
