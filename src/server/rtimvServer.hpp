@@ -195,6 +195,13 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
                                      const remote_rtimv::ImageRequest *request,
                                      remote_rtimv::Image *reply ) override;
 
+    /// Set whether the server displays the modulation transfer function.
+    ServerUnaryReactor *
+    SetApplyMTF( CallbackServerContext *context,               /**< [in] gRPC callback context */
+                 const remote_rtimv::ApplyMTFRequest *request, /**< [in] requested MTF display state */
+                 remote_rtimv::ApplyMTFResponse *reply         /**< [out] empty response */
+                 ) override;
+
     /// Set the cube playback direction on the server.
     ServerUnaryReactor *CubeDir( CallbackServerContext *context,
                                  const remote_rtimv::CubeDirRequest *request,
@@ -225,6 +232,11 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
     ServerUnaryReactor *GetInfo( CallbackServerContext *context,
                                  const remote_rtimv::InfoRequest *request,
                                  remote_rtimv::InfoResponse *reply ) override;
+
+    /// Get the current age of each valid image without its path or other info strings.
+    ServerUnaryReactor *GetAges( CallbackServerContext *context /**< [in] gRPC call context */,
+                                 const remote_rtimv::AgesRequest *request /**< [in] empty request */,
+                                 remote_rtimv::AgesResponse *reply /**< [out] ages for all image slots */ ) override;
 
     /// Get the image number for a requested image index.
     ServerUnaryReactor *GetImageNo( CallbackServerContext *context,

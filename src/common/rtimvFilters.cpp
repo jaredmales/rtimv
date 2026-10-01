@@ -9,6 +9,7 @@
 #include <cmath>
 
 #include <mx/improc/imageFilters.hpp>
+#include <mx/math/ft/ftTypes.hpp>
 
 namespace
 {
@@ -29,6 +30,18 @@ int nearestOdd( float x )
     }
 
     return n;
+}
+
+/// Wrap a possibly negative Fourier index into an image dimension.
+int wrapIndex( int idx, int dim )
+{
+    idx %= dim;
+    if( idx < 0 )
+    {
+        idx += dim;
+    }
+
+    return idx;
 }
 
 } // namespace
@@ -106,6 +119,76 @@ void applyLPFilter( mx::improc::eigenImage<float> &outim, constImageRef inim, lp
     {
         mx::improc::meanSmooth( outim, inim, nearestOdd( fw ) );
         return;
+    }
+}
+
+void calculateMTF( mx::improc::eigenImage<float> &outim, constImageRef inim, mtfContext &ctx )
+{
+    const int nx = static_cast<int>( inim.rows() );
+    const int ny = static_cast<int>( inim.cols() );
+
+    outim.resize( nx, ny );
+
+    if( nx <= 0 || ny <= 0 )
+    {
+        return;
+    }
+
+    ctx.m_fftInput.resize( static_cast<size_t>( nx * ny ) );
+
+    const int packedY = ny / 2 + 1;
+    ctx.m_fftOutput.resize( static_cast<size_t>( nx * ny ) );
+
+    for( int y = 0; y < ny; ++y )
+    {
+        for( int x = 0; x < nx; ++x )
+        {
+            const float value = inim( x, y );
+            ctx.m_fftInput[static_cast<size_t>( x * ny + y )] = std::isfinite( value ) ? value : 0.0f;
+        }
+    }
+
+    if( ctx.m_nx != nx || ctx.m_ny != ny )
+    {
+        ctx.m_fft.plan( nx, ny, mx::math::ft::dir::forward, false );
+        ctx.m_nx = nx;
+        ctx.m_ny = ny;
+    }
+
+    ctx.m_fft( ctx.m_fftOutput.data(), ctx.m_fftInput.data() );
+
+    const auto packedCoeff = [&]( int x, int y ) -> const std::complex<float> &
+    { return ctx.m_fftOutput[static_cast<size_t>( x * packedY + y )]; };
+
+    const float dc = std::abs( packedCoeff( 0, 0 ) );
+    const bool normalize = std::isfinite( dc ) && dc > 0;
+    const float invDc = normalize ? 1.0f / dc : 1.0f;
+
+    outim.setZero();
+
+    const int xShift = nx / 2;
+    const int yShift = ny / 2;
+
+    for( int y = 0; y < ny; ++y )
+    {
+        for( int x = 0; x < nx; ++x )
+        {
+            const int srcX = y < packedY ? x : wrapIndex( -x, nx );
+            const int srcY = y < packedY ? y : ny - y;
+
+            float modulus = std::abs( packedCoeff( srcX, srcY ) );
+            if( normalize )
+            {
+                modulus *= invDc;
+            }
+
+            if( !std::isfinite( modulus ) )
+            {
+                modulus = 0.0f;
+            }
+
+            outim( wrapIndex( x + xShift, nx ), wrapIndex( y + yShift, ny ) ) = modulus;
+        }
     }
 }
 

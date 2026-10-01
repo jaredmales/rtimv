@@ -46,6 +46,8 @@ service rtimv
 
     rpc ImagePlease(ImageRequest) returns (Image);
 
+    rpc SetApplyMTF(ApplyMTFRequest) returns (ApplyMTFResponse);
+
     rpc CubeDir(CubeDirRequest) returns (CubeDirResponse);
 
     rpc CubeFrame(CubeFrameRequest) returns (CubeFrameResponse);
@@ -59,6 +61,8 @@ service rtimv
     rpc GetImageName(ImageNameRequest) returns (ImageNameResponse);
 
     rpc GetInfo(InfoRequest) returns (InfoResponse);
+
+    rpc GetAges(AgesRequest) returns (AgesResponse);
 
     rpc GetImageNo(ImageNoRequest) returns (ImageNoResponse);
 
@@ -318,6 +322,15 @@ message ApplyFilterResponse
 {
 }
 
+message ApplyMTFRequest
+{
+    bool apply_mtf = 1;
+}
+
+message ApplyMTFResponse
+{
+}
+
 message UpdateCubeRequest
 {
 }
@@ -430,6 +443,8 @@ message Image
     uint32 color_box_j1 = 204;
     float color_box_min = 205;
     float color_box_max = 206;
+
+    bool apply_mtf = 207;
 }
 
 message Coord
@@ -469,6 +484,21 @@ message InfoResponse
 {
     bool valid = 1;
     repeated string info = 2;
+}
+
+message AgesRequest
+{
+}
+
+message ImageAge
+{
+    bool valid = 1;
+    double seconds = 2;
+}
+
+message AgesResponse
+{
+    repeated ImageAge ages = 1;
 }
 
 message ImageNoResponse

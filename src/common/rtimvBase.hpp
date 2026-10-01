@@ -1066,6 +1066,17 @@ class rtimvBase : public mx::app::application
 
     ///@}
 
+    /** @name Image MTF - Data
+     *
+     * Controls optional modulation-transfer-function display.
+     * @{
+     */
+  protected:
+    /// Whether the displayed image is replaced by its modulation transfer function.
+    bool m_applyMTF{ false };
+
+    ///@}
+
     /** @name Image Filtering
      *
      * Public access to image filtering configuration.
@@ -1110,6 +1121,20 @@ class rtimvBase : public mx::app::application
 
     ///@}
 
+    /** @name Image MTF
+     *
+     * Public access to modulation-transfer-function display configuration.
+     * @{
+     */
+  public:
+    /// Set whether the modulation transfer function is displayed.
+    void applyMTF( bool apply /**< [in] true enables MTF display */ );
+
+    /// Get whether modulation-transfer-function display is enabled.
+    bool applyMTF();
+
+    ///@}
+
     /** @name Image Filtering - Working Memory
      *
      * @{
@@ -1122,6 +1147,12 @@ class rtimvBase : public mx::app::application
 
     /// Buffer holding the current low-pass filtered image.
     mx::improc::eigenImage<float> m_lpFiltered;
+
+    /// Buffer holding the current modulation transfer function image.
+    mx::improc::eigenImage<float> m_mtfImage;
+
+    /// Reusable FFT working state for MTF calculations.
+    rtimv::mtfContext m_mtfContext;
     /// @}
 
     //****** The display *************

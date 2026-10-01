@@ -227,6 +227,7 @@ void rtimvControlPanel::update_panel()
 
     update_hpFilter();
     update_lpFilter();
+    update_mtf();
 }
 
 void rtimvControlPanel::update_ZoomSlider()
@@ -892,6 +893,13 @@ void rtimvControlPanel::update_lpFilter()
     }
 }
 
+void rtimvControlPanel::update_mtf()
+{
+    m_ui.mtfApplyCheck->blockSignals( true );
+    m_ui.mtfApplyCheck->setChecked( m_imv->applyMTF() );
+    m_ui.mtfApplyCheck->blockSignals( false );
+}
+
 void rtimvControlPanel::on_scaleModeCombo_activated( int index )
 {
     if( static_cast<rtimv::colormode>( index ) == rtimv::colormode::minmaxglobal )
@@ -1044,6 +1052,11 @@ void rtimvControlPanel::on_lpFWEntry_editingFinished()
 
     m_imv->lpfFW( fw );
     update_lpFilter();
+}
+
+void rtimvControlPanel::on_mtfApplyCheck_stateChanged( int state )
+{
+    m_imv->applyMTF( state != 0 );
 }
 
 void rtimvControlPanel::on_imtimerspinBox_valueChanged( int to )

@@ -837,6 +837,12 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
     void toggleApplySatMask();
 
+    /// Set modulation-transfer-function display state with user feedback.
+    void setApplyMTF( bool amtf /**< [in] true enables MTF display */ );
+
+    /// Toggle modulation-transfer-function display state.
+    void toggleApplyMTF();
+
     void toggleFilter();
 
     void toggleLogLinear();
@@ -877,6 +883,11 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
     /// Active text overlay shortcut, or `'\0'` when hidden.
     char m_activeTextOverlayKey{ '\0' };
+
+#ifdef RTIMV_GRPC
+    /// Drives one-second age refreshes and bounded source-info polling while the info overlay is visible.
+    QTimer m_infoOverlayTimer;
+#endif
 
     /// Cached lines for the currently visible shared text overlay.
     std::vector<std::string> m_activeTextOverlayLines;

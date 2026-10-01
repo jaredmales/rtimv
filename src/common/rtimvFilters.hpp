@@ -7,9 +7,13 @@
 #ifndef rtimv_rtimvFilters_hpp
 #define rtimv_rtimvFilters_hpp
 
+#include <complex>
+#include <vector>
+
 #include <Eigen/Dense>
 
 #include <mx/improc/eigenImage.hpp>
+#include <mx/math/ft/fftT.hpp>
 
 namespace rtimv
 {
@@ -37,6 +41,25 @@ enum class lpFilter
 /// Shared read-only reference type for 2-D floating-point images.
 using constImageRef = Eigen::Ref<const mx::improc::eigenImage<float>>;
 
+/// Working state for repeated MTF calculations.
+struct mtfContext
+{
+    /// Real-valued row-major input passed to FFTW after sanitizing non-finite pixels.
+    std::vector<float> m_fftInput;
+
+    /// Packed real-to-complex FFT output.
+    std::vector<std::complex<float>> m_fftOutput;
+
+    /// Reusable real-to-complex FFT plan.
+    mx::math::ft::fftT<float, std::complex<float>, 2, 0> m_fft;
+
+    /// Planned x dimension.
+    int m_nx{ 0 };
+
+    /// Planned y dimension.
+    int m_ny{ 0 };
+};
+
 /// Apply a high-pass filter.
 /**
  * The input image is not modified. Output image dimensions follow \p inim.
@@ -56,6 +79,15 @@ void applyLPFilter( mx::improc::eigenImage<float> &outim, ///< [out] Filtered im
                     constImageRef inim,                   ///< [in] Input image.
                     lpFilter filter,                      ///< [in] Selected low-pass filter.
                     float fw                              ///< [in] Filter width parameter in pixels.
+);
+
+/// Calculate a display-ready modulation transfer function image.
+/**
+ * The output is the normalized modulus of the 2-D Fourier transform with zero frequency shifted to the image center.
+ */
+void calculateMTF( mx::improc::eigenImage<float> &outim, ///< [out] Full-size MTF image.
+                   constImageRef inim,                   ///< [in] Input image.
+                   mtfContext &ctx                       ///< [in,out] Reusable FFT working state.
 );
 
 } // namespace rtimv

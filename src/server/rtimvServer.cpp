@@ -9,6 +9,7 @@
 #include "rtimvLog.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <vector>
@@ -1045,6 +1046,25 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
     return reactor;
 }
 
+ServerUnaryReactor *rtimvServer::SetApplyMTF( CallbackServerContext *context,
+                                              const remote_rtimv::ApplyMTFRequest *request,
+                                              remote_rtimv::ApplyMTFResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
+
+    if( !imageTh->connected() )
+    {
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+
+    imageTh->applyMTF( request->apply_mtf() );
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
 ServerUnaryReactor *rtimvServer::UpdateCube( CallbackServerContext *context,
                                              const remote_rtimv::UpdateCubeRequest *request,
                                              remote_rtimv::UpdateCubeResponse *reply )
@@ -1196,6 +1216,32 @@ ServerUnaryReactor *rtimvServer::GetInfo( CallbackServerContext *context,
         for( size_t i = 0; i < info.size(); ++i )
         {
             reply->add_info( info[i] );
+        }
+    }
+
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::GetAges( CallbackServerContext *context,
+                                          const remote_rtimv::AgesRequest *request,
+                                          remote_rtimv::AgesResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( request );
+
+    const double now = mx::sys::get_curr_time();
+    for( size_t n = 0; n < 4; ++n )
+    {
+        remote_rtimv::ImageAge *age = reply->add_ages();
+        if( imageTh->imageValid( n ) )
+        {
+            const double imageTime = imageTh->imageTime( n );
+            if( std::isfinite( imageTime ) && imageTime > 0 )
+            {
+                age->set_valid( true );
+                age->set_seconds( std::max( 0.0, now - imageTime ) );
+            }
         }
     }
 

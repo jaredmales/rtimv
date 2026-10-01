@@ -275,6 +275,9 @@ class rtimvControlPanel : public QWidget
     /// Synchronize low-pass filter controls from model state.
     void update_lpFilter();
 
+    /// Synchronize modulation-transfer-function controls from model state.
+    void update_mtf();
+
   public slots:
     /// Handle color mode combo selection.
     void on_scaleModeCombo_activated( int index /**< [in] selected color mode index*/ );
@@ -326,6 +329,9 @@ class rtimvControlPanel : public QWidget
 
     /// Handle low-pass width entry edits.
     void on_lpFWEntry_editingFinished();
+
+    /// Handle modulation-transfer-function display enable state changes.
+    void on_mtfApplyCheck_stateChanged( int state /**< [in] checked state*/ );
 
   public:
     /*** Real Time Controls ***/

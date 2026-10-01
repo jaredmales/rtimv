@@ -2075,6 +2075,19 @@
       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
      </property>
     </widget>
+    <widget class="QCheckBox" name="mtfApplyCheck">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>302</y>
+       <width>221</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Display MTF</string>
+     </property>
+    </widget>
    </widget>
    <widget class="QWidget" name="tabSetup">
     <attribute name="title">

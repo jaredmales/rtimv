@@ -9,6 +9,7 @@
 #define rtimv_rtimvClientBase_hpp
 
 #include <vector>
+#include <array>
 #include <mutex>
 #include <shared_mutex>
 #include <condition_variable>
@@ -220,6 +221,65 @@ class rtimvClientBase : public mx::app::application
 
     /// Backoff delay for ImagePlease retries when no new image data is available, ms.
     int m_imageRetryBackoffMs{ 500 };
+
+    /** @name Info Refresh - Data
+     * @{
+     */
+
+    /// One asynchronous full-info request for an image slot.
+    struct infoRequestState
+    {
+        std::unique_ptr<grpc::ClientContext> m_context; ///< Context owned until the RPC completes.
+        remote_rtimv::InfoRequest m_request;            ///< Requested image slot.
+        remote_rtimv::InfoResponse m_reply;             ///< Source-specific info strings.
+        uint64_t m_connectionGeneration{ 0 };           ///< Connection generation at dispatch.
+    };
+
+    /// One asynchronous age request covering all four image slots.
+    struct agesRequestState
+    {
+        std::unique_ptr<grpc::ClientContext> m_context; ///< Context owned until the RPC completes.
+        remote_rtimv::AgesRequest m_request;            ///< Empty age request.
+        remote_rtimv::AgesResponse m_reply;             ///< Ages for each image slot.
+        uint64_t m_connectionGeneration{ 0 };           ///< Connection generation at dispatch.
+    };
+
+    /// Most recently received age and local receipt time for an image slot.
+    struct ageSample
+    {
+        bool m_valid{ false };                            ///< Whether the server reported a valid source image.
+        double m_seconds{ 0 };                            ///< Image age in seconds at receipt.
+        std::chrono::steady_clock::time_point m_received; ///< Local time of receipt for smooth age display.
+    };
+
+    /// Protects in-flight info requests and cached info/age values.
+    std::mutex m_infoMutex;
+
+    /// Signals completion of outstanding info requests during shutdown.
+    std::condition_variable m_infoCv;
+
+    /// Full-info requests, with at most one in flight for each image slot.
+    std::array<std::shared_ptr<infoRequestState>, 4> m_pendingInfoRequests;
+
+    /// Age request, with at most one in flight for all image slots.
+    std::shared_ptr<agesRequestState> m_pendingAgesRequest;
+
+    /// Cached source info strings, excluding the age line refreshed separately.
+    std::array<std::vector<std::string>, 4> m_infoCache;
+
+    /// Cached ages for the four source image slots.
+    std::array<ageSample, 4> m_ageSamples;
+
+    /// Last age request dispatch time.
+    std::chrono::steady_clock::time_point m_lastAgePoll;
+
+    /// Last full-info request dispatch time for each image slot.
+    std::array<std::chrono::steady_clock::time_point, 4> m_lastPathPoll;
+
+    /// True after teardown begins; prevents further info dispatches.
+    bool m_infoShuttingDown{ false };
+
+    ///@}
 
     /// Mutex guarding asynchronous unary RPC state for Ping/GetPixel/ColorBox/StatsBox.
     std::mutex m_asyncRpcMutex;
@@ -580,12 +640,20 @@ class rtimvClientBase : public mx::app::application
      */
     uint32_t imageNo( size_t n /**< [in] the image number */ );
 
-    /// Get info for an image
+    /// Get cached source info with the latest separately refreshed age.
     /**
-     * \returns the info vector if valid
-     * \returns and empty vector if not valid
+     * \returns the cached info vector, or a blank entry until a reply arrives.
      */
     std::vector<std::string> info( size_t n /**< [in] the image number */ );
+
+    /** @name Info Refresh
+     * @{
+     */
+
+    /// Schedule bounded asynchronous age and full-info refreshes for the visible info overlay.
+    void pollInfo();
+
+    ///@}
 
     ///@}
 
@@ -1205,9 +1273,19 @@ class rtimvClientBase : public mx::app::application
     float m_lpfFW{ 3 };                                  ///< Full width for the low-pass filter in pixels.
     bool m_applyLPFilter{ false };                       ///< Whether the low-pass filter is currently enabled.
 
+    /** @name Image MTF - Data
+     *
+     * Controls optional modulation-transfer-function display.
+     * @{
+     */
+    /// Whether the server is displaying the modulation transfer function.
+    bool m_applyMTF{ false };
+
+    ///@}
+
     /// Filtering working buffers are not stored on the client.
-    /** The client receives post-filter state through the Image message; filtering work
-     * is performed on the server side.
+    /** The client receives post-filter and post-MTF display state through the Image message;
+     * filtering and MTF work are performed on the server side.
      */
 
     ///@}
@@ -1253,6 +1331,20 @@ class rtimvClientBase : public mx::app::application
 
     /// Get whether low-pass filtering is enabled.
     bool applyLPFilter();
+
+    ///@}
+
+    /** @name Image MTF
+     *
+     * Public access to modulation-transfer-function display configuration.
+     * @{
+     */
+  public:
+    /// Set whether the modulation transfer function is displayed.
+    void applyMTF( bool apply /**< [in] true enables MTF display */ );
+
+    /// Get whether modulation-transfer-function display is enabled.
+    bool applyMTF();
 
     ///@}
 
