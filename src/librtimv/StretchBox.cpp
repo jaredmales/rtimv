@@ -1,4 +1,6 @@
-
+/** \file StretchBox.cpp
+ * \brief Rectangle geometry and user-edit event handling.
+ */
 #include "StretchBox.hpp"
 #include <cmath>
 #include <iostream>

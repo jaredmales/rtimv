@@ -1,7 +1,6 @@
 /** \file rtimvGraphicsView.cpp
  * \brief Definitions for the graphics view class of RTImV
  *
- * \author Jared R. Males (jaredmales@gmail.com)
  *
  */
 

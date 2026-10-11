@@ -284,3 +284,29 @@ Relevant configuration key=value pairs are
 - `north.enabled=true/false`: Whether or not to enable the north arrow. Default is true.
 - `north.offset=float`: Offset in degrees c.c.w. to apply to the north angle. Default is 0.
 - `north.scale=float`: Scaling factor to apply to north angle to convert to degrees c.c.w. on the image.  Default is -1.
+
+### Camera ROI editing (MagAO-X cameraStatus plugin)
+
+With a matching cameraStatus/indiDictionary plugin pair and a camera advertising
+ROI command support, use Shift+R to enter ROI editing. A full-frame or configured
+default ROI starts a new box at the usual user-box location. A custom ROI or an
+already staged target keeps its center and size. Repeated Shift+R reveals the same
+edit. Drag the magenta border to move it; hold over an edge/corner until the resize
+cursor appears to resize about its center. Release stages the changed fields.
+Binning is preserved.
+
+Alt+R asks the camera to Check the target. If validation adjusts the box, it stays
+visible and the normal status box says `ROI adjusted; Alt+R to apply`. Review the
+box and press Alt+R again. Each press checks again; another adjustment requires
+another review. An unchanged valid target is applied once, or closes as a no-op
+when already current. A validator-induced binning change requires roiGUI.
+
+Escape leaves the edit and discards an unfinished drag. Already staged target
+values remain in the camera, and Escape cannot undo a Set that has been sent.
+Disconnects, stale geometry, property loss, errors, and a five-second acknowledgement
+timeout revoke pending confirmation without replay. Use a fresh explicit action
+after resolving the problem. Plain `r` still resets the display stretch.
+
+Commands require the configured camera's untransformed image and matching image
+geometry. Old cameras/providers retain their passive preview. Rotated, resampled,
+or derived streams need an explicit mapping and should not use camera ROI editing.

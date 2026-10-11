@@ -316,3 +316,64 @@ If the plugin also needs dictionary access, implement `rtimvDictionaryInterface`
 - Generate plugin text-overlay help dynamically if it reflects live state.
 - Log plugin failures with the standardized helpers so load and runtime problems are easy to diagnose.
 - Return `> 0` from `attachDictionary()` or `attachOverlay()` when the plugin is simply not configured for the current environment, and reserve negative returns for actual errors.
+
+## Optional commands and property snapshots
+
+A dictionary plugin can also implement `rtimvCommandInterface`, advertised through
+`Q_INTERFACES(rtimvDictionaryInterface rtimvCommandInterface)`. Its separate IID is
+`rtimv.commandInterface/1.0`; the existing 1.4 interfaces and `rtimvOverlayAccess`
+layout are unchanged. Build command-aware plugins against the matching installed
+rtimv headers and shared library.
+
+The main window owns an `rtimvCommandRouter` QObject child named
+`rtimv.commandRouter`. Overlays find it through `m_roa.m_mainWindowObject` when
+needed, after plugin loading. This lookup works regardless of provider/overlay load
+order. The router keeps weak provider references; providers remain owned by plugin
+loading. Exactly one provider must advertise the requested protocol. Missing or
+ambiguous providers reject commands and return unavailable snapshots.
+
+A `rtimvCommand` identifies a device, property, Number/Switch type, and a map of
+numeric or boolean elements. Pass an ordered vector of commands to
+`router->send(protocol, commands, error)`. The provider validates the entire batch
+before submitting vectors in order, stops on failure, and never replays a batch on
+reconnect. An accepted send reports local transport submission only. Camera
+acknowledgement must come from incoming properties; an ordered batch is not an
+atomic transaction with respect to other clients.
+
+`router->snapshot(protocol, device, property)` returns a value copy containing the
+property type, permission, state, connection generation, receive revision, and
+all cached elements. `m_valid` requires a current definition and connection.
+`m_complete` means the latest received message supplied every defined element;
+a cache assembled from partial messages must not claim a coherent completion.
+Consumers requiring an atomic property read must check both flags, expected
+state/type, generation, and required elements. Definitions, deletion, reconnect,
+and unavailable state must invalidate pending authorizations. All router calls
+and provider snapshots run on the GUI thread; providers queue incoming work there
+before modifying the shared dictionary or their snapshot cache.
+
+For MagAO-X, `indiDictionary` provides protocol `indi` using its existing INDI
+client and property subscriptions. Add normal incoming dictionary keys for each
+property the overlay needs. Do not use dictionary blobs as command queues or
+create a second connection. The bridge currently sends Number and Switch vectors;
+Text can be observed but is not an outgoing command type.
+
+The main-window QObject also exposes these optional slots without changing
+`rtimvOverlayAccess`:
+
+- `newUserBoxRect()` returns the standard new-box placement at the current zoom
+  and viewport center.
+- `overlayImageSize()` returns the displayed image dimensions.
+- `addInteractiveBox(StretchBox*)` adds a scene-owned box with normal selection,
+  cross/readout, maintain-center resizing, and screen-scaled line/tolerance values.
+  The overlay must retain a weak pointer, own command authorization, and clear
+  selection before deleting the box. The host also keeps only a weak reference.
+- `showStatusMessage(QString)` uses the normal transient zoom/status box and font
+  luminance treatment. Longer messages fit within the existing box; subsequent
+  short messages restore the configured font size.
+
+`StretchBox::editStarted` and `editFinished` mark user mouse editing. Existing
+`moved`/`resized` signals can fire repeatedly during a drag. Stage camera commands
+on completion, block signals for programmatic redraws, and use `cancelEdit()` to
+abort unsent mouse work. Keyboard handlers should use exact modifiers, reject
+auto-repeat for command actions, and never assume `QKeyEvent::text()` is nonempty.
+The host routes Alt+R ahead of plain `r` and leaves text editors' input alone.
