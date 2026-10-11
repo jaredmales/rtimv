@@ -369,8 +369,9 @@ The main-window QObject also exposes these optional slots without changing
   The overlay must retain a weak pointer, own command authorization, and clear
   selection before deleting the box. The host also keeps only a weak reference.
 - `showStatusMessage(QString)` uses the normal transient zoom/status box and font
-  luminance treatment. Longer messages fit within the existing box; subsequent
-  short messages restore the configured font size.
+  luminance treatment. Messages retain the configured font size: the box expands
+  to fit the text and wraps within a narrow view. Resizing the view reflows the
+  message without restarting its timeout; short messages use a compact box.
 
 `StretchBox::editStarted` and `editFinished` mark user mouse editing. Existing
 `moved`/`resized` signals can fire repeatedly during a drag. Stage camera commands
