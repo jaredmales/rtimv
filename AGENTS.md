@@ -4,7 +4,7 @@ Follow these code style and documentation rules exactly.
 - Each header/source should have a top Doxygen file block:
   - \file
   - \brief
-  - \author (if project uses it)
+  - do not include \author and remove it from touched files 
 
 2) Include Guards and Includes
 - Match existing project include-guard naming convention.
