@@ -179,6 +179,19 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
     registerTextOverlay(
         'i', "info", [this]() { return generateInfo(); }, []( size_t ) { return std::string(); }, "rtimv" );
 
+#ifdef RTIMV_GRPC
+    m_infoOverlayTimer.setInterval( 1000 );
+    m_infoOverlayTimer.setTimerType( Qt::PreciseTimer );
+    connect( &m_infoOverlayTimer,
+             &QTimer::timeout,
+             this,
+             [this]()
+             {
+                 pollInfo();
+                 refreshTextOverlay( 'i' );
+             } );
+#endif
+
     rightClickDragging = false;
 
     m_nullMouseCoords = true;
@@ -1465,7 +1478,12 @@ void rtimvMainWindow::updateAge()
     // Check the font luminance to make sure it is visible
     mtxTry_fontLuminance();
 
-    refreshActiveTextOverlay();
+#ifdef RTIMV_GRPC
+    if( m_activeTextOverlayKey != 'i' )
+#endif
+    {
+        refreshActiveTextOverlay();
+    }
 
     if( m_showFPSGage && imageValid() )
     {
@@ -1513,7 +1531,12 @@ void rtimvMainWindow::updateAge()
 
 void rtimvMainWindow::updateNC()
 {
-    refreshActiveTextOverlay();
+#ifdef RTIMV_GRPC
+    if( m_activeTextOverlayKey != 'i' )
+#endif
+    {
+        refreshActiveTextOverlay();
+    }
 
     for( size_t n = 0; n < m_overlays.size(); ++n )
     {
@@ -3559,6 +3582,9 @@ bool rtimvMainWindow::hasTextOverlay( char key ) const
 
 void rtimvMainWindow::hideTextOverlay()
 {
+#ifdef RTIMV_GRPC
+    m_infoOverlayTimer.stop();
+#endif
     ui.graphicsView->helpText()->setVisible( false );
     m_activeTextOverlayKey = '\0';
     m_activeTextOverlayLines.clear();
@@ -3583,6 +3609,17 @@ void rtimvMainWindow::showTextOverlay( char key )
 
     ui.graphicsView->helpText()->setVisible( true );
     m_activeTextOverlayKey = key;
+#ifdef RTIMV_GRPC
+    if( key == 'i' )
+    {
+        pollInfo();
+        m_infoOverlayTimer.start();
+    }
+    else
+    {
+        m_infoOverlayTimer.stop();
+    }
+#endif
     m_activeTextOverlayLines = splitTextOverlayLines( text );
     mtxTry_fontLuminance( ui.graphicsView->helpText() );
     ui.graphicsView->helpTextText( text.c_str() );
