@@ -48,8 +48,8 @@ void layoutZoomText( QTextEdit *text, /**< [in,out] Status text with its configu
     const int boxWidth = std::min( viewSize.width(), std::max( ZOOMWIDTH, naturalWidth ) );
     text->resize( boxWidth, text->height() ); // Let Qt lay out wrapped lines at the available width.
     const int bottom = std::max( 0, viewSize.height() - GAGEHEIGHT );
-    const int boxHeight = std::min( bottom, std::max( ZOOMHEIGHT,
-                                      static_cast<int>( std::ceil( text->document()->size().height() ) ) ) );
+    const int boxHeight =
+        std::min( bottom, std::max( ZOOMHEIGHT, static_cast<int>( std::ceil( text->document()->size().height() ) ) ) );
     text->setGeometry( viewSize.width() - boxWidth, bottom - boxHeight, boxWidth, boxHeight );
 }
 } // namespace
