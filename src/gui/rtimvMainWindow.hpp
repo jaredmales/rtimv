@@ -42,6 +42,7 @@
 #include "cubeCtrl.hpp"
 
 #include "rtimvInterfaces.hpp"
+#include "rtimvCommandInterface.hpp"
 
 #include "StretchBox.hpp"
 #include "StretchCircle.hpp"
@@ -88,7 +89,26 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
     virtual void loadConfig();
 
+  public slots:
+    /// Show a normal transient message using the existing status box.
+    void showStatusMessage(const QString &message /**< [in] Short user-facing message. */);
+
+    /// Return the existing new-user-box placement in image scene coordinates.
+    QRectF newUserBoxRect();
+
+    /// Return actual displayed image dimensions for overlay geometry validation.
+    QSize overlayImageSize() const;
+
+    /// Add a plugin box with the same interactive presentation as a user box.
+    void addInteractiveBox(StretchBox *box /**< [in] Scene-owned box supplied by a plugin. */);
+
   protected:
+    rtimvCommandRouter *m_commands{nullptr}; ///< Owned optional plugin command router.
+
+    /// Weak references to overlay boxes sharing user-box scale and pointer presentation.
+    QVector<QPointer<StretchBox>> m_overlayBoxes;
+
+
     std::string m_title{ "rtimv" };
 
   public:

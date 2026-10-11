@@ -106,6 +106,9 @@ class StretchBox : public QObject, public QGraphicsRectItem, public StretchGraph
     /// Remove this box from the list
     void remove();
 
+    /// Cancel unsent mouse editing without removing the box.
+    void cancelEdit();
+
     /** \name Signals
      * The emitXXXX are required by StretchGraphicsItem, and each
      * emits the associated signal.
@@ -121,6 +124,12 @@ class StretchBox : public QObject, public QGraphicsRectItem, public StretchGraph
     void emitDeSelected();
 
   signals:
+    /// A user has begun moving or resizing the box.
+    void editStarted(StretchBox *box /**< [in] Edited box. */);
+
+    /// A user has released the box after moving or resizing it.
+    void editFinished(StretchBox *box /**< [in] Edited box. */);
+
     void moved( StretchBox *s );
     void resized( StretchBox *s );
     void rejectMouse( StretchBox *s );

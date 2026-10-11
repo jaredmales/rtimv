@@ -782,6 +782,17 @@ QString rtimvGraphicsView::zoomFontColor()
 
 void rtimvGraphicsView::zoomText( const char *nt )
 {
+    // Keep transient plugin messages in the existing status box, at the configured size when they fit.
+    QFont font = m_zoomText->currentFont();
+    int size = std::max(1, static_cast<int>(m_zoomFontSize));
+    const int margin = 2 * m_zoomText->document()->documentMargin();
+    const int width = m_zoomText->viewport()->width() - margin;
+    const int height = m_zoomText->viewport()->height() - margin;
+    font.setPixelSize(size);
+    if(QFontMetrics(font).horizontalAdvance(QString::fromUtf8(nt)) > width)
+        while(size > 8 && (QFontMetrics(font).horizontalAdvance(QString::fromUtf8(nt)) > width ||
+                           QFontMetrics(font).height() > height)) font.setPixelSize(--size);
+    m_zoomText->setCurrentFont(font);
     m_zoomText->setPlainText( nt );
     m_zoomText->setAlignment( Qt::AlignRight );
 
