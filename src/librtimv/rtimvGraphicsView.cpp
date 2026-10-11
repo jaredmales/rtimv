@@ -18,6 +18,7 @@
     #define DEBUG_TRACE_VAL( val )
 #endif
 
+#include <algorithm>
 #include <cmath>
 
 // Geometries of the various text boxes.
@@ -35,6 +36,23 @@
 
 #define ZOOMHEIGHT 30
 #define ZOOMWIDTH 250
+
+namespace
+{
+/// Fit a transient message above the bottom gages without reducing its font size.
+void layoutZoomText( QTextEdit *text, /**< [in,out] Status text with its configured font and wrapping policy. */
+                     const QSize &viewSize /**< [in] Available graphics-view dimensions. */ )
+{
+    const int naturalWidth = QFontMetrics( text->currentFont() ).size( 0, text->toPlainText() ).width() +
+                             std::ceil( 2 * text->document()->documentMargin() ) + 1;
+    const int boxWidth = std::min( viewSize.width(), std::max( ZOOMWIDTH, naturalWidth ) );
+    text->resize( boxWidth, text->height() ); // Let Qt lay out wrapped lines at the available width.
+    const int bottom = std::max( 0, viewSize.height() - GAGEHEIGHT );
+    const int boxHeight = std::min( bottom, std::max( ZOOMHEIGHT,
+                                      static_cast<int>( std::ceil( text->document()->size().height() ) ) ) );
+    text->setGeometry( viewSize.width() - boxWidth, bottom - boxHeight, boxWidth, boxHeight );
+}
+} // namespace
 
 rtimvGraphicsView::rtimvGraphicsView( QWidget *parent ) : QGraphicsView( parent )
 {
@@ -95,6 +113,7 @@ rtimvGraphicsView::rtimvGraphicsView( QWidget *parent ) : QGraphicsView( parent 
 
     m_zoomText = new QTextEdit( this );
     textEditSetup( m_zoomText );
+    m_zoomText->setWordWrapMode( QTextOption::WrapAtWordBoundaryOrAnywhere );
     zoomFontFamily( m_zoomFontFamily );
     zoomFontColor( m_zoomFontColor );
     zoomFontSize( m_zoomFontSize );
@@ -781,20 +800,12 @@ QString rtimvGraphicsView::zoomFontColor()
 
 void rtimvGraphicsView::zoomText( const char *nt )
 {
-    // Keep transient plugin messages in the existing status box, at the configured size when they fit.
     QFont font = m_zoomText->currentFont();
-    int size = std::max( 1, static_cast<int>( m_zoomFontSize ) );
-    const int margin = 2 * m_zoomText->document()->documentMargin();
-    const int width = m_zoomText->viewport()->width() - margin;
-    const int height = m_zoomText->viewport()->height() - margin;
-    font.setPixelSize( size );
-    if( QFontMetrics( font ).horizontalAdvance( QString::fromUtf8( nt ) ) > width )
-        while( size > 8 && ( QFontMetrics( font ).horizontalAdvance( QString::fromUtf8( nt ) ) > width ||
-                             QFontMetrics( font ).height() > height ) )
-            font.setPixelSize( --size );
+    font.setPixelSize( std::max( 1, static_cast<int>( m_zoomFontSize ) ) );
     m_zoomText->setCurrentFont( font );
     m_zoomText->setPlainText( nt );
     m_zoomText->setAlignment( Qt::AlignRight );
+    layoutZoomText( m_zoomText, size() );
 
     m_zoomTimer.start( m_zoomTimeOut );
 }
@@ -802,6 +813,7 @@ void rtimvGraphicsView::zoomText( const char *nt )
 void rtimvGraphicsView::zoomTimerOut()
 {
     m_zoomText->setText( "" );
+    layoutZoomText( m_zoomText, size() );
     m_zoomTimer.stop();
 }
 
@@ -1044,7 +1056,7 @@ void rtimvGraphicsView::resizeEvent( QResizeEvent * )
     m_textCoordY->setGeometry( 0 + COORDWIDTH, height() - GAGEHEIGHT, COORDWIDTH, GAGEHEIGHT );
     m_textPixelVal->setGeometry( 0 + COORDWIDTH + COORDWIDTH, height() - GAGEHEIGHT, COORDWIDTH + 50, GAGEHEIGHT );
 
-    m_zoomText->setGeometry( width() - ZOOMWIDTH, height() - GAGEHEIGHT - ZOOMHEIGHT, ZOOMWIDTH, ZOOMHEIGHT );
+    layoutZoomText( m_zoomText, size() );
 }
 
 void rtimvGraphicsView::mouseMoveEvent( QMouseEvent *e )

@@ -7,6 +7,7 @@
 #include <QApplication>
 #include <QFontMetrics>
 #include <QGraphicsSceneMouseEvent>
+#include <QTextBlock>
 #include <iostream>
 #include <stdexcept>
 
@@ -136,7 +137,20 @@ void boxTest()
     require( finishes == 2, "cancel must not complete a discarded edit" );
 }
 
-/// Check that the approved adjustment notice fits in the existing single-line transient box.
+/// Require readable text with every laid-out line contained by the visible status box.
+void requireMessageFits( rtimvGraphicsView &view /**< [in] View displaying the message under test. */ )
+{
+    auto *text = view.zoomText();
+    require( text->currentFont().pixelSize() == view.zoomFontSize(), "status message keeps configured font size" );
+    require( view.rect().contains( text->geometry() ), "status box stays inside the view" );
+    require( text->document()->size().height() <= text->viewport()->height(), "all status lines are visible" );
+    const int available = text->viewport()->width() - 2 * text->document()->documentMargin();
+    for( auto block = text->document()->begin(); block.isValid(); block = block.next() )
+        for( int n = 0; n < block.layout()->lineCount(); ++n )
+            require( block.layout()->lineAt( n ).naturalTextWidth() <= available, "status line fits without clipping" );
+}
+
+/// Check that transient messages remain readable and fully visible as their text and view size change.
 void messageTest()
 {
     rtimvGraphicsView view;
@@ -145,13 +159,35 @@ void messageTest()
     QApplication::processEvents();
     view.zoomText( "ROI adjusted; Alt+R to apply" );
     auto *text = view.zoomText();
+    require( text->currentFont().pixelSize() == view.zoomFontSize(),
+             "adjustment notice retains the configured font size" );
     const int available = text->viewport()->width() - 2 * text->document()->documentMargin();
     require( QFontMetrics( text->currentFont() ).horizontalAdvance( text->toPlainText() ) <= available,
              "adjustment notice fits" );
     require( text->document()->size().height() <= text->viewport()->height(),
              "adjustment notice stays on one visible line" );
+    requireMessageFits( view );
+    const int singleLineHeight = text->height();
+
+    view.resize( 260, 400 );
+    QApplication::processEvents();
+    requireMessageFits( view );
+    require( text->height() > singleLineHeight, "a narrow view wraps the notice instead of shrinking its font" );
+
+    view.resize( 800, 800 );
+    QApplication::processEvents();
+    requireMessageFits( view );
+    require( text->height() == singleLineHeight, "a wider view restores the single-line layout" );
+
+    view.zoomText( "ROI applied" );
+    requireMessageFits( view );
+    require( text->width() < view.width(), "short messages return to a compact status box" );
     view.zoomText( "1.0x" );
-    require( text->currentFont().pixelSize() == view.zoomFontSize(), "short messages restore configured font size" );
+    requireMessageFits( view );
+
+    view.zoomFontSize( 32 );
+    view.zoomText( "ROI adjusted; Alt+R to apply" );
+    requireMessageFits( view );
 }
 } // namespace
 
