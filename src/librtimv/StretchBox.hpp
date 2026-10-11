@@ -22,10 +22,15 @@ class StretchBox : public QObject, public QGraphicsRectItem, public StretchGraph
     StretchBox( QGraphicsItem *parent = 0 /**< [in] Optional owning graphics item. */ );
 
     /// Construct an editable rectangle with optional scene ownership.
-    StretchBox( const QRectF &rect /**< [in] Initial rectangle in scene coordinates. */ , QGraphicsItem *parent = 0 /**< [in] Optional owning graphics item. */ );
+    StretchBox( const QRectF &rect /**< [in] Initial rectangle in scene coordinates. */,
+                QGraphicsItem *parent = 0 /**< [in] Optional owning graphics item. */ );
 
     /// Construct an editable rectangle with optional scene ownership.
-    StretchBox( qreal x /**< [in] Horizontal coordinate. */ , qreal y /**< [in] Vertical coordinate. */ , qreal width /**< [in] Rectangle width in scene pixels. */ , qreal height /**< [in] Rectangle height in scene pixels. */ , QGraphicsItem *parent = 0 /**< [in] Optional owning graphics item. */ );
+    StretchBox( qreal x /**< [in] Horizontal coordinate. */,
+                qreal y /**< [in] Vertical coordinate. */,
+                qreal width /**< [in] Rectangle width in scene pixels. */,
+                qreal height /**< [in] Rectangle height in scene pixels. */,
+                QGraphicsItem *parent = 0 /**< [in] Optional owning graphics item. */ );
 
   private:
     /// Initialize the stretch rectangle
@@ -167,10 +172,10 @@ class StretchBox : public QObject, public QGraphicsRectItem, public StretchGraph
 
   signals:
     /// A user has begun moving or resizing the box.
-    void editStarted(StretchBox *box /**< [in] Edited box. */);
+    void editStarted( StretchBox *box /**< [in] Edited box. */ );
 
     /// A user has released the box after moving or resizing it.
-    void editFinished(StretchBox *box /**< [in] Edited box. */);
+    void editFinished( StretchBox *box /**< [in] Edited box. */ );
 
     /// Report that rectangle geometry moved.
     void moved( StretchBox *s /**< [in] Rectangle sending this notification. */ );

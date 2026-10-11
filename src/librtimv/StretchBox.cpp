@@ -53,14 +53,16 @@ void StretchBox::hoverLeaveEvent( QGraphicsSceneHoverEvent *e )
 void StretchBox::mousePressEvent( QGraphicsSceneMouseEvent *e )
 {
     handleMousePressEvent( e );
-    if(m_stretchable && (m_sizing || m_isMoving)) emit editStarted(this);
+    if( m_stretchable && ( m_sizing || m_isMoving ) )
+        emit editStarted( this );
 }
 
 void StretchBox::mouseReleaseEvent( QGraphicsSceneMouseEvent *e )
 {
     bool edited = m_sizing || m_isMoving;
     handleMouseReleaseEvent( e );
-    if(edited) emit editFinished(this);
+    if( edited )
+        emit editFinished( this );
 }
 
 void StretchBox::mouseMoveEvent( QGraphicsSceneMouseEvent *e )

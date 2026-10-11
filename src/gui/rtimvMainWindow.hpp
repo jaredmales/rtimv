@@ -82,7 +82,10 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
   public:
     /// Construct and configure the image viewer and its plugin host.
-    rtimvMainWindow( int argc /**< [in] Number of command-line arguments. */ , char **argv /**< [in] Command-line arguments. */ , QWidget *Parent = nullptr /**< [in] Optional owning Qt widget. */ , Qt::WindowFlags f = Qt::WindowFlags() /**< [in] Qt window flags. */ );
+    rtimvMainWindow( int argc /**< [in] Number of command-line arguments. */,
+                     char **argv /**< [in] Command-line arguments. */,
+                     QWidget *Parent = nullptr /**< [in] Optional owning Qt widget. */,
+                     Qt::WindowFlags f = Qt::WindowFlags() /**< [in] Qt window flags. */ );
 
     /// Release viewer resources and plugin ownership.
     ~rtimvMainWindow();
@@ -95,7 +98,7 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
   public slots:
     /// Show a normal transient message using the existing status box.
-    void showStatusMessage(const QString &message /**< [in] Short user-facing message. */);
+    void showStatusMessage( const QString &message /**< [in] Short user-facing message. */ );
 
     /// Return the existing new-user-box placement in image scene coordinates.
     QRectF newUserBoxRect();
@@ -104,14 +107,13 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     QSize overlayImageSize() const;
 
     /// Add a plugin box with the same interactive presentation as a user box.
-    void addInteractiveBox(StretchBox *box /**< [in] Scene-owned box supplied by a plugin. */);
+    void addInteractiveBox( StretchBox *box /**< [in] Scene-owned box supplied by a plugin. */ );
 
   protected:
-    rtimvCommandRouter *m_commands{nullptr}; ///< Owned optional plugin command router.
+    rtimvCommandRouter *m_commands{ nullptr }; ///< Owned optional plugin command router.
 
     /// Weak references to overlay boxes sharing user-box scale and pointer presentation.
     QVector<QPointer<StretchBox>> m_overlayBoxes;
-
 
     /// Configured viewer title.
     std::string m_title{ "rtimv" };
@@ -121,7 +123,8 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     virtual void onConnect();
 
     /// Rebuild image-dependent display geometry while the image mutex is held.
-    virtual void mtxL_postSetImsize( const uniqueLockT &lock /**< [in] Image mutex lock already held by the caller. */ );
+    virtual void
+    mtxL_postSetImsize( const uniqueLockT &lock /**< [in] Image mutex lock already held by the caller. */ );
 
     /// Update view transforms and screen-scaled overlay geometry after zoom changes.
     virtual void post_zoomLevel();
@@ -152,7 +155,7 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     virtual void updateNC();
 
     /// Dispatch keyboard input to display controls and enabled overlays.
-    virtual void keyPressEvent( QKeyEvent * ke /**< [in] Keyboard event to dispatch. */ );
+    virtual void keyPressEvent( QKeyEvent *ke /**< [in] Keyboard event to dispatch. */ );
 
     /*** The control Panel ***/
   protected:
@@ -212,7 +215,7 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     /**
      * \returns a pointer m_qpm
      */
-    QPixmap * getPixmap();
+    QPixmap *getPixmap();
 
     /// Get a pointer to the graphics scene
     /**
@@ -295,7 +298,9 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
   private:
     /// Apply fractional viewport coordinates with the image lock already held.
-    void mtxL_setViewCen_impl( float x /**< [in] Horizontal coordinate. */ , float y /**< [in] Vertical coordinate. */ , bool movezoombox /**< [in] Whether to update the control-panel zoom box. */ );
+    void mtxL_setViewCen_impl( float x /**< [in] Horizontal coordinate. */,
+                               float y /**< [in] Vertical coordinate. */,
+                               bool movezoombox /**< [in] Whether to update the control-panel zoom box. */ );
 
   public:
     /// Lock m_calMutex, then update the viewport center.
@@ -304,10 +309,16 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
                            bool movezoombox = true /**< [in] whether to move the zoom box graphic*/ );
 
     /// Change the viewport center while the supplied image lock is held.
-    void mtxL_setViewCen( float x /**< [in] Horizontal coordinate. */ , float y /**< [in] Vertical coordinate. */ , const uniqueLockT &lock /**< [in] Image mutex lock already held by the caller. */ , bool movezoombox = true /**< [in] Whether to update the control-panel zoom box. */ );
+    void mtxL_setViewCen( float x /**< [in] Horizontal coordinate. */,
+                          float y /**< [in] Vertical coordinate. */,
+                          const uniqueLockT &lock /**< [in] Image mutex lock already held by the caller. */,
+                          bool movezoombox = true /**< [in] Whether to update the control-panel zoom box. */ );
 
     /// Change the viewport center while the supplied image lock is held.
-    void mtxL_setViewCen( float x /**< [in] Horizontal coordinate. */ , float y /**< [in] Vertical coordinate. */ , const sharedLockT &lock /**< [in] Image mutex lock already held by the caller. */ , bool movezoombox = true /**< [in] Whether to update the control-panel zoom box. */ );
+    void mtxL_setViewCen( float x /**< [in] Horizontal coordinate. */,
+                          float y /**< [in] Vertical coordinate. */,
+                          const sharedLockT &lock /**< [in] Image mutex lock already held by the caller. */,
+                          bool movezoombox = true /**< [in] Whether to update the control-panel zoom box. */ );
 
     /// Return the horizontal viewport center in scene coordinates.
     float get_xcen();
@@ -338,7 +349,7 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     void changeCenter();
 
     /// Calls changeCenter() so that the display stays centered when user resizes.
-    void resizeEvent( QResizeEvent * e /**< [in] Qt event to process. */ );
+    void resizeEvent( QResizeEvent *e /**< [in] Qt event to process. */ );
 
     /*** pointer data***/
   protected:
@@ -369,7 +380,7 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
      * - If it is, updates the mouse coord text boxes
      * - If the mouse is right-clicked and dragging, updates the strech bias and contrast.
      */
-    void mtxL_updateMouseCoords( const sharedLockT &lock /**< [in] Image mutex lock already held by the caller. */ ,
+    void mtxL_updateMouseCoords( const sharedLockT &lock /**< [in] Image mutex lock already held by the caller. */,
                                  bool requestPixel = true /**< [in] whether to issue a pixel-value request */ );
 
     QTimer m_mousePixelTimer;                                     ///< Debounce timer for mouse pixel requests.
@@ -420,7 +431,7 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     void dispatchMousePixelRequest();
 
     /// Handle a pixel-value update from the backend.
-    void pixelValueUpdated( uint32_t x , /**< [in] x coordinate */
+    void pixelValueUpdated( uint32_t x,  /**< [in] x coordinate */
                             uint32_t y,  /**< [in] y coordinate */
                             float value, /**< [in] calibrated pixel value */
                             bool valid   /**< [in] true when value is valid */
@@ -598,7 +609,7 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     float m_colorBoxCacheMax{ 0 };      ///< Cached color-box maximum value.
 
     /// Update the on-image color-box min/max text.
-    void mtxTry_updateColorBoxText( StretchBox *sb , /**< [in] color box to annotate */
+    void mtxTry_updateColorBoxText( StretchBox *sb, /**< [in] color box to annotate */
                                     bool hasValues, /**< [in] true when min/max values are available */
                                     float minVal,   /**< [in] minimum value */
                                     float maxVal    /**< [in] maximum value */
@@ -660,7 +671,7 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     std::string formatStatsValue( float value /**< [in] value to format */ ) const;
 
     /// Update the stats-box overlay placement and contents.
-    void mtxTry_updateStatsBoxOverlay( StretchBox *sb , /**< [in] stats box to annotate */
+    void mtxTry_updateStatsBoxOverlay( StretchBox *sb, /**< [in] stats box to annotate */
                                        bool valid,     /**< [in] true when stats values are valid */
                                        float minVal,   /**< [in] minimum value */
                                        float maxVal,   /**< [in] maximum value */
@@ -686,7 +697,7 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     void imStatsClosed( int status /**< [in] Statistics dialog result code. */ );
 
     /// Queue changed statistics geometry without blocking the GUI.
-    void mtxTry_statsBoxMoved( StretchBox * sb /**< [in] Rectangle or circle whose presentation is updated. */ );
+    void mtxTry_statsBoxMoved( StretchBox *sb /**< [in] Rectangle or circle whose presentation is updated. */ );
 
     /// Dispatch the debounced stats-box request.
     void dispatchStatsBoxRequest();
@@ -704,10 +715,10 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     );
 
     /// Show the selected statistics region and its readouts.
-    void mtxTry_statsBoxSelected( StretchBox * sb /**< [in] Rectangle or circle whose presentation is updated. */ );
+    void mtxTry_statsBoxSelected( StretchBox *sb /**< [in] Rectangle or circle whose presentation is updated. */ );
 
     /// Remove the statistics box and clear its display state.
-    void statsBoxRemove( StretchBox * sb /**< [in] Rectangle or circle whose presentation is updated. */ );
+    void statsBoxRemove( StretchBox *sb /**< [in] Rectangle or circle whose presentation is updated. */ );
 
   public:
     /// Get the active stats display mode.
@@ -755,7 +766,7 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     void mtxTry_userBoxMoved( StretchBox *sb /**< [in] Rectangle or circle whose presentation is updated. */ );
 
     /// Called when the user clicks through the user box
-    void userBoxRejectMouse( StretchBox * sb /**< [in] Rectangle or circle whose presentation is updated. */ );
+    void userBoxRejectMouse( StretchBox *sb /**< [in] Rectangle or circle whose presentation is updated. */ );
 
     /// Called when a user box is deleted
     void userBoxRemove( StretchBox *sc /**< [in] Scene item whose presentation is updated. */ );
@@ -876,7 +887,9 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
   public:
     /// Refresh color-box visibility after changing the color mode.
-    virtual void mtxL_postColormode( rtimv::colormode m /**< [in] New display color mode. */ , const sharedLockT &lock /**< [in] Image mutex lock already held by the caller. */ );
+    virtual void
+    mtxL_postColormode( rtimv::colormode m /**< [in] New display color mode. */,
+                        const sharedLockT &lock /**< [in] Image mutex lock already held by the caller. */ );
 
   protected:
     /// Whether to display loop-state telemetry.
@@ -1150,7 +1163,8 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
      *
      * \note Call this version with the mutex already locked
      */
-    void mtxL_fontLuminance( QTextEdit *qte , /**< [in/out] the QTextEdit to modify */
+    void mtxL_fontLuminance(
+        QTextEdit *qte, /**< [in/out] the QTextEdit to modify */
         const sharedLockT &lock,
         bool print = false /**< [in] [out] if true the average luminance is printed.  Used for debugging. */
     );
@@ -1162,7 +1176,8 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
      * \note Call this version with the mutex unlocked
      *
      */
-    void mtxTry_fontLuminance( QTextEdit *qte , /**< [in/out] the QTextEdit to modify */
+    void mtxTry_fontLuminance(
+        QTextEdit *qte,    /**< [in/out] the QTextEdit to modify */
         bool print = false /**< [in] [out] if true the average luminance is printed.  Used for debugging. */
     );
 

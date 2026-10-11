@@ -245,7 +245,7 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
     /* now load plugins                          */
     /* ========================================= */
 
-    m_commands = new rtimvCommandRouter(this);
+    m_commands = new rtimvCommandRouter( this );
 
     /* -- static plugins -- */
     const auto staticInstances = QPluginLoader::staticInstances();
@@ -685,11 +685,15 @@ void rtimvMainWindow::post_zoomLevel()
         m_colorBox->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
     }
 
-    for(auto it = m_overlayBoxes.begin(); it != m_overlayBoxes.end(); )
+    for( auto it = m_overlayBoxes.begin(); it != m_overlayBoxes.end(); )
     {
-        if(!*it) { it = m_overlayBoxes.erase(it); continue; }
-        (*it)->setPenWidth(m_userItemLineWidth / m_screenZoom / zoomLevel());
-        (*it)->setEdgeTol(m_userItemEdgeTol / m_screenZoom / zoomLevel());
+        if( !*it )
+        {
+            it = m_overlayBoxes.erase( it );
+            continue;
+        }
+        ( *it )->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
+        ( *it )->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
         ++it;
     }
 
@@ -2267,39 +2271,40 @@ void rtimvMainWindow::statsBoxRemove( StretchBox *sb )
 
 QRectF rtimvMainWindow::newUserBoxRect()
 {
-    float w = std::min(m_nx / zoomLevel(), m_ny / zoomLevel()) / 4;
-    return QRectF(ui.graphicsView->xCen() - w / 2, ui.graphicsView->yCen() - w / 2, w, w);
+    float w = std::min( m_nx / zoomLevel(), m_ny / zoomLevel() ) / 4;
+    return QRectF( ui.graphicsView->xCen() - w / 2, ui.graphicsView->yCen() - w / 2, w, w );
 }
 
 QSize rtimvMainWindow::overlayImageSize() const
 {
-    return QSize(m_nx, m_ny);
+    return QSize( m_nx, m_ny );
 }
 
-void rtimvMainWindow::showStatusMessage(const QString &message)
+void rtimvMainWindow::showStatusMessage( const QString &message )
 {
-    ui.graphicsView->zoomText(message.toUtf8().constData());
-    mtxTry_fontLuminance(ui.graphicsView->zoomText());
+    ui.graphicsView->zoomText( message.toUtf8().constData() );
+    mtxTry_fontLuminance( ui.graphicsView->zoomText() );
 }
 
-void rtimvMainWindow::addInteractiveBox(StretchBox *box)
+void rtimvMainWindow::addInteractiveBox( StretchBox *box )
 {
-    if(!box) return;
-    addStretchBox(box);
-    m_overlayBoxes.push_back(box);
-    box->setPenWidth(m_userItemLineWidth / m_screenZoom / zoomLevel());
-    box->setEdgeTol(m_userItemEdgeTol / m_screenZoom / zoomLevel());
-    box->setMaintainCenter(true);
-    box->setRemovable(false);
-    connect(box, &StretchBox::moved, this, &rtimvMainWindow::mtxTry_userBoxMoved);
-    connect(box, &StretchBox::resized, this, &rtimvMainWindow::mtxTry_userBoxMoved);
-    connect(box, &StretchBox::selected, this, &rtimvMainWindow::mtxTry_userBoxSelected);
-    connect(box, &StretchBox::deSelected, this, &rtimvMainWindow::userBoxDeSelected);
+    if( !box )
+        return;
+    addStretchBox( box );
+    m_overlayBoxes.push_back( box );
+    box->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
+    box->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
+    box->setMaintainCenter( true );
+    box->setRemovable( false );
+    connect( box, &StretchBox::moved, this, &rtimvMainWindow::mtxTry_userBoxMoved );
+    connect( box, &StretchBox::resized, this, &rtimvMainWindow::mtxTry_userBoxMoved );
+    connect( box, &StretchBox::selected, this, &rtimvMainWindow::mtxTry_userBoxSelected );
+    connect( box, &StretchBox::deSelected, this, &rtimvMainWindow::userBoxDeSelected );
 }
 
 void rtimvMainWindow::addUserBox()
 {
-    auto it = m_userBoxes.insert(new StretchBox(newUserBoxRect()));
+    auto it = m_userBoxes.insert( new StretchBox( newUserBoxRect() ) );
 
     StretchBox *sb = *it.first;
 
@@ -2932,18 +2937,19 @@ void rtimvMainWindow::mtxL_postColormode( rtimv::colormode m, const sharedLockT 
 void rtimvMainWindow::keyPressEvent( QKeyEvent *ke )
 {
     QWidget *focus = QApplication::focusWidget();
-    for(QWidget *widget = focus; widget; widget = widget->parentWidget())
+    for( QWidget *widget = focus; widget; widget = widget->parentWidget() )
     {
-        if(widget->inherits("QLineEdit") || widget->inherits("QTextEdit") ||
-           widget->inherits("QPlainTextEdit") || widget->inherits("QAbstractSpinBox"))
+        if( widget->inherits( "QLineEdit" ) || widget->inherits( "QTextEdit" ) ||
+            widget->inherits( "QPlainTextEdit" ) || widget->inherits( "QAbstractSpinBox" ) )
         {
-            QWidget::keyPressEvent(ke);
+            QWidget::keyPressEvent( ke );
             return;
         }
     }
-    if(ke->key() == Qt::Key_R && ke->modifiers() == Qt::AltModifier)
+    if( ke->key() == Qt::Key_R && ke->modifiers() == Qt::AltModifier )
     {
-        for(auto *overlay : m_overlays) overlay->keyPressEvent(ke);
+        for( auto *overlay : m_overlays )
+            overlay->keyPressEvent( ke );
         return;
     }
 
@@ -4205,7 +4211,7 @@ int rtimvMainWindow::loadPlugin( QObject *plugin )
                 plugin->metaObject()->className() );
         }
 
-        m_commands->addProvider(plugin);
+        m_commands->addProvider( plugin );
         m_plugins.push_back( ri );
         return 0;
     }
@@ -4236,7 +4242,7 @@ bool rtimvMainWindow::eventFilter( QObject *obj, QEvent *event )
     return false;
 }
 
-QPixmap * rtimvMainWindow::getPixmap()
+QPixmap *rtimvMainWindow::getPixmap()
 {
     return &m_qpm;
 }
