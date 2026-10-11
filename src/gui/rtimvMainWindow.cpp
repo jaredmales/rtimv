@@ -2459,7 +2459,8 @@ void rtimvMainWindow::mtxTry_userBoxSelected( StretchBox *sb )
     m_userItemXCen = sb->rect().x() + sb->pos().x() + 0.5 * sb->rect().width();
     m_userItemYCen = sb->rect().y() + sb->pos().y() + 0.5 * sb->rect().height();
 
-    userItemSelected( ui.graphicsView->userItemDefColor(), true, true, true );
+    const bool overlay = std::find( m_overlayBoxes.begin(), m_overlayBoxes.end(), sb ) != m_overlayBoxes.end();
+    userItemSelected( overlay ? sb->penColor() : ui.graphicsView->userItemDefColor(), true, true, true );
     mtxTry_userBoxMoved( sb );
 }
 
