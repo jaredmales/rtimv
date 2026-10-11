@@ -181,10 +181,7 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     /**
      * \returns a pointer m_qpm
      */
-    QPixmap *getPixmap()
-    {
-        return &m_qpm;
-    }
+    QPixmap * getPixmap();
 
     /// Get a pointer to the graphics scene
     /**
@@ -268,15 +265,9 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
     void mtxL_setViewCen( float x, float y, const sharedLockT &lock, bool movezoombox = true );
 
-    float get_xcen()
-    {
-        return ui.graphicsView->xCen();
-    }
+    float get_xcen();
 
-    float get_ycen()
-    {
-        return ui.graphicsView->yCen();
-    }
+    float get_ycen();
 
     /// Matches the viewport to the same aspect ratio as the image data, by decreasing the area.
     /** Maintains the smaller of width and height, decreasing the other to match the aspect of the image.
@@ -297,10 +288,7 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     void squareUp();
 
   protected slots:
-    void changeCenter()
-    {
-        change_center();
-    }
+    void changeCenter();
 
     /// Calls changeCenter() so that the display stays centered when user resizes.
     void resizeEvent( QResizeEvent * );

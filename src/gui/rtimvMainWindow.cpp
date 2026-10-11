@@ -4236,3 +4236,23 @@ bool rtimvMainWindow::eventFilter( QObject *obj, QEvent *event )
     }
     return false;
 }
+
+QPixmap * rtimvMainWindow::getPixmap()
+{
+    return &m_qpm;
+}
+
+float rtimvMainWindow::get_xcen()
+{
+    return ui.graphicsView->xCen();
+}
+
+float rtimvMainWindow::get_ycen()
+{
+    return ui.graphicsView->yCen();
+}
+
+void rtimvMainWindow::changeCenter()
+{
+    change_center();
+}
