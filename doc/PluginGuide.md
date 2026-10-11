@@ -365,6 +365,7 @@ The main-window QObject also exposes these optional slots without changing
 - `overlayImageSize()` returns the displayed image dimensions.
 - `addInteractiveBox(StretchBox*)` adds a scene-owned box with normal selection,
   cross/readout, maintain-center resizing, and screen-scaled line/tolerance values.
+  Its cross and readout use the box's pen color.
   The overlay must retain a weak pointer, own command authorization, and clear
   selection before deleting the box. The host also keeps only a weak reference.
 - `showStatusMessage(QString)` uses the normal transient zoom/status box and font
@@ -374,6 +375,8 @@ The main-window QObject also exposes these optional slots without changing
 `StretchBox::editStarted` and `editFinished` mark user mouse editing. Existing
 `moved`/`resized` signals can fire repeatedly during a drag. Stage camera commands
 on completion, block signals for programmatic redraws, and use `cancelEdit()` to
-abort unsent mouse work. Keyboard handlers should use exact modifiers, reject
+abort unsent mouse work. After unblocking a selected box's programmatic geometry
+update, `emitSelected()` refreshes its cross/readout without staging a command.
+Keyboard handlers should use exact modifiers, reject
 auto-repeat for command actions, and never assume `QKeyEvent::text()` is nonempty.
 The host routes Alt+R ahead of plain `r` and leaves text editors' input alone.

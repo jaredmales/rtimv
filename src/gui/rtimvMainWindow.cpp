@@ -16,13 +16,13 @@ namespace
 {
 
 /// Format an on/off state string.
-std::string onOffString( bool state )
+std::string onOffString( bool state /**< [in] State to display. */ )
 {
     return state ? "on" : "off";
 }
 
 /// Get a display label for the current color mode.
-std::string colorModeString( rtimv::colormode mode )
+std::string colorModeString( rtimv::colormode mode /**< [in] Active color mode. */ )
 {
     switch( mode )
     {
@@ -38,7 +38,7 @@ std::string colorModeString( rtimv::colormode mode )
 }
 
 /// Get a display label for the current stretch.
-std::string stretchString( rtimv::stretch stretch )
+std::string stretchString( rtimv::stretch stretch /**< [in] Active display stretch. */ )
 {
     switch( stretch )
     {
@@ -58,7 +58,7 @@ std::string stretchString( rtimv::stretch stretch )
 }
 
 /// Get a display label for the configured high-pass filter.
-std::string hpFilterString( rtimv::hpFilter filter )
+std::string hpFilterString( rtimv::hpFilter filter /**< [in] Configured high-pass filter. */ )
 {
     switch( filter )
     {
@@ -80,7 +80,7 @@ std::string hpFilterString( rtimv::hpFilter filter )
 }
 
 /// Get a display label for the configured low-pass filter.
-std::string lpFilterString( rtimv::lpFilter filter )
+std::string lpFilterString( rtimv::lpFilter filter /**< [in] Configured low-pass filter. */ )
 {
     switch( filter )
     {
@@ -98,7 +98,7 @@ std::string lpFilterString( rtimv::lpFilter filter )
 }
 
 /// Summarize the active filtering state for display.
-std::string filterStatusString( RTIMV_BASE *imv )
+std::string filterStatusString( RTIMV_BASE *imv /**< [in] Image backend providing the filter state. */ )
 {
     std::ostringstream oss;
     bool any = false;

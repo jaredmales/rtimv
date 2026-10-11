@@ -293,7 +293,9 @@ default ROI starts a new box at the usual user-box location. A custom ROI or an
 already staged target keeps its center and size. Repeated Shift+R reveals the same
 edit. Drag the magenta border to move it; hold over an edge/corner until the resize
 cursor appears to resize about its center. Release stages the changed fields.
-Binning is preserved.
+Binning is preserved during movement and resizing. Targets staged in roiGUI
+automatically open the same editable box, including its magenta center cross and
+geometry readout. Shift+R is not required before dragging, Alt+R, or Delete.
 
 Alt+R asks the camera to Check the target. If validation adjusts the box, it stays
 visible and the normal status box says `ROI adjusted; Alt+R to apply`. Review the
@@ -301,11 +303,16 @@ box and press Alt+R again. Each press checks again; another adjustment requires
 another review. An unchanged valid target is applied once, or closes as a no-op
 when already current. A validator-induced binning change requires roiGUI.
 
-Escape leaves the edit and discards an unfinished drag. Already staged target
-values remain in the camera, and Escape cannot undo a Set that has been sent.
+Delete cancels editing, discards an unfinished drag, and resets all six target
+fields to the current ROI, including binning. The box disappears while the reset
+is acknowledged; cancellation sends neither Check nor Set. If Set has already
+been submitted, Delete hides the box and the operation remains tracked until its
+outcome is known. It cannot undo that operation.
+
 Disconnects, stale geometry, property loss, errors, and a five-second acknowledgement
-timeout revoke pending confirmation without replay. Use a fresh explicit action
-after resolving the problem. Plain `r` still resets the display stretch.
+timeout revoke pending confirmation without replay. A rejected or timed-out reset
+shows the backend target again when valid state is available. Use a fresh explicit
+action after resolving the problem. Plain `r` still resets the display stretch.
 
 Commands require the configured camera's untransformed image and matching image
 geometry. Old cameras/providers retain their passive preview. Rotated, resampled,
