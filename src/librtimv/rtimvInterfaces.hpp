@@ -38,7 +38,7 @@
 namespace rtimv
 {
 
-/// States to indicated whether or not data are being saved
+/// States to indicate whether or not data are being saved
 enum class savingState
 {
     on,      ///< images are not being saved
