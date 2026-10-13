@@ -284,3 +284,4 @@ Relevant configuration key=value pairs are
 - `north.enabled=true/false`: Whether or not to enable the north arrow. Default is true.
 - `north.offset=float`: Offset in degrees c.c.w. to apply to the north angle. Default is 0.
 - `north.scale=float`: Scaling factor to apply to north angle to convert to degrees c.c.w. on the image.  Default is -1.
+

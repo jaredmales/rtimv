@@ -2,7 +2,6 @@
 /** \file rtimvMainWindow.cpp
  * \brief Definitions for the rtimvMainWindow class
  *
- * \author Jared R. Males (jaredmales@gmail.com)
  *
  */
 
@@ -17,13 +16,13 @@ namespace
 {
 
 /// Format an on/off state string.
-std::string onOffString( bool state )
+std::string onOffString( bool state /**< [in] State to display. */ )
 {
     return state ? "on" : "off";
 }
 
 /// Get a display label for the current color mode.
-std::string colorModeString( rtimv::colormode mode )
+std::string colorModeString( rtimv::colormode mode /**< [in] Active color mode. */ )
 {
     switch( mode )
     {
@@ -39,7 +38,7 @@ std::string colorModeString( rtimv::colormode mode )
 }
 
 /// Get a display label for the current stretch.
-std::string stretchString( rtimv::stretch stretch )
+std::string stretchString( rtimv::stretch stretch /**< [in] Active display stretch. */ )
 {
     switch( stretch )
     {
@@ -59,7 +58,7 @@ std::string stretchString( rtimv::stretch stretch )
 }
 
 /// Get a display label for the configured high-pass filter.
-std::string hpFilterString( rtimv::hpFilter filter )
+std::string hpFilterString( rtimv::hpFilter filter /**< [in] Configured high-pass filter. */ )
 {
     switch( filter )
     {
@@ -81,7 +80,7 @@ std::string hpFilterString( rtimv::hpFilter filter )
 }
 
 /// Get a display label for the configured low-pass filter.
-std::string lpFilterString( rtimv::lpFilter filter )
+std::string lpFilterString( rtimv::lpFilter filter /**< [in] Configured low-pass filter. */ )
 {
     switch( filter )
     {
@@ -99,7 +98,7 @@ std::string lpFilterString( rtimv::lpFilter filter )
 }
 
 /// Summarize the active filtering state for display.
-std::string filterStatusString( RTIMV_BASE *imv )
+std::string filterStatusString( RTIMV_BASE *imv /**< [in] Image backend providing the filter state. */ )
 {
     std::ostringstream oss;
     bool any = false;
@@ -258,6 +257,8 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
     /* ========================================= */
     /* now load plugins                          */
     /* ========================================= */
+
+    m_commands = new rtimvCommandRouter( this );
 
     /* -- static plugins -- */
     const auto staticInstances = QPluginLoader::staticInstances();
@@ -695,6 +696,18 @@ void rtimvMainWindow::post_zoomLevel()
     {
         m_colorBox->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
         m_colorBox->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
+    }
+
+    for( auto it = m_overlayBoxes.begin(); it != m_overlayBoxes.end(); )
+    {
+        if( !*it )
+        {
+            it = m_overlayBoxes.erase( it );
+            continue;
+        }
+        ( *it )->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
+        ( *it )->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
+        ++it;
     }
 
     for( auto &ubit : m_userBoxes )
@@ -2279,19 +2292,42 @@ void rtimvMainWindow::statsBoxRemove( StretchBox *sb )
 
 /*---- User Boxes ----*/
 
+QRectF rtimvMainWindow::newUserBoxRect()
+{
+    float w = std::min( m_nx / zoomLevel(), m_ny / zoomLevel() ) / 4;
+    return QRectF( ui.graphicsView->xCen() - w / 2, ui.graphicsView->yCen() - w / 2, w, w );
+}
+
+QSize rtimvMainWindow::overlayImageSize() const
+{
+    return QSize( m_nx, m_ny );
+}
+
+void rtimvMainWindow::showStatusMessage( const QString &message )
+{
+    ui.graphicsView->zoomText( message.toUtf8().constData() );
+    mtxTry_fontLuminance( ui.graphicsView->zoomText() );
+}
+
+void rtimvMainWindow::addInteractiveBox( StretchBox *box )
+{
+    if( !box )
+        return;
+    addStretchBox( box );
+    m_overlayBoxes.push_back( box );
+    box->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
+    box->setEdgeTol( m_userItemEdgeTol / m_screenZoom / zoomLevel() );
+    box->setMaintainCenter( true );
+    box->setRemovable( false );
+    connect( box, &StretchBox::moved, this, &rtimvMainWindow::mtxTry_userBoxMoved );
+    connect( box, &StretchBox::resized, this, &rtimvMainWindow::mtxTry_userBoxMoved );
+    connect( box, &StretchBox::selected, this, &rtimvMainWindow::mtxTry_userBoxSelected );
+    connect( box, &StretchBox::deSelected, this, &rtimvMainWindow::userBoxDeSelected );
+}
+
 void rtimvMainWindow::addUserBox()
 {
-    float w;
-
-    float znx = m_nx / zoomLevel();
-    float zny = m_ny / zoomLevel();
-    if( znx < zny )
-        w = znx / 4;
-    else
-        w = zny / 4;
-
-    std::pair<std::unordered_set<StretchBox *>::iterator, bool> it =
-        m_userBoxes.insert( new StretchBox( ui.graphicsView->xCen() - w / 2, ui.graphicsView->yCen() - w / 2, w, w ) );
+    auto it = m_userBoxes.insert( new StretchBox( newUserBoxRect() ) );
 
     StretchBox *sb = *it.first;
 
@@ -2423,7 +2459,8 @@ void rtimvMainWindow::mtxTry_userBoxSelected( StretchBox *sb )
     m_userItemXCen = sb->rect().x() + sb->pos().x() + 0.5 * sb->rect().width();
     m_userItemYCen = sb->rect().y() + sb->pos().y() + 0.5 * sb->rect().height();
 
-    userItemSelected( ui.graphicsView->userItemDefColor(), true, true, true );
+    const bool overlay = std::find( m_overlayBoxes.begin(), m_overlayBoxes.end(), sb ) != m_overlayBoxes.end();
+    userItemSelected( overlay ? sb->penColor() : ui.graphicsView->userItemDefColor(), true, true, true );
     mtxTry_userBoxMoved( sb );
 }
 
@@ -2923,6 +2960,23 @@ void rtimvMainWindow::mtxL_postColormode( rtimv::colormode m, const sharedLockT 
 
 void rtimvMainWindow::keyPressEvent( QKeyEvent *ke )
 {
+    QWidget *focus = QApplication::focusWidget();
+    for( QWidget *widget = focus; widget; widget = widget->parentWidget() )
+    {
+        if( widget->inherits( "QLineEdit" ) || widget->inherits( "QTextEdit" ) ||
+            widget->inherits( "QPlainTextEdit" ) || widget->inherits( "QAbstractSpinBox" ) )
+        {
+            QWidget::keyPressEvent( ke );
+            return;
+        }
+    }
+    if( ke->key() == Qt::Key_R && ke->modifiers() == Qt::AltModifier )
+    {
+        for( auto *overlay : m_overlays )
+            overlay->keyPressEvent( ke );
+        return;
+    }
+
     // First deal with the control sequences
     if( ke->modifiers() & Qt::ControlModifier )
     {
@@ -4195,6 +4249,7 @@ int rtimvMainWindow::loadPlugin( QObject *plugin )
                 plugin->metaObject()->className() );
         }
 
+        m_commands->addProvider( plugin );
         m_plugins.push_back( ri );
         return 0;
     }
@@ -4223,4 +4278,24 @@ bool rtimvMainWindow::eventFilter( QObject *obj, QEvent *event )
         }
     }
     return false;
+}
+
+QPixmap *rtimvMainWindow::getPixmap()
+{
+    return &m_qpm;
+}
+
+float rtimvMainWindow::get_xcen()
+{
+    return ui.graphicsView->xCen();
+}
+
+float rtimvMainWindow::get_ycen()
+{
+    return ui.graphicsView->yCen();
+}
+
+void rtimvMainWindow::changeCenter()
+{
+    change_center();
 }

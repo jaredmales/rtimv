@@ -1,4 +1,6 @@
-
+/** \file StretchBox.hpp
+ * \brief Movable, resizable scene rectangle with optional user-edit notifications.
+ */
 #ifndef __StretchBox_hpp__
 #define __StretchBox_hpp__
 
@@ -6,6 +8,7 @@
 
 #include "StretchGraphicsItem.hpp"
 
+/// Scene rectangle sharing user-shape movement, resizing, and selection behavior.
 class StretchBox : public QObject, public QGraphicsRectItem, public StretchGraphicsItem<StretchBox>
 {
     Q_OBJECT
@@ -15,18 +18,28 @@ class StretchBox : public QObject, public QGraphicsRectItem, public StretchGraph
   public:
     typedef QRectF coordSpecT;
 
-    StretchBox( QGraphicsItem *parent = 0 );
-    StretchBox( const QRectF &rect, QGraphicsItem *parent = 0 );
-    StretchBox( qreal x, qreal y, qreal width, qreal height, QGraphicsItem *parent = 0 );
+    /// Construct an editable rectangle with optional scene ownership.
+    StretchBox( QGraphicsItem *parent = 0 /**< [in] Optional owning graphics item. */ );
+
+    /// Construct an editable rectangle with optional scene ownership.
+    StretchBox( const QRectF &rect /**< [in] Initial rectangle in scene coordinates. */,
+                QGraphicsItem *parent = 0 /**< [in] Optional owning graphics item. */ );
+
+    /// Construct an editable rectangle with optional scene ownership.
+    StretchBox( qreal x /**< [in] Horizontal coordinate. */,
+                qreal y /**< [in] Vertical coordinate. */,
+                qreal width /**< [in] Rectangle width in scene pixels. */,
+                qreal height /**< [in] Rectangle height in scene pixels. */,
+                QGraphicsItem *parent = 0 /**< [in] Optional owning graphics item. */ );
 
   private:
-    /// Initialize the stretch circle
+    /// Initialize the stretch rectangle
     /** This connects m_cursorTimer (from StretchGraphicsItem) to the required cursorTimerOut slot.
      *
      */
     void initStretchBox();
 
-    /** \name Geometry
+    /** \name Geometry - Data
      * @{
      */
   protected:
@@ -40,6 +53,11 @@ class StretchBox : public QObject, public QGraphicsRectItem, public StretchGraph
     float m_mv_x0{ 0 };  ///< The x-coordinate of the mouse at the start of a re-size
     float m_mv_y0{ 0 };  ///< The y-coordinate of the mouse at the start of a re-size
 
+    ///@}
+
+    /** \name Geometry
+     * @{
+     */
   public:
     /// Get whether or not the center is maintained when stretching.
     /** \returns the current value of m_maintainCenter
@@ -57,17 +75,23 @@ class StretchBox : public QObject, public QGraphicsRectItem, public StretchGraph
      *
      * @{
      */
-    void hoverMoveEvent( QGraphicsSceneHoverEvent *e );
+    /// Update hover selection and sizing intent for the rectangle.
+    void hoverMoveEvent( QGraphicsSceneHoverEvent *e /**< [in] Qt event to process. */ );
 
-    void hoverLeaveEvent( QGraphicsSceneHoverEvent *e );
+    /// Clear hover selection when the pointer leaves the rectangle.
+    void hoverLeaveEvent( QGraphicsSceneHoverEvent *e /**< [in] Qt event to process. */ );
 
-    void mousePressEvent( QGraphicsSceneMouseEvent *event );
+    /// Begin a user move or resize and emit its start notification.
+    void mousePressEvent( QGraphicsSceneMouseEvent *event /**< [in] Qt event to process. */ );
 
-    void mouseReleaseEvent( QGraphicsSceneMouseEvent *event );
+    /// Complete a user move or resize and emit one completion notification.
+    void mouseReleaseEvent( QGraphicsSceneMouseEvent *event /**< [in] Qt event to process. */ );
 
-    void mouseMoveEvent( QGraphicsSceneMouseEvent *event );
+    /// Update local rectangle geometry during a mouse edit.
+    void mouseMoveEvent( QGraphicsSceneMouseEvent *event /**< [in] Qt event to process. */ );
 
-    void keyPressEvent( QKeyEvent *ke );
+    /// Process removal keys and forward other input to the scene item.
+    void keyPressEvent( QKeyEvent *ke /**< [in] Keyboard event to dispatch. */ );
 
     ///@}
 
@@ -76,21 +100,29 @@ class StretchBox : public QObject, public QGraphicsRectItem, public StretchGraph
      * @{
      */
 
-    bool onHoverComputeSizing( QGraphicsSceneHoverEvent *e );
+    /// Select a rectangle edge or corner from the hover position.
+    bool onHoverComputeSizing( QGraphicsSceneHoverEvent *e /**< [in] Qt event to process. */ );
 
-    bool onMousePressCalcGrabbed( QGraphicsSceneMouseEvent *e );
+    /// Return whether the press falls within the draggable border.
+    bool onMousePressCalcGrabbed( QGraphicsSceneMouseEvent *e /**< [in] Qt event to process. */ );
 
-    void setGrabbedGeometry( QGraphicsSceneMouseEvent *e );
+    /// Capture rectangle position at the start of movement.
+    void setGrabbedGeometry( QGraphicsSceneMouseEvent *e /**< [in] Qt event to process. */ );
 
-    void setMovingGeometry( QGraphicsSceneMouseEvent *e );
+    /// Capture rectangle edges at the start of resizing.
+    void setMovingGeometry( QGraphicsSceneMouseEvent *e /**< [in] Qt event to process. */ );
 
-    void sizingCalcNewPos( QGraphicsSceneMouseEvent *e );
+    /// Resize the captured rectangle from the current pointer position.
+    void sizingCalcNewPos( QGraphicsSceneMouseEvent *e /**< [in] Qt event to process. */ );
 
-    void movingCalcNewPos( QGraphicsSceneMouseEvent *e );
+    /// Move the captured rectangle from the current pointer position.
+    void movingCalcNewPos( QGraphicsSceneMouseEvent *e /**< [in] Qt event to process. */ );
 
-    void passKeyPressEvent( QKeyEvent *ke );
+    /// Forward unhandled keys to the graphics item.
+    void passKeyPressEvent( QKeyEvent *ke /**< [in] Keyboard event to dispatch. */ );
 
-    void focusOutEvent( QFocusEvent *e );
+    /// Clear the cursor state when the rectangle loses focus.
+    void focusOutEvent( QFocusEvent *e /**< [in] Qt event to process. */ );
 
   protected slots:
 
@@ -106,29 +138,68 @@ class StretchBox : public QObject, public QGraphicsRectItem, public StretchGraph
     /// Remove this box from the list
     void remove();
 
+    /// Cancel unsent mouse editing without removing the box.
+    void cancelEdit();
+
     /** \name Signals
      * The emitXXXX are required by StretchGraphicsItem, and each
      * emits the associated signal.
      * @{
      */
+    /// Emit the moved rectangle notification.
     void emitMoved();
+
+    /// Emit the resized rectangle notification.
     void emitResized();
+
+    /// Emit the rejectMouse rectangle notification.
     void emitRejectMouse();
+
+    /// Emit the mouseIn rectangle notification.
     void emitMouseIn();
+
+    /// Emit the mouseOut rectangle notification.
     void emitMouseOut();
+
+    /// Emit the remove rectangle notification.
     void emitRemove();
+
+    /// Emit the selected rectangle notification.
     void emitSelected();
+
+    /// Emit the deSelected rectangle notification.
     void emitDeSelected();
 
   signals:
-    void moved( StretchBox *s );
-    void resized( StretchBox *s );
-    void rejectMouse( StretchBox *s );
-    void mouseIn( StretchBox *s );
-    void mouseOut( StretchBox *s );
-    void remove( StretchBox *s );
-    void selected( StretchBox *s );
-    void deSelected( StretchBox *s );
+    /// A user has begun moving or resizing the box.
+    void editStarted( StretchBox *box /**< [in] Edited box. */ );
+
+    /// A user has released the box after moving or resizing it.
+    void editFinished( StretchBox *box /**< [in] Edited box. */ );
+
+    /// Report that rectangle geometry moved.
+    void moved( StretchBox *s /**< [in] Rectangle sending this notification. */ );
+
+    /// Report that rectangle dimensions changed.
+    void resized( StretchBox *s /**< [in] Rectangle sending this notification. */ );
+
+    /// Yield pointer interaction to other scene items.
+    void rejectMouse( StretchBox *s /**< [in] Rectangle sending this notification. */ );
+
+    /// Report that the pointer entered the active rectangle border.
+    void mouseIn( StretchBox *s /**< [in] Rectangle sending this notification. */ );
+
+    /// Report that the pointer left the active rectangle border.
+    void mouseOut( StretchBox *s /**< [in] Rectangle sending this notification. */ );
+
+    /// Request removal of the rectangle from its owning scene.
+    void remove( StretchBox *s /**< [in] Rectangle sending this notification. */ );
+
+    /// Report selection of the rectangle.
+    void selected( StretchBox *s /**< [in] Rectangle sending this notification. */ );
+
+    /// Report deselection of the rectangle.
+    void deSelected( StretchBox *s /**< [in] Rectangle sending this notification. */ );
 
     ///@}
 };

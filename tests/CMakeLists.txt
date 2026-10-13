@@ -1,3 +1,9 @@
+add_executable(rtimvCommandTest librtimv/rtimvCommand_test.cpp)
+target_include_directories(rtimvCommandTest PRIVATE ${CMAKE_SOURCE_DIR}/src/librtimv ${CMAKE_SOURCE_DIR}/src/common)
+target_link_libraries(rtimvCommandTest PRIVATE rtimv-shared ${RTIMV_QT_PACKAGE}::Widgets PkgConfig::MXLIB)
+add_test(NAME rtimvCommand COMMAND rtimvCommandTest)
+set_tests_properties(rtimvCommand PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 10)
+
 add_executable(rtimvFiltersMtfTest
                common/rtimvFilters_mtf_test.cpp
                ${CMAKE_SOURCE_DIR}/src/common/rtimvFilters.cpp)
