@@ -1,8 +1,6 @@
 /** \file rtimvBaseObject.cpp
  * \brief Definitions for the rtimvBaseObject class
  *
- * \author Jared R. Males (jaredmales@gmail.com)
- *
  */
 
 #include "rtimvBaseObject.hpp"
@@ -221,6 +219,22 @@ void rtimvBaseObject::reconnect()
     }
 
     m_parent->reconnect();
+
+    #endif
+    // clang-format on
+}
+
+void rtimvBaseObject::ConnectionReceived()
+{
+    // clang-format off
+    #ifdef RTIMV_GRPC
+
+    if( !m_parent )
+    {
+        return;
+    }
+
+    m_parent->ConnectionReceived();
 
     #endif
     // clang-format on

@@ -31,10 +31,13 @@ struct rtimvBaseObject : public QObject
 
     QTimer m_connectionTimer; ///< When this times out the GRPC client checks for a disconnection
 
+    /// Require an owner when constructing the forwarding object.
     rtimvBaseObject() = delete;
 
     /// Construct the Qt helper object that forwards timer and signal activity to the owning base object.
-    rtimvBaseObject( RTIMV_BASE *parent, QObject *QParent );
+    rtimvBaseObject( RTIMV_BASE *parent, /**< [in] owning image backend */
+                     QObject *QParent    /**< [in] Qt parent, or nullptr for independent ownership */
+    );
 
     /// Detach from the owning base object and stop all internal timers/connections for shutdown.
     Q_INVOKABLE void shutdown();
@@ -172,25 +175,35 @@ struct rtimvBaseObject : public QObject
     // GRPC Stuff:
 
   public:
+    /// Request the next image through the Qt signal/slot connection.
     void emit_ImageNeeded();
 
+    /// Notify Qt that an image reply is ready to apply.
     void emit_ImageWaiting();
 
   signals:
 
+    /// Signal that the client should request another image.
     void ImageNeeded();
 
+    /// Signal that the client has received an image reply.
     void ImageWaiting();
 
   public slots:
 
+    /// Forward the connection timer to the client while its owner is alive.
     void reconnect();
+
+    /// Forward a completed connection RPC to the client while its owner is alive.
+    void ConnectionReceived();
 
     /// Schedule a delayed ImagePlease call on the foundation object's Qt thread.
     void scheduleImagePlease( int delayMs /**< [in] delay before requesting the next image, ms */ );
 
+    /// Forward an image request while the owning client is alive.
     void ImagePlease();
 
+    /// Forward image reply processing while the owning client is alive.
     void ImageReceived();
 };
 

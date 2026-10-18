@@ -1,8 +1,6 @@
 /** \file rtimvClientBase.cpp
  * \brief Definitions for the rtimvClientBase class
  *
- * \author Jared R. Males (jaredmales@gmail.com)
- *
  */
 
 #include "rtimvClientBase.hpp"
@@ -102,6 +100,16 @@ rtimvClientBase::~rtimvClientBase()
         {
             QMetaObject::invokeMethod( m_foundation, "shutdown", Qt::BlockingQueuedConnection );
         }
+    }
+
+    { // mutex scope
+        std::unique_lock<std::mutex> lock( m_connectionRequestMutex );
+        if( m_pendingConnectionRequest && m_connectionRpcPending )
+        {
+            m_pendingConnectionRequest->m_context.TryCancel();
+        }
+        m_connectionRequestCv.wait( lock, [this]() { return !m_connectionRpcPending; } );
+        m_pendingConnectionRequest.reset();
     }
 
     { // mutex scope
@@ -305,9 +313,9 @@ void rtimvClientBase::endGrpcCallbackActivity()
         }
 
         --m_activeGrpcCallbacks;
+        // Notify while still holding the mutex so teardown cannot destroy the condition variable first.
+        m_callbackActivityCv.notify_all();
     }
-
-    m_callbackActivityCv.notify_all();
 }
 
 void rtimvClientBase::setupConfig()
@@ -810,6 +818,7 @@ void rtimvClientBase::startup()
 
 bool rtimvClientBase::connected()
 {
+    sharedLockT lock( m_connectedMutex );
     return m_connected;
 }
 
@@ -842,170 +851,249 @@ std::string rtimvClientBase::formatBaseLogMessage( std::string_view message ) co
 
 void rtimvClientBase::reconnect()
 {
-    sharedLockT lock( m_connectedMutex );
-
-    if( m_connected )
+    if( m_shuttingDown || !stub_ )
     {
-        lock.unlock();
-        dispatchPingAsync();
         return;
     }
 
-    lock.unlock();
-
-    bool shouldConfigure = true;
-    if( stub_ )
-    {
-        remote_rtimv::ImageNameRequest request;
-        remote_rtimv::ImageNameResponse response;
-        grpc::ClientContext context;
-        request.set_image( 0 );
-
-        grpc::Status status = stub_->GetImageName( &context, request, &response );
-        if( status.ok() )
+    { // mutex scope
+        sharedLockT lock( m_connectedMutex );
+        if( m_connected )
         {
-            uniqueLockT ulock( m_connectedMutex );
-            m_connected = true;
-            m_connectionFailReported = false;
-            shouldConfigure = false;
-        }
-        else if( status.error_code() != grpc::StatusCode::FAILED_PRECONDITION )
-        {
-            // Transport/server error; keep disconnected and let timer retry.
-            shouldConfigure = false;
+            lock.unlock();
+            dispatchPingAsync();
+            return;
         }
     }
 
-    if( shouldConfigure )
-    {
-        Configure();
-    }
-
-    lock.lock();
-
-    // Start getting images again without retaining the connection lock through GUI updates.
-    const bool isConnected = m_connected;
-    lock.unlock();
-    if( isConnected )
-    {
-        m_foundation->emit_ImageNeeded();
-    }
-    else
-    {
-        updateAge();
-    }
+    updateAge();
+    dispatchConnectionRequest( connectionPhase::probe );
 }
 
 void rtimvClientBase::Configure()
 {
-    uniqueLockT lock( m_connectedMutex );
-    ++m_connections;
+    dispatchConnectionRequest( connectionPhase::configure );
+}
+
+void rtimvClientBase::updateImageNamesFromServer( uint32_t image )
+{
+    dispatchConnectionRequest( connectionPhase::imageName, image );
+}
+
+void rtimvClientBase::dispatchConnectionRequest( connectionPhase phase, uint32_t image )
+{
+    auto state = std::make_shared<connectionRequestState>();
+    state->m_phase = phase;
+    state->m_nameRequest.set_image( image );
+    state->m_context.set_deadline( std::chrono::system_clock::now() + ( phase == connectionPhase::configure
+                                                                            ? std::chrono::seconds( 10 )
+                                                                            : std::chrono::seconds( 2 ) ) );
 
     { // mutex scope
-        std::lock_guard<std::mutex> infoLock( m_infoMutex );
-        for( auto &details : m_infoCache )
+        uniqueLockT connLock( m_connectedMutex );
+        std::lock_guard<std::mutex> requestLock( m_connectionRequestMutex );
+        if( m_shuttingDown || !stub_ || m_pendingConnectionRequest )
         {
-            details.clear();
+            return;
         }
-        for( auto &age : m_ageSamples )
+
+        if( phase != connectionPhase::imageName )
         {
-            age = {};
-        }
-        m_lastAgePoll = {};
-        m_lastPathPoll.fill( {} );
-        if( m_pendingAgesRequest && m_pendingAgesRequest->m_context )
-        {
-            m_pendingAgesRequest->m_context->TryCancel();
-        }
-        for( const auto &state : m_pendingInfoRequests )
-        {
-            if( state && state->m_context )
-            {
-                state->m_context->TryCancel();
+            ++m_connections;
+            m_connected = false;
+
+            { // mutex scope
+                std::lock_guard<std::mutex> imageLock( m_imageRequestMutex );
+                m_completedImageReplies.clear();
+                m_imagePipelinePrimed = false;
+                for( const auto &[requestId, imageState] : m_inflightImageRequests )
+                {
+                    static_cast<void>( requestId );
+                    imageState->m_context->TryCancel();
+                }
             }
         }
-    }
+        state->m_generation = m_connections;
 
-    if( !m_configReq )
-    {
-        m_connected = false;
-        return;
-    }
+        if( phase == connectionPhase::configure )
+        {
+            if( !m_configReq )
+            {
+                return;
+            }
+            state->m_configRequest = *m_configReq;
 
-    remote_rtimv::ConfigResult result;
-    grpc::ClientContext context;
-
-    grpc::Status status = stub_->Configure( &context, *m_configReq, &result );
-
-    // Act upon its status.
-    if( status.ok() )
-    {
-        m_clientId = result.client_id();
-        m_connected = true;
-        { // mutex scope
-            std::lock_guard<std::mutex> imageLock( m_imageRequestMutex );
-            m_completedImageReplies.clear();
-            m_lastAppliedResponseSerial = 0;
-            m_imagePipelinePrimed = false;
+            { // mutex scope
+                std::lock_guard<std::mutex> infoLock( m_infoMutex );
+                for( auto &details : m_infoCache )
+                {
+                    details.clear();
+                }
+                for( auto &age : m_ageSamples )
+                {
+                    age = {};
+                }
+                m_lastAgePoll = {};
+                m_lastPathPoll.fill( {} );
+                if( m_pendingAgesRequest && m_pendingAgesRequest->m_context )
+                {
+                    m_pendingAgesRequest->m_context->TryCancel();
+                }
+                for( const auto &infoState : m_pendingInfoRequests )
+                {
+                    if( infoState && infoState->m_context )
+                    {
+                        infoState->m_context->TryCancel();
+                    }
+                }
+            }
         }
-        m_lastCompressionRatio = 0;
-        m_avgCompressionRatio = 0;
-        m_avgFrameRate = 0;
-        m_lastRttMs = 0;
-        m_avgRttMs = 0;
-        m_fpsRollingSum = 0;
-        m_compressionRollingSum = 0;
-        m_rttRollingSum = 0;
-        m_recentFrameIntervals.clear();
-        m_recentCompressionRatios.clear();
-        m_recentRtts.clear();
-        m_lastArrivalTime = std::chrono::steady_clock::time_point{};
-        m_lastFrameRatePublishTime = std::chrono::steady_clock::time_point{};
-        updateImageNamesFromServer();
-        std::cerr << formatBaseLogMessage( std::format( "connected to {}:{}", m_server, m_port ) ) << '\n';
-        m_connectionFailReported = false;
+
+        m_pendingConnectionRequest = state;
+        m_connectionRpcPending = true;
+    }
+
+    auto callback = [this, state]( grpc::Status status ) { connectionRequest_callback( state, status ); };
+    if( phase == connectionPhase::configure )
+    {
+        stub_->async()->Configure( &state->m_context, &state->m_configRequest, &state->m_configReply, callback );
     }
     else
     {
-        m_clientId.clear();
-        m_connected = false;
-        if( !m_connectionFailReported )
-        {
-            std::cerr << formatBaseLogMessage( status.error_message() ) << '\n';
-            m_connectionFailReported = true;
-        }
+        stub_->async()->GetImageName( &state->m_context, &state->m_nameRequest, &state->m_nameReply, callback );
     }
 }
 
-void rtimvClientBase::updateImageNamesFromServer()
+void rtimvClientBase::connectionRequest_callback( std::shared_ptr<connectionRequestState> state, grpc::Status status )
 {
-    if( !stub_ )
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_connectionRequestMutex );
+        state->m_status = status;
+        m_connectionRpcPending = false;
+        m_connectionRequestCv.notify_all();
+    }
+
+    if( !m_shuttingDown )
+    {
+        // The foundation slot checks its owner, including when shutdown precedes delivery of this event.
+        QMetaObject::invokeMethod( m_foundation, "ConnectionReceived", Qt::QueuedConnection );
+    }
+}
+
+void rtimvClientBase::ConnectionReceived()
+{
+    std::shared_ptr<connectionRequestState> state;
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_connectionRequestMutex );
+        if( m_shuttingDown || m_connectionRpcPending || !m_pendingConnectionRequest )
+        {
+            return;
+        }
+        state = std::move( m_pendingConnectionRequest );
+    }
+
+    uniqueLockT connLock( m_connectedMutex );
+    if( m_shuttingDown || state->m_generation != m_connections )
     {
         return;
     }
 
+    if( state->m_phase == connectionPhase::probe )
+    {
+        connLock.unlock();
+        if( state->m_status.ok() )
+        {
+            finishConnection();
+        }
+        else if( state->m_status.error_code() == grpc::StatusCode::FAILED_PRECONDITION )
+        {
+            Configure();
+        }
+        // Transport errors leave the client disconnected until the next timer retry.
+        return;
+    }
+
+    if( state->m_phase == connectionPhase::configure )
+    {
+        if( !state->m_status.ok() )
+        {
+            m_clientId.clear();
+            m_connected = false;
+            if( !m_connectionFailReported )
+            {
+                std::cerr << formatBaseLogMessage( state->m_status.error_message() ) << '\n';
+                m_connectionFailReported = true;
+            }
+            return;
+        }
+
+        m_clientId = state->m_configReply.client_id();
+        { // mutex scope
+            std::lock_guard<std::mutex> imageLock( m_imageRequestMutex );
+            m_lastCompressionRatio = 0;
+            m_avgCompressionRatio = 0;
+            m_avgFrameRate = 0;
+            m_lastRttMs = 0;
+            m_avgRttMs = 0;
+            m_fpsRollingSum = 0;
+            m_compressionRollingSum = 0;
+            m_rttRollingSum = 0;
+            m_recentFrameIntervals.clear();
+            m_recentCompressionRatios.clear();
+            m_recentRtts.clear();
+            m_lastArrivalTime = std::chrono::steady_clock::time_point{};
+            m_lastFrameRatePublishTime = std::chrono::steady_clock::time_point{};
+        }
+        connLock.unlock();
+        updateImageNamesFromServer();
+        return;
+    }
+
+    const uint32_t image = state->m_nameRequest.image();
     if( m_imageNames.size() < 4 )
     {
         m_imageNames.resize( 4 );
     }
-
-    for( uint32_t n = 0; n < 4; ++n )
+    if( image < m_imageNames.size() && state->m_status.ok() && state->m_nameReply.valid() &&
+        m_imageNames[image].empty() )
     {
-        remote_rtimv::ImageNameRequest request;
-        remote_rtimv::ImageNameResponse response;
-        grpc::ClientContext context;
-
-        request.set_image( n );
-
-        grpc::Status status = stub_->GetImageName( &context, request, &response );
-        if( status.ok() && response.valid() )
-        {
-            if( m_imageNames[n] == "" )
-            {
-                m_imageNames[n] = response.name();
-            }
-        }
+        m_imageNames[image] = state->m_nameReply.name();
     }
+    connLock.unlock();
+
+    if( image < 3 )
+    {
+        updateImageNamesFromServer( image + 1 );
+    }
+    else
+    {
+        std::cerr << formatBaseLogMessage( std::format( "connected to {}:{}", m_server, m_port ) ) << '\n';
+        finishConnection();
+    }
+}
+
+void rtimvClientBase::finishConnection()
+{
+    { // mutex scope
+        uniqueLockT connLock( m_connectedMutex );
+        if( m_shuttingDown )
+        {
+            return;
+        }
+        m_connected = true;
+        m_connectionFailReported = false;
+
+        std::lock_guard<std::mutex> imageLock( m_imageRequestMutex );
+        m_completedImageReplies.clear();
+        m_lastAppliedResponseSerial = 0;
+        m_imagePipelinePrimed = false;
+    }
+
+    // GUI work and new image dispatches must run after releasing the connection lock.
+    m_foundation->emit_ImageNeeded();
 }
 
 void rtimvClientBase::ImagePlease()
@@ -1028,7 +1116,15 @@ void rtimvClientBase::ImagePlease()
 
         const size_t targetWindow = m_imagePipelinePrimed ? m_targetImageWindow : 1;
 
-        while( m_inflightImageRequests.size() < targetWindow )
+        // Canceled requests from an earlier connection remain owned until their callbacks finish,
+        // but must not consume credits from the new connection's image window.
+        size_t currentRequests =
+            std::count_if( m_inflightImageRequests.begin(),
+                           m_inflightImageRequests.end(),
+                           [connectionGeneration]( const auto &entry )
+                           { return entry.second->m_connectionGeneration == connectionGeneration; } );
+
+        while( currentRequests < targetWindow )
         {
             auto state = std::make_shared<imageRequestState>();
             state->m_context = std::make_unique<grpc::ClientContext>();
@@ -1038,6 +1134,7 @@ void rtimvClientBase::ImagePlease()
             const uint64_t requestId = m_nextImageRequestId++;
             m_inflightImageRequests.emplace( requestId, state );
             requestsToDispatch.emplace_back( requestId, state );
+            ++currentRequests;
         }
     }
 
@@ -1810,11 +1907,6 @@ void rtimvClientBase::GetPixel_callback( grpc::Status status )
                 value = m_getPixelReply.value();
             }
         }
-        else
-        {
-            sharedLockT connLock( m_connectedMutex );
-            REPORT_SERVER_DISCONNECTED
-        }
 
         contextHolder.reset( m_GetPixelContext );
         m_GetPixelContext = nullptr;
@@ -1827,6 +1919,13 @@ void rtimvClientBase::GetPixel_callback( grpc::Status status )
     }
 
     m_asyncRpcCv.notify_all();
+
+    if( !status.ok() )
+    {
+        // Requests take the connection lock before the async lock, so report errors after releasing the async lock.
+        sharedLockT connLock( m_connectedMutex );
+        REPORT_SERVER_DISCONNECTED
+    }
 
     if( m_foundation )
     {
@@ -1882,11 +1981,6 @@ void rtimvClientBase::ColorBox_callback( grpc::Status status )
                 m_maxScaleData = max;
             }
         }
-        else
-        {
-            sharedLockT connLock( m_connectedMutex );
-            REPORT_SERVER_DISCONNECTED
-        }
 
         contextHolder.reset( m_ColorBoxContext );
         m_ColorBoxContext = nullptr;
@@ -1897,6 +1991,13 @@ void rtimvClientBase::ColorBox_callback( grpc::Status status )
     }
 
     m_asyncRpcCv.notify_all();
+
+    if( !status.ok() )
+    {
+        // Requests take the connection lock before the async lock, so report errors after releasing the async lock.
+        sharedLockT connLock( m_connectedMutex );
+        REPORT_SERVER_DISCONNECTED
+    }
 
     if( m_foundation )
     {
@@ -1959,11 +2060,6 @@ void rtimvClientBase::StatsBox_callback( grpc::Status status )
                 m_statsBox_median = median;
             }
         }
-        else
-        {
-            sharedLockT connLock( m_connectedMutex );
-            REPORT_SERVER_DISCONNECTED
-        }
 
         contextHolder.reset( m_StatsBoxContext );
         m_StatsBoxContext = nullptr;
@@ -1974,6 +2070,13 @@ void rtimvClientBase::StatsBox_callback( grpc::Status status )
     }
 
     m_asyncRpcCv.notify_all();
+
+    if( !status.ok() )
+    {
+        // Requests take the connection lock before the async lock, so report errors after releasing the async lock.
+        sharedLockT connLock( m_connectedMutex );
+        REPORT_SERVER_DISCONNECTED
+    }
 
     if( m_foundation )
     {
@@ -2005,12 +2108,6 @@ void rtimvClientBase::SetColorstretch_callback( grpc::Status status )
             return;
         }
 
-        if( !status.ok() )
-        {
-            sharedLockT connLock( m_connectedMutex );
-            REPORT_SERVER_DISCONNECTED
-        }
-
         contextHolder.reset( m_SetColorstretchContext );
         m_SetColorstretchContext = nullptr;
 
@@ -2021,6 +2118,13 @@ void rtimvClientBase::SetColorstretch_callback( grpc::Status status )
     }
 
     m_asyncRpcCv.notify_all();
+
+    if( !status.ok() )
+    {
+        // Requests take the connection lock before the async lock, so report errors after releasing the async lock.
+        sharedLockT connLock( m_connectedMutex );
+        REPORT_SERVER_DISCONNECTED
+    }
 
     if( queueNext && m_foundation != nullptr )
     {
@@ -2052,8 +2156,6 @@ void rtimvClientBase::SetMinScale_callback( grpc::Status status )
         }
         else
         {
-            sharedLockT connLock( m_connectedMutex );
-            REPORT_SERVER_DISCONNECTED
             queueNext = m_setMinScaleQueued && !m_shuttingDown;
             nextValue = m_setMinScaleDesired;
             m_setMinScaleQueued = false;
@@ -2065,6 +2167,13 @@ void rtimvClientBase::SetMinScale_callback( grpc::Status status )
     }
 
     m_asyncRpcCv.notify_all();
+
+    if( !status.ok() )
+    {
+        // Requests take the connection lock before the async lock, so report errors after releasing the async lock.
+        sharedLockT connLock( m_connectedMutex );
+        REPORT_SERVER_DISCONNECTED
+    }
 
     if( queueNext && m_foundation != nullptr )
     {
@@ -2096,8 +2205,6 @@ void rtimvClientBase::SetMaxScale_callback( grpc::Status status )
         }
         else
         {
-            sharedLockT connLock( m_connectedMutex );
-            REPORT_SERVER_DISCONNECTED
             queueNext = m_setMaxScaleQueued && !m_shuttingDown;
             nextValue = m_setMaxScaleDesired;
             m_setMaxScaleQueued = false;
@@ -2109,6 +2216,13 @@ void rtimvClientBase::SetMaxScale_callback( grpc::Status status )
     }
 
     m_asyncRpcCv.notify_all();
+
+    if( !status.ok() )
+    {
+        // Requests take the connection lock before the async lock, so report errors after releasing the async lock.
+        sharedLockT connLock( m_connectedMutex );
+        REPORT_SERVER_DISCONNECTED
+    }
 
     if( queueNext && m_foundation != nullptr )
     {
@@ -2245,6 +2359,7 @@ uint32_t rtimvClientBase::imageNo( size_t n )
     grpc::ClientContext context;
 
     request.set_image( static_cast<uint32_t>( n ) );
+    context.set_deadline( std::chrono::system_clock::now() + std::chrono::seconds( 2 ) );
 
     grpc::Status status = stub_->GetImageNo( &context, request, &response );
 

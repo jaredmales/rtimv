@@ -1,8 +1,6 @@
 /** \file rtimvClientBase.hpp
  * \brief Declarations for the rtimvClientBase base class
  *
- * \author Jared R. Males (jaredmales@gmail.com)
- *
  */
 
 #ifndef rtimv_rtimvClientBase_hpp
@@ -10,6 +8,7 @@
 
 #include <vector>
 #include <array>
+#include <atomic>
 #include <mutex>
 #include <shared_mutex>
 #include <condition_variable>
@@ -67,6 +66,7 @@ class rtimvClientBase : public mx::app::application
     /// Basic c'tor.
     rtimvClientBase();
 
+    /// Cancel outstanding RPCs and wait for callbacks to release the client.
     ~rtimvClientBase();
 
     // static rtimvClientBase * globalBase;
@@ -101,7 +101,7 @@ class rtimvClientBase : public mx::app::application
 
     bool m_imageWaiting{ false };
 
-    /** @name Connection Data
+    /** @name Connection - Data
      *
      * @{
      */
@@ -118,7 +118,56 @@ class rtimvClientBase : public mx::app::application
     /// Flag to prevent repeating connection failure reports.
     bool m_connectionFailReported{ false };
 
+    /// Protects connection state and generation; never acquired while holding m_asyncRpcMutex.
     std::shared_mutex m_connectedMutex;
+
+    /// Stage of the asynchronous connection handshake.
+    enum class connectionPhase
+    {
+        probe,
+        configure,
+        imageName
+    };
+
+    /// Owned transport state retained until the Qt thread consumes the completed connection RPC.
+    struct connectionRequestState
+    {
+        /// Context kept alive through transport completion and canceled during shutdown.
+        grpc::ClientContext m_context;
+
+        /// Handshake operation performed by this request.
+        connectionPhase m_phase;
+
+        /// Connection generation that dispatched the request.
+        uint64_t m_generation{ 0 };
+
+        /// Image slot queried by probe and image-name operations.
+        remote_rtimv::ImageNameRequest m_nameRequest;
+
+        /// Image-name response applied on the Qt thread.
+        remote_rtimv::ImageNameResponse m_nameReply;
+
+        /// Configuration payload owned independently of the client configuration pointer.
+        remote_rtimv::Config m_configRequest;
+
+        /// Configuration response applied on the Qt thread.
+        remote_rtimv::ConfigResult m_configReply;
+
+        /// Transport result published by the callback under m_connectionRequestMutex.
+        grpc::Status m_status;
+    };
+
+    /// Protects connection RPC ownership and transport completion.
+    std::mutex m_connectionRequestMutex;
+
+    /// Wakes shutdown when the outstanding connection RPC completes.
+    std::condition_variable m_connectionRequestCv;
+
+    /// In-flight or completed connection RPC awaiting Qt processing; prevents overlapping attempts.
+    std::shared_ptr<connectionRequestState> m_pendingConnectionRequest;
+
+    /// True until the transport callback completes; shutdown does not wait for queued Qt processing.
+    bool m_connectionRpcPending{ false };
 
     ///@}
 
@@ -139,7 +188,11 @@ class rtimvClientBase : public mx::app::application
 
   public slots:
 
+    /// Probe or configure the server asynchronously, or ping an existing connection.
     void reconnect();
+
+    /// Apply a completed connection RPC on the foundation object's Qt thread.
+    void ConnectionReceived();
 
   protected:
     /// Get the main image name/key for log context.
@@ -149,8 +202,21 @@ class rtimvClientBase : public mx::app::application
     std::string
     formatBaseLogMessage( std::string_view message /**< [in] text to append after standardized prefix */ ) const;
 
-    /// Refresh configured image names from the server.
-    void updateImageNamesFromServer();
+    /// Launch the next asynchronous image-name refresh during configuration.
+    void updateImageNamesFromServer( uint32_t image = 0 /**< [in] image slot to refresh */ );
+
+    /// Register and dispatch one connection RPC without waiting for a network response.
+    void dispatchConnectionRequest( connectionPhase phase, /**< [in] handshake operation to launch */
+                                    uint32_t image = 0     /**< [in] image slot for probe or name requests */
+    );
+
+    /// Publish a transport completion and queue application of the result on the Qt thread.
+    void connectionRequest_callback( std::shared_ptr<connectionRequestState> state, /**< [in] owned RPC state */
+                                     grpc::Status status /**< [in] transport completion status */
+    );
+
+    /// Mark the handshake complete and resume image requests on the Qt thread.
+    void finishConnection();
 
     /// State for one in-flight ImagePlease RPC.
     struct imageRequestState
@@ -186,9 +252,7 @@ class rtimvClientBase : public mx::app::application
     grpc::ClientContext *m_PingContext{ nullptr };
 
   public:
-    /// Configure the server
-    /**
-     */
+    /// Start asynchronous server configuration; completion resumes image requests on the Qt thread.
     void Configure();
 
   protected:
@@ -198,8 +262,8 @@ class rtimvClientBase : public mx::app::application
     /// Condition variable used to signal completion of pending image requests.
     std::condition_variable m_imageRequestCv;
 
-    /// Flag indicating client teardown is in progress.
-    bool m_shuttingDown{ false };
+    /// Cross-thread teardown flag shared by all RPC groups and Qt completion handlers.
+    std::atomic<bool> m_shuttingDown{ false };
 
     /// Desired steady-state number of in-flight ImagePlease RPCs after the first valid image arrives.
     size_t m_targetImageWindow{ 10 };
@@ -485,7 +549,7 @@ class rtimvClientBase : public mx::app::application
 
   protected:
     /// Handle a Ping response from the server.
-    void Ping_callback( grpc::Status status );
+    void Ping_callback( grpc::Status status /**< [in] transport completion status */ );
 
     /// Handle an ImagePlease response from the server.
     void ImagePlease_callback( uint64_t requestId, /**< [in] local identifier for the completed request */
@@ -494,22 +558,22 @@ class rtimvClientBase : public mx::app::application
     );
 
     /// Handle a GetPixel response from the server.
-    void GetPixel_callback( grpc::Status status );
+    void GetPixel_callback( grpc::Status status /**< [in] transport completion status */ );
 
     /// Handle a ColorBox response from the server.
-    void ColorBox_callback( grpc::Status status );
+    void ColorBox_callback( grpc::Status status /**< [in] transport completion status */ );
 
     /// Handle a StatsBox response from the server.
-    void StatsBox_callback( grpc::Status status );
+    void StatsBox_callback( grpc::Status status /**< [in] transport completion status */ );
 
     /// Handle a SetColorstretch response from the server.
-    void SetColorstretch_callback( grpc::Status status );
+    void SetColorstretch_callback( grpc::Status status /**< [in] transport completion status */ );
 
     /// Handle a SetMinScale response from the server.
-    void SetMinScale_callback( grpc::Status status );
+    void SetMinScale_callback( grpc::Status status /**< [in] transport completion status */ );
 
     /// Handle a SetMaxScale response from the server.
-    void SetMaxScale_callback( grpc::Status status );
+    void SetMaxScale_callback( grpc::Status status /**< [in] transport completion status */ );
 
     /// Handle completion of a fire-and-forget empty-response unary RPC.
     void EmptyRpc_callback( grpc::ClientContext *context, /**< [in] context for the completed RPC */

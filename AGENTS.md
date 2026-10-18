@@ -35,6 +35,7 @@ Follow these code style and documentation rules exactly.
 - `mtxUL_*` functions acquire lock internally then call `mtxL_*`.
 - Prefer calling `mtxUL_*` from UI/controller code.
 - Avoid passing mutex pointers through UI classes unless unavoidable.
+- In `rtimvClientBase`, never acquire `m_connectedMutex` while holding `m_asyncRpcMutex`; release RPC bookkeeping locks before reporting connection errors.
 
 7) Header vs Source Placement
 - Keep non-trivial definitions out of headers.
@@ -94,6 +95,7 @@ Follow these code style and documentation rules exactly.
 17) Display-Only Widget Pattern
 - When backend state is authoritative, GUI dialogs/widgets should be display-only and poll/read backend values instead of running duplicate worker threads.
 - Prefer a single source of truth for computed values and synchronize via `Image` state where appropriate.
+- Keep client connection/configuration RPCs asynchronous with deadlines and tracked cancellation. Apply their results through owner-checked foundation slots, and drain transport callbacks during shutdown without waiting for queued Qt result processing.
 
 18) Scoped Block Comments
   - For any `{}` block used only to control lock/mutex lifetime, annotate the opening brace as:
