@@ -1,7 +1,6 @@
 /** \file rtimvControlPanel.cpp
  * \brief Definitions for the rtimvControlPanel GUI class.
  *
- * \author Jared R. Males (jaredmales@gmail.com)
  *
  */
 
@@ -217,6 +216,7 @@ void rtimvControlPanel::update_panel()
 
     m_statsBoxButtonState = m_imv->statsBoxVisible();
     m_ui.statsBoxButton->setText( m_statsBoxButtonState ? "Hide Stats Box" : "Show Stats Box" );
+    update_maskStats();
 
 #ifdef RTIMV_GRPC
     update_imageRequestWindow();
@@ -1110,6 +1110,26 @@ void rtimvControlPanel::on_imageWindowSpinBox_valueChanged( int value )
 #else
     static_cast<void>( value );
 #endif
+}
+
+void rtimvControlPanel::update_maskStats()
+{
+    const auto stats = m_imv->maskStats();
+    m_ui.maskStatsCheck->blockSignals( true );
+    m_ui.maskStatsCheck->setChecked( m_imv->maskStatsRequested() );
+    m_ui.maskStatsCheck->setText( m_imv->maskStatsPending() ? "Mask stats (pending)" : "Mask stats" );
+    m_ui.maskStatsCheck->setEnabled( stats.m_status != rtimv::maskStatsStatus::unsupported ||
+                                     m_imv->maskStatsRequested() );
+    if( stats.m_status == rtimv::maskStatsStatus::unsupported )
+    {
+        m_ui.maskStatsCheck->setText( "Mask stats (server unsupported)" );
+    }
+    m_ui.maskStatsCheck->blockSignals( false );
+}
+
+void rtimvControlPanel::on_maskStatsCheck_stateChanged( int state )
+{
+    m_imv->setMaskStats( state == Qt::Checked );
 }
 
 void rtimvControlPanel::on_statsBoxButton_clicked()

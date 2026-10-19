@@ -2,7 +2,6 @@
 /** \file rtimvServer.hpp
  * \brief Declarations for the rtimvServer class
  *
- * \author Jared R. Males (jaredmales@gmail.com)
  *
  */
 
@@ -194,6 +193,12 @@ class rtimvServer : public QObject, public mx::app::application, public remote_r
     ServerUnaryReactor *ImagePlease( CallbackServerContext *context,
                                      const remote_rtimv::ImageRequest *request,
                                      remote_rtimv::Image *reply ) override;
+
+    /// Enable or disable statistics over mask-selected processed pixels.
+    ServerUnaryReactor *SetMaskStats( CallbackServerContext *context,                /**< [in] gRPC callback context */
+                                      const remote_rtimv::MaskStatsRequest *request, /**< [in] requested mode */
+                                      remote_rtimv::MaskStatsResponse *reply         /**< [out] empty response */
+                                      ) override;
 
     /// Set whether the server displays the modulation transfer function.
     ServerUnaryReactor *

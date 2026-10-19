@@ -1,3 +1,7 @@
+/** \file rtimv.proto
+ * \brief Remote image processing requests and authoritative display state.
+ */
+
 syntax="proto3";
 
 package remote_rtimv;
@@ -45,6 +49,8 @@ service rtimv
     rpc Ping(PingRequest) returns (PingResponse);
 
     rpc ImagePlease(ImageRequest) returns (Image);
+
+    rpc SetMaskStats(MaskStatsRequest) returns (MaskStatsResponse);
 
     rpc SetApplyMTF(ApplyMTFRequest) returns (ApplyMTFResponse);
 
@@ -445,6 +451,39 @@ message Image
     float color_box_max = 206;
 
     bool apply_mtf = 207;
+
+    MaskStatsState mask_stats = 208;
+}
+
+message MaskStatsRequest
+{
+    bool enabled = 1;
+}
+
+message MaskStatsResponse
+{
+}
+
+enum MaskStatsStatus
+{
+    MASK_STATS_UNAVAILABLE = 0;
+    MASK_STATS_VALID = 1;
+    MASK_STATS_NO_IMAGE = 2;
+    MASK_STATS_NO_MASK = 3;
+    MASK_STATS_SIZE_MISMATCH = 4;
+    MASK_STATS_EMPTY = 5;
+    MASK_STATS_UNSUPPORTED = 6;
+}
+
+message MaskStatsState
+{
+    bool enabled = 1;
+    MaskStatsStatus status = 2;
+    uint64 count = 3;
+    float min = 4;
+    float max = 5;
+    float mean = 6;
+    float median = 7;
 }
 
 message Coord

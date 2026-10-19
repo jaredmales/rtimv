@@ -1,7 +1,6 @@
 /** \file rtimvServer.cpp
  * \brief Definitions for the rtimvServer class
  *
- * \author Jared R. Males (jaredmales@gmail.com)
  *
  */
 
@@ -1043,6 +1042,24 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
 
     ServerUnaryReactor *reactor = imageTh->newImagePleaseReactor( reply );
 
+    return reactor;
+}
+
+ServerUnaryReactor *rtimvServer::SetMaskStats( CallbackServerContext *context,
+                                               const remote_rtimv::MaskStatsRequest *request,
+                                               remote_rtimv::MaskStatsResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
+
+    if( !imageTh->connected() )
+    {
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+
+    imageTh->mtxUL_maskStats( request->enabled() );
+    reactor->Finish( Status::OK );
     return reactor;
 }
 

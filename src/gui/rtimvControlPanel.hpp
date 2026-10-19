@@ -1,7 +1,6 @@
 /** \file rtimvControlPanel.hpp
  * \brief Declarations for the rtimvControlPanel GUI class.
  *
- * \author Jared R. Males (jaredmales@gmail.com)
  *
  */
 
@@ -344,6 +343,12 @@ class rtimvControlPanel : public QWidget
 
     /// Handle stats display mode changes.
     void on_statsDisplayModeCombo_activated( int mode /**< [in] selected stats display mode*/ );
+
+    /// Refresh the mask-statistics control from backend state and pending user intent.
+    void update_maskStats();
+
+    /// Request a change to the independent mask-statistics mode.
+    void on_maskStatsCheck_stateChanged( int state /**< [in] checkbox state */ );
 
     /// Handle JPEG quality slider changes.
     void on_qualitySlider_valueChanged( int value /**< [in] new quality value*/ );

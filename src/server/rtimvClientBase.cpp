@@ -189,12 +189,13 @@ rtimvClientBase::~rtimvClientBase()
         std::unique_lock<std::mutex> asyncLock( m_asyncRpcMutex );
 
         if( m_pingPending || m_getPixelPending || m_colorBoxPending || m_statsBoxPending || m_setColorstretchPending ||
-            m_setMinScalePending || m_setMaxScalePending || m_emptyRpcPending > 0 )
+            m_setMinScalePending || m_setMaxScalePending || m_maskStatsRpcPending || m_emptyRpcPending > 0 )
         {
             const auto deadline = std::chrono::steady_clock::now() + shutdownRpcGracePeriod;
 
             while( m_pingPending || m_getPixelPending || m_colorBoxPending || m_statsBoxPending ||
-                   m_setColorstretchPending || m_setMinScalePending || m_setMaxScalePending || m_emptyRpcPending > 0 )
+                   m_setColorstretchPending || m_setMinScalePending || m_setMaxScalePending || m_maskStatsRpcPending ||
+                   m_emptyRpcPending > 0 )
             {
                 if( m_asyncRpcCv.wait_until( asyncLock, deadline ) == std::cv_status::timeout )
                 {
@@ -238,6 +239,11 @@ rtimvClientBase::~rtimvClientBase()
             m_PingContext->TryCancel();
         }
 
+        if( m_pendingMaskStats && m_maskStatsRpcPending )
+        {
+            m_pendingMaskStats->m_context.TryCancel();
+        }
+
         for( auto *context : m_emptyRpcContexts )
         {
             if( context )
@@ -251,7 +257,8 @@ rtimvClientBase::~rtimvClientBase()
         std::unique_lock<std::mutex> lock( m_asyncRpcMutex );
 
         while( m_pingPending || m_getPixelPending || m_colorBoxPending || m_statsBoxPending ||
-               m_setColorstretchPending || m_setMinScalePending || m_setMaxScalePending || m_emptyRpcPending > 0 )
+               m_setColorstretchPending || m_setMinScalePending || m_setMaxScalePending || m_maskStatsRpcPending ||
+               m_emptyRpcPending > 0 )
         {
             if( m_asyncRpcCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
             {
@@ -1092,6 +1099,15 @@ void rtimvClientBase::finishConnection()
         m_imagePipelinePrimed = false;
     }
 
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        m_maskStats = {};
+        m_maskStatsSupported = false;
+        m_maskStatsRpcUnsupported = false;
+        m_maskStatsSent = false;
+    }
+    m_foundation->emit_maskStatsUpdated();
+
     // GUI work and new image dispatches must run after releasing the connection lock.
     m_foundation->emit_ImageNeeded();
 }
@@ -1615,6 +1631,8 @@ void rtimvClientBase::ImageReceived()
         m_foundation->emit_cubeDirUpdated( m_cubeDir );
     }
 
+    receiveMaskStats( grpcImage );
+
     m_foundation->emit_statsBoxUpdated( m_statsBox_i0,
                                         m_statsBox_i1,
                                         m_statsBox_j0,
@@ -1856,6 +1874,8 @@ void rtimvClientBase::ImagePlease_callback( uint64_t requestId,
     }
     else if( action == 1 )
     {
+        QMetaObject::invokeMethod(
+            m_foundation, "MaskStatsUnavailable", Qt::QueuedConnection, Q_ARG( qulonglong, currentConnections ) );
         // Avoid a tight no-image polling loop.
         scheduleImageRetry( retryMs > 0 ? retryMs : 1000 );
     }
@@ -3605,6 +3625,210 @@ float rtimvClientBase::statsBox_median()
 void rtimvClientBase::mtxUL_calcStatsBox()
 {
     requestStatsBoxValues();
+}
+
+void rtimvClientBase::mtxUL_maskStats( bool enabled )
+{
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        mtxL_maskStats( enabled );
+    }
+    dispatchMaskStats();
+    m_foundation->emit_maskStatsUpdated();
+}
+
+void rtimvClientBase::mtxL_maskStats( bool enabled )
+{
+    m_maskStatsHaveIntent = true;
+    m_maskStatsDesired = enabled;
+}
+
+rtimv::maskStatsState rtimvClientBase::maskStats()
+{
+    sharedLockT connLock( m_connectedMutex );
+    std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+    auto result = m_maskStats;
+    if( !m_connected )
+    {
+        result = {};
+        result.m_enabled = m_maskStats.m_enabled;
+        result.m_status = rtimv::maskStatsStatus::noImage;
+    }
+    return result;
+}
+
+bool rtimvClientBase::maskStatsRequested()
+{
+    std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+    return m_maskStatsHaveIntent ? m_maskStatsDesired : m_maskStats.m_enabled;
+}
+
+bool rtimvClientBase::maskStatsPending()
+{
+    sharedLockT connLock( m_connectedMutex );
+    std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+    return m_connected && m_maskStatsSupported &&
+           ( m_pendingMaskStats || ( m_maskStatsHaveIntent && m_maskStatsDesired != m_maskStats.m_enabled ) );
+}
+
+void rtimvClientBase::dispatchMaskStats()
+{
+    sharedLockT connLock( m_connectedMutex );
+    std::shared_ptr<maskStatsRequestState> state;
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown || !m_connected || !stub_ || !m_maskStatsSupported || !m_maskStatsHaveIntent ||
+            m_pendingMaskStats || ( m_maskStatsSent && m_maskStatsLastSent == m_maskStatsDesired ) )
+        {
+            return;
+        }
+        state = std::make_shared<maskStatsRequestState>();
+        state->m_generation = m_connections;
+        state->m_request.set_enabled( m_maskStatsDesired );
+        state->m_context.set_deadline( std::chrono::system_clock::now() + std::chrono::seconds( 2 ) );
+        m_pendingMaskStats = state;
+        m_maskStatsRpcPending = true;
+        m_maskStatsSent = true;
+        m_maskStatsLastSent = m_maskStatsDesired;
+    }
+
+    stub_->async()->SetMaskStats( &state->m_context,
+                                  &state->m_request,
+                                  &state->m_reply,
+                                  [this, state]( grpc::Status status ) { maskStats_callback( state, status ); } );
+}
+
+void rtimvClientBase::maskStats_callback( std::shared_ptr<maskStatsRequestState> state, grpc::Status status )
+{
+    beginGrpcCallbackActivity();
+    auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        state->m_status = status;
+        m_maskStatsRpcPending = false;
+    }
+    m_asyncRpcCv.notify_all();
+    if( !m_shuttingDown )
+    {
+        QMetaObject::invokeMethod( m_foundation, "MaskStatsReceived", Qt::QueuedConnection );
+    }
+}
+
+void rtimvClientBase::MaskStatsReceived()
+{
+    std::string error;
+    { // mutex scope
+        uniqueLockT connLock( m_connectedMutex );
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        if( m_shuttingDown || m_maskStatsRpcPending || !m_pendingMaskStats )
+        {
+            return;
+        }
+        auto state = std::move( m_pendingMaskStats );
+        if( state->m_generation == m_connections && !state->m_status.ok() )
+        {
+            m_maskStats = {};
+            if( state->m_status.error_code() == grpc::StatusCode::UNIMPLEMENTED )
+            {
+                m_maskStatsSupported = false;
+                m_maskStatsRpcUnsupported = true;
+                m_maskStats.m_status = rtimv::maskStatsStatus::unsupported;
+            }
+            else
+            {
+                m_connected = false;
+                m_maskStatsSent = false;
+                m_maskStats.m_status = rtimv::maskStatsStatus::noImage;
+                error = state->m_status.error_message();
+            }
+        }
+    }
+
+    if( !error.empty() )
+    {
+        std::cerr << formatBaseLogMessage( "SetMaskStats: " + error ) << '\n';
+    }
+    dispatchMaskStats();
+    m_foundation->emit_maskStatsUpdated();
+}
+
+void rtimvClientBase::MaskStatsUnavailable( qulonglong generation )
+{
+    { // mutex scope
+        sharedLockT connLock( m_connectedMutex );
+        if( m_shuttingDown || generation != m_connections )
+        {
+            return;
+        }
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        const bool enabled = m_maskStats.m_enabled;
+        m_maskStats = {};
+        m_maskStats.m_enabled = enabled;
+        m_maskStats.m_status = rtimv::maskStatsStatus::noImage;
+    }
+    m_foundation->emit_maskStatsUpdated();
+}
+
+void rtimvClientBase::receiveMaskStats( const remote_rtimv::Image &reply )
+{
+    rtimv::maskStatsState result;
+    if( reply.has_mask_stats() )
+    {
+        const auto &stats = reply.mask_stats();
+        result.m_enabled = stats.enabled();
+        switch( stats.status() )
+        {
+        case remote_rtimv::MASK_STATS_VALID:
+            result.m_status = rtimv::maskStatsStatus::valid;
+            break;
+        case remote_rtimv::MASK_STATS_NO_IMAGE:
+            result.m_status = rtimv::maskStatsStatus::noImage;
+            break;
+        case remote_rtimv::MASK_STATS_NO_MASK:
+            result.m_status = rtimv::maskStatsStatus::noMask;
+            break;
+        case remote_rtimv::MASK_STATS_SIZE_MISMATCH:
+            result.m_status = rtimv::maskStatsStatus::sizeMismatch;
+            break;
+        case remote_rtimv::MASK_STATS_EMPTY:
+            result.m_status = rtimv::maskStatsStatus::empty;
+            break;
+        default:
+            result.m_status = rtimv::maskStatsStatus::unavailable;
+            break;
+        }
+        if( result.m_enabled && result.m_status == rtimv::maskStatsStatus::valid && stats.count() > 0 &&
+            std::isfinite( stats.min() ) && std::isfinite( stats.max() ) && std::isfinite( stats.mean() ) &&
+            std::isfinite( stats.median() ) )
+        {
+            result.m_count = stats.count();
+            result.m_min = stats.min();
+            result.m_max = stats.max();
+            result.m_mean = stats.mean();
+            result.m_median = stats.median();
+        }
+        else if( result.m_status == rtimv::maskStatsStatus::valid )
+        {
+            result.m_status = rtimv::maskStatsStatus::unavailable;
+        }
+    }
+    else
+    {
+        result.m_status = rtimv::maskStatsStatus::unsupported;
+    }
+
+    { // mutex scope
+        std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+        m_maskStatsSupported = reply.has_mask_stats() && !m_maskStatsRpcUnsupported;
+        if( m_maskStatsRpcUnsupported )
+        {
+            result = {};
+            result.m_status = rtimv::maskStatsStatus::unsupported;
+        }
+        m_maskStats = result;
+    }
+    dispatchMaskStats();
+    m_foundation->emit_maskStatsUpdated();
 }
 
 void rtimvClientBase::stretch( rtimv::stretch cs )

@@ -1,7 +1,6 @@
 /** \file rtimvBase.hpp
  * \brief Declarations for the rtimvBase base class
  *
- * \author Jared R. Males (jaredmales@gmail.com)
  *
  */
 
@@ -21,6 +20,7 @@
 #include "colorMaps.hpp"
 #include "rtimvColor.hpp"
 #include "rtimvFilters.hpp"
+#include "rtimvMaskStats.hpp"
 
 #include "rtimvBaseObject.hpp"
 
@@ -956,6 +956,62 @@ class rtimvBase : public mx::app::application
     void mtxL_calcStatsBox( const sharedLockT &lock /**<[in] a shared mutex lock which is locked on m_calMutex*/ );
 
     ///@}
+
+    /** @name Mask Statistics - Data
+     * @{
+     */
+  private:
+    /// Protects the published mode and result independently of image processing locks.
+    mutable std::mutex m_maskStatsMutex;
+
+    /// Coherent mode and result available to GUI and transport readers.
+    rtimv::maskStatsState m_maskStats;
+
+    /// Selection copied with calibrated input; protected by m_changingImData.
+    std::vector<uint8_t> m_maskStatsSelection;
+
+    /// Availability of the selection captured for the current calibrated input.
+    rtimv::maskStatsStatus m_maskStatsInputStatus{ rtimv::maskStatsStatus::unavailable };
+
+    /// Reusable median storage, accessed only while m_changingImData is held.
+    std::vector<float> m_maskStatsMedWork;
+
+    /// Forces a fresh calibrated input and mask snapshot after enabling the mode.
+    bool m_maskStatsRefresh{ false };
+    /// @}
+
+    /** @name Mask Statistics
+     * @{
+     */
+  public:
+    /// Set the independent mask-statistics mode and refresh the current image when enabled.
+    void mtxUL_maskStats( bool enabled /**< [in] true enables mask statistics */ );
+
+    /// Get one coherent snapshot of the mask-statistics mode and result.
+    rtimv::maskStatsState maskStats();
+
+    /// Get the requested mask-statistics mode.
+    bool maskStatsRequested();
+
+    /// Get whether a remote mode change is awaiting confirmation (always false locally).
+    bool maskStatsPending();
+
+  private:
+    /// Replace the requested mode with m_changingImData held by the caller.
+    void mtxL_maskStats( bool enabled /**< [in] true enables mask statistics */ );
+
+    /// Check input validity with m_changingImData, m_calMutex, and m_rawMutex held.
+    rtimv::maskStatsStatus mtxL_maskStatsInputStatus();
+
+    /// Snapshot mask membership with m_changingImData, m_calMutex, and m_rawMutex held.
+    void mtxL_snapshotMaskStats();
+
+    /// Reduce processed pixels with m_changingImData and m_calMutex held.
+    void mtxL_calcMaskStats();
+
+    /// Detect input loss or recovery even when image sources report no new frame.
+    void mtxUL_checkMaskStats();
+    /// @}
 
     /** @name Color Stretch - Data
      *

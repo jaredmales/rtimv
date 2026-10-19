@@ -687,6 +687,12 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     /// Set the active stats display mode.
     void statsDisplayMode( int mode /**< [in] requested stats display mode */ );
 
+    /// Set the independent mask-statistics mode through the backend.
+    void setMaskStats( bool enabled /**< [in] true enables mask statistics */ );
+
+    /// Refresh the independent mask-statistics readout from backend state.
+    void updateMaskStatsOverlay();
+
     /// Create or reveal the image statistics box.
     void doLaunchStatsBox();
 

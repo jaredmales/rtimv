@@ -90,7 +90,13 @@ struct rtimvBaseObject : public QObject
                                bool valid    /**< [in] true when stats are valid */
     );
 
+    /// Notify readers that the backend mask-statistics snapshot changed.
+    void emit_maskStatsUpdated();
+
   signals:
+
+    /// The backend mask-statistics snapshot changed.
+    void maskStatsUpdated();
 
     /// Update the number of images in the cube
     void nzUpdated( uint32_t n /**< [in] the current number of images in the cube */ );
@@ -196,6 +202,12 @@ struct rtimvBaseObject : public QObject
 
     /// Forward a completed connection RPC to the client while its owner is alive.
     void ConnectionReceived();
+
+    /// Forward a completed mask-statistics RPC while its owner is alive.
+    void MaskStatsReceived();
+
+    /// Forward image unavailability while the owning client is alive.
+    void MaskStatsUnavailable( qulonglong generation /**< [in] connection generation reporting unavailable data */ );
 
     /// Schedule a delayed ImagePlease call on the foundation object's Qt thread.
     void scheduleImagePlease( int delayMs /**< [in] delay before requesting the next image, ms */ );

@@ -214,6 +214,7 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
 
     connect( &m_statsBoxTimer, SIGNAL( timeout() ), this, SLOT( dispatchStatsBoxRequest() ) );
     m_statsBoxTimer.setSingleShot( true );
+    connect( m_foundation, &rtimvBaseObject::maskStatsUpdated, this, &rtimvMainWindow::updateMaskStatsOverlay );
 
     connect( m_foundation,
              SIGNAL( pixelValueUpdated( uint32_t, uint32_t, float, bool ) ),
@@ -683,6 +684,7 @@ void rtimvMainWindow::post_zoomLevel()
     RTIMV_DEBUG_BREADCRUMB
 
     change_center();
+    updateMaskStatsOverlay();
 
     RTIMV_DEBUG_BREADCRUMB
 
@@ -1488,6 +1490,7 @@ void rtimvMainWindow::updateFPS()
 
 void rtimvMainWindow::updateAge()
 {
+    updateMaskStatsOverlay();
     // Check the font luminance to make sure it is visible
     mtxTry_fontLuminance();
 
@@ -1544,6 +1547,7 @@ void rtimvMainWindow::updateAge()
 
 void rtimvMainWindow::updateNC()
 {
+    updateMaskStatsOverlay();
 #ifdef RTIMV_GRPC
     if( m_activeTextOverlayKey != 'i' )
 #endif
@@ -1987,6 +1991,119 @@ void rtimvMainWindow::dispatchStatsBoxRequest()
     requestStatsBoxValues();
 }
 
+void rtimvMainWindow::setMaskStats( bool enabled )
+{
+    mtxUL_maskStats( enabled );
+}
+
+void rtimvMainWindow::updateMaskStatsOverlay()
+{
+    QTextEdit *text = ui.graphicsView->maskStatsText();
+    const auto stats = maskStats();
+    const bool show = maskStatsRequested();
+    text->setVisible( show );
+    if( imcp )
+    {
+        imcp->update_maskStats();
+    }
+    if( !show )
+    {
+        text->clear();
+        return;
+    }
+
+    std::string contents = "Mask stats\n";
+    if( maskStatsPending() )
+    {
+        contents += "pending";
+    }
+    else if( stats.m_enabled && stats.m_status == rtimv::maskStatsStatus::valid )
+    {
+        contents += "min: " + formatStatsValue( stats.m_min ) + "\nmax: " + formatStatsValue( stats.m_max ) +
+                    "\nmean: " + formatStatsValue( stats.m_mean ) + "\nmedian: " + formatStatsValue( stats.m_median );
+    }
+    else
+    {
+        switch( stats.m_status )
+        {
+        case rtimv::maskStatsStatus::noImage:
+            contents += "image unavailable";
+            break;
+        case rtimv::maskStatsStatus::noMask:
+            contents += "mask unavailable";
+            break;
+        case rtimv::maskStatsStatus::sizeMismatch:
+            contents += "mask size mismatch";
+            break;
+        case rtimv::maskStatsStatus::empty:
+            contents += "no finite selected pixels";
+            break;
+        case rtimv::maskStatsStatus::unsupported:
+            contents += "server unsupported";
+            break;
+        default:
+            contents += "unavailable";
+            break;
+        }
+    }
+
+    const QString value = QString::fromStdString( contents );
+    if( text->toPlainText() != value )
+    {
+        text->setPlainText( value );
+    }
+    QFontMetrics fm( text->currentFont() );
+    const QSize size = fm.size( 0, value );
+    constexpr int pad = 6;
+    const int width = ui.graphicsView->viewport()->width();
+    const int height = ui.graphicsView->viewport()->height();
+    QRect rect( pad,
+                pad,
+                std::min( size.width() + 5, std::max( 1, width - 2 * pad ) ),
+                std::min( size.height() + 5, std::max( 1, height - 2 * pad ) ) );
+
+    std::vector<QTextEdit *> obstacles{ ui.graphicsView->mouseCoords(),
+                                        ui.graphicsView->textCoordX(),
+                                        ui.graphicsView->textCoordY(),
+                                        ui.graphicsView->textPixelVal(),
+                                        ui.graphicsView->userItemSize(),
+                                        ui.graphicsView->userItemMouseCoords(),
+                                        ui.graphicsView->fpsGage(),
+                                        ui.graphicsView->zoomText() };
+    for( size_t n = 0; n < ui.graphicsView->statusTextNo(); ++n )
+    {
+        obstacles.push_back( ui.graphicsView->statusText( n ) );
+    }
+    for( size_t pass = 0; pass < obstacles.size(); ++pass )
+    {
+        for( QTextEdit *status : obstacles )
+        {
+            if( status->isVisible() && !status->toPlainText().isEmpty() && rect.intersects( status->geometry() ) )
+            {
+                const int below = status->geometry().bottom() + pad;
+                if( below + rect.height() <= height - pad )
+                {
+                    rect.moveTop( below );
+                }
+                else if( status->geometry().right() + pad + rect.width() <= width - pad )
+                {
+                    rect.moveLeft( status->geometry().right() + pad );
+                }
+            }
+        }
+    }
+    text->setGeometry( rect );
+    text->raise();
+    mtxTry_fontLuminance( text );
+
+    if( m_statsDisplayMode == statsDisplayOverlay && m_statsBox && m_statsBox->isVisible() &&
+        !m_statsBoxRequestPending )
+    {
+        mtxTry_updateStatsBoxOverlay(
+            m_statsBox, true, statsBox_min(), statsBox_max(), statsBox_mean(), statsBox_median() );
+    }
+}
+
 std::string rtimvMainWindow::formatStatsValue( float value ) const
 {
     char txt[64];
@@ -2062,6 +2179,11 @@ void rtimvMainWindow::mtxTry_updateStatsBoxOverlay(
 
     auto overlapsStatusOverlay = [this]( const QRect &candidate )
     {
+        QTextEdit *maskText = ui.graphicsView->maskStatsText();
+        if( maskText->isVisible() && candidate.intersects( maskText->geometry() ) )
+        {
+            return true;
+        }
         for( size_t n = 0; n < ui.graphicsView->statusTextNo(); ++n )
         {
             QTextEdit *status = ui.graphicsView->statusText( n );
@@ -2153,6 +2275,21 @@ void rtimvMainWindow::mtxTry_updateStatsBoxOverlay(
         if( textRect.bottom() > viewportHeight )
         {
             textRect.moveTop( std::max( 0, viewportHeight - textHeight ) );
+        }
+    }
+
+    QTextEdit *maskText = ui.graphicsView->maskStatsText();
+    if( maskText->isVisible() && textRect.intersects( maskText->geometry() ) )
+    {
+        const QPoint belowMask( maskText->x(), maskText->geometry().bottom() + gap );
+        const QPoint rightOfMask( maskText->geometry().right() + gap, maskText->y() );
+        if( candidateFits( belowMask ) )
+        {
+            textRect.moveTopLeft( belowMask );
+        }
+        else if( candidateFits( rightOfMask ) )
+        {
+            textRect.moveTopLeft( rightOfMask );
         }
     }
 

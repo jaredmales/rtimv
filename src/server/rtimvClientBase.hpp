@@ -27,6 +27,7 @@
 #include "rtimvBaseObject.hpp"
 #include "rtimvColor.hpp"
 #include "rtimvFilters.hpp"
+#include "rtimvMaskStats.hpp"
 
 #include <grpcpp/grpcpp.h>
 
@@ -1246,6 +1247,96 @@ class rtimvClientBase : public mx::app::application
     void mtxUL_calcStatsBox();
 
     ///@}
+
+    /** @name Mask Statistics - Data
+     * The client caches server results. Mask membership and median working storage belong to rtimvBase on the server.
+     * @{
+     */
+  protected:
+    /// Coherent server state, protected by m_asyncRpcMutex.
+    rtimv::maskStatsState m_maskStats;
+
+    /// Whether a received Image advertises support for mask statistics.
+    bool m_maskStatsSupported{ false };
+
+    /// Remembers an unsupported setter until a new connection generation begins.
+    bool m_maskStatsRpcUnsupported{ false };
+
+    /// Whether the user has supplied an enable/disable intent to preserve across reconnections.
+    bool m_maskStatsHaveIntent{ false };
+
+    /// Latest requested mode, kept separate from the authoritative Image state.
+    bool m_maskStatsDesired{ false };
+
+    /// Whether the latest mode request has been dispatched in this connection generation.
+    bool m_maskStatsSent{ false };
+
+    /// Mode in the last dispatched request, used to coalesce rapid toggles.
+    bool m_maskStatsLastSent{ false };
+
+    /// Transport-owned request state retained until its callback and queued result processing finish.
+    struct maskStatsRequestState
+    {
+        /// Deadline and cancellation for this request.
+        grpc::ClientContext m_context;
+
+        /// Requested mode, immutable while the RPC is outstanding.
+        remote_rtimv::MaskStatsRequest m_request;
+
+        /// Empty transport acknowledgement; measurements arrive through Image.
+        remote_rtimv::MaskStatsResponse m_reply;
+
+        /// Callback status consumed on the foundation thread.
+        grpc::Status m_status;
+
+        /// Connection generation that owns this request.
+        uint64_t m_generation{ 0 };
+    };
+
+    /// Pending request or completed result awaiting its owner-checked foundation slot.
+    std::shared_ptr<maskStatsRequestState> m_pendingMaskStats;
+
+    /// True until the transport callback completes; shutdown does not wait for queued Qt processing.
+    bool m_maskStatsRpcPending{ false };
+    /// @}
+
+    /** @name Mask Statistics
+     * @{
+     */
+  public:
+    /// Request the independent mask-statistics mode asynchronously.
+    void mtxUL_maskStats( bool enabled /**< [in] true enables mask statistics */ );
+
+    /// Get one coherent snapshot of the mask-statistics mode and result.
+    rtimv::maskStatsState maskStats();
+
+    /// Get the requested mask-statistics mode, including pending user intent.
+    bool maskStatsRequested();
+
+    /// Get whether a remote mode change is awaiting confirmation.
+    bool maskStatsPending();
+
+    /// Apply a completed mode request on the foundation thread while the owner is alive.
+    void MaskStatsReceived();
+
+    /// Clear measurements after an image-unavailable reply from the current connection.
+    void MaskStatsUnavailable( qulonglong generation /**< [in] connection generation reporting unavailable data */ );
+
+  protected:
+    /// Replace the requested mode with m_asyncRpcMutex held by the caller.
+    void mtxL_maskStats( bool enabled /**< [in] true enables mask statistics */ );
+
+    /// Dispatch the latest intent when supported, connected, and no request is outstanding.
+    void dispatchMaskStats();
+
+    /// Finish transport bookkeeping and queue owner-checked result processing.
+    void maskStats_callback( std::shared_ptr<maskStatsRequestState> state, /**< [in] completed request */
+                             grpc::Status status                           /**< [in] transport status */
+    );
+
+    /// Apply the mask-statistics snapshot from an accepted Image reply.
+    void receiveMaskStats( const remote_rtimv::Image &reply /**< [in] authoritative image state */ );
+    /// @}
 
     /** @name Color Stretch - Data
      *

@@ -78,6 +78,25 @@ You can also use `l` to add a line. The numbers shown are `length @ direction` w
 
 In general, if you see the "resize arrows" cursor when your mouse hovers over the shape, clicking and dragging will change the size. If you see the "hand" cursor, it will move the shape. Numbers, shape center indicators, and line end indicators are only shown when your mouse is over that shape.
 
+### Mask statistics
+
+Open the control panel with `p` and select **Mask stats** on the real-time controls tab. A separate readout, normally at
+the upper left, shows minimum, maximum, mean, and median over finite processed pixels where the ordinary image mask
+(`mask.key`) equals exactly `1`. Mask-zero locations are excluded entirely, rather than counted as zero measurements.
+Other mask values, including non-finite values, are also excluded. Selected image pixels whose value is zero are valid
+measurements. The saturation mask is not used for this selection.
+
+Mask statistics can be enabled independently of the statistics box (`s`) and mask application (`M`). Both readouts can
+be visible together. Values come from the same processed image as box statistics, after the current dark subtraction,
+mask application, filters, and MTF settings. Changing these settings can change the reported values. With MTF enabled,
+the mask selects output pixel coordinates; it is not transformed into a frequency-domain mask.
+
+Missing inputs, different mask/image dimensions, or an empty finite selection show an unavailable reason instead of stale
+measurements. The mode stays selected and recovers when the inputs become valid. In `rtimvClient`, calculations run on
+the server, pending changes are indicated, and the requested mode is restored after reconnecting. Older servers that do
+not support mask statistics show the control as unavailable. The existing **Stats Display** setting applies only to box
+statistics.
+
 ### Keyboard Shortcuts
 
 | Key | Action | Description |

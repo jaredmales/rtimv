@@ -1,7 +1,6 @@
 /** \file rtimvBase.cpp
  * \brief Definitions for the rtimvBase class
  *
- * \author Jared R. Males (jaredmales@gmail.com)
  *
  */
 
@@ -1108,6 +1107,8 @@ void rtimvBase::updateImages()
         }
     }
 
+    mtxUL_checkMaskStats();
+
     if( !m_connected )
     {
         updateNC();
@@ -1923,6 +1924,169 @@ void rtimvBase::mtxL_calcStatsBox( const sharedLockT &lock )
     m_statsBox_median = mx::math::vectorMedianInPlace( m_statsBox_medWork );
 }
 
+void rtimvBase::mtxUL_maskStats( bool enabled )
+{
+    { // mutex scope
+        std::lock_guard<std::mutex> changeLock( m_changingImData );
+        mtxL_maskStats( enabled );
+    }
+
+    if( enabled )
+    {
+        mtxUL_changeImdata();
+        mtxUL_checkMaskStats();
+    }
+
+    m_foundation->emit_maskStatsUpdated();
+}
+
+void rtimvBase::mtxL_maskStats( bool enabled )
+{
+    std::lock_guard<std::mutex> resultLock( m_maskStatsMutex );
+    m_maskStats = {};
+    m_maskStats.m_enabled = enabled;
+    m_maskStatsRefresh = enabled;
+}
+
+rtimv::maskStatsState rtimvBase::maskStats()
+{
+    std::lock_guard<std::mutex> lock( m_maskStatsMutex );
+    return m_maskStats;
+}
+
+bool rtimvBase::maskStatsRequested()
+{
+    return maskStats().m_enabled;
+}
+
+bool rtimvBase::maskStatsPending()
+{
+    return false;
+}
+
+rtimv::maskStatsStatus rtimvBase::mtxL_maskStatsInputStatus()
+{
+    if( !imageValid( 0 ) || m_nx == 0 || m_ny == 0 || m_calData == nullptr )
+    {
+        return rtimv::maskStatsStatus::noImage;
+    }
+    if( !imageValid( 2 ) )
+    {
+        return rtimv::maskStatsStatus::noMask;
+    }
+    if( m_images[2]->nx() != m_nx || m_images[2]->ny() != m_ny || m_images[0]->nx() != m_nx ||
+        m_images[0]->ny() != m_ny )
+    {
+        return rtimv::maskStatsStatus::sizeMismatch;
+    }
+    return rtimv::maskStatsStatus::valid;
+}
+
+void rtimvBase::mtxL_snapshotMaskStats()
+{
+    m_maskStatsInputStatus = mtxL_maskStatsInputStatus();
+    m_maskStatsSelection.clear();
+    if( m_maskStatsInputStatus != rtimv::maskStatsStatus::valid )
+    {
+        return;
+    }
+
+    const size_t count = static_cast<size_t>( m_nx ) * m_ny;
+    m_maskStatsSelection.resize( count );
+    for( size_t n = 0; n < count; ++n )
+    {
+        m_maskStatsSelection[n] = m_images[2]->pixel( n ) == 1.0f;
+    }
+}
+
+void rtimvBase::mtxL_calcMaskStats()
+{
+    rtimv::maskStatsState result;
+    result.m_enabled = true;
+    result.m_status = m_maskStatsInputStatus;
+    m_maskStatsMedWork.clear();
+
+    if( result.m_status == rtimv::maskStatsStatus::valid )
+    {
+        double sum = 0;
+        for( size_t n = 0; n < m_maskStatsSelection.size(); ++n )
+        {
+            if( !m_maskStatsSelection[n] || !std::isfinite( m_calData[n] ) )
+            {
+                continue;
+            }
+
+            const float value = m_calData[n];
+            if( result.m_count == 0 )
+            {
+                result.m_min = result.m_max = value;
+            }
+            else
+            {
+                result.m_min = std::min( result.m_min, value );
+                result.m_max = std::max( result.m_max, value );
+            }
+            sum += value;
+            ++result.m_count;
+            m_maskStatsMedWork.push_back( value );
+        }
+
+        if( result.m_count > 0 )
+        {
+            result.m_mean = sum / result.m_count;
+            result.m_median = mx::math::vectorMedianInPlace( m_maskStatsMedWork );
+        }
+        else
+        {
+            result.m_status = rtimv::maskStatsStatus::empty;
+        }
+    }
+
+    std::lock_guard<std::mutex> resultLock( m_maskStatsMutex );
+    m_maskStats = result;
+}
+
+void rtimvBase::mtxUL_checkMaskStats()
+{
+    bool changed = false;
+    bool refresh = false;
+    { // mutex scope
+        std::unique_lock<std::mutex> changeLock( m_changingImData, std::try_to_lock );
+        if( !changeLock.owns_lock() || !maskStats().m_enabled )
+        {
+            return;
+        }
+
+        sharedLockT calLock( m_calMutex );
+        std::lock_guard<std::mutex> rawLock( m_rawMutex );
+        const auto status = mtxL_maskStatsInputStatus();
+        if( status == rtimv::maskStatsStatus::valid )
+        {
+            refresh = m_maskStatsInputStatus != status || m_maskStatsRefresh;
+            m_maskStatsRefresh = refresh;
+        }
+        else
+        {
+            m_maskStatsInputStatus = status;
+            m_maskStatsSelection.clear();
+            std::lock_guard<std::mutex> resultLock( m_maskStatsMutex );
+            changed = m_maskStats.m_status != status;
+            m_maskStats = {};
+            m_maskStats.m_enabled = true;
+            m_maskStats.m_status = status;
+        }
+    }
+
+    if( refresh )
+    {
+        mtxUL_changeImdata();
+    }
+    else if( changed )
+    {
+        m_foundation->emit_maskStatsUpdated();
+    }
+}
+
 void rtimvBase::stretch( rtimv::stretch ct )
 {
     m_stretch = ct;
@@ -2153,6 +2317,8 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
     bool resized = false;
     bool resetZoom = false;
 
+    newdata = newdata || m_maskStatsRefresh;
+
     if( newdata )
     { // mutex scope
 
@@ -2236,7 +2402,11 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
             }
         }
 
-        // copy out mask to m_mask if valid
+        if( maskStats().m_enabled )
+        {
+            mtxL_snapshotMaskStats();
+            m_maskStatsRefresh = false;
+        }
 
     } // unique lock scope -- lock and rawlock release
 
@@ -2371,6 +2541,11 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
             mtxL_calcStatsBox( lock );
         }
 
+        if( maskStats().m_enabled )
+        {
+            mtxL_calcMaskStats();
+        }
+
         RTIMV_DEBUG_BREADCRUMB
 
         mtxL_recolorImpl();
@@ -2402,6 +2577,12 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
         zoomLevel( 1 );
     }
 
+    const bool notifyMaskStats = maskStats().m_enabled;
+    changeLock.unlock();
+    if( notifyMaskStats )
+    {
+        m_foundation->emit_maskStatsUpdated();
+    }
 } // void rtimvBase::mtxUL_changeImdata()
 
 void rtimvBase::mtxL_applyFilter()
