@@ -122,6 +122,9 @@ message Config
 
     bool colorbar_set = 28;
     Colorbar colorbar = 29;
+
+    bool apply_mask_set = 30;
+    bool apply_mask = 31;
 }
 
 message ConfigResult

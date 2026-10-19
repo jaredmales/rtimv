@@ -218,6 +218,17 @@ void rtimvBase::setupBaseConfig( mx::app::appConfigurator &configurator, bool in
                       "Set dark subtraction at startup. Bare --darksub is true; also accepts =true or =false. "
                       "If a dark is supplied, darksub is otherwise on." );
 
+    configurator.add( "mask",
+                      "",
+                      "mask",
+                      mx::app::argType::Required,
+                      "",
+                      "mask",
+                      false,
+                      "bool",
+                      "Set ordinary image masking at startup. Use --mask=true or =false. "
+                      "If a mask is supplied, masking is otherwise on. Independent of mask.stats." );
+
     configurator.add( "satLevel",
                       "",
                       "satLevel",
@@ -396,6 +407,12 @@ void rtimvBase::loadBaseConfig( startupConfig &settings, mx::app::appConfigurato
         settings.m_darkSubSet = true;
     }
 
+    if( configurator.isSet( "mask" ) )
+    {
+        configurator( settings.m_mask, "mask" );
+        settings.m_maskSet = true;
+    }
+
     if( configurator.isSet( "satLevel" ) )
     {
         configurator( settings.m_satLevel, "satLevel" );
@@ -480,6 +497,11 @@ void rtimvBase::appendBaseConfigArgs( std::vector<std::string> &argv, const star
     if( settings.m_darkSubSet )
     {
         argv.push_back( settings.m_darkSub ? "--darksub" : "--darksub=false" );
+    }
+
+    if( settings.m_maskSet )
+    {
+        argv.push_back( settings.m_mask ? "--mask=true" : "--mask=false" );
     }
 
     if( settings.m_satLevelSet )
@@ -592,6 +614,12 @@ void rtimvBase::loadConfig()
     if( m_subtractDarkSet )
     {
         m_subtractDark = settings.m_darkSub;
+    }
+
+    m_applyMaskSet = settings.m_maskSet;
+    if( m_applyMaskSet )
+    {
+        m_applyMask = settings.m_mask;
     }
 
     float satLevelDefault = m_satLevel;
@@ -718,7 +746,7 @@ void rtimvBase::processKeys( const std::vector<std::string> &shkeys )
         m_subtractDark = true;
     }
 
-    if( m_images[2] != nullptr )
+    if( m_images[2] != nullptr && !m_applyMaskSet )
     {
         m_applyMask = true;
     }

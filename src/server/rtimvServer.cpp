@@ -177,6 +177,11 @@ std::string summarizeBaseConfigOverrides( const rtimvBase::startupConfig &settin
         addValue( "darksub", boolString( settings.m_darkSub ) );
     }
 
+    if( settings.m_maskSet )
+    {
+        addValue( "mask", boolString( settings.m_mask ) );
+    }
+
     if( settings.m_satLevelSet )
     {
         addValue( "satLevel", std::to_string( settings.m_satLevel ) );
@@ -1467,6 +1472,11 @@ void rtimvServer::doConfigure( const configSpec *cspec )
     if( cspec->m_config.darksub_set() )
     {
         argv->push_back( cspec->m_config.darksub() ? "--darksub" : "--darksub=false" );
+    }
+
+    if( cspec->m_config.apply_mask_set() )
+    {
+        argv->push_back( cspec->m_config.apply_mask() ? "--mask=true" : "--mask=false" );
     }
 
     if( cspec->m_config.satlevel_set() )

@@ -44,23 +44,36 @@ bool waitUntil( Predicate condition /**< [in] completion condition */ )
     return condition();
 }
 
+/// Viewer exposing its foundation for pixel-value regression checks.
+class TestWindow : public rtimvMainWindow
+{
+  public:
+    /// Use normal viewer construction and configuration.
+    using rtimvMainWindow::rtimvMainWindow;
+
+    /// Expose the existing notification source for observing processed pixel values.
+    using RTIMV_BASE::m_foundation;
+};
+
 /// Verify configured startup state through the real viewer and, when applicable, its remote backend.
 void checkStartup( std::vector<std::string> args, /**< [in] viewer arguments */
-                   bool enabled                   /**< [in] expected mask-statistics mode */
+                   bool enabled,                  /**< [in] expected mask-statistics mode */
+                   bool applyMask                 /**< [in] expected ordinary masking mode */
 )
 {
     std::vector<char *> pointers;
     for( auto &arg : args )
         pointers.push_back( arg.data() );
     pointers.push_back( nullptr );
-    rtimvMainWindow window( static_cast<int>( args.size() ), pointers.data() );
+    TestWindow window( static_cast<int>( args.size() ), pointers.data() );
     window.show();
     require( waitUntil(
                  [&]()
                  {
                      const auto stats = window.maskStats();
                      return window.connected() && window.nx() == 32 && window.ny() == 32 &&
-                            stats.m_enabled == enabled && !window.maskStatsPending() &&
+                            stats.m_enabled == enabled && window.applyMask() == applyMask &&
+                            !window.maskStatsPending() &&
                             ( !enabled || stats.m_status == rtimv::maskStatsStatus::valid );
                  } ),
              "configured mask-statistics startup state did not settle" );
@@ -70,6 +83,32 @@ void checkStartup( std::vector<std::string> args, /**< [in] viewer arguments */
     require( check && check->isChecked() == enabled && window.maskStatsRequested() == enabled,
              "startup checkbox did not reflect configured mode" );
     require( view && view->maskStatsText()->isVisible() == enabled, "startup overlay visibility is incorrect" );
+
+    if( enabled )
+    {
+        const auto stats = window.maskStats();
+        require( stats.m_count > 0 && stats.m_count < 32 * 32 && stats.m_min == 18 && stats.m_max == 46 &&
+                     stats.m_mean == 32 && stats.m_median == 32,
+                 "startup statistics did not select only pixels inside the mask" );
+    }
+
+    bool pixelReceived = false;
+    float pixel = -1;
+    QObject receiver;
+    QObject::connect( window.m_foundation,
+                      &rtimvBaseObject::pixelValueUpdated,
+                      &receiver,
+                      [&]( uint32_t x, uint32_t y, float value, bool valid )
+                      {
+                          if( x == 31 && y == 0 && valid )
+                          {
+                              pixel = value;
+                              pixelReceived = true;
+                          }
+                      } );
+    window.requestPixelValue( 31, 0 );
+    require( waitUntil( [&]() { return pixelReceived; } ), "could not read a pixel outside the mask" );
+    require( pixel == ( applyMask ? 0 : 31 ), "configured masking did not affect the processed pixels correctly" );
 }
 
 } // namespace
@@ -115,7 +154,10 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
         reservation.reset();
         QStringList serverArgs{ "--server.address=127.0.0.1", "--server.port=" + QString::number( port ) };
         if( startupTests )
+        {
             serverArgs.push_back( "--mask.stats=true" );
+            serverArgs.push_back( "--mask=false" );
+        }
         serverProcess.start( argv[1], serverArgs );
         require( serverProcess.waitForStarted(), "could not start rtimvServer" );
         args.push_back( "--server=127.0.0.1" );
@@ -126,30 +168,37 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
             const QString configPath = directory.filePath( "startup.conf" );
             QFile configFile( configPath );
             require( configFile.open( QIODevice::WriteOnly ), "could not create startup configuration" );
-            configFile.write( "[mask]\nstats=true\n" );
+            configFile.write( "mask=false\n[mask]\nstats=true\n" );
             configFile.close();
             auto configuredArgs = args;
             configuredArgs.push_back( "-c" );
             configuredArgs.push_back( configPath.toStdString() );
-            checkStartup( configuredArgs, true );
+            checkStartup( configuredArgs, true, false );
 
             auto overrideArgs = configuredArgs;
             overrideArgs.push_back( "--mask.stats=false" );
-            checkStartup( overrideArgs, false );
+            overrideArgs.push_back( "--mask=true" );
+            checkStartup( overrideArgs, false, true );
 
             require( configFile.open( QIODevice::WriteOnly | QIODevice::Truncate ),
                      "could not replace startup configuration" );
-            configFile.write( "[mask]\nstats=false\n" );
+            configFile.write( "mask=true\n[mask]\nstats=false\n" );
             configFile.close();
-            checkStartup( configuredArgs, false );
+            checkStartup( configuredArgs, false, true );
             configuredArgs.push_back( "--mask.stats=true" );
-            checkStartup( configuredArgs, true );
+            configuredArgs.push_back( "--mask=false" );
+            checkStartup( configuredArgs, true, false );
 #ifdef RTIMV_GRPC
-            checkStartup( args, true );
+            checkStartup( args, true, false );
 #endif
         }
         else
         {
+            auto unmaskedArgs = args;
+            unmaskedArgs.push_back( "--mask=false" );
+            unmaskedArgs.push_back( "--mask.stats=true" );
+            checkStartup( unmaskedArgs, true, false );
+
             std::vector<char *> pointers;
             for( auto &arg : args )
                 pointers.push_back( arg.data() );
@@ -159,6 +208,7 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
             window.show();
             require( waitUntil( [&]() { return window.connected() && window.nx() == 32 && window.ny() == 32; } ),
                      "viewer did not receive the FITS image" );
+            require( window.applyMask(), "supplying a mask should enable masking by default" );
             auto *view = window.findChild<rtimvGraphicsView *>( "graphicsView" );
             require( view, "graphics view missing" );
             window.launchControlPanel();

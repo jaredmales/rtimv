@@ -474,6 +474,17 @@ void rtimvClientBase::setupConfig()
                 "Set dark subtraction at startup. Bare --darksub is true; also accepts =true or =false. "
                 "If a dark is supplied, darksub is otherwise on." );
 
+    config.add( "mask",
+                "",
+                "mask",
+                mx::app::argType::Required,
+                "",
+                "mask",
+                false,
+                "bool",
+                "Set ordinary image masking at startup. Use --mask=true or =false. "
+                "If a mask is supplied, masking is otherwise on. Independent of mask.stats." );
+
     config.add( "satLevel",
                 "",
                 "satLevel",
@@ -778,6 +789,14 @@ void rtimvClientBase::loadConfig()
         bool darksub = configBoolOption( config, "darksub" );
         m_configReq->set_darksub( darksub );
         m_configReq->set_darksub_set( true );
+    }
+
+    if( config.isSet( "mask" ) )
+    {
+        bool mask = false;
+        config( mask, "mask" );
+        m_configReq->set_apply_mask( mask );
+        m_configReq->set_apply_mask_set( true );
     }
 
     if( config.isSet( "satLevel" ) )

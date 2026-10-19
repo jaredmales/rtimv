@@ -119,6 +119,12 @@ class rtimvBase : public mx::app::application
         /// Explicit dark subtraction startup state.
         bool m_darkSub{ false };
 
+        /// True when ordinary image masking was explicitly configured.
+        bool m_maskSet{ false };
+
+        /// Explicit ordinary image masking startup state, independent of mask statistics.
+        bool m_mask{ false };
+
         /// True when the saturation level was explicitly configured.
         bool m_satLevelSet{ false };
 
@@ -517,6 +523,9 @@ class rtimvBase : public mx::app::application
 
     /// Whether or not the mask is applied, default is false.
     bool m_applyMask{ false };
+
+    /// True when the startup ordinary-mask state was set explicitly by config/CLI.
+    bool m_applyMaskSet{ false };
 
     /// Whether or not the saturation mask is applied, default is false.
     /** Note this only controls whether the pixels are colored m_satColor.  It does

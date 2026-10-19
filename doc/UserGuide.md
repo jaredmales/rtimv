@@ -102,6 +102,21 @@ be visible together. Values come from the same processed image as box statistics
 mask application, filters, and MTF settings. Changing these settings can change the reported values. With MTF enabled,
 the mask selects output pixel coordinates; it is not transformed into a frequency-domain mask.
 
+To start with the mask used only for statistical selection, use `--mask=false --mask.stats=true`. Supplying `mask.key`
+still enables ordinary masking by default unless `mask` is set explicitly. The equivalent configuration is:
+
+```ini
+mask=false
+
+[mask]
+key=/path/to/mask.fits
+stats=true
+```
+
+Place the top-level `mask=false` before any section headings. This option accepts explicit `true` or `false` values and
+works in local, client, and server configurations. Client overrides require a server that supports the new masking
+configuration fields.
+
 Missing inputs, different mask/image dimensions, or an empty finite selection show an unavailable reason instead of stale
 measurements. The mode stays selected and recovers when the inputs become valid. In `rtimvClient`, calculations run on
 the server, pending changes are indicated, and the requested mode is restored after reconnecting. Older servers that do
@@ -220,6 +235,7 @@ This means local client overrides always win for options/keys set locally, while
 |  | `--autoscale` | `autoscale` | bool | Set autoscaling at startup. Bare `--autoscale` is true; `--autoscale=true` and `--autoscale=false` are also accepted. |
 |  | `--nofpsgage` | `nofpsgage` | bool | Turn the FPS gauge off at startup. |
 |  | `--darksub` | `darksub` | bool | Set dark subtraction at startup. Bare `--darksub` is true; `--darksub=true` and `--darksub=false` are also accepted. If a dark is supplied, `darksub` is otherwise on. |
+|  | `--mask` | `mask` | bool | Set ordinary image masking at startup with `--mask=true` or `--mask=false`. If a mask is supplied, masking is otherwise on. Independent of `mask.stats`. |
 |  | `--satLevel` | `satLevel` | float | The saturation level for this camera. |
 |  | `--masksat` | `masksat` | bool | Set saturation masking at startup. Bare `--masksat` is true; `--masksat=true` and `--masksat=false` are also accepted. If a saturation mask is supplied, `masksat` is otherwise on. |
 |  | `--targetXc` | `targetXc` | float | The fractional x-coordinate of the target, `0 <= x <= 1`. |

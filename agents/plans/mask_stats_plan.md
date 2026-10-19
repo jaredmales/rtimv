@@ -19,7 +19,9 @@ overlay. Backend results use the existing processed values at finite samples sel
 `1`; excluded locations never contribute zeros. The additive protocol carries authoritative results in `Image`, with
 asynchronous mode requests, pending-state display, reconnect restoration, and graceful older-server handling. The overlay
 retains a blank first line without a heading. The `mask.stats` startup option accepts configuration-file values and
-command-line overrides in local and remote operation, including server defaults.
+command-line overrides in local and remote operation, including server defaults. Ordinary masking can be set separately
+with `--mask=true` or `--mask=false`; `--mask=false --mask.stats=true` retains mask selection for statistics without
+applying the mask to the processed image. Supplying a mask still enables ordinary masking by default when `mask` is unset.
 
 The full build and all eleven CTest tests pass, including backend, client lifecycle, local/remote GUI, and startup
 configuration coverage. Startup tests verify config-file values, explicit CLI overrides, and inherited server defaults.
@@ -179,6 +181,7 @@ the actual backend integration as well as numerical reduction:
 | Change dark subtraction, filter settings, science frame, or mask only | Recalculation follows the documented input/processing policy |
 | Enable/disable on static FITS data | Immediate local update and a new authoritative remote response |
 | Startup configuration, CLI overrides, and server defaults | Explicit local choices win; otherwise use the server default, or off locally |
+| `mask=false` with `mask.stats=true` | Statistics use mask-selected pixels while a sampled pixel outside the mask retains its unmasked value, locally and remotely |
 | Mask loss, resize, recovery, or client reconnect | Validity clears promptly and recovers without stale cross-session results |
 | Delayed RPCs, rapid toggles, out-of-order image replies, shutdown | Final requested state wins; stale replies cannot restore old values; no deadlock/use-after-free |
 | Older server/newer client and newer server/older client | Graceful unavailable feature or ignored additive fields |
@@ -201,7 +204,7 @@ keep base/client declarations and section ordering aligned. Record the clarified
 | `src/common/rtimvMaskStats.hpp` | Shared result and availability types |
 | `src/common/rtimvBase.hpp/.cpp` | State, reduction of processed values, mask snapshot, locking, update/invalidation hooks |
 | `src/common/rtimvBaseObject.hpp/.cpp` | Mask-statistics notification and any owner-checked forwarding slots |
-| `src/proto/rtimv.proto` | Enable RPC and authoritative `Image` state |
+| `src/proto/rtimv.proto` | Enable RPC, authoritative `Image` state, and explicit startup mask-application configuration |
 | `src/server/rtimvServer.hpp/.cpp` | Reactor and mutation dispatch |
 | `src/server/rtimvServerThread.cpp` | Snapshot publication and state-only response scheduling |
 | `src/server/rtimvClientBase.hpp/.cpp` | Async request lifecycle, cached interface, reconnect behavior |
