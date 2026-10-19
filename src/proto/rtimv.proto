@@ -50,7 +50,7 @@ service rtimv
 
     rpc ImagePlease(ImageRequest) returns (Image);
 
-    rpc SetMaskStats(MaskStatsRequest) returns (MaskStatsResponse);
+    rpc SetGlobalStats(GlobalStatsRequest) returns (GlobalStatsResponse);
 
     rpc SetApplyMTF(ApplyMTFRequest) returns (ApplyMTFResponse);
 
@@ -455,38 +455,43 @@ message Image
 
     bool apply_mtf = 207;
 
-    MaskStatsState mask_stats = 208;
+    reserved 208;
+    reserved "mask_stats";
+
+    GlobalStatsState global_stats = 209;
 }
 
-message MaskStatsRequest
+message GlobalStatsRequest
 {
     bool enabled = 1;
+    bool use_mask = 2;
 }
 
-message MaskStatsResponse
+message GlobalStatsResponse
 {
 }
 
-enum MaskStatsStatus
+enum GlobalStatsStatus
 {
-    MASK_STATS_UNAVAILABLE = 0;
-    MASK_STATS_VALID = 1;
-    MASK_STATS_NO_IMAGE = 2;
-    MASK_STATS_NO_MASK = 3;
-    MASK_STATS_SIZE_MISMATCH = 4;
-    MASK_STATS_EMPTY = 5;
-    MASK_STATS_UNSUPPORTED = 6;
+    GLOBAL_STATS_UNAVAILABLE = 0;
+    GLOBAL_STATS_VALID = 1;
+    GLOBAL_STATS_NO_IMAGE = 2;
+    GLOBAL_STATS_NO_MASK = 3;
+    GLOBAL_STATS_SIZE_MISMATCH = 4;
+    GLOBAL_STATS_EMPTY = 5;
+    GLOBAL_STATS_UNSUPPORTED = 6;
 }
 
-message MaskStatsState
+message GlobalStatsState
 {
     bool enabled = 1;
-    MaskStatsStatus status = 2;
+    GlobalStatsStatus status = 2;
     uint64 count = 3;
     float min = 4;
     float max = 5;
     float mean = 6;
     float median = 7;
+    bool use_mask = 8;
 }
 
 message Coord

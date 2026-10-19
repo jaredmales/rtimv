@@ -214,7 +214,7 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
 
     connect( &m_statsBoxTimer, SIGNAL( timeout() ), this, SLOT( dispatchStatsBoxRequest() ) );
     m_statsBoxTimer.setSingleShot( true );
-    connect( m_foundation, &rtimvBaseObject::maskStatsUpdated, this, &rtimvMainWindow::updateMaskStatsOverlay );
+    connect( m_foundation, &rtimvBaseObject::globalStatsUpdated, this, &rtimvMainWindow::updateGlobalStatsOverlay );
 
     connect( m_foundation,
              SIGNAL( pixelValueUpdated( uint32_t, uint32_t, float, bool ) ),
@@ -684,7 +684,7 @@ void rtimvMainWindow::post_zoomLevel()
     RTIMV_DEBUG_BREADCRUMB
 
     change_center();
-    updateMaskStatsOverlay();
+    updateGlobalStatsOverlay();
 
     RTIMV_DEBUG_BREADCRUMB
 
@@ -1490,7 +1490,7 @@ void rtimvMainWindow::updateFPS()
 
 void rtimvMainWindow::updateAge()
 {
-    updateMaskStatsOverlay();
+    updateGlobalStatsOverlay();
     // Check the font luminance to make sure it is visible
     mtxTry_fontLuminance();
 
@@ -1547,7 +1547,7 @@ void rtimvMainWindow::updateAge()
 
 void rtimvMainWindow::updateNC()
 {
-    updateMaskStatsOverlay();
+    updateGlobalStatsOverlay();
 #ifdef RTIMV_GRPC
     if( m_activeTextOverlayKey != 'i' )
 #endif
@@ -1991,20 +1991,25 @@ void rtimvMainWindow::dispatchStatsBoxRequest()
     requestStatsBoxValues();
 }
 
-void rtimvMainWindow::setMaskStats( bool enabled )
+void rtimvMainWindow::setGlobalStats( bool enabled )
 {
-    mtxUL_maskStats( enabled );
+    mtxUL_globalStats( enabled, globalStatsUseMaskRequested() );
 }
 
-void rtimvMainWindow::updateMaskStatsOverlay()
+void rtimvMainWindow::setGlobalStatsUseMask( bool useMask )
 {
-    QTextEdit *text = ui.graphicsView->maskStatsText();
-    const auto stats = maskStats();
-    const bool show = maskStatsRequested();
+    mtxUL_globalStats( globalStatsRequested(), useMask );
+}
+
+void rtimvMainWindow::updateGlobalStatsOverlay()
+{
+    QTextEdit *text = ui.graphicsView->globalStatsText();
+    const auto stats = globalStats();
+    const bool show = globalStatsRequested();
     text->setVisible( show );
     if( imcp )
     {
-        imcp->update_maskStats();
+        imcp->update_globalStats();
     }
     if( !show )
     {
@@ -2013,11 +2018,11 @@ void rtimvMainWindow::updateMaskStatsOverlay()
     }
 
     std::string contents = "\n";
-    if( maskStatsPending() )
+    if( globalStatsPending() )
     {
         contents += "pending";
     }
-    else if( stats.m_enabled && stats.m_status == rtimv::maskStatsStatus::valid )
+    else if( stats.m_enabled && stats.m_status == rtimv::globalStatsStatus::valid )
     {
         contents += "min: " + formatStatsValue( stats.m_min ) + "\nmax: " + formatStatsValue( stats.m_max ) +
                     "\nmean: " + formatStatsValue( stats.m_mean ) + "\nmedian: " + formatStatsValue( stats.m_median );
@@ -2026,19 +2031,19 @@ void rtimvMainWindow::updateMaskStatsOverlay()
     {
         switch( stats.m_status )
         {
-        case rtimv::maskStatsStatus::noImage:
+        case rtimv::globalStatsStatus::noImage:
             contents += "image unavailable";
             break;
-        case rtimv::maskStatsStatus::noMask:
+        case rtimv::globalStatsStatus::noMask:
             contents += "mask unavailable";
             break;
-        case rtimv::maskStatsStatus::sizeMismatch:
-            contents += "mask size mismatch";
+        case rtimv::globalStatsStatus::sizeMismatch:
+            contents += stats.m_useMask ? "mask size mismatch" : "image size mismatch";
             break;
-        case rtimv::maskStatsStatus::empty:
-            contents += "no finite selected pixels";
+        case rtimv::globalStatsStatus::empty:
+            contents += stats.m_useMask ? "no finite selected pixels" : "no finite pixels";
             break;
-        case rtimv::maskStatsStatus::unsupported:
+        case rtimv::globalStatsStatus::unsupported:
             contents += "server unsupported";
             break;
         default:
@@ -2181,8 +2186,8 @@ void rtimvMainWindow::mtxTry_updateStatsBoxOverlay(
 
     auto overlapsStatusOverlay = [this]( const QRect &candidate )
     {
-        QTextEdit *maskText = ui.graphicsView->maskStatsText();
-        if( maskText->isVisible() && candidate.intersects( maskText->geometry() ) )
+        QTextEdit *globalText = ui.graphicsView->globalStatsText();
+        if( globalText->isVisible() && candidate.intersects( globalText->geometry() ) )
         {
             return true;
         }
@@ -2280,18 +2285,18 @@ void rtimvMainWindow::mtxTry_updateStatsBoxOverlay(
         }
     }
 
-    QTextEdit *maskText = ui.graphicsView->maskStatsText();
-    if( maskText->isVisible() && textRect.intersects( maskText->geometry() ) )
+    QTextEdit *globalText = ui.graphicsView->globalStatsText();
+    if( globalText->isVisible() && textRect.intersects( globalText->geometry() ) )
     {
-        const QPoint belowMask( maskText->x(), maskText->geometry().bottom() + gap );
-        const QPoint rightOfMask( maskText->geometry().right() + gap, maskText->y() );
-        if( candidateFits( belowMask ) )
+        const QPoint belowGlobal( globalText->x(), globalText->geometry().bottom() + gap );
+        const QPoint rightOfGlobal( globalText->geometry().right() + gap, globalText->y() );
+        if( candidateFits( belowGlobal ) )
         {
-            textRect.moveTopLeft( belowMask );
+            textRect.moveTopLeft( belowGlobal );
         }
-        else if( candidateFits( rightOfMask ) )
+        else if( candidateFits( rightOfGlobal ) )
         {
-            textRect.moveTopLeft( rightOfMask );
+            textRect.moveTopLeft( rightOfGlobal );
         }
     }
 

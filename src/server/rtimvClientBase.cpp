@@ -189,13 +189,13 @@ rtimvClientBase::~rtimvClientBase()
         std::unique_lock<std::mutex> asyncLock( m_asyncRpcMutex );
 
         if( m_pingPending || m_getPixelPending || m_colorBoxPending || m_statsBoxPending || m_setColorstretchPending ||
-            m_setMinScalePending || m_setMaxScalePending || m_maskStatsRpcPending || m_emptyRpcPending > 0 )
+            m_setMinScalePending || m_setMaxScalePending || m_globalStatsRpcPending || m_emptyRpcPending > 0 )
         {
             const auto deadline = std::chrono::steady_clock::now() + shutdownRpcGracePeriod;
 
             while( m_pingPending || m_getPixelPending || m_colorBoxPending || m_statsBoxPending ||
-                   m_setColorstretchPending || m_setMinScalePending || m_setMaxScalePending || m_maskStatsRpcPending ||
-                   m_emptyRpcPending > 0 )
+                   m_setColorstretchPending || m_setMinScalePending || m_setMaxScalePending ||
+                   m_globalStatsRpcPending || m_emptyRpcPending > 0 )
             {
                 if( m_asyncRpcCv.wait_until( asyncLock, deadline ) == std::cv_status::timeout )
                 {
@@ -239,9 +239,9 @@ rtimvClientBase::~rtimvClientBase()
             m_PingContext->TryCancel();
         }
 
-        if( m_pendingMaskStats && m_maskStatsRpcPending )
+        if( m_pendingGlobalStats && m_globalStatsRpcPending )
         {
-            m_pendingMaskStats->m_context.TryCancel();
+            m_pendingGlobalStats->m_context.TryCancel();
         }
 
         for( auto *context : m_emptyRpcContexts )
@@ -257,7 +257,7 @@ rtimvClientBase::~rtimvClientBase()
         std::unique_lock<std::mutex> lock( m_asyncRpcMutex );
 
         while( m_pingPending || m_getPixelPending || m_colorBoxPending || m_statsBoxPending ||
-               m_setColorstretchPending || m_setMinScalePending || m_setMaxScalePending || m_maskStatsRpcPending ||
+               m_setColorstretchPending || m_setMinScalePending || m_setMaxScalePending || m_globalStatsRpcPending ||
                m_emptyRpcPending > 0 )
         {
             if( m_asyncRpcCv.wait_for( lock, std::chrono::seconds( 1 ) ) == std::cv_status::timeout )
@@ -483,7 +483,7 @@ void rtimvClientBase::setupConfig()
                 false,
                 "bool",
                 "Set ordinary image masking at startup. Use --mask=true or =false. "
-                "If a mask is supplied, masking is otherwise on. Independent of mask.stats." );
+                "If a mask is supplied, masking is otherwise on. Independent of stats.global and stats.mask." );
 
     config.add( "satLevel",
                 "",
@@ -506,16 +506,27 @@ void rtimvClientBase::setupConfig()
                 "Set sat-masking at startup. Bare --masksat is true; also accepts =true or =false. "
                 "If a saturation mask is supplied, masksat is otherwise on." );
 
-    config.add( "mask.stats",
+    config.add( "stats.global",
                 "",
-                "mask.stats",
+                "stats.global",
                 mx::app::argType::Required,
-                "mask",
                 "stats",
+                "global",
                 false,
                 "bool",
-                "Enable mask statistics at startup. Use --mask.stats=true or =false. "
+                "Enable global statistics at startup. Use --stats.global=true or =false. "
                 "Default is false unless enabled by the server configuration." );
+
+    config.add( "stats.mask",
+                "",
+                "stats.mask",
+                mx::app::argType::Required,
+                "stats",
+                "mask",
+                false,
+                "bool",
+                "Restrict global statistics to pixels where the ordinary mask equals 1. "
+                "Default is true unless disabled by the server configuration." );
 
     config.add( "mzmq.always",
                 "Z",
@@ -814,13 +825,25 @@ void rtimvClientBase::loadConfig()
         m_configReq->set_mask_sat_set( true );
     }
 
-    if( config.isSet( "mask.stats" ) )
+    if( config.isSet( "stats.global" ) )
     {
         bool enabled = false;
-        config( enabled, "mask.stats" );
+        config( enabled, "stats.global" );
         { // mutex scope
             std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
-            mtxL_maskStats( enabled );
+            m_globalStatsHaveIntent = true;
+            m_globalStatsDesired = enabled;
+        }
+    }
+
+    if( config.isSet( "stats.mask" ) )
+    {
+        bool useMask = true;
+        config( useMask, "stats.mask" );
+        { // mutex scope
+            std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+            m_globalStatsHaveMaskIntent = true;
+            m_globalStatsMaskDesired = useMask;
         }
     }
 
@@ -1141,12 +1164,12 @@ void rtimvClientBase::finishConnection()
 
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
-        m_maskStats = {};
-        m_maskStatsSupported = false;
-        m_maskStatsRpcUnsupported = false;
-        m_maskStatsSent = false;
+        m_globalStats = {};
+        m_globalStatsSupported = false;
+        m_globalStatsRpcUnsupported = false;
+        m_globalStatsSent = false;
     }
-    m_foundation->emit_maskStatsUpdated();
+    m_foundation->emit_globalStatsUpdated();
 
     // GUI work and new image dispatches must run after releasing the connection lock.
     m_foundation->emit_ImageNeeded();
@@ -1671,7 +1694,7 @@ void rtimvClientBase::ImageReceived()
         m_foundation->emit_cubeDirUpdated( m_cubeDir );
     }
 
-    receiveMaskStats( grpcImage );
+    receiveGlobalStats( grpcImage );
 
     m_foundation->emit_statsBoxUpdated( m_statsBox_i0,
                                         m_statsBox_i1,
@@ -1915,7 +1938,7 @@ void rtimvClientBase::ImagePlease_callback( uint64_t requestId,
     else if( action == 1 )
     {
         QMetaObject::invokeMethod(
-            m_foundation, "MaskStatsUnavailable", Qt::QueuedConnection, Q_ARG( qulonglong, currentConnections ) );
+            m_foundation, "GlobalStatsUnavailable", Qt::QueuedConnection, Q_ARG( qulonglong, currentConnections ) );
         // Avoid a tight no-image polling loop.
         scheduleImageRetry( retryMs > 0 ? retryMs : 1000 );
     }
@@ -3667,118 +3690,133 @@ void rtimvClientBase::mtxUL_calcStatsBox()
     requestStatsBoxValues();
 }
 
-void rtimvClientBase::mtxUL_maskStats( bool enabled )
+void rtimvClientBase::mtxUL_globalStats( bool enabled, bool useMask )
 {
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
-        mtxL_maskStats( enabled );
+        mtxL_globalStats( enabled, useMask );
     }
-    dispatchMaskStats();
-    m_foundation->emit_maskStatsUpdated();
+    dispatchGlobalStats();
+    m_foundation->emit_globalStatsUpdated();
 }
 
-void rtimvClientBase::mtxL_maskStats( bool enabled )
+void rtimvClientBase::mtxL_globalStats( bool enabled, bool useMask )
 {
-    m_maskStatsHaveIntent = true;
-    m_maskStatsDesired = enabled;
+    m_globalStatsHaveIntent = true;
+    m_globalStatsDesired = enabled;
+    m_globalStatsHaveMaskIntent = true;
+    m_globalStatsMaskDesired = useMask;
 }
 
-rtimv::maskStatsState rtimvClientBase::maskStats()
+rtimv::globalStatsState rtimvClientBase::globalStats()
 {
     sharedLockT connLock( m_connectedMutex );
     std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
-    auto result = m_maskStats;
+    auto result = m_globalStats;
     if( !m_connected )
     {
         result = {};
-        result.m_enabled = m_maskStats.m_enabled;
-        result.m_status = rtimv::maskStatsStatus::noImage;
+        result.m_enabled = m_globalStats.m_enabled;
+        result.m_useMask = m_globalStats.m_useMask;
+        result.m_status = rtimv::globalStatsStatus::noImage;
     }
     return result;
 }
 
-bool rtimvClientBase::maskStatsRequested()
+bool rtimvClientBase::globalStatsRequested()
 {
     std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
-    return m_maskStatsHaveIntent ? m_maskStatsDesired : m_maskStats.m_enabled;
+    return m_globalStatsHaveIntent ? m_globalStatsDesired : m_globalStats.m_enabled;
 }
 
-bool rtimvClientBase::maskStatsPending()
+bool rtimvClientBase::globalStatsUseMaskRequested()
+{
+    std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+    return m_globalStatsHaveMaskIntent ? m_globalStatsMaskDesired : m_globalStats.m_useMask;
+}
+
+bool rtimvClientBase::globalStatsPending()
 {
     sharedLockT connLock( m_connectedMutex );
     std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
-    return m_connected && m_maskStatsSupported &&
-           ( m_pendingMaskStats || ( m_maskStatsHaveIntent && m_maskStatsDesired != m_maskStats.m_enabled ) );
+    return m_connected && m_globalStatsSupported &&
+           ( m_pendingGlobalStats || ( m_globalStatsHaveIntent && m_globalStatsDesired != m_globalStats.m_enabled ) ||
+             ( m_globalStatsHaveMaskIntent && m_globalStatsMaskDesired != m_globalStats.m_useMask ) );
 }
 
-void rtimvClientBase::dispatchMaskStats()
+void rtimvClientBase::dispatchGlobalStats()
 {
     sharedLockT connLock( m_connectedMutex );
-    std::shared_ptr<maskStatsRequestState> state;
+    std::shared_ptr<globalStatsRequestState> state;
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
-        if( m_shuttingDown || !m_connected || !stub_ || !m_maskStatsSupported || !m_maskStatsHaveIntent ||
-            m_pendingMaskStats || ( m_maskStatsSent && m_maskStatsLastSent == m_maskStatsDesired ) )
+        const bool enabled = m_globalStatsHaveIntent ? m_globalStatsDesired : m_globalStats.m_enabled;
+        const bool useMask = m_globalStatsHaveMaskIntent ? m_globalStatsMaskDesired : m_globalStats.m_useMask;
+        if( m_shuttingDown || !m_connected || !stub_ || !m_globalStatsSupported ||
+            !( m_globalStatsHaveIntent || m_globalStatsHaveMaskIntent ) || m_pendingGlobalStats ||
+            ( m_globalStatsSent && m_globalStatsLastSent == enabled && m_globalStatsLastMaskSent == useMask ) )
         {
             return;
         }
-        state = std::make_shared<maskStatsRequestState>();
+        state = std::make_shared<globalStatsRequestState>();
         state->m_generation = m_connections;
-        state->m_request.set_enabled( m_maskStatsDesired );
+        state->m_request.set_enabled( enabled );
+        state->m_request.set_use_mask( useMask );
         state->m_context.set_deadline( std::chrono::system_clock::now() + std::chrono::seconds( 2 ) );
-        m_pendingMaskStats = state;
-        m_maskStatsRpcPending = true;
-        m_maskStatsSent = true;
-        m_maskStatsLastSent = m_maskStatsDesired;
+        m_pendingGlobalStats = state;
+        m_globalStatsRpcPending = true;
+        m_globalStatsSent = true;
+        m_globalStatsLastSent = enabled;
+        m_globalStatsLastMaskSent = useMask;
     }
 
-    stub_->async()->SetMaskStats( &state->m_context,
-                                  &state->m_request,
-                                  &state->m_reply,
-                                  [this, state]( grpc::Status status ) { maskStats_callback( state, status ); } );
+    stub_->async()->SetGlobalStats( &state->m_context,
+                                    &state->m_request,
+                                    &state->m_reply,
+                                    [this, state]( grpc::Status status ) { globalStats_callback( state, status ); } );
 }
 
-void rtimvClientBase::maskStats_callback( std::shared_ptr<maskStatsRequestState> state, grpc::Status status )
+void rtimvClientBase::globalStats_callback( std::shared_ptr<globalStatsRequestState> state, grpc::Status status )
 {
     beginGrpcCallbackActivity();
     auto callbackGuard = std::shared_ptr<void>( nullptr, [this]( void * ) { endGrpcCallbackActivity(); } );
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
         state->m_status = status;
-        m_maskStatsRpcPending = false;
+        m_globalStatsRpcPending = false;
     }
     m_asyncRpcCv.notify_all();
     if( !m_shuttingDown )
     {
-        QMetaObject::invokeMethod( m_foundation, "MaskStatsReceived", Qt::QueuedConnection );
+        QMetaObject::invokeMethod( m_foundation, "GlobalStatsReceived", Qt::QueuedConnection );
     }
 }
 
-void rtimvClientBase::MaskStatsReceived()
+void rtimvClientBase::GlobalStatsReceived()
 {
     std::string error;
     { // mutex scope
         uniqueLockT connLock( m_connectedMutex );
         std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
-        if( m_shuttingDown || m_maskStatsRpcPending || !m_pendingMaskStats )
+        if( m_shuttingDown || m_globalStatsRpcPending || !m_pendingGlobalStats )
         {
             return;
         }
-        auto state = std::move( m_pendingMaskStats );
+        auto state = std::move( m_pendingGlobalStats );
         if( state->m_generation == m_connections && !state->m_status.ok() )
         {
-            m_maskStats = {};
+            m_globalStats = {};
             if( state->m_status.error_code() == grpc::StatusCode::UNIMPLEMENTED )
             {
-                m_maskStatsSupported = false;
-                m_maskStatsRpcUnsupported = true;
-                m_maskStats.m_status = rtimv::maskStatsStatus::unsupported;
+                m_globalStatsSupported = false;
+                m_globalStatsRpcUnsupported = true;
+                m_globalStats.m_status = rtimv::globalStatsStatus::unsupported;
             }
             else
             {
                 m_connected = false;
-                m_maskStatsSent = false;
-                m_maskStats.m_status = rtimv::maskStatsStatus::noImage;
+                m_globalStatsSent = false;
+                m_globalStats.m_status = rtimv::globalStatsStatus::noImage;
                 error = state->m_status.error_message();
             }
         }
@@ -3786,13 +3824,13 @@ void rtimvClientBase::MaskStatsReceived()
 
     if( !error.empty() )
     {
-        std::cerr << formatBaseLogMessage( "SetMaskStats: " + error ) << '\n';
+        std::cerr << formatBaseLogMessage( "SetGlobalStats: " + error ) << '\n';
     }
-    dispatchMaskStats();
-    m_foundation->emit_maskStatsUpdated();
+    dispatchGlobalStats();
+    m_foundation->emit_globalStatsUpdated();
 }
 
-void rtimvClientBase::MaskStatsUnavailable( qulonglong generation )
+void rtimvClientBase::GlobalStatsUnavailable( qulonglong generation )
 {
     { // mutex scope
         sharedLockT connLock( m_connectedMutex );
@@ -3801,43 +3839,49 @@ void rtimvClientBase::MaskStatsUnavailable( qulonglong generation )
             return;
         }
         std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
-        const bool enabled = m_maskStats.m_enabled;
-        m_maskStats = {};
-        m_maskStats.m_enabled = enabled;
-        m_maskStats.m_status = rtimv::maskStatsStatus::noImage;
+        const bool enabled = m_globalStats.m_enabled;
+        const bool useMask = m_globalStats.m_useMask;
+        m_globalStats = {};
+        m_globalStats.m_enabled = enabled;
+        m_globalStats.m_useMask = useMask;
+        m_globalStats.m_status = rtimv::globalStatsStatus::noImage;
     }
-    m_foundation->emit_maskStatsUpdated();
+    m_foundation->emit_globalStatsUpdated();
 }
 
-void rtimvClientBase::receiveMaskStats( const remote_rtimv::Image &reply )
+void rtimvClientBase::receiveGlobalStats( const remote_rtimv::Image &reply )
 {
-    rtimv::maskStatsState result;
-    if( reply.has_mask_stats() )
+    rtimv::globalStatsState result;
+    if( reply.has_global_stats() )
     {
-        const auto &stats = reply.mask_stats();
+        const auto &stats = reply.global_stats();
         result.m_enabled = stats.enabled();
+        result.m_useMask = stats.use_mask();
         switch( stats.status() )
         {
-        case remote_rtimv::MASK_STATS_VALID:
-            result.m_status = rtimv::maskStatsStatus::valid;
+        case remote_rtimv::GLOBAL_STATS_VALID:
+            result.m_status = rtimv::globalStatsStatus::valid;
             break;
-        case remote_rtimv::MASK_STATS_NO_IMAGE:
-            result.m_status = rtimv::maskStatsStatus::noImage;
+        case remote_rtimv::GLOBAL_STATS_NO_IMAGE:
+            result.m_status = rtimv::globalStatsStatus::noImage;
             break;
-        case remote_rtimv::MASK_STATS_NO_MASK:
-            result.m_status = rtimv::maskStatsStatus::noMask;
+        case remote_rtimv::GLOBAL_STATS_NO_MASK:
+            result.m_status = rtimv::globalStatsStatus::noMask;
             break;
-        case remote_rtimv::MASK_STATS_SIZE_MISMATCH:
-            result.m_status = rtimv::maskStatsStatus::sizeMismatch;
+        case remote_rtimv::GLOBAL_STATS_SIZE_MISMATCH:
+            result.m_status = rtimv::globalStatsStatus::sizeMismatch;
             break;
-        case remote_rtimv::MASK_STATS_EMPTY:
-            result.m_status = rtimv::maskStatsStatus::empty;
+        case remote_rtimv::GLOBAL_STATS_EMPTY:
+            result.m_status = rtimv::globalStatsStatus::empty;
+            break;
+        case remote_rtimv::GLOBAL_STATS_UNSUPPORTED:
+            result.m_status = rtimv::globalStatsStatus::unsupported;
             break;
         default:
-            result.m_status = rtimv::maskStatsStatus::unavailable;
+            result.m_status = rtimv::globalStatsStatus::unavailable;
             break;
         }
-        if( result.m_enabled && result.m_status == rtimv::maskStatsStatus::valid && stats.count() > 0 &&
+        if( result.m_enabled && result.m_status == rtimv::globalStatsStatus::valid && stats.count() > 0 &&
             std::isfinite( stats.min() ) && std::isfinite( stats.max() ) && std::isfinite( stats.mean() ) &&
             std::isfinite( stats.median() ) )
         {
@@ -3847,28 +3891,28 @@ void rtimvClientBase::receiveMaskStats( const remote_rtimv::Image &reply )
             result.m_mean = stats.mean();
             result.m_median = stats.median();
         }
-        else if( result.m_status == rtimv::maskStatsStatus::valid )
+        else if( result.m_status == rtimv::globalStatsStatus::valid )
         {
-            result.m_status = rtimv::maskStatsStatus::unavailable;
+            result.m_status = rtimv::globalStatsStatus::unavailable;
         }
     }
     else
     {
-        result.m_status = rtimv::maskStatsStatus::unsupported;
+        result.m_status = rtimv::globalStatsStatus::unsupported;
     }
 
     { // mutex scope
         std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
-        m_maskStatsSupported = reply.has_mask_stats() && !m_maskStatsRpcUnsupported;
-        if( m_maskStatsRpcUnsupported )
+        m_globalStatsSupported = reply.has_global_stats() && !m_globalStatsRpcUnsupported;
+        if( m_globalStatsRpcUnsupported )
         {
             result = {};
-            result.m_status = rtimv::maskStatsStatus::unsupported;
+            result.m_status = rtimv::globalStatsStatus::unsupported;
         }
-        m_maskStats = result;
+        m_globalStats = result;
     }
-    dispatchMaskStats();
-    m_foundation->emit_maskStatsUpdated();
+    dispatchGlobalStats();
+    m_foundation->emit_globalStatsUpdated();
 }
 
 void rtimvClientBase::stretch( rtimv::stretch cs )

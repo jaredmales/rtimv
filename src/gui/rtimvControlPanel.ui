@@ -2221,7 +2221,7 @@
       <string>Show Stats Box</string>
      </property>
     </widget>
-    <widget class="QCheckBox" name="maskStatsCheck">
+    <widget class="QCheckBox" name="globalStatsCheck">
      <property name="geometry">
       <rect>
        <x>340</x>
@@ -2231,10 +2231,26 @@
       </rect>
      </property>
      <property name="text">
-      <string>Mask stats</string>
+      <string>Global stats</string>
      </property>
      <property name="toolTip">
-      <string>Show statistics for finite processed pixels where the image mask equals 1.</string>
+      <string>Show statistics for finite processed pixels across the image.</string>
+     </property>
+    </widget>
+    <widget class="QCheckBox" name="globalStatsMaskCheck">
+     <property name="geometry">
+      <rect>
+       <x>340</x>
+       <y>130</y>
+       <width>271</width>
+       <height>24</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Use mask</string>
+     </property>
+     <property name="toolTip">
+      <string>Restrict global statistics to pixels where the ordinary mask equals 1, independently of applying the mask to the image.</string>
      </property>
     </widget>
     <widget class="QLabel" name="statsDisplayModeLabel">

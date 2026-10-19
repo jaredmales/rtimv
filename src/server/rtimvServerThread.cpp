@@ -112,7 +112,7 @@ rtimvServerThread::rtimvServerThread( const std::string &uri,
     connect( this, SIGNAL( awaken() ), this, SLOT( wakeup() ) );
     connect( this, SIGNAL( servicePending() ), this, SLOT( servicePendingImageRequests() ), Qt::QueuedConnection );
     connect( m_foundation,
-             &rtimvBaseObject::maskStatsUpdated,
+             &rtimvBaseObject::globalStatsUpdated,
              this,
              &rtimvServerThread::markResponseDirty,
              Qt::DirectConnection );
@@ -622,35 +622,36 @@ void rtimvServerThread::populateImageReply( remote_rtimv::Image *reply )
     reply->set_stats_box_mean( statsBox_mean() );
     reply->set_stats_box_median( statsBox_median() );
 
-    const auto stats = maskStats();
-    auto *maskReply = reply->mutable_mask_stats();
-    maskReply->set_enabled( stats.m_enabled );
+    const auto stats = globalStats();
+    auto *statsReply = reply->mutable_global_stats();
+    statsReply->set_enabled( stats.m_enabled );
+    statsReply->set_use_mask( stats.m_useMask );
     switch( stats.m_status )
     {
-    case rtimv::maskStatsStatus::valid:
-        maskReply->set_status( remote_rtimv::MASK_STATS_VALID );
+    case rtimv::globalStatsStatus::valid:
+        statsReply->set_status( remote_rtimv::GLOBAL_STATS_VALID );
         break;
-    case rtimv::maskStatsStatus::noImage:
-        maskReply->set_status( remote_rtimv::MASK_STATS_NO_IMAGE );
+    case rtimv::globalStatsStatus::noImage:
+        statsReply->set_status( remote_rtimv::GLOBAL_STATS_NO_IMAGE );
         break;
-    case rtimv::maskStatsStatus::noMask:
-        maskReply->set_status( remote_rtimv::MASK_STATS_NO_MASK );
+    case rtimv::globalStatsStatus::noMask:
+        statsReply->set_status( remote_rtimv::GLOBAL_STATS_NO_MASK );
         break;
-    case rtimv::maskStatsStatus::sizeMismatch:
-        maskReply->set_status( remote_rtimv::MASK_STATS_SIZE_MISMATCH );
+    case rtimv::globalStatsStatus::sizeMismatch:
+        statsReply->set_status( remote_rtimv::GLOBAL_STATS_SIZE_MISMATCH );
         break;
-    case rtimv::maskStatsStatus::empty:
-        maskReply->set_status( remote_rtimv::MASK_STATS_EMPTY );
+    case rtimv::globalStatsStatus::empty:
+        statsReply->set_status( remote_rtimv::GLOBAL_STATS_EMPTY );
         break;
     default:
-        maskReply->set_status( remote_rtimv::MASK_STATS_UNAVAILABLE );
+        statsReply->set_status( remote_rtimv::GLOBAL_STATS_UNAVAILABLE );
         break;
     }
-    maskReply->set_count( stats.m_count );
-    maskReply->set_min( stats.m_min );
-    maskReply->set_max( stats.m_max );
-    maskReply->set_mean( stats.m_mean );
-    maskReply->set_median( stats.m_median );
+    statsReply->set_count( stats.m_count );
+    statsReply->set_min( stats.m_min );
+    statsReply->set_max( stats.m_max );
+    statsReply->set_mean( stats.m_mean );
+    statsReply->set_median( stats.m_median );
 
     reply->set_color_box( colormode() == rtimv::colormode::minmaxbox );
     reply->set_color_box_i0( colorBox_i0() );

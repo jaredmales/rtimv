@@ -1,5 +1,5 @@
-/** \file rtimvClientBase_maskStats_test.cpp
- * \brief Test authoritative mask-statistics state and asynchronous mode requests.
+/** \file rtimvClientBase_globalStats_test.cpp
+ * \brief Test authoritative global-statistics state and asynchronous mode requests.
  */
 
 #include <QCoreApplication>
@@ -117,7 +117,7 @@ void TestClient::disconnectForTest()
 bool TestClient::completionQueued()
 {
     std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
-    return m_pendingMaskStats && !m_maskStatsRpcPending;
+    return m_pendingGlobalStats && !m_globalStatsRpcPending;
 }
 
 void TestClient::mtxL_postSetImsize( const uniqueLockT &lock )
@@ -163,6 +163,9 @@ class TestService : public remote_rtimv::rtimv::Service
     /// Last applied mode on the server.
     std::atomic<bool> m_enabled{ false };
 
+    /// Latest mask-selection policy received by the service.
+    std::atomic<bool> m_useMask{ false };
+
     /// Count of received setters.
     std::atomic<int> m_calls{ 0 };
 
@@ -176,15 +179,15 @@ class TestService : public remote_rtimv::rtimv::Service
     std::atomic<bool> m_missingDeadline{ false };
 
     /// Apply or withhold a mode request.
-    grpc::Status SetMaskStats( grpc::ServerContext *context /**< [in] request context */,
-                               const remote_rtimv::MaskStatsRequest *request /**< [in] requested mode */,
-                               remote_rtimv::MaskStatsResponse *reply /**< [out] empty response */
-                               ) override;
+    grpc::Status SetGlobalStats( grpc::ServerContext *context /**< [in] request context */,
+                                 const remote_rtimv::GlobalStatsRequest *request /**< [in] requested mode */,
+                                 remote_rtimv::GlobalStatsResponse *reply /**< [out] empty response */
+                                 ) override;
 };
 
-grpc::Status TestService::SetMaskStats( grpc::ServerContext *context,
-                                        const remote_rtimv::MaskStatsRequest *request,
-                                        remote_rtimv::MaskStatsResponse *reply )
+grpc::Status TestService::SetGlobalStats( grpc::ServerContext *context,
+                                          const remote_rtimv::GlobalStatsRequest *request,
+                                          remote_rtimv::GlobalStatsResponse *reply )
 {
     static_cast<void>( reply );
     ++m_calls;
@@ -201,12 +204,15 @@ grpc::Status TestService::SetMaskStats( grpc::ServerContext *context,
     if( m_unsupported.exchange( false ) )
         return grpc::Status( grpc::StatusCode::UNIMPLEMENTED, "old server" );
     m_enabled = request->enabled();
+    m_useMask = request->use_mask();
     return grpc::Status::OK;
 }
 
 /// Build a metadata-only Image reply with deterministic selected-pixel statistics.
 remote_rtimv::Image makeImage( uint64_t serial /**< [in] monotonic response serial */,
-                               bool enabled /**< [in] authoritative mode */ )
+                               bool enabled,       /**< [in] authoritative mode */
+                               bool useMask = true /**< [in] authoritative mask-selection policy */
+)
 {
     remote_rtimv::Image reply;
     reply.set_status( remote_rtimv::IMAGE_STATUS_VALID );
@@ -215,9 +221,10 @@ remote_rtimv::Image makeImage( uint64_t serial /**< [in] monotonic response seri
     reply.set_ny( 2 );
     reply.set_nz( 1 );
     reply.set_image_timeout( 50 );
-    auto *stats = reply.mutable_mask_stats();
+    auto *stats = reply.mutable_global_stats();
     stats->set_enabled( enabled );
-    stats->set_status( enabled ? remote_rtimv::MASK_STATS_VALID : remote_rtimv::MASK_STATS_UNAVAILABLE );
+    stats->set_use_mask( useMask );
+    stats->set_status( enabled ? remote_rtimv::GLOBAL_STATS_VALID : remote_rtimv::GLOBAL_STATS_UNAVAILABLE );
     if( enabled )
     {
         stats->set_count( 2 );
@@ -234,31 +241,31 @@ void testState( int port /**< [in] service port */, TestService &service /**< [i
 {
     TestClient client( port );
     client.deliver( makeImage( 2, true ) );
-    const auto stats = client.maskStats();
+    const auto stats = client.globalStats();
     require( stats.m_enabled && stats.m_count == 2 && stats.m_mean == 2 && stats.m_median == 2,
-             "metadata-only Image did not apply mask stats" );
+             "metadata-only Image did not apply global stats" );
     client.deliver( makeImage( 1, false ) );
-    require( client.maskStats().m_enabled, "older Image overwrote mask stats" );
-    client.MaskStatsUnavailable( 0 );
-    require( client.maskStats().m_status == rtimv::maskStatsStatus::noImage && client.maskStats().m_count == 0,
+    require( client.globalStats().m_enabled, "older Image overwrote global stats" );
+    client.GlobalStatsUnavailable( 0 );
+    require( client.globalStats().m_status == rtimv::globalStatsStatus::noImage && client.globalStats().m_count == 0,
              "image-unavailable reply retained measurements" );
     client.newGeneration();
     client.deliver( makeImage( 2, true ) );
-    client.MaskStatsUnavailable( 0 );
-    require( client.maskStats().m_count == 2, "old connection invalidated a new result" );
+    client.GlobalStatsUnavailable( 0 );
+    require( client.globalStats().m_count == 2, "old connection invalidated a new result" );
     auto invalid = makeImage( 3, true );
-    invalid.mutable_mask_stats()->set_status( remote_rtimv::MASK_STATS_NO_MASK );
+    invalid.mutable_global_stats()->set_status( remote_rtimv::GLOBAL_STATS_NO_MASK );
     client.deliver( invalid );
-    require( client.maskStats().m_status == rtimv::maskStatsStatus::noMask && client.maskStats().m_count == 0,
+    require( client.globalStats().m_status == rtimv::globalStatsStatus::noMask && client.globalStats().m_count == 0,
              "invalid reply retained measurement values" );
     auto oldServer = makeImage( 4, false );
-    oldServer.clear_mask_stats();
+    oldServer.clear_global_stats();
     client.deliver( oldServer );
-    require( client.maskStats().m_status == rtimv::maskStatsStatus::unsupported, "old server was not detected" );
-    client.mtxUL_maskStats( true );
+    require( client.globalStats().m_status == rtimv::globalStatsStatus::unsupported, "old server was not detected" );
+    client.mtxUL_globalStats( true, true );
     require( service.m_calls == 0, "unsupported server received mode RPC" );
     client.disconnectForTest();
-    require( client.maskStats().m_count == 0 && client.maskStats().m_status == rtimv::maskStatsStatus::noImage,
+    require( client.globalStats().m_count == 0 && client.globalStats().m_status == rtimv::globalStatsStatus::noImage,
              "disconnected client exposed measurements" );
 }
 
@@ -268,33 +275,67 @@ void testRequests( int port /**< [in] service port */, TestService &service /**<
     TestClient client( port );
     client.deliver( makeImage( 1, false ) );
     service.m_hold = true;
-    client.mtxUL_maskStats( true );
+    client.mtxUL_globalStats( true, true );
     require( waitUntil( [&]() { return service.m_calls == 1; } ), "setter did not reach server" );
-    require( !client.maskStats().m_enabled && client.maskStatsRequested() && client.maskStatsPending(),
+    require( !client.globalStats().m_enabled && client.globalStatsRequested() && client.globalStatsPending(),
              "local intent replaced authoritative cache" );
-    client.mtxUL_maskStats( false );
-    client.mtxUL_maskStats( true );
-    client.mtxUL_maskStats( false );
+    client.mtxUL_globalStats( false, true );
+    client.mtxUL_globalStats( true, true );
+    client.mtxUL_globalStats( false, true );
     require( service.m_calls == 1, "concurrent setters were not coalesced" );
     service.m_hold = false;
-    require( waitUntil( [&]() { return service.m_finished == 2 && !client.maskStatsPending(); } ),
+    require( waitUntil( [&]() { return service.m_finished == 2 && !client.globalStatsPending(); } ),
              "latest mode was not dispatched after completion" );
     require( !service.m_enabled && service.m_calls == 2 && !service.m_missingDeadline, "wrong final mode or deadline" );
 
-    client.mtxUL_maskStats( true );
+    client.mtxUL_globalStats( true, true );
     require( waitUntil( [&]() { return service.m_finished == 3; } ), "enable request was not sent" );
-    require( !client.maskStats().m_enabled, "RPC acknowledgement overwrote Image cache" );
+    require( !client.globalStats().m_enabled, "RPC acknowledgement overwrote Image cache" );
     client.deliver( makeImage( 2, true ) );
-    require( waitUntil( [&]() { return !client.maskStatsPending(); } ), "Image did not confirm mode" );
-    require( client.maskStats().m_count == 2, "Image statistics were lost" );
+    require( waitUntil( [&]() { return !client.globalStatsPending(); } ), "Image did not confirm mode" );
+    require( client.globalStats().m_count == 2, "Image statistics were lost" );
 
     client.newGeneration();
-    require( client.maskStats().m_count == 0 && client.maskStatsRequested(),
+    require( client.globalStats().m_count == 0 && client.globalStatsRequested(),
              "reconnect did not clear results/preserve intent" );
     client.deliver( makeImage( 1, false ) );
     require( waitUntil( [&]() { return service.m_finished == 4; } ), "reconnect did not restore requested mode" );
     client.deliver( makeImage( 2, true ) );
-    require( waitUntil( [&]() { return !client.maskStatsPending(); } ), "reconnect result did not settle" );
+    require( waitUntil( [&]() { return !client.globalStatsPending(); } ), "reconnect result did not settle" );
+}
+
+/// Verify mask-only toggles are coalesced, confirmed through Image, and restored after reconnect.
+void testMaskPolicy( int port /**< [in] service port */, TestService &service /**< [in,out] service controls */ )
+{
+    TestClient client( port );
+    client.deliver( makeImage( 1, true, true ) );
+    const int calls = service.m_calls;
+    service.m_hold = true;
+    client.mtxUL_globalStats( true, false );
+    require( waitUntil( [&]() { return service.m_calls == calls + 1; } ), "mask-only setter did not reach server" );
+    require( client.globalStats().m_useMask && !client.globalStatsUseMaskRequested() && client.globalStatsPending(),
+             "mask intent overwrote the authoritative result" );
+    client.mtxUL_globalStats( true, true );
+    client.mtxUL_globalStats( true, false );
+    client.mtxUL_globalStats( true, true );
+    require( service.m_calls == calls + 1, "mask-only requests ran concurrently" );
+    service.m_hold = false;
+    require( waitUntil( [&]() { return service.m_finished == calls + 2 && !client.globalStatsPending(); } ) &&
+                 service.m_enabled && service.m_useMask,
+             "latest mask-only intent was not dispatched" );
+    client.mtxUL_globalStats( true, false );
+    require( waitUntil( [&]() { return service.m_finished == calls + 3; } ) && client.globalStatsPending() &&
+                 client.globalStats().m_useMask,
+             "setter acknowledgement replaced authoritative mask selection" );
+    client.deliver( makeImage( 2, true, false ) );
+    require( waitUntil( [&]() { return !client.globalStatsPending(); } ) && !client.globalStats().m_useMask,
+             "Image did not confirm mask selection" );
+    client.newGeneration();
+    client.deliver( makeImage( 1, false, true ) );
+    require( waitUntil( [&]() { return service.m_finished == calls + 4; } ) && service.m_enabled && !service.m_useMask,
+             "reconnect did not restore both global-statistics settings" );
+    client.deliver( makeImage( 2, true, false ) );
+    require( waitUntil( [&]() { return !client.globalStatsPending(); } ), "restored policy did not settle" );
 }
 
 /// Verify an unsupported RPC is remembered and stale failures cannot poison a new connection.
@@ -306,22 +347,22 @@ void testUnsupportedAndStale( int port /**< [in] service port */,
         client.deliver( makeImage( 1, false ) );
         const int calls = service.m_calls;
         service.m_unsupported = true;
-        client.mtxUL_maskStats( true );
-        require( waitUntil( [&]() { return client.maskStats().m_status == rtimv::maskStatsStatus::unsupported; } ),
+        client.mtxUL_globalStats( true, true );
+        require( waitUntil( [&]() { return client.globalStats().m_status == rtimv::globalStatsStatus::unsupported; } ),
                  "unsupported RPC was not handled" );
         client.deliver( makeImage( 2, false ) );
-        require( client.maskStats().m_status == rtimv::maskStatsStatus::unsupported && !client.maskStatsPending(),
+        require( client.globalStats().m_status == rtimv::globalStatsStatus::unsupported && !client.globalStatsPending(),
                  "unsupported RPC caused a permanent pending state" );
         require( service.m_calls == calls + 1, "unsupported setter was retried" );
-        client.mtxUL_maskStats( false );
-        require( !client.maskStatsRequested(), "unsupported overlay could not be disabled" );
+        client.mtxUL_globalStats( false, true );
+        require( !client.globalStatsRequested(), "unsupported overlay could not be disabled" );
     }
     {
         TestClient client( port );
         client.deliver( makeImage( 1, false ) );
         service.m_hold = true;
         const int calls = service.m_calls;
-        client.mtxUL_maskStats( true );
+        client.mtxUL_globalStats( true, true );
         require( waitUntil( [&]() { return service.m_calls > calls; } ), "old-generation request was not sent" );
         client.newGeneration();
         client.deliver( makeImage( 1, false ) );
@@ -330,8 +371,8 @@ void testUnsupportedAndStale( int port /**< [in] service port */,
         require( waitUntil( [&]() { return service.m_calls == calls + 2 && service.m_enabled; } ),
                  "old callback prevented the new-generation request" );
         client.deliver( makeImage( 2, true ) );
-        require( waitUntil( [&]() { return !client.maskStatsPending(); } ) && client.connected() &&
-                     client.maskStats().m_status == rtimv::maskStatsStatus::valid,
+        require( waitUntil( [&]() { return !client.globalStatsPending(); } ) && client.connected() &&
+                     client.globalStats().m_status == rtimv::globalStatsStatus::valid,
                  "stale callback damaged new-generation state" );
     }
 }
@@ -342,9 +383,9 @@ void testDeadline( int port /**< [in] service port */, TestService &service /**<
     TestClient client( port );
     client.deliver( makeImage( 1, false ) );
     service.m_hold = true;
-    client.mtxUL_maskStats( true );
+    client.mtxUL_globalStats( true, true );
     require( waitUntil( [&]() { return !client.connected(); }, 3500 ), "setter deadline did not complete" );
-    require( client.maskStatsRequested() && client.maskStats().m_count == 0,
+    require( client.globalStatsRequested() && client.globalStats().m_count == 0,
              "deadline lost intent or retained results" );
     service.m_hold = false;
 }
@@ -356,7 +397,7 @@ void testShutdown( int port /**< [in] service port */, TestService &service /**<
     const int calls = service.m_calls;
     auto client = std::make_unique<TestClient>( port );
     client->deliver( makeImage( 1, false ) );
-    client->mtxUL_maskStats( true );
+    client->mtxUL_globalStats( true, true );
     require( waitUntil( [&]() { return service.m_calls > calls; } ), "stalled request was not dispatched" );
     const auto start = std::chrono::steady_clock::now();
     client.reset();
@@ -367,7 +408,7 @@ void testShutdown( int port /**< [in] service port */, TestService &service /**<
 
     client = std::make_unique<TestClient>( port );
     client->deliver( makeImage( 1, false ) );
-    client->mtxUL_maskStats( true );
+    client->mtxUL_globalStats( true, true );
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds( 2 );
     while( !client->completionQueued() && std::chrono::steady_clock::now() < deadline )
         std::this_thread::sleep_for( std::chrono::milliseconds( 2 ) );
@@ -393,6 +434,7 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
         require( server && port, "could not start test service" );
         testState( port, service );
         testRequests( port, service );
+        testMaskPolicy( port, service );
         testUnsupportedAndStale( port, service );
         testDeadline( port, service );
         testShutdown( port, service );

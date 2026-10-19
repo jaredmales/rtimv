@@ -91,7 +91,7 @@ Follow these code style and documentation rules exactly.
 16) Stats Architecture Rule
 - Keep statistics calculations in `rtimvBase`/`rtimvClientBase` rather than GUI classes when the behavior should match between local and gRPC clients.
 - GUI classes should provide region coordinates and render values, but not own the calculation pipeline.
-- Mask statistics select finite values from the existing processed image where the ordinary mask equals `1`. Excluded pixels do not contribute zeros; preserve the current calibration/filter pipeline rather than recomputing an unmasked image for statistics.
+- Global statistics use finite values from the existing processed image and respect the ordinary mask by default. Optional mask selection restricts the sample to locations where the ordinary mask equals `1`, independently of applying the mask during image processing. Excluded locations do not contribute zeros; unrestricted statistics include all finite processed values, including zeros. Preserve the current calibration/filter pipeline rather than recomputing an unmasked image for statistics.
 
 17) Display-Only Widget Pattern
 - When backend state is authoritative, GUI dialogs/widgets should be display-only and poll/read backend values instead of running duplicate worker threads.

@@ -131,11 +131,11 @@ rtimvGraphicsView::rtimvGraphicsView( QWidget *parent ) : QGraphicsView( parent 
     m_statsBoxText->setTextColor( QColor( RTIMV_DEF_STATSBOXCOLOR ) );
     m_statsBoxText->setCurrentFont( m_userItemSize->currentFont() );
 
-    m_maskStatsText = new QTextEdit( this );
-    textEditSetup( m_maskStatsText );
-    m_maskStatsText->setVisible( false );
-    m_maskStatsText->setTextColor( QColor( RTIMV_DEF_STATSBOXCOLOR ) );
-    m_maskStatsText->setCurrentFont( m_userItemSize->currentFont() );
+    m_globalStatsText = new QTextEdit( this );
+    textEditSetup( m_globalStatsText );
+    m_globalStatsText->setVisible( false );
+    m_globalStatsText->setTextColor( QColor( RTIMV_DEF_STATSBOXCOLOR ) );
+    m_globalStatsText->setCurrentFont( m_userItemSize->currentFont() );
 
     m_userItemMouseCoords = new QTextEdit( this );
     textEditSetup( m_userItemMouseCoords );
@@ -910,9 +910,9 @@ void rtimvGraphicsView::userItemSizeText( const char *nt, const QRect &rect )
     m_userItemSize->setGeometry( rect );
 }
 
-QTextEdit *rtimvGraphicsView::maskStatsText()
+QTextEdit *rtimvGraphicsView::globalStatsText()
 {
-    return m_maskStatsText;
+    return m_globalStatsText;
 }
 
 QTextEdit *rtimvGraphicsView::statsBoxText()

@@ -116,8 +116,8 @@ class rtimvGraphicsView : public QGraphicsView
 
     QTextEdit *m_statsBoxText; ///< The stats-box overlay text edit field
 
-    /// View-owned readout for statistics over mask-selected pixels.
-    QTextEdit *m_maskStatsText{ nullptr };
+    /// View-owned readout for global statistics with optional mask selection.
+    QTextEdit *m_globalStatsText{ nullptr };
 
     QTextEdit *m_userItemMouseCoords; ///< The user item mouse coordinates text edit
 
@@ -535,8 +535,8 @@ class rtimvGraphicsView : public QGraphicsView
      */
     QTextEdit *statsBoxText();
 
-    /// Get the independent mask-statistics overlay text widget.
-    QTextEdit *maskStatsText();
+    /// Get the independent global-statistics overlay text widget.
+    QTextEdit *globalStatsText();
 
     /// Set the stats-box overlay text.
     void statsBoxText( const char *nt /**< [in] the new stats-box overlay text */ );

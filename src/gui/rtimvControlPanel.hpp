@@ -344,11 +344,14 @@ class rtimvControlPanel : public QWidget
     /// Handle stats display mode changes.
     void on_statsDisplayModeCombo_activated( int mode /**< [in] selected stats display mode*/ );
 
-    /// Refresh the mask-statistics control from backend state and pending user intent.
-    void update_maskStats();
+    /// Refresh the global-statistics control from backend state and pending user intent.
+    void update_globalStats();
 
-    /// Request a change to the independent mask-statistics mode.
-    void on_maskStatsCheck_stateChanged( int state /**< [in] checkbox state */ );
+    /// Request a change to the independent global-statistics mode.
+    void on_globalStatsCheck_stateChanged( int state /**< [in] checkbox state */ );
+
+    /// Request a change to mask selection for global statistics.
+    void on_globalStatsMaskCheck_stateChanged( int state /**< [in] checkbox state */ );
 
     /// Handle JPEG quality slider changes.
     void on_qualitySlider_valueChanged( int value /**< [in] new quality value*/ );

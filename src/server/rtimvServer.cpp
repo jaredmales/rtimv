@@ -1050,9 +1050,9 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
     return reactor;
 }
 
-ServerUnaryReactor *rtimvServer::SetMaskStats( CallbackServerContext *context,
-                                               const remote_rtimv::MaskStatsRequest *request,
-                                               remote_rtimv::MaskStatsResponse *reply )
+ServerUnaryReactor *rtimvServer::SetGlobalStats( CallbackServerContext *context,
+                                                 const remote_rtimv::GlobalStatsRequest *request,
+                                                 remote_rtimv::GlobalStatsResponse *reply )
 {
     PREPARE_RPC_REACTOR
     static_cast<void>( reply );
@@ -1063,7 +1063,7 @@ ServerUnaryReactor *rtimvServer::SetMaskStats( CallbackServerContext *context,
         return reactor;
     }
 
-    imageTh->mtxUL_maskStats( request->enabled() );
+    imageTh->mtxUL_globalStats( request->enabled(), request->use_mask() );
     reactor->Finish( Status::OK );
     return reactor;
 }

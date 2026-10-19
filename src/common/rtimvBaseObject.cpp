@@ -86,9 +86,9 @@ void rtimvBaseObject::emit_colorBoxUpdated(
     emit colorBoxUpdated( i0, i1, j0, j1, min, max, valid );
 }
 
-void rtimvBaseObject::emit_maskStatsUpdated()
+void rtimvBaseObject::emit_globalStatsUpdated()
 {
-    emit maskStatsUpdated();
+    emit globalStatsUpdated();
 }
 
 void rtimvBaseObject::emit_statsBoxUpdated(
@@ -245,22 +245,22 @@ void rtimvBaseObject::ConnectionReceived()
     // clang-format on
 }
 
-void rtimvBaseObject::MaskStatsReceived()
+void rtimvBaseObject::GlobalStatsReceived()
 {
 #ifdef RTIMV_GRPC
     if( m_parent )
     {
-        m_parent->MaskStatsReceived();
+        m_parent->GlobalStatsReceived();
     }
 #endif
 }
 
-void rtimvBaseObject::MaskStatsUnavailable( qulonglong generation )
+void rtimvBaseObject::GlobalStatsUnavailable( qulonglong generation )
 {
 #ifdef RTIMV_GRPC
     if( m_parent )
     {
-        m_parent->MaskStatsUnavailable( generation );
+        m_parent->GlobalStatsUnavailable( generation );
     }
 #else
     static_cast<void>( generation );
