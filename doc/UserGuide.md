@@ -80,8 +80,9 @@ In general, if you see the "resize arrows" cursor when your mouse hovers over th
 
 ### Global statistics
 
-Open the control panel with `p` and select **Global stats** on the **Setup** tab. The separate readout, normally
-at the upper left, shows minimum, maximum, mean, and median across the processed image, respecting the mask by default.
+Open the control panel with `p` and select **Global stats** under **Statistics** on the **Setup** tab. This section also
+contains the stats box toggle and **Stats Display** selector. The separate global readout, normally at the upper left,
+shows minimum, maximum, mean, and median across the processed image, respecting the mask by default.
 It keeps a blank line above the values and is independent of the statistics box (`s`).
 
 **Use mask** restricts global statistics to locations where the ordinary image mask (`mask.key`) equals exactly

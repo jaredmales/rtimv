@@ -2208,11 +2208,29 @@
       <string>Image request window</string>
      </property>
     </widget>
+    <widget class="QLabel" name="statisticsLabel">
+     <property name="geometry">
+      <rect>
+       <x>340</x>
+       <y>90</y>
+       <width>271</width>
+       <height>24</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <bold>true</bold>
+      </font>
+     </property>
+     <property name="text">
+      <string>Statistics</string>
+     </property>
+    </widget>
     <widget class="QPushButton" name="statsBoxButton">
      <property name="geometry">
       <rect>
-       <x>30</x>
-       <y>100</y>
+       <x>350</x>
+       <y>190</y>
        <width>191</width>
        <height>24</height>
       </rect>
@@ -2224,9 +2242,9 @@
     <widget class="QCheckBox" name="globalStatsCheck">
      <property name="geometry">
       <rect>
-       <x>340</x>
-       <y>100</y>
-       <width>271</width>
+       <x>350</x>
+       <y>120</y>
+       <width>341</width>
        <height>24</height>
       </rect>
      </property>
@@ -2240,9 +2258,9 @@
     <widget class="QCheckBox" name="globalStatsMaskCheck">
      <property name="geometry">
       <rect>
-       <x>340</x>
-       <y>130</y>
-       <width>271</width>
+       <x>370</x>
+       <y>150</y>
+       <width>321</width>
        <height>24</height>
       </rect>
      </property>
@@ -2256,8 +2274,8 @@
     <widget class="QLabel" name="statsDisplayModeLabel">
      <property name="geometry">
       <rect>
-       <x>30</x>
-       <y>130</y>
+       <x>350</x>
+       <y>220</y>
        <width>111</width>
        <height>24</height>
       </rect>
@@ -2269,8 +2287,8 @@
     <widget class="QComboBox" name="statsDisplayModeCombo">
      <property name="geometry">
       <rect>
-       <x>140</x>
-       <y>128</y>
+       <x>460</x>
+       <y>218</y>
        <width>111</width>
        <height>28</height>
       </rect>
@@ -2280,7 +2298,7 @@
      <property name="geometry">
       <rect>
        <x>30</x>
-       <y>170</y>
+       <y>100</y>
        <width>191</width>
        <height>24</height>
       </rect>
@@ -2293,7 +2311,7 @@
      <property name="geometry">
       <rect>
        <x>30</x>
-       <y>200</y>
+       <y>130</y>
        <width>191</width>
        <height>24</height>
       </rect>
@@ -2305,9 +2323,9 @@
     <widget class="QWidget" name="verticalLayoutWidget">
      <property name="geometry">
       <rect>
-       <x>370</x>
+       <x>20</x>
        <y>170</y>
-       <width>321</width>
+       <width>301</width>
        <height>140</height>
       </rect>
      </property>
