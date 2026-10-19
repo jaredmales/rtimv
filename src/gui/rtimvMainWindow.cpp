@@ -2012,7 +2012,7 @@ void rtimvMainWindow::updateMaskStatsOverlay()
         return;
     }
 
-    std::string contents = "Mask stats\n";
+    std::string contents = "\n";
     if( maskStatsPending() )
     {
         contents += "pending";
@@ -2050,6 +2050,8 @@ void rtimvMainWindow::updateMaskStatsOverlay()
     const QString value = QString::fromStdString( contents );
     if( text->toPlainText() != value )
     {
+        // Empty blocks use the document default font; retain a full-height blank heading line.
+        text->document()->setDefaultFont( text->currentFont() );
         text->setPlainText( value );
     }
     QFontMetrics fm( text->currentFont() );

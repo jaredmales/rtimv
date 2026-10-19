@@ -131,6 +131,12 @@ class rtimvBase : public mx::app::application
         /// Explicit saturation masking startup state.
         bool m_maskSat{ false };
 
+        /// True when mask statistics were explicitly configured.
+        bool m_maskStatsSet{ false };
+
+        /// Explicit mask-statistics startup state.
+        bool m_maskStats{ false };
+
         /// True when milkzmq-always behavior was explicitly configured.
         bool m_mzmqAlwaysSet{ false };
 

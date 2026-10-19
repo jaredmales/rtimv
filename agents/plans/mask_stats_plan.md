@@ -17,9 +17,14 @@ mask multiplication, or saturation masking.
 Implemented for local and gRPC operation. The control panel now has a separate `Mask stats` checkbox and an independent
 overlay. Backend results use the existing processed values at finite samples selected by mask values exactly equal to
 `1`; excluded locations never contribute zeros. The additive protocol carries authoritative results in `Image`, with
-asynchronous mode requests, pending-state display, reconnect restoration, and graceful older-server handling.
+asynchronous mode requests, pending-state display, reconnect restoration, and graceful older-server handling. The overlay
+retains a blank first line without a heading. The `mask.stats` startup option accepts configuration-file values and
+command-line overrides in local and remote operation, including server defaults.
 
-The full build and all nine CTest tests pass, including new backend, client lifecycle, and local/remote GUI coverage.
+The full build and all eleven CTest tests pass, including backend, client lifecycle, local/remote GUI, and startup
+configuration coverage. Startup tests verify config-file values, explicit CLI overrides, and inherited server defaults.
+The CLI option requires an explicit value (`--mask.stats=true` or `--mask.stats=false`). Blank-line height is checked
+against the value lines and was verified in a rendered view.
 An offscreen rendered view was inspected with both readouts visible; a pointer-text collision found during inspection
 was fixed and added to the GUI regression checks. Touched C++ files were formatted and `git diff --check` passes.
 Physical-display checks and sustained acquisition with deployment-specific image sources remain follow-up validation.
@@ -74,7 +79,7 @@ binary mask; the implemented exact-1 rule below also defines the policy for nonb
    science images, and zero finite selected samples produce an unavailable result with a reason and sample count zero.
    Never silently fall back to whole-image statistics or present stale/zero results as a measurement. Retain the user's
    enabled choice so the readout recovers when valid inputs return.
-5. **Presentation:** use a separate overlay headed `Mask stats`, followed by the existing four value labels and numeric
+5. **Presentation:** use a separate overlay with a blank first line, followed by the existing four value labels and numeric
    formatting. Place it at the upper left with viewport padding and avoidance of other visible status/readout text.
    Show a concise unavailable reason instead of numbers when invalid. The existing Overlay/Dialog setting continues to
    control box stats; a second mask-stats dialog is outside this change.
@@ -173,6 +178,7 @@ the actual backend integration as well as numerical reduction:
 | Filtering produces nonzero values at mask-zero locations | Those locations remain excluded from all four statistics and the sample count |
 | Change dark subtraction, filter settings, science frame, or mask only | Recalculation follows the documented input/processing policy |
 | Enable/disable on static FITS data | Immediate local update and a new authoritative remote response |
+| Startup configuration, CLI overrides, and server defaults | Explicit local choices win; otherwise use the server default, or off locally |
 | Mask loss, resize, recovery, or client reconnect | Validity clears promptly and recovers without stale cross-session results |
 | Delayed RPCs, rapid toggles, out-of-order image replies, shutdown | Final requested state wins; stale replies cannot restore old values; no deadlock/use-after-free |
 | Older server/newer client and newer server/older client | Graceful unavailable feature or ignored additive fields |
@@ -219,5 +225,5 @@ a narrowly scoped extraction.
   transitions; dimensions matching once is not sufficient protection against later resize/disconnection.
 - Preserve existing stats-box behavior and protocol fields. Avoid combining this work with unrelated cleanup of its
   normalization, locking, or invalid-result semantics.
-- Weighted masks, separate mask-stats dialogs, startup configuration, additional statistics, and a dedicated keyboard
+- Weighted masks, separate mask-stats dialogs, additional statistics, and a dedicated keyboard
   shortcut can be follow-ups; none is required for the requested selectable overlay.

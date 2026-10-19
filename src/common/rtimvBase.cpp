@@ -239,6 +239,16 @@ void rtimvBase::setupBaseConfig( mx::app::appConfigurator &configurator, bool in
                       "Set sat-masking at startup. Bare --masksat is true; also accepts =true or =false. "
                       "If a saturation mask is supplied, masksat is otherwise on." );
 
+    configurator.add( "mask.stats",
+                      "",
+                      "mask.stats",
+                      mx::app::argType::Required,
+                      "mask",
+                      "stats",
+                      false,
+                      "bool",
+                      "Enable mask statistics at startup. Use --mask.stats=true or =false. Default is false." );
+
     configurator.add( "mzmq.always",
                       mzmqAlwaysShort,
                       "mzmq.always",
@@ -398,6 +408,12 @@ void rtimvBase::loadBaseConfig( startupConfig &settings, mx::app::appConfigurato
         settings.m_maskSatSet = true;
     }
 
+    if( configurator.isSet( "mask.stats" ) )
+    {
+        configurator( settings.m_maskStats, "mask.stats" );
+        settings.m_maskStatsSet = true;
+    }
+
     if( configurator.isSet( "log.appname" ) )
     {
         configurator( settings.m_logAppName, "log.appname" );
@@ -474,6 +490,11 @@ void rtimvBase::appendBaseConfigArgs( std::vector<std::string> &argv, const star
     if( settings.m_maskSatSet )
     {
         argv.push_back( settings.m_maskSat ? "--masksat" : "--masksat=false" );
+    }
+
+    if( settings.m_maskStatsSet )
+    {
+        argv.push_back( settings.m_maskStats ? "--mask.stats=true" : "--mask.stats=false" );
     }
 
     if( settings.m_mzmqAlwaysSet )
@@ -590,6 +611,12 @@ void rtimvBase::loadConfig()
     if( m_applySatMaskSet )
     {
         m_applySatMask = settings.m_maskSat;
+    }
+
+    if( settings.m_maskStatsSet )
+    { // mutex scope
+        std::lock_guard<std::mutex> changeLock( m_changingImData );
+        mtxL_maskStats( settings.m_maskStats );
     }
 }
 

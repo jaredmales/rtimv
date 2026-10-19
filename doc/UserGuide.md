@@ -86,6 +86,17 @@ the upper left, shows minimum, maximum, mean, and median over finite processed p
 Other mask values, including non-finite values, are also excluded. Selected image pixels whose value is zero are valid
 measurements. The saturation mask is not used for this selection.
 
+To enable mask statistics at startup, pass `--mask.stats=true` or add this to your configuration file:
+
+```ini
+[mask]
+stats=true
+```
+
+The default is off. Use `--mask.stats=false` to override an enabled configuration-file setting. The option also works in
+server-side configurations; an explicit local `rtimvClient` setting overrides the server default after connecting.
+The readout keeps a blank line above its values.
+
 Mask statistics can be enabled independently of the statistics box (`s`) and mask application (`M`). Both readouts can
 be visible together. Values come from the same processed image as box statistics, after the current dark subtraction,
 mask application, filters, and MTF settings. Changing these settings can change the reported values. With MTF enabled,
@@ -199,6 +210,7 @@ This means local client overrides always win for options/keys set locally, while
 |  | `--image.key` | `image.key` | string | The main image key. Specifies the protocol, location, and name of the main image. |
 |  | `--dark.key` | `dark.key` | string | The dark image key. Specifies the protocol, location, and name of the dark image. |
 |  | `--mask.key` | `mask.key` | string | The mask image key. Specifies the protocol, location, and name of the mask image. |
+|  | `--mask.stats` | `mask.stats` | bool | Enable mask statistics at startup. Default is false. Use `--mask.stats=true` or `--mask.stats=false`. |
 |  | `--satMask.key` | `satMask.key` | string | The saturation mask image key. Specifies the protocol, location, and name of the saturation mask image. |
 |  | `--update.fps` | `update.fps` | real | Specify the image update timeout in FPS. Overridden by `update.timeout` if set. |
 |  | `--update.timeout` | `update.timeout` | real | Specify the image update timeout in ms. Default is 50 ms (20 FPS). Overrides `update.fps`. |

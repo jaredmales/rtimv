@@ -495,6 +495,17 @@ void rtimvClientBase::setupConfig()
                 "Set sat-masking at startup. Bare --masksat is true; also accepts =true or =false. "
                 "If a saturation mask is supplied, masksat is otherwise on." );
 
+    config.add( "mask.stats",
+                "",
+                "mask.stats",
+                mx::app::argType::Required,
+                "mask",
+                "stats",
+                false,
+                "bool",
+                "Enable mask statistics at startup. Use --mask.stats=true or =false. "
+                "Default is false unless enabled by the server configuration." );
+
     config.add( "mzmq.always",
                 "Z",
                 "mzmq.always",
@@ -782,6 +793,16 @@ void rtimvClientBase::loadConfig()
         bool masksat = configBoolOption( config, "masksat" );
         m_configReq->set_mask_sat( masksat );
         m_configReq->set_mask_sat_set( true );
+    }
+
+    if( config.isSet( "mask.stats" ) )
+    {
+        bool enabled = false;
+        config( enabled, "mask.stats" );
+        { // mutex scope
+            std::lock_guard<std::mutex> lock( m_asyncRpcMutex );
+            mtxL_maskStats( enabled );
+        }
     }
 
     // Set up milkzmq

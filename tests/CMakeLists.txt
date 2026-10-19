@@ -35,6 +35,9 @@ target_include_directories(rtimvMaskStatsGuiTest PRIVATE ${CMAKE_SOURCE_DIR}/src
 target_link_libraries(rtimvMaskStatsGuiTest PRIVATE commonlib rtimv-shared)
 add_test(NAME rtimvMaskStats_gui COMMAND rtimvMaskStatsGuiTest)
 set_tests_properties(rtimvMaskStats_gui PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+add_test(NAME rtimvMaskStats_startupGui COMMAND rtimvMaskStatsGuiTest)
+set_tests_properties(rtimvMaskStats_startupGui PROPERTIES
+                     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;RTIMV_TEST_MASK_STARTUP=1" TIMEOUT 45)
 
 if(NOT (Protobuf_FOUND AND GRPCPP_FOUND))
     return()
@@ -78,6 +81,9 @@ target_link_libraries(rtimvMaskStatsClientGuiTest PRIVATE rtimvClientBaseTestSup
 add_dependencies(rtimvMaskStatsClientGuiTest rtimvServer)
 add_test(NAME rtimvMaskStats_clientGui COMMAND rtimvMaskStatsClientGuiTest $<TARGET_FILE:rtimvServer>)
 set_tests_properties(rtimvMaskStats_clientGui PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 45)
+add_test(NAME rtimvMaskStats_clientStartupGui COMMAND rtimvMaskStatsClientGuiTest $<TARGET_FILE:rtimvServer>)
+set_tests_properties(rtimvMaskStats_clientStartupGui PROPERTIES
+                     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;RTIMV_TEST_MASK_STARTUP=1" TIMEOUT 60)
 
 add_executable(rtimvClientBaseAsyncRaceTest client/rtimvClientBase_async_race_test.cpp)
 add_executable(rtimvClientBaseMaskStatsTest client/rtimvClientBase_maskStats_test.cpp)
