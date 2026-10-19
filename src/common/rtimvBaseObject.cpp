@@ -86,6 +86,11 @@ void rtimvBaseObject::emit_colorBoxUpdated(
     emit colorBoxUpdated( i0, i1, j0, j1, min, max, valid );
 }
 
+void rtimvBaseObject::emit_globalStatsUpdated()
+{
+    emit globalStatsUpdated();
+}
+
 void rtimvBaseObject::emit_statsBoxUpdated(
     int64_t i0, int64_t i1, int64_t j0, int64_t j1, float min, float max, float mean, float median, bool valid )
 {
@@ -238,6 +243,28 @@ void rtimvBaseObject::ConnectionReceived()
 
     #endif
     // clang-format on
+}
+
+void rtimvBaseObject::GlobalStatsReceived()
+{
+#ifdef RTIMV_GRPC
+    if( m_parent )
+    {
+        m_parent->GlobalStatsReceived();
+    }
+#endif
+}
+
+void rtimvBaseObject::GlobalStatsUnavailable( qulonglong generation )
+{
+#ifdef RTIMV_GRPC
+    if( m_parent )
+    {
+        m_parent->GlobalStatsUnavailable( generation );
+    }
+#else
+    static_cast<void>( generation );
+#endif
 }
 
 void rtimvBaseObject::scheduleImagePlease( int delayMs )

@@ -1,7 +1,6 @@
 /** \file rtimvBase.cpp
  * \brief Definitions for the rtimvBase class
  *
- * \author Jared R. Males (jaredmales@gmail.com)
  *
  */
 
@@ -219,6 +218,17 @@ void rtimvBase::setupBaseConfig( mx::app::appConfigurator &configurator, bool in
                       "Set dark subtraction at startup. Bare --darksub is true; also accepts =true or =false. "
                       "If a dark is supplied, darksub is otherwise on." );
 
+    configurator.add( "mask",
+                      "",
+                      "mask",
+                      mx::app::argType::Required,
+                      "",
+                      "mask",
+                      false,
+                      "bool",
+                      "Set ordinary image masking at startup. Use --mask=true or =false. "
+                      "If a mask is supplied, masking is otherwise on. Independent of stats.global and stats.mask." );
+
     configurator.add( "satLevel",
                       "",
                       "satLevel",
@@ -239,6 +249,26 @@ void rtimvBase::setupBaseConfig( mx::app::appConfigurator &configurator, bool in
                       "bool",
                       "Set sat-masking at startup. Bare --masksat is true; also accepts =true or =false. "
                       "If a saturation mask is supplied, masksat is otherwise on." );
+
+    configurator.add( "stats.global",
+                      "",
+                      "stats.global",
+                      mx::app::argType::Required,
+                      "stats",
+                      "global",
+                      false,
+                      "bool",
+                      "Enable global statistics at startup. Use --stats.global=true or =false. Default is false." );
+
+    configurator.add( "stats.mask",
+                      "",
+                      "stats.mask",
+                      mx::app::argType::Required,
+                      "stats",
+                      "mask",
+                      false,
+                      "bool",
+                      "Restrict global statistics to pixels where the ordinary mask equals 1. Default is true." );
 
     configurator.add( "mzmq.always",
                       mzmqAlwaysShort,
@@ -387,6 +417,12 @@ void rtimvBase::loadBaseConfig( startupConfig &settings, mx::app::appConfigurato
         settings.m_darkSubSet = true;
     }
 
+    if( configurator.isSet( "mask" ) )
+    {
+        configurator( settings.m_mask, "mask" );
+        settings.m_maskSet = true;
+    }
+
     if( configurator.isSet( "satLevel" ) )
     {
         configurator( settings.m_satLevel, "satLevel" );
@@ -397,6 +433,18 @@ void rtimvBase::loadBaseConfig( startupConfig &settings, mx::app::appConfigurato
     {
         settings.m_maskSat = configBoolOption( configurator, "masksat" );
         settings.m_maskSatSet = true;
+    }
+
+    if( configurator.isSet( "stats.global" ) )
+    {
+        configurator( settings.m_globalStats, "stats.global" );
+        settings.m_globalStatsSet = true;
+    }
+
+    if( configurator.isSet( "stats.mask" ) )
+    {
+        configurator( settings.m_globalStatsUseMask, "stats.mask" );
+        settings.m_globalStatsUseMaskSet = true;
     }
 
     if( configurator.isSet( "log.appname" ) )
@@ -467,6 +515,11 @@ void rtimvBase::appendBaseConfigArgs( std::vector<std::string> &argv, const star
         argv.push_back( settings.m_darkSub ? "--darksub" : "--darksub=false" );
     }
 
+    if( settings.m_maskSet )
+    {
+        argv.push_back( settings.m_mask ? "--mask=true" : "--mask=false" );
+    }
+
     if( settings.m_satLevelSet )
     {
         appendOption( "satLevel", std::to_string( settings.m_satLevel ) );
@@ -475,6 +528,16 @@ void rtimvBase::appendBaseConfigArgs( std::vector<std::string> &argv, const star
     if( settings.m_maskSatSet )
     {
         argv.push_back( settings.m_maskSat ? "--masksat" : "--masksat=false" );
+    }
+
+    if( settings.m_globalStatsSet )
+    {
+        argv.push_back( settings.m_globalStats ? "--stats.global=true" : "--stats.global=false" );
+    }
+
+    if( settings.m_globalStatsUseMaskSet )
+    {
+        argv.push_back( settings.m_globalStatsUseMask ? "--stats.mask=true" : "--stats.mask=false" );
     }
 
     if( settings.m_mzmqAlwaysSet )
@@ -574,6 +637,12 @@ void rtimvBase::loadConfig()
         m_subtractDark = settings.m_darkSub;
     }
 
+    m_applyMaskSet = settings.m_maskSet;
+    if( m_applyMaskSet )
+    {
+        m_applyMask = settings.m_mask;
+    }
+
     float satLevelDefault = m_satLevel;
     if( settings.m_satLevelSet )
     {
@@ -591,6 +660,12 @@ void rtimvBase::loadConfig()
     if( m_applySatMaskSet )
     {
         m_applySatMask = settings.m_maskSat;
+    }
+
+    if( settings.m_globalStatsSet || settings.m_globalStatsUseMaskSet )
+    { // mutex scope
+        std::lock_guard<std::mutex> changeLock( m_changingImData );
+        mtxL_globalStats( settings.m_globalStats, settings.m_globalStatsUseMask );
     }
 }
 
@@ -692,7 +767,7 @@ void rtimvBase::processKeys( const std::vector<std::string> &shkeys )
         m_subtractDark = true;
     }
 
-    if( m_images[2] != nullptr )
+    if( m_images[2] != nullptr && !m_applyMaskSet )
     {
         m_applyMask = true;
     }
@@ -1107,6 +1182,8 @@ void rtimvBase::updateImages()
             onConnect();
         }
     }
+
+    mtxUL_checkGlobalStats();
 
     if( !m_connected )
     {
@@ -1923,6 +2000,186 @@ void rtimvBase::mtxL_calcStatsBox( const sharedLockT &lock )
     m_statsBox_median = mx::math::vectorMedianInPlace( m_statsBox_medWork );
 }
 
+void rtimvBase::mtxUL_globalStats( bool enabled, bool useMask )
+{
+    { // mutex scope
+        std::lock_guard<std::mutex> changeLock( m_changingImData );
+        mtxL_globalStats( enabled, useMask );
+    }
+
+    if( enabled )
+    {
+        mtxUL_changeImdata();
+        mtxUL_checkGlobalStats();
+    }
+
+    m_foundation->emit_globalStatsUpdated();
+}
+
+void rtimvBase::mtxL_globalStats( bool enabled, bool useMask )
+{
+    std::lock_guard<std::mutex> resultLock( m_globalStatsMutex );
+    m_globalStats = {};
+    m_globalStats.m_enabled = enabled;
+    m_globalStats.m_useMask = useMask;
+    m_globalStatsRefresh = enabled;
+}
+
+rtimv::globalStatsState rtimvBase::globalStats()
+{
+    std::lock_guard<std::mutex> lock( m_globalStatsMutex );
+    return m_globalStats;
+}
+
+bool rtimvBase::globalStatsRequested()
+{
+    return globalStats().m_enabled;
+}
+
+bool rtimvBase::globalStatsUseMaskRequested()
+{
+    return globalStats().m_useMask;
+}
+
+bool rtimvBase::globalStatsPending()
+{
+    return false;
+}
+
+rtimv::globalStatsStatus rtimvBase::mtxL_globalStatsInputStatus()
+{
+    if( !imageValid( 0 ) || m_nx == 0 || m_ny == 0 || m_calData == nullptr )
+    {
+        return rtimv::globalStatsStatus::noImage;
+    }
+    if( m_images[0]->nx() != m_nx || m_images[0]->ny() != m_ny )
+    {
+        return rtimv::globalStatsStatus::sizeMismatch;
+    }
+    if( !globalStats().m_useMask )
+    {
+        return rtimv::globalStatsStatus::valid;
+    }
+    if( !imageValid( 2 ) )
+    {
+        return rtimv::globalStatsStatus::noMask;
+    }
+    if( m_images[2]->nx() != m_nx || m_images[2]->ny() != m_ny )
+    {
+        return rtimv::globalStatsStatus::sizeMismatch;
+    }
+    return rtimv::globalStatsStatus::valid;
+}
+
+void rtimvBase::mtxL_snapshotGlobalStats()
+{
+    m_globalStatsInputStatus = mtxL_globalStatsInputStatus();
+    m_globalStatsSelection.clear();
+    if( m_globalStatsInputStatus != rtimv::globalStatsStatus::valid || !globalStats().m_useMask )
+    {
+        return;
+    }
+
+    const size_t count = static_cast<size_t>( m_nx ) * m_ny;
+    m_globalStatsSelection.resize( count );
+    for( size_t n = 0; n < count; ++n )
+    {
+        m_globalStatsSelection[n] = m_images[2]->pixel( n ) == 1.0f;
+    }
+}
+
+void rtimvBase::mtxL_calcGlobalStats()
+{
+    rtimv::globalStatsState result;
+    result.m_enabled = true;
+    result.m_useMask = globalStats().m_useMask;
+    result.m_status = m_globalStatsInputStatus;
+    m_globalStatsMedWork.clear();
+
+    if( result.m_status == rtimv::globalStatsStatus::valid )
+    {
+        double sum = 0;
+        const size_t count = static_cast<size_t>( m_nx ) * m_ny;
+        for( size_t n = 0; n < count; ++n )
+        {
+            if( ( result.m_useMask && !m_globalStatsSelection[n] ) || !std::isfinite( m_calData[n] ) )
+            {
+                continue;
+            }
+
+            const float value = m_calData[n];
+            if( result.m_count == 0 )
+            {
+                result.m_min = result.m_max = value;
+            }
+            else
+            {
+                result.m_min = std::min( result.m_min, value );
+                result.m_max = std::max( result.m_max, value );
+            }
+            sum += value;
+            ++result.m_count;
+            m_globalStatsMedWork.push_back( value );
+        }
+
+        if( result.m_count > 0 )
+        {
+            result.m_mean = sum / result.m_count;
+            result.m_median = mx::math::vectorMedianInPlace( m_globalStatsMedWork );
+        }
+        else
+        {
+            result.m_status = rtimv::globalStatsStatus::empty;
+        }
+    }
+
+    std::lock_guard<std::mutex> resultLock( m_globalStatsMutex );
+    m_globalStats = result;
+}
+
+void rtimvBase::mtxUL_checkGlobalStats()
+{
+    bool changed = false;
+    bool refresh = false;
+    { // mutex scope
+        std::unique_lock<std::mutex> changeLock( m_changingImData, std::try_to_lock );
+        if( !changeLock.owns_lock() || !globalStats().m_enabled )
+        {
+            return;
+        }
+
+        sharedLockT calLock( m_calMutex );
+        std::lock_guard<std::mutex> rawLock( m_rawMutex );
+        const auto status = mtxL_globalStatsInputStatus();
+        if( status == rtimv::globalStatsStatus::valid )
+        {
+            refresh = m_globalStatsInputStatus != status || m_globalStatsRefresh;
+            m_globalStatsRefresh = refresh;
+        }
+        else
+        {
+            m_globalStatsInputStatus = status;
+            m_globalStatsSelection.clear();
+            std::lock_guard<std::mutex> resultLock( m_globalStatsMutex );
+            changed = m_globalStats.m_status != status;
+            const bool useMask = m_globalStats.m_useMask;
+            m_globalStats = {};
+            m_globalStats.m_enabled = true;
+            m_globalStats.m_useMask = useMask;
+            m_globalStats.m_status = status;
+        }
+    }
+
+    if( refresh )
+    {
+        mtxUL_changeImdata();
+    }
+    else if( changed )
+    {
+        m_foundation->emit_globalStatsUpdated();
+    }
+}
+
 void rtimvBase::stretch( rtimv::stretch ct )
 {
     m_stretch = ct;
@@ -2153,6 +2410,8 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
     bool resized = false;
     bool resetZoom = false;
 
+    newdata = newdata || m_globalStatsRefresh;
+
     if( newdata )
     { // mutex scope
 
@@ -2236,7 +2495,11 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
             }
         }
 
-        // copy out mask to m_mask if valid
+        if( globalStats().m_enabled )
+        {
+            mtxL_snapshotGlobalStats();
+            m_globalStatsRefresh = false;
+        }
 
     } // unique lock scope -- lock and rawlock release
 
@@ -2371,6 +2634,11 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
             mtxL_calcStatsBox( lock );
         }
 
+        if( globalStats().m_enabled )
+        {
+            mtxL_calcGlobalStats();
+        }
+
         RTIMV_DEBUG_BREADCRUMB
 
         mtxL_recolorImpl();
@@ -2402,6 +2670,12 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
         zoomLevel( 1 );
     }
 
+    const bool notifyGlobalStats = globalStats().m_enabled;
+    changeLock.unlock();
+    if( notifyGlobalStats )
+    {
+        m_foundation->emit_globalStatsUpdated();
+    }
 } // void rtimvBase::mtxUL_changeImdata()
 
 void rtimvBase::mtxL_applyFilter()

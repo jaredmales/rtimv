@@ -214,6 +214,7 @@ rtimvMainWindow::rtimvMainWindow( int argc, char **argv, QWidget *Parent, Qt::Wi
 
     connect( &m_statsBoxTimer, SIGNAL( timeout() ), this, SLOT( dispatchStatsBoxRequest() ) );
     m_statsBoxTimer.setSingleShot( true );
+    connect( m_foundation, &rtimvBaseObject::globalStatsUpdated, this, &rtimvMainWindow::updateGlobalStatsOverlay );
 
     connect( m_foundation,
              SIGNAL( pixelValueUpdated( uint32_t, uint32_t, float, bool ) ),
@@ -683,6 +684,7 @@ void rtimvMainWindow::post_zoomLevel()
     RTIMV_DEBUG_BREADCRUMB
 
     change_center();
+    updateGlobalStatsOverlay();
 
     RTIMV_DEBUG_BREADCRUMB
 
@@ -1488,6 +1490,7 @@ void rtimvMainWindow::updateFPS()
 
 void rtimvMainWindow::updateAge()
 {
+    updateGlobalStatsOverlay();
     // Check the font luminance to make sure it is visible
     mtxTry_fontLuminance();
 
@@ -1544,6 +1547,7 @@ void rtimvMainWindow::updateAge()
 
 void rtimvMainWindow::updateNC()
 {
+    updateGlobalStatsOverlay();
 #ifdef RTIMV_GRPC
     if( m_activeTextOverlayKey != 'i' )
 #endif
@@ -1987,6 +1991,126 @@ void rtimvMainWindow::dispatchStatsBoxRequest()
     requestStatsBoxValues();
 }
 
+void rtimvMainWindow::setGlobalStats( bool enabled )
+{
+    mtxUL_globalStats( enabled, globalStatsUseMaskRequested() );
+}
+
+void rtimvMainWindow::setGlobalStatsUseMask( bool useMask )
+{
+    mtxUL_globalStats( globalStatsRequested(), useMask );
+}
+
+void rtimvMainWindow::updateGlobalStatsOverlay()
+{
+    QTextEdit *text = ui.graphicsView->globalStatsText();
+    const auto stats = globalStats();
+    const bool show = globalStatsRequested();
+    text->setVisible( show );
+    if( imcp )
+    {
+        imcp->update_globalStats();
+    }
+    if( !show )
+    {
+        text->clear();
+        return;
+    }
+
+    std::string contents = "\n";
+    if( globalStatsPending() )
+    {
+        contents += "pending";
+    }
+    else if( stats.m_enabled && stats.m_status == rtimv::globalStatsStatus::valid )
+    {
+        contents += "min: " + formatStatsValue( stats.m_min ) + "\nmax: " + formatStatsValue( stats.m_max ) +
+                    "\nmean: " + formatStatsValue( stats.m_mean ) + "\nmedian: " + formatStatsValue( stats.m_median );
+    }
+    else
+    {
+        switch( stats.m_status )
+        {
+        case rtimv::globalStatsStatus::noImage:
+            contents += "image unavailable";
+            break;
+        case rtimv::globalStatsStatus::noMask:
+            contents += "mask unavailable";
+            break;
+        case rtimv::globalStatsStatus::sizeMismatch:
+            contents += stats.m_useMask ? "mask size mismatch" : "image size mismatch";
+            break;
+        case rtimv::globalStatsStatus::empty:
+            contents += stats.m_useMask ? "no finite selected pixels" : "no finite pixels";
+            break;
+        case rtimv::globalStatsStatus::unsupported:
+            contents += "server unsupported";
+            break;
+        default:
+            contents += "unavailable";
+            break;
+        }
+    }
+
+    const QString value = QString::fromStdString( contents );
+    if( text->toPlainText() != value )
+    {
+        // Empty blocks use the document default font; retain a full-height blank heading line.
+        text->document()->setDefaultFont( text->currentFont() );
+        text->setPlainText( value );
+    }
+    QFontMetrics fm( text->currentFont() );
+    const QSize size = fm.size( 0, value );
+    constexpr int pad = 6;
+    const int width = ui.graphicsView->viewport()->width();
+    const int height = ui.graphicsView->viewport()->height();
+    QRect rect( pad,
+                pad,
+                std::min( size.width() + 5, std::max( 1, width - 2 * pad ) ),
+                std::min( size.height() + 5, std::max( 1, height - 2 * pad ) ) );
+
+    std::vector<QTextEdit *> obstacles{ ui.graphicsView->mouseCoords(),
+                                        ui.graphicsView->textCoordX(),
+                                        ui.graphicsView->textCoordY(),
+                                        ui.graphicsView->textPixelVal(),
+                                        ui.graphicsView->userItemSize(),
+                                        ui.graphicsView->userItemMouseCoords(),
+                                        ui.graphicsView->fpsGage(),
+                                        ui.graphicsView->zoomText() };
+    for( size_t n = 0; n < ui.graphicsView->statusTextNo(); ++n )
+    {
+        obstacles.push_back( ui.graphicsView->statusText( n ) );
+    }
+    for( size_t pass = 0; pass < obstacles.size(); ++pass )
+    {
+        for( QTextEdit *status : obstacles )
+        {
+            if( status->isVisible() && !status->toPlainText().isEmpty() && rect.intersects( status->geometry() ) )
+            {
+                const int below = status->geometry().bottom() + pad;
+                if( below + rect.height() <= height - pad )
+                {
+                    rect.moveTop( below );
+                }
+                else if( status->geometry().right() + pad + rect.width() <= width - pad )
+                {
+                    rect.moveLeft( status->geometry().right() + pad );
+                }
+            }
+        }
+    }
+    text->setGeometry( rect );
+    text->raise();
+    mtxTry_fontLuminance( text );
+
+    if( m_statsDisplayMode == statsDisplayOverlay && m_statsBox && m_statsBox->isVisible() &&
+        !m_statsBoxRequestPending )
+    {
+        mtxTry_updateStatsBoxOverlay(
+            m_statsBox, true, statsBox_min(), statsBox_max(), statsBox_mean(), statsBox_median() );
+    }
+}
+
 std::string rtimvMainWindow::formatStatsValue( float value ) const
 {
     char txt[64];
@@ -2062,6 +2186,11 @@ void rtimvMainWindow::mtxTry_updateStatsBoxOverlay(
 
     auto overlapsStatusOverlay = [this]( const QRect &candidate )
     {
+        QTextEdit *globalText = ui.graphicsView->globalStatsText();
+        if( globalText->isVisible() && candidate.intersects( globalText->geometry() ) )
+        {
+            return true;
+        }
         for( size_t n = 0; n < ui.graphicsView->statusTextNo(); ++n )
         {
             QTextEdit *status = ui.graphicsView->statusText( n );
@@ -2153,6 +2282,21 @@ void rtimvMainWindow::mtxTry_updateStatsBoxOverlay(
         if( textRect.bottom() > viewportHeight )
         {
             textRect.moveTop( std::max( 0, viewportHeight - textHeight ) );
+        }
+    }
+
+    QTextEdit *globalText = ui.graphicsView->globalStatsText();
+    if( globalText->isVisible() && textRect.intersects( globalText->geometry() ) )
+    {
+        const QPoint belowGlobal( globalText->x(), globalText->geometry().bottom() + gap );
+        const QPoint rightOfGlobal( globalText->geometry().right() + gap, globalText->y() );
+        if( candidateFits( belowGlobal ) )
+        {
+            textRect.moveTopLeft( belowGlobal );
+        }
+        else if( candidateFits( rightOfGlobal ) )
+        {
+            textRect.moveTopLeft( rightOfGlobal );
         }
     }
 

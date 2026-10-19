@@ -1,7 +1,6 @@
 /** \file rtimvBase.hpp
  * \brief Declarations for the rtimvBase base class
  *
- * \author Jared R. Males (jaredmales@gmail.com)
  *
  */
 
@@ -21,6 +20,7 @@
 #include "colorMaps.hpp"
 #include "rtimvColor.hpp"
 #include "rtimvFilters.hpp"
+#include "rtimvGlobalStats.hpp"
 
 #include "rtimvBaseObject.hpp"
 
@@ -119,6 +119,12 @@ class rtimvBase : public mx::app::application
         /// Explicit dark subtraction startup state.
         bool m_darkSub{ false };
 
+        /// True when ordinary image masking was explicitly configured.
+        bool m_maskSet{ false };
+
+        /// Explicit ordinary image masking startup state, independent of global statistics.
+        bool m_mask{ false };
+
         /// True when the saturation level was explicitly configured.
         bool m_satLevelSet{ false };
 
@@ -130,6 +136,18 @@ class rtimvBase : public mx::app::application
 
         /// Explicit saturation masking startup state.
         bool m_maskSat{ false };
+
+        /// True when global statistics were explicitly configured.
+        bool m_globalStatsSet{ false };
+
+        /// Explicit global-statistics startup state.
+        bool m_globalStats{ false };
+
+        /// True when global-statistics mask selection was explicitly configured.
+        bool m_globalStatsUseMaskSet{ false };
+
+        /// Whether global statistics should select only pixels where the ordinary mask equals one.
+        bool m_globalStatsUseMask{ true };
 
         /// True when milkzmq-always behavior was explicitly configured.
         bool m_mzmqAlwaysSet{ false };
@@ -511,6 +529,9 @@ class rtimvBase : public mx::app::application
 
     /// Whether or not the mask is applied, default is false.
     bool m_applyMask{ false };
+
+    /// True when the startup ordinary-mask state was set explicitly by config/CLI.
+    bool m_applyMaskSet{ false };
 
     /// Whether or not the saturation mask is applied, default is false.
     /** Note this only controls whether the pixels are colored m_satColor.  It does
@@ -956,6 +977,69 @@ class rtimvBase : public mx::app::application
     void mtxL_calcStatsBox( const sharedLockT &lock /**<[in] a shared mutex lock which is locked on m_calMutex*/ );
 
     ///@}
+
+    /** @name Global Statistics - Data
+     * @{
+     */
+  private:
+    /// Protects the published mode and result independently of image processing locks.
+    mutable std::mutex m_globalStatsMutex;
+
+    /// Coherent mode and result available to GUI and transport readers.
+    rtimv::globalStatsState m_globalStats;
+
+    /// Selection copied with calibrated input; protected by m_changingImData.
+    std::vector<uint8_t> m_globalStatsSelection;
+
+    /// Availability of the selection captured for the current calibrated input.
+    rtimv::globalStatsStatus m_globalStatsInputStatus{ rtimv::globalStatsStatus::unavailable };
+
+    /// Reusable median storage, accessed only while m_changingImData is held.
+    std::vector<float> m_globalStatsMedWork;
+
+    /// Forces a fresh calibrated input and mask snapshot after enabling the mode.
+    bool m_globalStatsRefresh{ false };
+    /// @}
+
+    /** @name Global Statistics
+     * @{
+     */
+  public:
+    /// Set the independent global-statistics mode and refresh the current image when enabled.
+    void mtxUL_globalStats( bool enabled, /**< [in] true enables global statistics */
+                            bool useMask  /**< [in] true restricts samples to mask values equal to one */
+    );
+
+    /// Get one coherent snapshot of the global-statistics mode and result.
+    rtimv::globalStatsState globalStats();
+
+    /// Get the requested global-statistics mode.
+    bool globalStatsRequested();
+
+    /// Get the requested mask-selection policy for global statistics.
+    bool globalStatsUseMaskRequested();
+
+    /// Get whether a remote mode change is awaiting confirmation (always false locally).
+    bool globalStatsPending();
+
+  private:
+    /// Replace the requested mode with m_changingImData held by the caller.
+    void mtxL_globalStats( bool enabled, /**< [in] true enables global statistics */
+                           bool useMask  /**< [in] true restricts samples to mask values equal to one */
+    );
+
+    /// Check input validity with m_changingImData, m_calMutex, and m_rawMutex held.
+    rtimv::globalStatsStatus mtxL_globalStatsInputStatus();
+
+    /// Snapshot mask membership with m_changingImData, m_calMutex, and m_rawMutex held.
+    void mtxL_snapshotGlobalStats();
+
+    /// Reduce processed pixels with m_changingImData and m_calMutex held.
+    void mtxL_calcGlobalStats();
+
+    /// Detect input loss or recovery even when image sources report no new frame.
+    void mtxUL_checkGlobalStats();
+    /// @}
 
     /** @name Color Stretch - Data
      *

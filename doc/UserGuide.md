@@ -78,6 +78,64 @@ You can also use `l` to add a line. The numbers shown are `length @ direction` w
 
 In general, if you see the "resize arrows" cursor when your mouse hovers over the shape, clicking and dragging will change the size. If you see the "hand" cursor, it will move the shape. Numbers, shape center indicators, and line end indicators are only shown when your mouse is over that shape.
 
+### Global statistics
+
+Open the control panel with `p` and select **Global stats** under **Statistics** on the **Setup** tab. This section also
+contains the stats box toggle and **Stats Display** selector. The separate global readout, normally at the upper left,
+shows minimum, maximum, mean, and median across the processed image, respecting the mask by default.
+It keeps a blank line above the values and is independent of the statistics box (`s`).
+
+**Use mask** restricts global statistics to locations where the ordinary image mask (`mask.key`) equals exactly
+`1`. Zero, other nonbinary values, and non-finite mask values are excluded. Excluded locations do not contribute zeros
+to the statistics; selected image pixels whose processed value is zero remain valid samples. The saturation mask is not
+used for this selection. Turn **Use mask** off to include all finite processed pixels, without requiring a mask.
+The **Use mask** preference can be set while global statistics are off.
+
+Global statistics are off by default, and **Use mask** is on by default. Enable the readout with `--stats.global=true`;
+add `--stats.mask=false` to include the whole image. Both options accept explicit `true` or `false` values. For example:
+
+```ini
+[stats]
+global=true
+mask=true
+```
+
+These settings work in local, client, and server configurations. Command-line values override the local configuration
+file. An explicit `rtimvClient` setting overrides that setting's server default; leaving either option unset allows the
+client to use the corresponding server value.
+
+**Use mask** controls statistical selection separately from applying the mask during image processing (`M`, or the
+startup option `--mask`). Values always come from the current processed image, after dark subtraction, ordinary masking,
+filters, and MTF. With **Use mask** off, zeros produced by image masking are included in the whole-image statistics. With
+**Use mask** on, mask-zero locations are excluded even if filtering gives them nonzero values. Changing processing settings
+can change the statistics. With MTF enabled, statistical mask selection uses output pixel coordinates; it does not
+transform the mask into a frequency-domain validity mask.
+
+To leave the image unmasked while computing global statistics only inside the mask, use
+`--mask=false --stats.global=true --stats.mask=true`, or:
+
+```ini
+mask=false
+
+[mask]
+key=/path/to/mask.fits
+
+[stats]
+global=true
+mask=true
+```
+
+Place the top-level `mask=false` before any section headings. Supplying `mask.key` still enables ordinary image masking
+by default unless `mask` is set explicitly. The earlier `mask.stats` option has been replaced by `stats.global` and
+`stats.mask`; set both to `true` to preserve the earlier mask-selected readout.
+
+Missing science data or an empty finite sample produces an unavailable reason instead of stale measurements. A missing
+mask or mask/image size mismatch makes results unavailable only when **Use mask** is on. The settings stay selected and
+recover when inputs become valid. In `rtimvClient`, calculations run on the server, pending changes are indicated, and
+requested settings are restored after reconnecting. Use matching updated client and server builds for global statistics,
+and restart a running server after updating it; older servers show the feature as unavailable and may ignore newer startup
+settings such as `mask=false`. The existing **Stats Display** setting applies only to box statistics.
+
 ### Keyboard Shortcuts
 
 | Key | Action | Description |
@@ -180,6 +238,8 @@ This means local client overrides always win for options/keys set locally, while
 |  | `--image.key` | `image.key` | string | The main image key. Specifies the protocol, location, and name of the main image. |
 |  | `--dark.key` | `dark.key` | string | The dark image key. Specifies the protocol, location, and name of the dark image. |
 |  | `--mask.key` | `mask.key` | string | The mask image key. Specifies the protocol, location, and name of the mask image. |
+|  | `--stats.global` | `stats.global` | bool | Enable global statistics at startup. Default is false. Use `--stats.global=true` or `--stats.global=false`. |
+|  | `--stats.mask` | `stats.mask` | bool | Restrict global statistics to pixels where the ordinary mask equals `1`. Default is true. Independent of `--mask`; use an explicit `true` or `false` value. |
 |  | `--satMask.key` | `satMask.key` | string | The saturation mask image key. Specifies the protocol, location, and name of the saturation mask image. |
 |  | `--update.fps` | `update.fps` | real | Specify the image update timeout in FPS. Overridden by `update.timeout` if set. |
 |  | `--update.timeout` | `update.timeout` | real | Specify the image update timeout in ms. Default is 50 ms (20 FPS). Overrides `update.fps`. |
@@ -189,6 +249,7 @@ This means local client overrides always win for options/keys set locally, while
 |  | `--autoscale` | `autoscale` | bool | Set autoscaling at startup. Bare `--autoscale` is true; `--autoscale=true` and `--autoscale=false` are also accepted. |
 |  | `--nofpsgage` | `nofpsgage` | bool | Turn the FPS gauge off at startup. |
 |  | `--darksub` | `darksub` | bool | Set dark subtraction at startup. Bare `--darksub` is true; `--darksub=true` and `--darksub=false` are also accepted. If a dark is supplied, `darksub` is otherwise on. |
+|  | `--mask` | `mask` | bool | Set ordinary image masking at startup with `--mask=true` or `--mask=false`. If a mask is supplied, masking is otherwise on. Independent of `stats.global` and `stats.mask`. |
 |  | `--satLevel` | `satLevel` | float | The saturation level for this camera. |
 |  | `--masksat` | `masksat` | bool | Set saturation masking at startup. Bare `--masksat` is true; `--masksat=true` and `--masksat=false` are also accepted. If a saturation mask is supplied, `masksat` is otherwise on. |
 |  | `--targetXc` | `targetXc` | float | The fractional x-coordinate of the target, `0 <= x <= 1`. |

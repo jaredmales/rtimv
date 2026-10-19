@@ -131,6 +131,12 @@ rtimvGraphicsView::rtimvGraphicsView( QWidget *parent ) : QGraphicsView( parent 
     m_statsBoxText->setTextColor( QColor( RTIMV_DEF_STATSBOXCOLOR ) );
     m_statsBoxText->setCurrentFont( m_userItemSize->currentFont() );
 
+    m_globalStatsText = new QTextEdit( this );
+    textEditSetup( m_globalStatsText );
+    m_globalStatsText->setVisible( false );
+    m_globalStatsText->setTextColor( QColor( RTIMV_DEF_STATSBOXCOLOR ) );
+    m_globalStatsText->setCurrentFont( m_userItemSize->currentFont() );
+
     m_userItemMouseCoords = new QTextEdit( this );
     textEditSetup( m_userItemMouseCoords );
     m_userItemMouseCoords->setVisible( false );
@@ -902,6 +908,11 @@ void rtimvGraphicsView::userItemSizeText( const char *nt, const QRect &rect )
     m_userItemSize->setPlainText( nt );
 
     m_userItemSize->setGeometry( rect );
+}
+
+QTextEdit *rtimvGraphicsView::globalStatsText()
+{
+    return m_globalStatsText;
 }
 
 QTextEdit *rtimvGraphicsView::statsBoxText()

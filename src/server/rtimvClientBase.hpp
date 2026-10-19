@@ -27,6 +27,7 @@
 #include "rtimvBaseObject.hpp"
 #include "rtimvColor.hpp"
 #include "rtimvFilters.hpp"
+#include "rtimvGlobalStats.hpp"
 
 #include <grpcpp/grpcpp.h>
 
@@ -1246,6 +1247,112 @@ class rtimvClientBase : public mx::app::application
     void mtxUL_calcStatsBox();
 
     ///@}
+
+    /** @name Global Statistics - Data
+     * The client caches server results. Mask membership and median working storage belong to rtimvBase on the server.
+     * @{
+     */
+  protected:
+    /// Coherent server state, protected by m_asyncRpcMutex.
+    rtimv::globalStatsState m_globalStats;
+
+    /// Whether a received Image advertises support for global statistics.
+    bool m_globalStatsSupported{ false };
+
+    /// Remembers an unsupported setter until a new connection generation begins.
+    bool m_globalStatsRpcUnsupported{ false };
+
+    /// Whether the user has supplied an enable/disable intent to preserve across reconnections.
+    bool m_globalStatsHaveIntent{ false };
+
+    /// Latest requested mode, kept separate from the authoritative Image state.
+    bool m_globalStatsDesired{ false };
+
+    /// Whether the user has supplied a mask-selection intent, independent of enabling statistics.
+    bool m_globalStatsHaveMaskIntent{ false };
+
+    /// Latest requested mask-selection policy, separate from authoritative Image state.
+    bool m_globalStatsMaskDesired{ true };
+
+    /// Whether the latest mode request has been dispatched in this connection generation.
+    bool m_globalStatsSent{ false };
+
+    /// Mode in the last dispatched request, used to coalesce rapid toggles.
+    bool m_globalStatsLastSent{ false };
+
+    /// Mask-selection policy in the last dispatched request.
+    bool m_globalStatsLastMaskSent{ false };
+
+    /// Transport-owned request state retained until its callback and queued result processing finish.
+    struct globalStatsRequestState
+    {
+        /// Deadline and cancellation for this request.
+        grpc::ClientContext m_context;
+
+        /// Requested mode, immutable while the RPC is outstanding.
+        remote_rtimv::GlobalStatsRequest m_request;
+
+        /// Empty transport acknowledgement; measurements arrive through Image.
+        remote_rtimv::GlobalStatsResponse m_reply;
+
+        /// Callback status consumed on the foundation thread.
+        grpc::Status m_status;
+
+        /// Connection generation that owns this request.
+        uint64_t m_generation{ 0 };
+    };
+
+    /// Pending request or completed result awaiting its owner-checked foundation slot.
+    std::shared_ptr<globalStatsRequestState> m_pendingGlobalStats;
+
+    /// True until the transport callback completes; shutdown does not wait for queued Qt processing.
+    bool m_globalStatsRpcPending{ false };
+    /// @}
+
+    /** @name Global Statistics
+     * @{
+     */
+  public:
+    /// Request the independent global-statistics mode asynchronously.
+    void mtxUL_globalStats( bool enabled, /**< [in] true enables global statistics */
+                            bool useMask  /**< [in] true restricts samples to mask values equal to one */
+    );
+
+    /// Get one coherent snapshot of the global-statistics mode and result.
+    rtimv::globalStatsState globalStats();
+
+    /// Get the requested global-statistics mode, including pending user intent.
+    bool globalStatsRequested();
+
+    /// Get the requested mask-selection policy, including pending user intent.
+    bool globalStatsUseMaskRequested();
+
+    /// Get whether a remote mode change is awaiting confirmation.
+    bool globalStatsPending();
+
+    /// Apply a completed mode request on the foundation thread while the owner is alive.
+    void GlobalStatsReceived();
+
+    /// Clear measurements after an image-unavailable reply from the current connection.
+    void GlobalStatsUnavailable( qulonglong generation /**< [in] connection generation reporting unavailable data */ );
+
+  protected:
+    /// Replace the requested mode with m_asyncRpcMutex held by the caller.
+    void mtxL_globalStats( bool enabled, /**< [in] true enables global statistics */
+                           bool useMask  /**< [in] true restricts samples to mask values equal to one */
+    );
+
+    /// Dispatch the latest intent when supported, connected, and no request is outstanding.
+    void dispatchGlobalStats();
+
+    /// Finish transport bookkeeping and queue owner-checked result processing.
+    void globalStats_callback( std::shared_ptr<globalStatsRequestState> state, /**< [in] completed request */
+                               grpc::Status status                             /**< [in] transport status */
+    );
+
+    /// Apply the global-statistics snapshot from an accepted Image reply.
+    void receiveGlobalStats( const remote_rtimv::Image &reply /**< [in] authoritative image state */ );
+    /// @}
 
     /** @name Color Stretch - Data
      *

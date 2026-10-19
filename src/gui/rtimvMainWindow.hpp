@@ -687,6 +687,15 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     /// Set the active stats display mode.
     void statsDisplayMode( int mode /**< [in] requested stats display mode */ );
 
+    /// Set the independent global-statistics mode through the backend.
+    void setGlobalStats( bool enabled /**< [in] true enables global statistics */ );
+
+    /// Set whether global statistics use the ordinary mask for sample selection.
+    void setGlobalStatsUseMask( bool useMask /**< [in] true selects pixels where the ordinary mask equals one */ );
+
+    /// Refresh the independent global-statistics readout from backend state.
+    void updateGlobalStatsOverlay();
+
     /// Create or reveal the image statistics box.
     void doLaunchStatsBox();
 

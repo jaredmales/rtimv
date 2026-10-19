@@ -1,7 +1,6 @@
 /** \file rtimvServer.cpp
  * \brief Definitions for the rtimvServer class
  *
- * \author Jared R. Males (jaredmales@gmail.com)
  *
  */
 
@@ -176,6 +175,11 @@ std::string summarizeBaseConfigOverrides( const rtimvBase::startupConfig &settin
     if( settings.m_darkSubSet )
     {
         addValue( "darksub", boolString( settings.m_darkSub ) );
+    }
+
+    if( settings.m_maskSet )
+    {
+        addValue( "mask", boolString( settings.m_mask ) );
     }
 
     if( settings.m_satLevelSet )
@@ -1046,6 +1050,24 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
     return reactor;
 }
 
+ServerUnaryReactor *rtimvServer::SetGlobalStats( CallbackServerContext *context,
+                                                 const remote_rtimv::GlobalStatsRequest *request,
+                                                 remote_rtimv::GlobalStatsResponse *reply )
+{
+    PREPARE_RPC_REACTOR
+    static_cast<void>( reply );
+
+    if( !imageTh->connected() )
+    {
+        reactor->Finish( Status::OK );
+        return reactor;
+    }
+
+    imageTh->mtxUL_globalStats( request->enabled(), request->use_mask() );
+    reactor->Finish( Status::OK );
+    return reactor;
+}
+
 ServerUnaryReactor *rtimvServer::SetApplyMTF( CallbackServerContext *context,
                                               const remote_rtimv::ApplyMTFRequest *request,
                                               remote_rtimv::ApplyMTFResponse *reply )
@@ -1450,6 +1472,11 @@ void rtimvServer::doConfigure( const configSpec *cspec )
     if( cspec->m_config.darksub_set() )
     {
         argv->push_back( cspec->m_config.darksub() ? "--darksub" : "--darksub=false" );
+    }
+
+    if( cspec->m_config.apply_mask_set() )
+    {
+        argv->push_back( cspec->m_config.apply_mask() ? "--mask=true" : "--mask=false" );
     }
 
     if( cspec->m_config.satlevel_set() )

@@ -1,7 +1,6 @@
 /** \file rtimvGraphicsView.hpp
  * \brief Declarations for the graphics view class of rtimv
  *
- * \author Jared R. Males (jaredmales@gmail.com)
  *
  */
 
@@ -116,6 +115,9 @@ class rtimvGraphicsView : public QGraphicsView
     float m_userItemSizeFontSize{ 22.0 }; ///< Font size for the user item size
 
     QTextEdit *m_statsBoxText; ///< The stats-box overlay text edit field
+
+    /// View-owned readout for global statistics with optional mask selection.
+    QTextEdit *m_globalStatsText{ nullptr };
 
     QTextEdit *m_userItemMouseCoords; ///< The user item mouse coordinates text edit
 
@@ -532,6 +534,9 @@ class rtimvGraphicsView : public QGraphicsView
      * \returns m_statsBoxText
      */
     QTextEdit *statsBoxText();
+
+    /// Get the independent global-statistics overlay text widget.
+    QTextEdit *globalStatsText();
 
     /// Set the stats-box overlay text.
     void statsBoxText( const char *nt /**< [in] the new stats-box overlay text */ );

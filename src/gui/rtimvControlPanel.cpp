@@ -1,7 +1,6 @@
 /** \file rtimvControlPanel.cpp
  * \brief Definitions for the rtimvControlPanel GUI class.
  *
- * \author Jared R. Males (jaredmales@gmail.com)
  *
  */
 
@@ -217,6 +216,7 @@ void rtimvControlPanel::update_panel()
 
     m_statsBoxButtonState = m_imv->statsBoxVisible();
     m_ui.statsBoxButton->setText( m_statsBoxButtonState ? "Hide Stats Box" : "Show Stats Box" );
+    update_globalStats();
 
 #ifdef RTIMV_GRPC
     update_imageRequestWindow();
@@ -1110,6 +1110,36 @@ void rtimvControlPanel::on_imageWindowSpinBox_valueChanged( int value )
 #else
     static_cast<void>( value );
 #endif
+}
+
+void rtimvControlPanel::update_globalStats()
+{
+    const auto stats = m_imv->globalStats();
+    m_ui.globalStatsCheck->blockSignals( true );
+    m_ui.globalStatsCheck->setChecked( m_imv->globalStatsRequested() );
+    m_ui.globalStatsCheck->setText( m_imv->globalStatsPending() ? "Global stats (pending)" : "Global stats" );
+    m_ui.globalStatsCheck->setEnabled( stats.m_status != rtimv::globalStatsStatus::unsupported ||
+                                       m_imv->globalStatsRequested() );
+    if( stats.m_status == rtimv::globalStatsStatus::unsupported )
+    {
+        m_ui.globalStatsCheck->setText( "Global stats (server unsupported)" );
+    }
+    m_ui.globalStatsCheck->blockSignals( false );
+    m_ui.globalStatsMaskCheck->blockSignals( true );
+    m_ui.globalStatsMaskCheck->setChecked( m_imv->globalStatsUseMaskRequested() );
+    m_ui.globalStatsMaskCheck->setEnabled( stats.m_status != rtimv::globalStatsStatus::unsupported ||
+                                           m_imv->globalStatsUseMaskRequested() );
+    m_ui.globalStatsMaskCheck->blockSignals( false );
+}
+
+void rtimvControlPanel::on_globalStatsCheck_stateChanged( int state )
+{
+    m_imv->setGlobalStats( state == Qt::Checked );
+}
+
+void rtimvControlPanel::on_globalStatsMaskCheck_stateChanged( int state )
+{
+    m_imv->setGlobalStatsUseMask( state == Qt::Checked );
 }
 
 void rtimvControlPanel::on_statsBoxButton_clicked()
