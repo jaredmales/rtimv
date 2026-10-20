@@ -71,7 +71,16 @@ class TestWindow : public rtimvMainWindow
                         uint32_t width,     /**< [in] reported image width */
                         uint32_t height     /**< [in] reported image height */
     );
+
+    /// Return the visible warning border's outline in scene coordinates without refreshing its geometry.
+    QRectF warningBorderSceneRect() const;
 };
+
+QRectF TestWindow::warningBorderSceneRect() const
+{
+    require( m_borderBox && m_borderBox->isVisible(), "warning border is not visible" );
+    return m_borderBox->mapRectToScene( m_borderBox->rect() );
+}
 
 void TestWindow::sampleOverlay( QTextEdit *overlay, QImage *image, uint32_t width, uint32_t height )
 {
@@ -298,9 +307,27 @@ void checkMouseZoomSequence( TestWindow &window,     /**< [in,out] actual local 
     window.borderWarningLevel( rtimv::warningLevel::warning );
     const QPoint click( view->viewport()->width() * 3 / 8, view->viewport()->height() * 5 / 8 );
     const QPointF clickedScene = view->mapToScene( click );
+    int borderFailures = 0;
     const auto checkCenter = [&]( const QPointF &expected, const char *phase )
     {
-        window.setBorderBox();
+        // Capture the immediate border before event processing, a new frame, or a warning-provider refresh.
+        const QRectF immediateBorder = view->viewportTransform().mapRect( window.warningBorderSceneRect() );
+        const QPointF borderError = immediateBorder.center() - QRectF( view->viewport()->rect() ).center();
+        const bool immediatelyCentered = std::abs( borderError.x() ) <= 1.0 && std::abs( borderError.y() ) <= 1.0;
+
+        // A later warning-provider response must leave the already-correct border unchanged.
+        window.borderWarningLevel( rtimv::warningLevel::warning );
+        const QRectF refreshedBorder = view->viewportTransform().mapRect( window.warningBorderSceneRect() );
+        const QPointF refreshJump = refreshedBorder.center() - immediateBorder.center();
+        const bool stableAfterRefresh = std::abs( refreshJump.x() ) < 0.01 && std::abs( refreshJump.y() ) < 0.01 &&
+                                        std::abs( refreshedBorder.width() - immediateBorder.width() ) < 0.01 &&
+                                        std::abs( refreshedBorder.height() - immediateBorder.height() ) < 0.01;
+        if( !immediatelyCentered || !stableAfterRefresh )
+        {
+            std::cerr << "warning border failed: " << phase << " immediateViewportError=" << borderError.x() << ','
+                      << borderError.y() << " delayedRefreshJump=" << refreshJump.x() << ',' << refreshJump.y() << '\n';
+            ++borderFailures;
+        }
         QCoreApplication::processEvents();
         const QPointF saved( window.get_xcen(), window.get_ycen() );
         const QPointF displayError =
@@ -354,7 +381,15 @@ void checkMouseZoomSequence( TestWindow &window,     /**< [in,out] actual local 
     sendViewerKey( Qt::Key_4, Qt::NoModifier, "4" );
     require( window.zoomLevel() == 4, "second numeric zoom key did not reach the viewer" );
     checkCenter( imageCenter, "numeric zoom after Ctrl+C" );
+    window.mtxUL_setViewCen( 0.25, 0.625 );
+    const QPointF editedCenter( window.nx() / 4.0, window.ny() * 0.625 );
+    checkCenter( editedCenter, "programmatic center" );
+    window.resize( 700, 420 );
+    checkCenter( editedCenter, "resize after centering" );
+    window.resize( 640, 640 );
+    checkCenter( editedCenter, "restore viewport size" );
     window.borderWarningLevel( rtimv::warningLevel::normal );
+    require( borderFailures == 0, "warning border required a later refresh to follow the viewport" );
 }
 
 /// Verify saved and visible mouse centering, including release handling and an open control panel.

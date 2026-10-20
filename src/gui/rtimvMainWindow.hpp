@@ -293,7 +293,7 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
 
     /*** The Main View ***/
   public:
-    /// Apply the current center to the viewport and optional zoom box.
+    /// Apply the current center to the viewport, warning border, and optional zoom box.
     /** Keep enough scrollable space around the requested center to support centering at image edges and at 1x zoom.
      */
     void change_center( bool movezoombox = true /**< [in] Whether to update the control-panel zoom box. */ );
@@ -1124,8 +1124,7 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     void borderWarningLevel( rtimv::warningLevel lvl /**< [in] New border warning level. */ );
 
     /// Set the border box geometry based on current view and zoom
-    /** Called every zoom change and if border is toggled
-     *
+    /** Called synchronously on center or zoom changes and when the warning level is refreshed.
      */
     void setBorderBox();
 

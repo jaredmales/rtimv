@@ -732,10 +732,6 @@ void rtimvMainWindow::post_zoomLevel()
 
     RTIMV_DEBUG_BREADCRUMB
 
-    setBorderBox();
-
-    RTIMV_DEBUG_BREADCRUMB
-
     char zlstr[16];
     snprintf( zlstr, 16, "%0.1fx", zoomLevel() );
     ui.graphicsView->zoomText( zlstr );
@@ -1118,6 +1114,9 @@ void rtimvMainWindow::change_center( bool movezoombox )
     }
 
     ui.graphicsView->centerOn( (qreal)ui.graphicsView->xCen(), (qreal)ui.graphicsView->yCen() );
+
+    // Keep the warning border fixed in the viewport without waiting for an overlay refresh.
+    setBorderBox();
 
     centerNorthArrow();
 
