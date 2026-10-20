@@ -1,9 +1,5 @@
-
 /** \file rtimvInterfaces.hpp
  * \brief Interface definitions shared by rtimv plugins and overlays.
- *
- * \author Jared R. Males (jaredmales@gmail.com)
- *
  */
 
 #ifndef rtimvInterfaces_hpp
@@ -13,18 +9,19 @@
 #include <string>
 #include <string_view>
 #include <iostream>
+#include <vector>
 
 #include <QtPlugin>
 #include <QGraphicsScene>
 #include <QKeyEvent>
 
+#include "rtimvDictionary.hpp"
 #include "rtimvGraphicsView.hpp"
 #include "StretchBox.hpp"
 #include "StretchCircle.hpp"
 #include "StretchLine.hpp"
 
 #include <unordered_map>
-#include <mutex>
 
 #include <mx/app/application.hpp>
 
@@ -60,176 +57,6 @@ enum class warningLevel
 };
 } // namespace rtimv
 
-///\todo need a separate dictionary file(s)
-struct rtimvDictBlob
-{
-  protected:
-    size_t m_sz{ 0 };
-    size_t m_memSz{ 0 };
-
-    void *m_blob{ nullptr };
-
-    bool m_owner{ false };
-
-    timespec m_lastMod{ 0, 0 };
-
-    std::mutex m_mutex;
-
-    void clearBlob()
-    {
-        if( m_blob && m_owner )
-        {
-            free( m_blob );
-            m_blob = nullptr;
-            m_owner = false;
-            m_sz = 0;
-            m_memSz = 0;
-        }
-    }
-
-  public:
-    rtimvDictBlob()
-    {
-    }
-
-    rtimvDictBlob( rtimvDictBlob &rdb )
-    {
-        clearBlob();
-        m_blob = rdb.m_blob;
-        m_sz = rdb.m_sz;
-        m_memSz = rdb.m_memSz;
-        m_owner = rdb.m_owner;
-        rdb.m_owner = false;
-    }
-
-    rtimvDictBlob( const rtimvDictBlob &rdb ) = delete; // no copies!
-
-    /// Set the blob
-    /** Allocates m_blob and copies \p sz bytes from \p blob.
-     * Allocation only occurs if more size is needed according to m_memSz.
-     * Sets m_sz to sz.
-     */
-    void setBlob( const void *blob, ///< [in] The new blob data
-                  size_t sz         ///< [in] The number of bytes in the new blob data
-    )
-    {
-        std::unique_lock<std::mutex> lock( m_mutex );
-        if( sz > m_memSz || m_owner == false )
-        {
-            clearBlob();
-
-            if( sz > 0 )
-            {
-                m_blob = malloc( sz );
-                m_sz = sz;
-                m_memSz = sz;
-                m_owner = true;
-            }
-
-            if( blob != nullptr && sz > 0 )
-            {
-                memcpy( m_blob, blob, sz );
-            }
-        }
-        else
-        {
-            // We're the owner and not reallocating
-            m_sz = sz;
-            if( blob != nullptr && sz > 0 )
-            {
-                memcpy( m_blob, blob, sz );
-            }
-        }
-
-        clock_gettime( CLOCK_REALTIME, &m_lastMod );
-    }
-
-    /// Get the data stored in the blob
-    /** Copies the smaller of \p mxsz and m_sz bytes to \p blob
-     * \returns the number of bytes copied
-     */
-    size_t
-    getBlob( char *blob,  ///< [out] The pointer to the array to copy the data to
-             size_t mxsz, ///< [in] The max number of bytes to copy to blob
-             timespec *ts =
-                 nullptr /// [out] [optional] if not null this will be filled in with the time of last modification
-    )
-    {
-        std::unique_lock<std::mutex> lock( m_mutex );
-
-        size_t cpsz = m_sz;
-        if( cpsz > mxsz )
-            cpsz = mxsz;
-
-        if( m_blob )
-        {
-            memcpy( blob, m_blob, cpsz );
-        }
-        else
-            cpsz = 0;
-
-        if( ts != nullptr )
-            *ts = m_lastMod;
-
-        return cpsz;
-    }
-
-    /// Get the data stored in the blob as a C string
-    /** Copies the smaller of \p mxsz and m_sz bytes to \p blob.
-     *
-     * This guarantees that blob[sz-1] = 0
-     * where sz is the number of bytes copied.  If the returned size == mxsz then you should not trust the
-     * contents unless you know that the correct size was copied or don't care if the string is truncated.
-     *
-     * If m_blob has 0 size or is nullptr, then this sets blob[0] = 0 and returns 1.
-     *
-     * \returns the number of bytes copied
-     */
-    size_t
-    getBlobStr( char *blob,  ///< [in/out] The pointer to the array to copy the data to
-                size_t mxsz, ///< [in] The max number of bytes to copy to blob
-                timespec *ts =
-                    nullptr /// [out] [optional] if not null this will be filled in with the time of last modification
-    )
-    {
-        size_t cpsz = getBlob( blob, mxsz, ts );
-
-        if( cpsz == 0 )
-        {
-            if( mxsz > 0 )
-            {
-                blob[0] = '\0';
-                cpsz = 1;
-            }
-        }
-        else
-            blob[cpsz - 1] = '\0';
-
-        return cpsz;
-    }
-
-    size_t getBlobSize()
-    {
-        std::unique_lock<std::mutex> lock( m_mutex );
-
-        if( m_blob == nullptr )
-            return 0;
-        return m_sz;
-    }
-
-    ~rtimvDictBlob()
-    {
-        std::unique_lock<std::mutex> lock( m_mutex );
-        clearBlob();
-    }
-};
-
-/// The dictionary type, a std::map
-typedef std::map<std::string, rtimvDictBlob> dictionaryT;
-
-/// The dictionary iterator type.
-typedef std::map<std::string, rtimvDictBlob>::iterator dictionaryIteratorT;
-
 /// The base plugin class type
 /** All supported plugins inherit from this
  *
@@ -250,6 +77,7 @@ class rtimvInterface : public QObject
     std::string m_pluginName{ "plugin" };
 
   public:
+    /// Destroy the plugin interface.
     virtual ~rtimvInterface() = default;
 
     /// Get the information about this plugin for user display
@@ -343,6 +171,7 @@ class rtimvInterface : public QObject
     }
 };
 
+/// Plugin interface for publishing and consuming shared dictionary state.
 class rtimvDictionaryInterface : public rtimvInterface
 {
   public:
@@ -355,8 +184,8 @@ class rtimvDictionaryInterface : public rtimvInterface
      * \returns >0 if the dictionary is not configured but no error
      * \returns <0 if an error occurs
      */
-    virtual int attachDictionary( dictionaryT *, ///< [in] pointer to the dictionary itself, which is part of rtimv
-                                  mx::app::appConfigurator & ///< [in] configuration from which to extract specifics
+    virtual int attachDictionary( dictionaryT *dictionary,         /**< [in] Dictionary owned by the main window. */
+                                  mx::app::appConfigurator &config /**< [in] Plugin configuration. */
                                   ) = 0;
 };
 
@@ -372,37 +201,59 @@ struct rtimvOverlayAccess
     /// QObject handle for the main window to allow connecting signals and slots from within plugin
     QObject *m_mainWindowObject{ nullptr };
 
+    /// Non-owning access to the main window's color-scaling region.
     StretchBox *m_colorBox{ nullptr };
 
+    /// Non-owning access to the main window's statistics region.
     StretchBox *m_statsBox{ nullptr };
 
+    /// Non-owning access to the main window's user-drawn boxes.
     std::unordered_set<StretchBox *> *m_userBoxes{ nullptr };
 
+    /// Non-owning access to the main window's user-drawn circles.
     std::unordered_set<StretchCircle *> *m_userCircles{ nullptr };
 
+    /// Non-owning access to the main window's user-drawn lines.
     std::unordered_set<StretchLine *> *m_userLines{ nullptr };
 
+    /// Non-owning access to the image display and its overlay scene.
     rtimvGraphicsView *m_graphicsView{ nullptr };
 
+    /// Shared dictionary owned by the main window; plugins must coordinate structural changes.
     dictionaryT *m_dictionary{ nullptr };
 };
 
+/// Image coordinates and sampled values supplied to mouse-coordinate consumers.
 struct rtimvMouseCoord
 {
+    /// Horizontal coordinate of the sampled pixel.
     float pixelX{ 0 };
+
+    /// Vertical coordinate of the sampled pixel.
     float pixelY{ 0 };
 
+    /// Uncalibrated image value at the sampled pixel.
     float imageValue{ 0 };
 
+    /// Processed display value at the sampled pixel.
     float displayValue{ 0 };
 
+    /// True when a dark-frame sample is available.
     bool darkValid{ false };
+
+    /// Dark-frame value when darkValid is true.
     float darkValue{ 0 };
 
+    /// True when a saturation-mask sample is available.
     bool satMaskValid{ false };
+
+    /// Saturation-mask value when satMaskValid is true.
     float satMaskValue{ 0 };
 
+    /// True when an ordinary mask sample is available.
     bool maskValid{ false };
+
+    /// Ordinary mask value when maskValid is true.
     float maskValue{ 0 };
 };
 
@@ -410,6 +261,7 @@ struct rtimvMouseCoord
 class rtimvOverlayInterface : public rtimvInterface
 {
   public:
+    /// Destroy the overlay interface.
     virtual ~rtimvOverlayInterface() = default;
 
     /// Configure and attach the overlay
@@ -418,8 +270,8 @@ class rtimvOverlayInterface : public rtimvInterface
      * \return <0 on error
      * \return >0 on not-configured
      */
-    virtual int attachOverlay( rtimvOverlayAccess &,      ///< [in] The exposed information for overlays
-                               mx::app::appConfigurator & ///< [in] configuration from which to extract specifics
+    virtual int attachOverlay( rtimvOverlayAccess &access, /**< [in] Non-owning access to main-window components. */
+                               mx::app::appConfigurator &config /**< [in] Plugin configuration. */
                                ) = 0;
 
     /// Update the overlay
@@ -429,7 +281,7 @@ class rtimvOverlayInterface : public rtimvInterface
     /** Note that there is currently no way to register and deconflict keys
      *
      */
-    virtual void keyPressEvent( QKeyEvent *ke ) = 0;
+    virtual void keyPressEvent( QKeyEvent *ke /**< [in] Key event forwarded by the main window. */ ) = 0;
 
     /// Check if the overlay is currently enabled.
     virtual bool overlayEnabled() = 0;

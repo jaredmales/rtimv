@@ -1,3 +1,11 @@
+foreach(library_variant IN ITEMS shared static)
+    add_executable(rtimvDictionaryTest_${library_variant} librtimv/rtimvDictionary_test.cpp)
+    target_include_directories(rtimvDictionaryTest_${library_variant} PRIVATE ${CMAKE_SOURCE_DIR}/src/librtimv)
+    target_link_libraries(rtimvDictionaryTest_${library_variant} PRIVATE rtimv-${library_variant} ${RTIMV_QT_PACKAGE}::Widgets)
+    add_test(NAME rtimvDictionary_${library_variant} COMMAND rtimvDictionaryTest_${library_variant})
+    set_tests_properties(rtimvDictionary_${library_variant} PROPERTIES TIMEOUT 10)
+endforeach()
+
 add_executable(rtimvCommandTest librtimv/rtimvCommand_test.cpp)
 target_include_directories(rtimvCommandTest PRIVATE ${CMAKE_SOURCE_DIR}/src/librtimv ${CMAKE_SOURCE_DIR}/src/common)
 target_link_libraries(rtimvCommandTest PRIVATE rtimv-shared ${RTIMV_QT_PACKAGE}::Widgets PkgConfig::MXLIB)
