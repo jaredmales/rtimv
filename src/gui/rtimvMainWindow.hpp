@@ -294,6 +294,8 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     /*** The Main View ***/
   public:
     /// Apply the current center to the viewport and optional zoom box.
+    /** Keep enough scrollable space around the requested center to support centering at image edges and at 1x zoom.
+     */
     void change_center( bool movezoombox = true /**< [in] Whether to update the control-panel zoom box. */ );
 
   private:

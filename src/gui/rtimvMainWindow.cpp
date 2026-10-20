@@ -1104,6 +1104,19 @@ void rtimvMainWindow::setPointerOverZoom( float poz )
 
 void rtimvMainWindow::change_center( bool movezoombox )
 {
+    if( m_qpmi )
+    {
+        // Leave enough scrollable space around the requested center, even when the image
+        // fits the viewport. Otherwise Qt clamps centerOn() to the image's scene bounds.
+        QRectF visibleRect =
+            ui.graphicsView->mapToScene( ui.graphicsView->viewport()->rect().adjusted( -1, -1, 1, 1 ) ).boundingRect();
+        if( std::isfinite( visibleRect.width() ) && std::isfinite( visibleRect.height() ) && !visibleRect.isEmpty() )
+        {
+            visibleRect.moveCenter( QPointF( ui.graphicsView->xCen(), ui.graphicsView->yCen() ) );
+            ui.graphicsView->setSceneRect( m_qpmi->sceneBoundingRect().united( visibleRect ) );
+        }
+    }
+
     ui.graphicsView->centerOn( (qreal)ui.graphicsView->xCen(), (qreal)ui.graphicsView->yCen() );
 
     centerNorthArrow();

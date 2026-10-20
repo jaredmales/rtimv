@@ -4,15 +4,20 @@
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QCursor>
+#include <QEnterEvent>
 #include <QEventLoop>
 #include <QFile>
+#include <QKeyEvent>
 #include <QLineEdit>
+#include <QMouseEvent>
 #include <QProcess>
 #include <QScrollBar>
 #include <QTabWidget>
 #include <QTemporaryDir>
 #include <QTextBlock>
 #include <QTextLayout>
+#include <QWheelEvent>
 
 #include <algorithm>
 #include <chrono>
@@ -247,6 +252,213 @@ void checkViewportBounds( std::vector<std::string> args /**< [in] viewer argumen
     window.mtxUL_setViewCen( 0.5, 0.5 );
 }
 
+/// Deliver a real mouse-button event through the graphics viewport's event dispatcher.
+void sendMouseButton( rtimvGraphicsView *view,        /**< [in,out] view receiving the mouse event */
+                      QEvent::Type type,              /**< [in] press or release event type */
+                      const QPoint &position,         /**< [in] viewport position */
+                      Qt::MouseButton button,         /**< [in] button being pressed or released */
+                      Qt::KeyboardModifiers modifiers /**< [in] keyboard modifiers held for this event */
+)
+{
+    QMouseEvent event( type,
+                       QPointF( position ),
+                       QPointF( view->viewport()->mapToGlobal( position ) ),
+                       button,
+                       type == QEvent::MouseButtonPress ? Qt::MouseButtons( button ) : Qt::NoButton,
+                       modifiers );
+    QApplication::sendEvent( view->viewport(), &event );
+}
+
+/// Deliver a key through the focused widget so ordinary Qt propagation reaches the viewer.
+void sendViewerKey( int key,                         /**< [in] Qt key code */
+                    Qt::KeyboardModifiers modifiers, /**< [in] keyboard modifiers held during the key press */
+                    const QString &text              /**< [in] text produced by the key */
+)
+{
+    require( QApplication::focusWidget(), "viewer has no keyboard focus" );
+    QKeyEvent press( QEvent::KeyPress, key, modifiers, text );
+    QApplication::sendEvent( QApplication::focusWidget(), &press );
+    QKeyEvent release( QEvent::KeyRelease, key, modifiers, text );
+    QApplication::sendEvent( QApplication::focusWidget(), &release );
+}
+
+/// Check the reported middle-click, zoom, Ctrl+C, and zoom sequence with an off-center mouse anchor.
+void checkMouseZoomSequence( TestWindow &window,     /**< [in,out] actual local or client viewer */
+                             rtimvGraphicsView *view /**< [in,out] viewer graphics surface */
+)
+{
+    window.activateWindow();
+    view->setFocus( Qt::OtherFocusReason );
+    QCoreApplication::processEvents();
+    require( QApplication::focusWidget() == view, "graphics view did not receive keyboard focus" );
+    require( view->transformationAnchor() == QGraphicsView::AnchorUnderMouse,
+             "mouse-centering test did not exercise the mouse zoom anchor" );
+    window.zoomLevel( 1 );
+    window.mtxUL_setViewCen( 0.5, 0.5 );
+    window.borderWarningLevel( rtimv::warningLevel::warning );
+    const QPoint click( view->viewport()->width() * 3 / 8, view->viewport()->height() * 5 / 8 );
+    const QPointF clickedScene = view->mapToScene( click );
+    const auto checkCenter = [&]( const QPointF &expected, const char *phase )
+    {
+        window.setBorderBox();
+        QCoreApplication::processEvents();
+        const QPointF saved( window.get_xcen(), window.get_ycen() );
+        const QPointF displayError =
+            QPointF( view->mapFromScene( expected ) ) - QRectF( view->viewport()->rect() ).center();
+        if( std::abs( saved.x() - expected.x() ) >= 0.001 || std::abs( saved.y() - expected.y() ) >= 0.001 ||
+            std::abs( displayError.x() ) > 1.0 || std::abs( displayError.y() ) > 1.0 )
+        {
+            std::cerr << "mouse/zoom sequence failed: " << phase << " expected=" << expected.x() << ',' << expected.y()
+                      << " saved=" << saved.x() << ',' << saved.y() << " displayError=" << displayError.x() << ','
+                      << displayError.y() << '\n';
+            require( false, "zoom changed the saved or visible image center" );
+        }
+    };
+    sendMouseButton( view, QEvent::MouseButtonPress, click, Qt::MiddleButton, Qt::NoModifier );
+    sendMouseButton( view, QEvent::MouseButtonRelease, click, Qt::MiddleButton, Qt::NoModifier );
+    checkCenter( clickedScene, "middle click" );
+
+    const QPoint cursor( view->viewport()->width() * 7 / 8, view->viewport()->height() / 8 );
+    const QPoint globalCursor = view->viewport()->mapToGlobal( cursor );
+    QCursor::setPos( globalCursor );
+    QEnterEvent enter( QPointF( cursor ), QPointF( view->mapFromGlobal( globalCursor ) ), QPointF( globalCursor ) );
+    QApplication::sendEvent( view->viewport(), &enter );
+    QMouseEvent move(
+        QEvent::MouseMove, QPointF( cursor ), QPointF( globalCursor ), Qt::NoButton, Qt::NoButton, Qt::NoModifier );
+    QApplication::sendEvent( view->viewport(), &move );
+    const auto wheelZoom = [&]()
+    {
+        const float previousZoom = window.zoomLevel();
+        QWheelEvent wheel( QPointF( cursor ),
+                           QPointF( globalCursor ),
+                           QPoint(),
+                           QPoint( 0, 120 ),
+                           Qt::NoButton,
+                           Qt::NoModifier,
+                           Qt::NoScrollPhase,
+                           false );
+        QApplication::sendEvent( view->viewport(), &wheel );
+        require( std::abs( window.zoomLevel() - previousZoom * 1.02f ) < 0.0001,
+                 "mouse wheel did not reach the viewer zoom handler" );
+    };
+    wheelZoom();
+    checkCenter( clickedScene, "wheel after middle click" );
+    sendViewerKey( Qt::Key_2, Qt::NoModifier, "2" );
+    require( window.zoomLevel() == 2, "numeric zoom key did not reach the viewer" );
+    checkCenter( clickedScene, "numeric zoom after middle click" );
+    sendViewerKey( Qt::Key_C, Qt::ControlModifier, "c" );
+    const QPointF imageCenter( window.nx() / 2.0, window.ny() / 2.0 );
+    checkCenter( imageCenter, "Ctrl+C" );
+    wheelZoom();
+    checkCenter( imageCenter, "wheel after Ctrl+C" );
+    sendViewerKey( Qt::Key_4, Qt::NoModifier, "4" );
+    require( window.zoomLevel() == 4, "second numeric zoom key did not reach the viewer" );
+    checkCenter( imageCenter, "numeric zoom after Ctrl+C" );
+    window.borderWarningLevel( rtimv::warningLevel::normal );
+}
+
+/// Verify saved and visible mouse centering, including release handling and an open control panel.
+void checkMouseCentering( std::vector<std::string> args /**< [in] viewer arguments */ )
+{
+    std::vector<char *> pointers;
+    for( auto &arg : args )
+        pointers.push_back( arg.data() );
+    pointers.push_back( nullptr );
+    TestWindow window( static_cast<int>( args.size() ), pointers.data() );
+    window.resize( 640, 640 );
+    window.show();
+    require(
+        waitUntil(
+            [&]()
+            { return window.connected() && window.nx() == 32 && window.ny() == 32 && !window.getPixmap()->isNull(); } ),
+        "viewer did not render the mouse-centering test image" );
+    auto *view = window.findChild<rtimvGraphicsView *>( "graphicsView" );
+    require( view, "graphics view missing" );
+    int centerChanges = 0;
+    QObject receiver;
+    QObject::connect( view, &rtimvGraphicsView::centerChanged, &receiver, [&]() { ++centerChanges; } );
+    int failures = 0;
+
+    for( bool controlPanel : { false, true } )
+    {
+        if( controlPanel )
+        {
+            window.launchControlPanel();
+            QCoreApplication::processEvents();
+        }
+        for( float zoom : { 1.0f, 2.0f, 4.0f } )
+        {
+            for( Qt::MouseButton button : { Qt::MiddleButton, Qt::LeftButton } )
+            {
+                for( bool nearEdge : { false, true } )
+                {
+                    window.zoomLevel( zoom );
+                    const float initialCenter = nearEdge ? 0.5f / zoom : 0.5f;
+                    window.mtxUL_setViewCen( initialCenter, initialCenter );
+                    QCoreApplication::processEvents();
+                    const QPoint position =
+                        nearEdge ? QPoint( view->viewport()->width() / 16, view->viewport()->height() / 16 )
+                                 : QPoint( view->viewport()->width() * 3 / 8, view->viewport()->height() * 5 / 8 );
+                    const QPointF clickedScene = view->mapToScene( position );
+                    const Qt::KeyboardModifiers modifiers =
+                        button == Qt::LeftButton ? Qt::ControlModifier : Qt::NoModifier;
+                    centerChanges = 0;
+
+                    const auto checkCentered = [&]( const char *phase )
+                    {
+                        const QPointF savedCenter( window.get_xcen(), window.get_ycen() );
+                        const QPointF visiblePosition = view->mapFromScene( clickedScene );
+                        const QPointF viewportCenter = QRectF( view->viewport()->rect() ).center();
+                        const QPointF displayError = visiblePosition - viewportCenter;
+                        if( std::abs( savedCenter.x() - clickedScene.x() ) >= 0.001 ||
+                            std::abs( savedCenter.y() - clickedScene.y() ) >= 0.001 ||
+                            std::abs( displayError.x() ) > 1.0 || std::abs( displayError.y() ) > 1.0 ||
+                            centerChanges != 1 )
+                        {
+                            std::cerr << "mouse centering failed: zoom=" << zoom << " panel=" << controlPanel
+                                      << " edge=" << nearEdge
+                                      << " button=" << ( button == Qt::MiddleButton ? "middle" : "ctrl-left" )
+                                      << " phase=" << phase << " clickedScene=" << clickedScene.x() << ','
+                                      << clickedScene.y() << " savedCenter=" << savedCenter.x() << ','
+                                      << savedCenter.y() << " displayError=" << displayError.x() << ','
+                                      << displayError.y() << " centerSignals=" << centerChanges << '\n';
+                            ++failures;
+                        }
+                    };
+
+                    sendMouseButton( view, QEvent::MouseButtonPress, position, button, modifiers );
+                    checkCentered( "press" );
+                    sendMouseButton( view, QEvent::MouseButtonRelease, position, button, modifiers );
+                    checkCentered( "release" );
+
+                    if( controlPanel && zoom == 2.0f && button == Qt::MiddleButton && !nearEdge )
+                    {
+                        window.resize( 700, 420 );
+                        QCoreApplication::processEvents();
+                        checkCentered( "rectangular resize" );
+                        window.zoomLevel( 4 );
+                        QCoreApplication::processEvents();
+                        checkCentered( "zoom after resize" );
+                        window.resize( 640, 640 );
+                        QCoreApplication::processEvents();
+                    }
+
+                    const QPointF savedCenter( window.get_xcen(), window.get_ycen() );
+                    const QPointF savedPosition = view->mapToScene( position );
+                    centerChanges = 0;
+                    sendMouseButton( view, QEvent::MouseButtonPress, position, Qt::LeftButton, Qt::NoModifier );
+                    sendMouseButton( view, QEvent::MouseButtonRelease, position, Qt::LeftButton, Qt::NoModifier );
+                    require( centerChanges == 0 && QPointF( window.get_xcen(), window.get_ycen() ) == savedCenter &&
+                                 view->mapToScene( position ) == savedPosition,
+                             "ordinary left click changed the viewport center" );
+                }
+            }
+        }
+        checkMouseZoomSequence( window, view );
+    }
+    require( failures == 0, "mouse clicks did not center the clicked image point exactly once" );
+}
+
 /// Check known full-image or masked values for the 32x32 gradient fixture.
 void checkValues( const rtimv::globalStatsState &stats, /**< [in] measured global statistics */
                   bool applyMask,                       /**< [in] whether image processing applies the mask */
@@ -357,6 +569,7 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
             "global-stats-test", "--image.key=" + imagePath, "--mask.key=" + maskPath, "--mzmq.always=false" };
         const bool startupTests = qEnvironmentVariableIsSet( "RTIMV_TEST_GLOBAL_STARTUP" );
         const bool viewportTests = qEnvironmentVariableIsSet( "RTIMV_TEST_VIEWPORT_BOUNDS" );
+        const bool mouseCenterTests = qEnvironmentVariableIsSet( "RTIMV_TEST_MOUSE_CENTER" );
 #ifdef RTIMV_GRPC
         require( argc > 1, "server executable path missing" );
         int port = 0;
@@ -380,7 +593,11 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
         args.push_back( "--server=127.0.0.1" );
         args.push_back( "--port=" + std::to_string( port ) );
 #endif
-        if( viewportTests )
+        if( mouseCenterTests )
+        {
+            checkMouseCentering( args );
+        }
+        else if( viewportTests )
         {
             checkViewportBounds( args );
         }
