@@ -87,6 +87,17 @@ virtual int attachDictionary( dictionaryT *, mx::app::appConfigurator & ) = 0;
 
 The dictionary itself is a shared `std::map<std::string, rtimvDictBlob>`, typedef’d as `dictionaryT`.
 
+The storage types are declared in [rtimvDictionary.hpp](../src/librtimv/rtimvDictionary.hpp). Plugins can continue
+including `<rtimv/rtimvInterfaces.hpp>`, which includes that header and declares the plugin interfaces. Code that
+only needs the storage types can include `<rtimv/rtimvDictionary.hpp>` without Qt or mxlib headers.
+
+Blob methods are implemented in `librtimv`; consumers must link the library, for example with `LIBS += -lrtimv`
+in a qmake project. Install matching headers and libraries before rebuilding plugins. New headers cannot be
+paired with an older library that lacks the blob method definitions. The dictionary and overlay interface IIDs
+remain unchanged, but existing plugin binaries should be validated separately if they must be retained.
+The existing shared library includes Qt components, so dictionary-only consumers linking it must still supply
+its Qt link dependencies.
+
 The intent is that plugins can exchange lightweight state through stable string keys without introducing direct coupling between unrelated plugin classes and GUI code.
 
 ### Blob Storage
@@ -106,6 +117,21 @@ The main accessors are:
 - `getBlob(char *blob, size_t mxsz, timespec *ts = nullptr)`
 - `getBlobStr(char *blob, size_t mxsz, timespec *ts = nullptr)`
 - `getBlobSize()`
+
+These accessors synchronize each blob independently. They do not protect the dictionary's structure or an
+entry's lifetime: coordinate insertion and erasure with other map users, and keep entries alive while accessing
+them. A size query followed by a read is not one snapshot; use the read's returned byte count. Request the
+optional timestamp with the read to obtain the timestamp corresponding to those bytes. `CLOCK_REALTIME` is not
+a monotonic clock.
+
+`getBlobStr()` replaces the last copied byte with a null terminator. A return equal to the destination capacity
+can indicate truncation. An empty payload produces one null byte when capacity is positive; zero capacity
+returns zero without writing.
+
+The legacy constructor taking `rtimvDictBlob &` transfers buffer ownership but leaves the source aliasing the
+same storage with a separate mutex. It does not transfer the timestamp or synchronize the source. Avoid moving
+entries this way while they are shared, and do not access an alias after the owner frees or reallocates its
+storage. This constructor is not a deep copy; construction from a const reference remains deleted.
 
 ### Dictionary Usage Pattern
 

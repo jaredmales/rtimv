@@ -85,6 +85,7 @@ pkg_check_modules(LIBZMQ QUIET IMPORTED_TARGET libzmq)
 # librtimv
 ############################################
 add_library(objlib OBJECT src/librtimv/rtimvCommandInterface.cpp
+                          src/librtimv/rtimvDictionary.cpp
                           src/librtimv/rtimvGraphicsView.cpp
                           src/librtimv/StretchBox.cpp
                           src/librtimv/StretchCircle.cpp
@@ -104,6 +105,7 @@ SET_TARGET_PROPERTIES(rtimv-shared PROPERTIES OUTPUT_NAME rtimv CLEAN_DIRECT_OUT
 SET_TARGET_PROPERTIES(rtimv-static PROPERTIES OUTPUT_NAME rtimv CLEAN_DIRECT_OUTPUT 1)
 
 install (FILES src/librtimv/rtimvCommandInterface.hpp
+               src/librtimv/rtimvDictionary.hpp
                src/librtimv/rtimvInterfaces.hpp
                src/common/rtimvLog.hpp
                src/librtimv/rtimvGraphicsView.hpp
