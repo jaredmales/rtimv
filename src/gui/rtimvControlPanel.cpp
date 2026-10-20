@@ -395,12 +395,36 @@ void rtimvControlPanel::enableViewViewMode( int state )
 
 void rtimvControlPanel::on_xcenEntry_editingFinished()
 {
-    m_imv->mtxUL_setViewCen( m_ui.xcenEntry->text().toDouble() / m_imv->nx(), m_imv->get_ycen() );
+    if( m_imv->nx() == 0 || m_imv->ny() == 0 )
+    {
+        return;
+    }
+
+    bool valid{ false };
+    const float x = m_ui.xcenEntry->text().toFloat( &valid );
+    if( !valid || !std::isfinite( x ) )
+    {
+        return;
+    }
+
+    m_imv->mtxUL_setViewCen( x / m_imv->nx(), m_imv->get_ycen() / m_imv->ny() );
 }
 
 void rtimvControlPanel::on_ycenEntry_editingFinished()
 {
-    m_imv->mtxUL_setViewCen( m_imv->get_xcen(), m_ui.ycenEntry->text().toDouble() / m_imv->ny() );
+    if( m_imv->nx() == 0 || m_imv->ny() == 0 )
+    {
+        return;
+    }
+
+    bool valid{ false };
+    const float y = m_ui.ycenEntry->text().toFloat( &valid );
+    if( !valid || !std::isfinite( y ) )
+    {
+        return;
+    }
+
+    m_imv->mtxUL_setViewCen( m_imv->get_xcen() / m_imv->nx(), y / m_imv->ny() );
 }
 
 void rtimvControlPanel::on_widthEntry_editingFinished()

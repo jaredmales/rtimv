@@ -46,6 +46,9 @@ set_tests_properties(rtimvGlobalStats_gui PROPERTIES ENVIRONMENT "QT_QPA_PLATFOR
 add_test(NAME rtimvGlobalStats_startupGui COMMAND rtimvGlobalStatsGuiTest)
 set_tests_properties(rtimvGlobalStats_startupGui PROPERTIES
                      ENVIRONMENT "QT_QPA_PLATFORM=offscreen;RTIMV_TEST_GLOBAL_STARTUP=1" TIMEOUT 45)
+add_test(NAME rtimvViewportBounds_gui COMMAND rtimvGlobalStatsGuiTest)
+set_tests_properties(rtimvViewportBounds_gui PROPERTIES
+                     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;RTIMV_TEST_VIEWPORT_BOUNDS=1" TIMEOUT 30)
 
 if(NOT (Protobuf_FOUND AND GRPCPP_FOUND))
     return()
@@ -92,6 +95,9 @@ set_tests_properties(rtimvGlobalStats_clientGui PROPERTIES ENVIRONMENT "QT_QPA_P
 add_test(NAME rtimvGlobalStats_clientStartupGui COMMAND rtimvGlobalStatsClientGuiTest $<TARGET_FILE:rtimvServer>)
 set_tests_properties(rtimvGlobalStats_clientStartupGui PROPERTIES
                      ENVIRONMENT "QT_QPA_PLATFORM=offscreen;RTIMV_TEST_GLOBAL_STARTUP=1" TIMEOUT 60)
+add_test(NAME rtimvViewportBounds_clientGui COMMAND rtimvGlobalStatsClientGuiTest $<TARGET_FILE:rtimvServer>)
+set_tests_properties(rtimvViewportBounds_clientGui PROPERTIES
+                     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;RTIMV_TEST_VIEWPORT_BOUNDS=1" TIMEOUT 45)
 
 add_executable(rtimvClientBaseAsyncRaceTest client/rtimvClientBase_async_race_test.cpp)
 add_executable(rtimvClientBaseGlobalStatsTest client/rtimvClientBase_globalStats_test.cpp)

@@ -1132,17 +1132,25 @@ void rtimvMainWindow::change_center( bool movezoombox )
 
 void rtimvMainWindow::mtxL_setViewCen_impl( float x, float y, bool movezoombox )
 {
-    if( m_qpmi == nullptr )
+    if( m_qpmi == nullptr || m_nx == 0 || m_ny == 0 || !std::isfinite( x ) || !std::isfinite( y ) )
     {
         return;
     }
 
-    QPointF sp( x * m_qpmi->boundingRect().width(), y * m_qpmi->boundingRect().height() );
+    const QRectF imageRect = m_qpmi->boundingRect();
+    if( imageRect.isEmpty() )
+    {
+        return;
+    }
 
-    QPointF vp = ui.graphicsView->mapFromScene( sp );
+    const float sceneX = x * static_cast<float>( imageRect.width() );
+    const float sceneY = y * static_cast<float>( imageRect.height() );
+    if( !std::isfinite( sceneX ) || !std::isfinite( sceneY ) )
+    {
+        return;
+    }
 
-    ui.graphicsView->mapCenterToScene( vp.x(), vp.y() );
-
+    ui.graphicsView->centerOn( sceneX, sceneY );
     change_center( movezoombox );
 }
 
@@ -4195,40 +4203,40 @@ void rtimvMainWindow::mtxL_fontLuminance( QTextEdit *qte, const sharedLockT &loc
 {
     assert( lock.owns_lock() );
 
-    QPointF ptul = ui.graphicsView->mapToScene( qte->x(), qte->y() );
-    QPointF ptlr = ui.graphicsView->mapToScene( qte->x() + qte->width(), qte->y() + qte->height() );
-
-    unsigned myul = ptul.y();
-    if( myul > m_ny - 1 )
-        myul = 0;
-
-    unsigned mxul = ptul.x();
-    if( mxul > m_nx - 1 )
-        mxul = 0;
-
-    unsigned mylr = ptlr.y();
-    if( mylr > m_ny - 1 )
-        mylr = m_ny - 1;
-
-    unsigned mxlr = ptlr.x();
-    if( mxlr > m_nx - 1 )
-        mxlr = m_nx - 1;
-
-    if( mxul == 0 && myul == 0 && mxlr == 0 && mylr == 0 )
+    if( !qte || !qte->isVisible() || qte->toPlainText().isEmpty() || !m_qim || m_qim->isNull() || m_nx == 0 ||
+        m_ny == 0 )
     {
         return;
     }
 
-    if( mxul == mxlr || myul == mylr )
+    const QRectF bounds = ui.graphicsView->mapToScene( qte->geometry() ).boundingRect();
+    if( !std::isfinite( bounds.left() ) || !std::isfinite( bounds.top() ) || !std::isfinite( bounds.right() ) ||
+        !std::isfinite( bounds.bottom() ) )
     {
         return;
     }
+
+    // Intersect in scene coordinates before converting to pixel indices. An off-image overlay
+    // must not wrap negative coordinates to unsigned values and expand into a full-image scan.
+    const double left = std::max( 0.0, bounds.left() );
+    const double top = std::max( 0.0, bounds.top() );
+    const double right = std::min( std::min<double>( m_nx, m_qim->width() ), bounds.right() );
+    const double bottom = std::min( std::min<double>( m_ny, m_qim->height() ), bounds.bottom() );
+    if( left >= right || top >= bottom )
+    {
+        return;
+    }
+
+    const int xBegin = static_cast<int>( std::floor( left ) );
+    const int yBegin = static_cast<int>( std::floor( top ) );
+    const int xEnd = static_cast<int>( std::ceil( right ) );
+    const int yEnd = static_cast<int>( std::ceil( bottom ) );
 
     double avgLum = 0;
-    int N = 0;
-    for( unsigned x = mxul; x <= mxlr; ++x )
+    size_t N = 0;
+    for( int x = xBegin; x < xEnd; ++x )
     {
-        for( unsigned y = myul; y <= mylr; ++y )
+        for( int y = yBegin; y < yEnd; ++y )
         {
             avgLum += pow( lightness( x, y ), m_lumPwr );
             ++N;

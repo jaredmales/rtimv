@@ -1174,13 +1174,14 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     /// Sets the background transparency of a QTextEdit based on the average luminance of the background pixels.
     /** Uses a power-quadrature average (see m_lumPwr) and sets the background opacity based on interpolation with
      *  the values of m_lumThresh, m_lumMax, and m_opacityMax.
+     *  Only pixels intersecting the visible text widget and the available image are sampled.
+     *  Empty, hidden, or wholly off-image widgets leave their background unchanged.
      *
      * \note Call this version with the mutex already locked
      */
-    void mtxL_fontLuminance(
-        QTextEdit *qte, /**< [in/out] the QTextEdit to modify */
-        const sharedLockT &lock,
-        bool print = false /**< [in] [out] if true the average luminance is printed.  Used for debugging. */
+    void mtxL_fontLuminance( QTextEdit *qte,          /**< [in/out] the QTextEdit to modify */
+                             const sharedLockT &lock, /**< [in] Held shared image lock. */
+                             bool print = false       /**< [in] If true, print the average luminance for debugging. */
     );
 
     /// Sets the background transparency of a QTextEdit based on the average luminance of the background pixels.

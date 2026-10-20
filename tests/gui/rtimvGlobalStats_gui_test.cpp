@@ -1,12 +1,14 @@
 /** \file rtimvGlobalStats_gui_test.cpp
- * \brief Check independent global-statistics controls and readouts with real FITS images.
+ * \brief Check statistics controls, viewport centering, and overlay clipping with real FITS images.
  */
 
 #include <QApplication>
 #include <QCheckBox>
 #include <QEventLoop>
 #include <QFile>
+#include <QLineEdit>
 #include <QProcess>
+#include <QScrollBar>
 #include <QTabWidget>
 #include <QTemporaryDir>
 #include <QTextBlock>
@@ -14,7 +16,9 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <thread>
 
@@ -55,7 +59,193 @@ class TestWindow : public rtimvMainWindow
 
     /// Expose the existing notification source for observing processed pixel values.
     using RTIMV_BASE::m_foundation;
+
+    /// Evaluate overlay opacity using a temporary image without running the image update pipeline.
+    void sampleOverlay( QTextEdit *overlay, /**< [in,out] overlay whose background is updated */
+                        QImage *image,      /**< [in] temporary displayed image, or null for unavailable image */
+                        uint32_t width,     /**< [in] reported image width */
+                        uint32_t height     /**< [in] reported image height */
+    );
 };
+
+void TestWindow::sampleOverlay( QTextEdit *overlay, QImage *image, uint32_t width, uint32_t height )
+{
+    QImage *savedImage;
+    uint32_t savedWidth;
+    uint32_t savedHeight;
+#ifndef RTIMV_GRPC
+    std::vector<uint8_t> savedLightness;
+#endif
+    { // mutex scope
+        uniqueLockT lock( m_calMutex );
+        savedImage = m_qim;
+        savedWidth = m_nx;
+        savedHeight = m_ny;
+        m_qim = image;
+        m_nx = width;
+        m_ny = height;
+#ifndef RTIMV_GRPC
+        savedLightness = m_lightness;
+        m_lightness = { 0, 255 };
+#endif
+    }
+    { // mutex scope
+        sharedLockT lock( m_calMutex );
+        mtxL_fontLuminance( overlay, lock );
+    }
+    { // mutex scope
+        uniqueLockT lock( m_calMutex );
+        m_qim = savedImage;
+        m_nx = savedWidth;
+        m_ny = savedHeight;
+#ifndef RTIMV_GRPC
+        m_lightness = std::move( savedLightness );
+#endif
+    }
+}
+
+/// Position a viewport overlay over a chosen floating-point scene rectangle, including extreme coordinates.
+void mapOverlayToScene( rtimvGraphicsView *view, /**< [in,out] view mapping the overlay into image coordinates */
+                        QTextEdit *overlay,      /**< [in] viewport overlay to map */
+                        const QRectF &region     /**< [in] desired scene footprint */
+)
+{
+    const double sx = overlay->width() / region.width();
+    const double sy = overlay->height() / region.height();
+    view->setTransform( QTransform( sx, 0, 0, sy, overlay->x() - region.x() * sx, overlay->y() - region.y() * sy ) );
+    view->horizontalScrollBar()->setValue( 0 );
+    view->verticalScrollBar()->setValue( 0 );
+    const QRectF mapped = view->mapToScene( overlay->geometry() ).boundingRect();
+    if( std::abs( mapped.x() - region.x() ) >= 0.001 || std::abs( mapped.y() - region.y() ) >= 0.001 )
+    {
+        std::cerr << "requested scene origin " << region.x() << ',' << region.y() << "; mapped " << mapped.x() << ','
+                  << mapped.y() << "; transform " << view->transform().m11() << ',' << view->transform().m22() << ','
+                  << view->transform().dx() << ',' << view->transform().dy() << "; scroll "
+                  << view->horizontalScrollBar()->value() << ',' << view->verticalScrollBar()->value() << "; overlay "
+                  << overlay->x() << ',' << overlay->y() << ',' << overlay->width() << ',' << overlay->height() << '\n';
+    }
+    require( std::abs( mapped.x() - region.x() ) < 0.001 && std::abs( mapped.y() - region.y() ) < 0.001,
+             "test could not position the overlay in scene coordinates" );
+}
+
+/// Verify clipped opacity sampling and center-entry behavior through the actual local or remote GUI.
+void checkViewportBounds( std::vector<std::string> args /**< [in] viewer arguments */ )
+{
+    std::vector<char *> pointers;
+    for( auto &arg : args )
+        pointers.push_back( arg.data() );
+    pointers.push_back( nullptr );
+    TestWindow window( static_cast<int>( args.size() ), pointers.data() );
+    window.resize( 640, 640 );
+    window.show();
+    require( waitUntil( [&]() { return window.connected() && window.nx() == 32 && window.ny() == 32; } ),
+             "viewer did not receive the viewport-test image" );
+    auto *view = window.findChild<rtimvGraphicsView *>( "graphicsView" );
+    require( view, "graphics view missing" );
+    const QTransform savedTransform = view->transform();
+    const QRectF savedSceneRect = view->sceneRect();
+    view->setSceneRect( QRectF( -1e12, -1e12, 2e12, 2e12 ) );
+
+    QTextEdit overlay( view );
+    overlay.setGeometry( 0, 0, 20, 20 );
+    overlay.setPlainText( "test" );
+    overlay.show();
+    QImage image( 4, 4, QImage::Format_Indexed8 );
+    image.setColorTable( { qRgb( 0, 0, 0 ), qRgb( 255, 255, 255 ) } );
+    image.fill( 1 );
+    const QColor unchanged( 17, 34, 51, 77 );
+    const QColor opaque( 0, 0, 0, 150 );
+    const QColor transparent( 0, 0, 0, 0 );
+    const auto checkBackground = [&]( const QRectF &region, const QColor &expected, uint32_t width, uint32_t height )
+    {
+        mapOverlayToScene( view, &overlay, region );
+        overlay.setTextBackgroundColor( unchanged );
+        window.sampleOverlay( &overlay, &image, width, height );
+        require( overlay.textBackgroundColor() == expected, "overlay sampled the wrong image rectangle" );
+    };
+
+    // Entirely off-image overlays must not sample a fallback image rectangle or replace their existing background.
+    for( const QRectF &region : { QRectF( -4, -4, 2, 2 ),
+                                  QRectF( -3.58e9, -3.58e9, 2, 2 ),
+                                  QRectF( 3.58e9, 3.58e9, 2, 2 ),
+                                  QRectF( 6, 1, 2, 2 ),
+                                  QRectF( 1, 6, 2, 2 ) } )
+    {
+        checkBackground( region, unchanged, 4, 4 );
+    }
+
+    checkBackground( QRectF( -1.5, -1.5, 2, 2 ), opaque, 4, 4 );
+    checkBackground( QRectF( 3.5, 3.5, 2, 2 ), opaque, 4, 4 );
+    checkBackground( QRectF( 0.1, 0.1, 0.5, 0.5 ), opaque, 1, 1 );
+    checkBackground( QRectF( -1, -1, 8, 8 ), unchanged, 0, 4 );
+    checkBackground( QRectF( -1, -1, 8, 8 ), unchanged, 4, 0 );
+    checkBackground( QRectF( 6, 6, 2, 2 ), unchanged, 32, 32 );
+
+    // Clipping a left-edge region must include only its dark edge pixel and exclude the bright rest of the image.
+    image.fill( 1 );
+    image.setPixel( 0, 0, 0 );
+    checkBackground( QRectF( -1.5, -1.5, 2, 2 ), transparent, 4, 4 );
+    checkBackground( QRectF( 1.1, 1.1, 0.5, 0.5 ), opaque, 4, 4 );
+
+    mapOverlayToScene( view, &overlay, QRectF( 0, 0, 2, 2 ) );
+    overlay.setTextBackgroundColor( unchanged );
+    overlay.hide();
+    window.sampleOverlay( &overlay, &image, 4, 4 );
+    require( overlay.textBackgroundColor() == unchanged, "hidden overlay background was changed" );
+    overlay.show();
+    overlay.clear();
+    overlay.setTextBackgroundColor( unchanged );
+    window.sampleOverlay( &overlay, &image, 4, 4 );
+    require( overlay.textBackgroundColor() == unchanged, "empty overlay background was changed" );
+    overlay.setPlainText( "test" );
+    overlay.setTextBackgroundColor( unchanged );
+    window.sampleOverlay( &overlay, nullptr, 4, 4 );
+    require( overlay.textBackgroundColor() == unchanged, "unavailable image changed overlay background" );
+    QImage emptyImage;
+    window.sampleOverlay( &overlay, &emptyImage, 4, 4 );
+    require( overlay.textBackgroundColor() == unchanged, "null image changed overlay background" );
+    window.sampleOverlay( nullptr, &image, 4, 4 );
+    overlay.hide();
+
+    view->setSceneRect( savedSceneRect );
+    view->setTransform( savedTransform );
+    window.launchControlPanel();
+    auto *xEntry = window.findChild<QLineEdit *>( "xcenEntry" );
+    auto *yEntry = window.findChild<QLineEdit *>( "ycenEntry" );
+    require( xEntry && yEntry, "view-center entries missing" );
+    const auto checkCenter = [&]( float x, float y )
+    {
+        require( std::abs( window.get_xcen() - x ) < 0.001 && std::abs( window.get_ycen() - y ) < 0.001,
+                 "viewport center moved to the wrong scene coordinates" );
+    };
+    const auto edit = [&]( QLineEdit *entry, const QString &value )
+    {
+        entry->setText( value );
+        require( QMetaObject::invokeMethod( entry, "editingFinished", Qt::DirectConnection ),
+                 "could not invoke center entry editingFinished" );
+    };
+    window.mtxUL_setViewCen( 0.25, 0.625 );
+    edit( xEntry, "12" );
+    checkCenter( 12, 20 );
+    edit( yEntry, "10" );
+    checkCenter( 12, 10 );
+    for( const QString &invalid : { QString( "invalid" ), QString( "nan" ), QString( "inf" ) } )
+    {
+        edit( xEntry, invalid );
+        edit( yEntry, invalid );
+        checkCenter( 12, 10 );
+    }
+    window.mtxUL_setViewCen( std::numeric_limits<float>::infinity(), 0.5 );
+    window.mtxUL_setViewCen( 0.5, std::numeric_limits<float>::quiet_NaN() );
+    checkCenter( 12, 10 );
+    window.mtxUL_setViewCen( 2.5, -1.5 );
+    checkCenter( 80, -48 );
+    view->setTransform( QTransform::fromTranslate( 3.58e9, 3.58e9 ) );
+    window.mtxUL_setViewCen( 0.5, 0.5 );
+    checkCenter( 16, 16 );
+    view->setTransform( savedTransform );
+    window.mtxUL_setViewCen( 0.5, 0.5 );
+}
 
 /// Check known full-image or masked values for the 32x32 gradient fixture.
 void checkValues( const rtimv::globalStatsState &stats, /**< [in] measured global statistics */
@@ -166,6 +356,7 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
         std::vector<std::string> args{
             "global-stats-test", "--image.key=" + imagePath, "--mask.key=" + maskPath, "--mzmq.always=false" };
         const bool startupTests = qEnvironmentVariableIsSet( "RTIMV_TEST_GLOBAL_STARTUP" );
+        const bool viewportTests = qEnvironmentVariableIsSet( "RTIMV_TEST_VIEWPORT_BOUNDS" );
 #ifdef RTIMV_GRPC
         require( argc > 1, "server executable path missing" );
         int port = 0;
@@ -189,7 +380,11 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
         args.push_back( "--server=127.0.0.1" );
         args.push_back( "--port=" + std::to_string( port ) );
 #endif
-        if( startupTests )
+        if( viewportTests )
+        {
+            checkViewportBounds( args );
+        }
+        else if( startupTests )
         {
             const QString configPath = directory.filePath( "startup.conf" );
             QFile configFile( configPath );
