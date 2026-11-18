@@ -383,7 +383,7 @@ property the overlay needs. Do not use dictionary blobs as command queues or
 create a second connection. The bridge currently sends Number and Switch vectors;
 Text can be observed but is not an outgoing command type.
 
-The main-window QObject also exposes these optional slots without changing
+The main-window QObject also exposes these optional invokable methods without changing
 `rtimvOverlayAccess`:
 
 - `newUserBoxRect()` returns the standard new-box placement at the current zoom
@@ -398,6 +398,25 @@ The main-window QObject also exposes these optional slots without changing
   luminance treatment. Messages retain the configured font size: the box expands
   to fit the text and wraps within a narrow view. Resizing the view reflows the
   message without restarting its timeout; short messages use a compact box.
+- `mtxTry_fontLuminance(QTextEdit*, bool)` applies the existing adaptive text-background
+  opacity to a plugin-owned text widget. Invoke it directly on the GUI thread after
+  updating the widget's text and final geometry, passing `false` for the diagnostic
+  flag. The widget should be parented to `m_graphicsView`. The host samples that
+  widget's displayed-image region and attempts the image lock without blocking;
+  it does not retain or own the widget. Check for the method before invoking it on
+  older hosts. Refresh even when the text is unchanged, since the image can change.
+  Save the widget's text cursor, select the document, invoke the method, and restore
+  the cursor to apply the background to existing characters. With no selection,
+  Qt changes only the insertion format.
+  To match native global-statistics typography, copy the font and text color from
+  `m_graphicsView->globalStatsText()` instead of reconstructing a font from the
+  smaller status-text settings.
+
+The optional GUI integration check accepts `RTIMV_TEST_VALUE_DISPLAY_PLUGIN` as
+the path to a matching MagAO-X value-display plugin. Run `rtimvGlobalStatsGuiTest`
+or `rtimvGlobalStatsClientGuiTest <rtimvServer>` with `QT_QPA_PLATFORM=offscreen` and
+that variable set. It uses generated FITS data, an in-memory dictionary, and local
+or loopback processing; it does not open an INDI connection.
 
 `StretchBox::editStarted` and `editFinished` mark user mouse editing. Existing
 `moved`/`resized` signals can fire repeatedly during a drag. Stage camera commands
