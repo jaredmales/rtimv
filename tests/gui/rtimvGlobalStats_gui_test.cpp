@@ -42,7 +42,9 @@ namespace
 void require( bool condition /**< [in] required condition */, const char *message /**< [in] failure description */ )
 {
     if( !condition )
+    {
         throw std::runtime_error( message );
+    }
 }
 
 /// Process ordinary UI events until a bounded condition is satisfied.
@@ -298,7 +300,9 @@ void checkViewportBounds( std::vector<std::string> args /**< [in] viewer argumen
 {
     std::vector<char *> pointers;
     for( auto &arg : args )
+    {
         pointers.push_back( arg.data() );
+    }
     pointers.push_back( nullptr );
     TestWindow window( static_cast<int>( args.size() ), pointers.data() );
     window.resize( 640, 640 );
@@ -548,7 +552,9 @@ void checkMouseCentering( std::vector<std::string> args /**< [in] viewer argumen
 {
     std::vector<char *> pointers;
     for( auto &arg : args )
+    {
         pointers.push_back( arg.data() );
+    }
     pointers.push_back( nullptr );
     TestWindow window( static_cast<int>( args.size() ), pointers.data() );
     window.resize( 640, 640 );
@@ -676,7 +682,9 @@ void checkStartup( std::vector<std::string> args, /**< [in] viewer arguments */
 {
     std::vector<char *> pointers;
     for( auto &arg : args )
+    {
         pointers.push_back( arg.data() );
+    }
     pointers.push_back( nullptr );
     TestWindow window( static_cast<int>( args.size() ), pointers.data() );
     window.show();
@@ -843,7 +851,9 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
 
             std::vector<char *> pointers;
             for( auto &arg : args )
+            {
                 pointers.push_back( arg.data() );
+            }
             pointers.push_back( nullptr );
             rtimvMainWindow window( static_cast<int>( args.size() ), pointers.data() );
             window.resize( 640, 640 );
@@ -955,7 +965,9 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
             serverProcess.waitForFinished( 1000 );
         }
         if( result )
+        {
             std::cerr << serverProcess.readAllStandardError().toStdString();
+        }
     }
     return result;
 }
