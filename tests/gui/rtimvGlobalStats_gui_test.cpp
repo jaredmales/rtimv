@@ -15,13 +15,16 @@
 #include <QScrollBar>
 #include <QTabWidget>
 #include <QTemporaryDir>
+#include <QTemporaryFile>
 #include <QTextBlock>
+#include <QTextFragment>
 #include <QTextLayout>
 #include <QWheelEvent>
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <functional>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
@@ -69,7 +72,9 @@ class TestWindow : public rtimvMainWindow
     void sampleOverlay( QTextEdit *overlay, /**< [in,out] overlay whose background is updated */
                         QImage *image,      /**< [in] temporary displayed image, or null for unavailable image */
                         uint32_t width,     /**< [in] reported image width */
-                        uint32_t height     /**< [in] reported image height */
+                        uint32_t height,    /**< [in] reported image height */
+                        const std::function<void()> &refresh = {}
+                        /**< [in] Optional plugin refresh using the temporary image. */
     );
 
     /// Return the visible warning border's outline in scene coordinates without refreshing its geometry.
@@ -82,7 +87,8 @@ QRectF TestWindow::warningBorderSceneRect() const
     return m_borderBox->mapRectToScene( m_borderBox->rect() );
 }
 
-void TestWindow::sampleOverlay( QTextEdit *overlay, QImage *image, uint32_t width, uint32_t height )
+void TestWindow::sampleOverlay(
+    QTextEdit *overlay, QImage *image, uint32_t width, uint32_t height, const std::function<void()> &refresh )
 {
     QImage *savedImage;
     uint32_t savedWidth;
@@ -103,9 +109,16 @@ void TestWindow::sampleOverlay( QTextEdit *overlay, QImage *image, uint32_t widt
         m_lightness = { 0, 255 };
 #endif
     }
-    { // mutex scope
-        sharedLockT lock( m_calMutex );
-        mtxL_fontLuminance( overlay, lock );
+    bool invoked = true;
+
+    if( refresh )
+    {
+        refresh();
+    }
+    else
+    {
+        invoked = QMetaObject::invokeMethod(
+            this, "mtxTry_fontLuminance", Qt::DirectConnection, Q_ARG( QTextEdit *, overlay ), Q_ARG( bool, false ) );
     }
     { // mutex scope
         uniqueLockT lock( m_calMutex );
@@ -116,6 +129,8 @@ void TestWindow::sampleOverlay( QTextEdit *overlay, QImage *image, uint32_t widt
         m_lightness = std::move( savedLightness );
 #endif
     }
+
+    require( invoked, "native overlay luminance method is not invokable" );
 }
 
 /// Position a viewport overlay over a chosen floating-point scene rectangle, including extreme coordinates.
@@ -140,6 +155,142 @@ void mapOverlayToScene( rtimvGraphicsView *view, /**< [in,out] view mapping the 
     }
     require( std::abs( mapped.x() - region.x() ) < 0.001 && std::abs( mapped.y() - region.y() ) < 0.001,
              "test could not position the overlay in scene coordinates" );
+}
+
+/// Check rendered character formatting rather than only the text cursor's insertion format.
+void checkTextBackground( QTextEdit *text, /**< [in] Overlay whose existing characters are checked. */
+                          int alpha        /**< [in] Expected background opacity of every text fragment. */
+)
+{
+    bool found = false;
+
+    for( auto block = text->document()->begin(); block.isValid(); block = block.next() )
+    {
+        for( auto entry = block.begin(); !entry.atEnd(); ++entry )
+        {
+            const auto fragment = entry.fragment();
+
+            if( !fragment.isValid() || fragment.text().isEmpty() )
+            {
+                continue;
+            }
+
+            const auto background = fragment.charFormat().background();
+            const int opacity = background.style() == Qt::NoBrush ? 0 : background.color().alpha();
+            require( opacity == alpha, "rendered plugin characters retain an outdated background" );
+            found = true;
+        }
+    }
+
+    require( found, "plugin contains no rendered characters" );
+}
+
+/// Verify an optional external value-display plugin through the real native host and displayed-image sampler.
+void checkValueDisplay( std::vector<std::string> args, /**< [in] Local or loopback viewer arguments. */
+                        const QString &pluginPath      /**< [in] Shared plugin built against the matching Qt version. */
+)
+{
+    std::vector<char *> pointers;
+
+    for( auto &arg : args )
+    {
+        pointers.push_back( arg.data() );
+    }
+
+    pointers.push_back( nullptr );
+    TestWindow window( static_cast<int>( args.size() ), pointers.data() );
+    window.resize( 640, 640 );
+    window.show();
+    require( waitUntil( [&]() { return window.connected() && window.nx() == 32 && window.ny() == 32; } ),
+             "viewer did not receive the plugin-test image" );
+    auto *view = window.findChild<rtimvGraphicsView *>( "graphicsView" );
+    require( view, "graphics view missing" );
+    window.setGlobalStats( true );
+    require( waitUntil( [&]() { return window.globalStats().m_status == rtimv::globalStatsStatus::valid; } ),
+             "native global statistics did not become available" );
+    window.updateGlobalStatsOverlay();
+
+    QTemporaryFile configuration;
+    require( configuration.open(), "could not create plugin configuration" );
+    const QByteArray settings = "[valueDisplay]\nkey1=offline.values.dx\nkey2=offline.values.dy\n";
+    require( configuration.write( settings ) == settings.size() && configuration.flush(),
+             "could not write plugin configuration" );
+    mx::app::appConfigurator config;
+    require( config.readConfig( configuration.fileName().toStdString() ) == 0, "could not read plugin configuration" );
+    dictionaryT dictionary;
+    dictionary["offline.values.dx"].setBlob( "-0.482", 7 );
+    dictionary["offline.values.dy"].setBlob( "-1.898", 7 );
+    QPluginLoader loader( pluginPath );
+    auto *overlay = qobject_cast<rtimvOverlayInterface *>( loader.instance() );
+    require( overlay, "could not load the value-display overlay interface" );
+    rtimvOverlayAccess access;
+    access.m_mainWindowObject = &window;
+    access.m_graphicsView = view;
+    access.m_dictionary = &dictionary;
+    require( overlay->attachOverlay( access, config ) == 0, "value-display attachment failed" );
+    auto *text = view->findChild<QTextEdit *>( "valueDisplayText" );
+    require( text && text->isVisible(), "value-display text missing" );
+    require( text->toPlainText() == "dx: -0.482\ndy: -1.898", "value-display content is incorrect" );
+    require( text->currentFont() == view->globalStatsText()->currentFont(),
+             "plugin font differs from native statistics" );
+    require( text->textColor() == view->globalStatsText()->textColor(),
+             "plugin text color differs from native statistics" );
+    require( !text->geometry().intersects( view->globalStatsText()->geometry() ), "plugin overlaps native statistics" );
+
+    const QString screenshot = qEnvironmentVariable( "RTIMV_TEST_SCREENSHOT" );
+
+    if( !screenshot.isEmpty() )
+    {
+        require( window.grab().save( screenshot ), "could not save plugin appearance screenshot" );
+    }
+
+    view->setSceneRect( QRectF( -1e6, -1e6, 2e6, 2e6 ) );
+    mapOverlayToScene( view, text, QRectF( 0, 16, 16, 8 ) );
+    QImage image( 32, 32, QImage::Format_Indexed8 );
+    image.setColorTable( { qRgb( 0, 0, 0 ), qRgb( 255, 255, 255 ) } );
+    const auto refresh = [&]() { overlay->updateOverlay(); };
+
+    for( int brightness : { 0, 1, 0 } )
+    {
+        image.fill( brightness );
+        window.sampleOverlay( text, &image, 32, 32, refresh );
+        checkTextBackground( text, brightness ? 150 : 0 );
+        require( text->toPlainText() == "dx: -0.482\ndy: -1.898", "luminance refresh changed plugin values" );
+    }
+
+    // The stats widget lies above the values: only the values' image region is bright.
+    for( int y = 16; y < image.height(); ++y )
+    {
+        for( int x = 0; x < image.width(); ++x )
+        {
+            image.setPixel( x, y, 1 );
+        }
+    }
+
+    window.sampleOverlay( view->globalStatsText(), &image, 32, 32 );
+    window.sampleOverlay( text, &image, 32, 32, refresh );
+    require( view->globalStatsText()->textBackgroundColor().alpha() == 0,
+             "mixed-image fixture did not leave native statistics over dark pixels" );
+    checkTextBackground( text, 150 );
+
+    image.fill( 0 );
+    dictionary["offline.values.dx"].setBlob( "12.345", 7 );
+    window.sampleOverlay( text, &image, 32, 32, refresh );
+    require( text->toPlainText() == "dx: 12.345\ndy: -1.898",
+             "changed values did not retain native adaptive formatting" );
+    checkTextBackground( text, 0 );
+    window.resize( 480, 480 );
+    QCoreApplication::processEvents();
+    window.updateGlobalStatsOverlay();
+    overlay->updateOverlay();
+    view->setSceneRect( QRectF( -1e6, -1e6, 2e6, 2e6 ) );
+    mapOverlayToScene( view, text, QRectF( 0, 16, 16, 8 ) );
+    image.fill( 1 );
+    window.sampleOverlay( text, &image, 32, 32, refresh );
+    checkTextBackground( text, 150 );
+    require( !text->geometry().intersects( view->globalStatsText()->geometry() ),
+             "plugin resize lost adaptive appearance or statistics separation" );
+    require( loader.unload(), "value-display plugin did not unload" );
 }
 
 /// Verify clipped opacity sampling and center-entry behavior through the actual local or remote GUI.
@@ -605,6 +756,7 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
         const bool startupTests = qEnvironmentVariableIsSet( "RTIMV_TEST_GLOBAL_STARTUP" );
         const bool viewportTests = qEnvironmentVariableIsSet( "RTIMV_TEST_VIEWPORT_BOUNDS" );
         const bool mouseCenterTests = qEnvironmentVariableIsSet( "RTIMV_TEST_MOUSE_CENTER" );
+        const QString valueDisplayPlugin = qEnvironmentVariable( "RTIMV_TEST_VALUE_DISPLAY_PLUGIN" );
 #ifdef RTIMV_GRPC
         require( argc > 1, "server executable path missing" );
         int port = 0;
@@ -628,7 +780,11 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
         args.push_back( "--server=127.0.0.1" );
         args.push_back( "--port=" + std::to_string( port ) );
 #endif
-        if( mouseCenterTests )
+        if( !valueDisplayPlugin.isEmpty() )
+        {
+            checkValueDisplay( args, valueDisplayPlugin );
+        }
+        else if( mouseCenterTests )
         {
             checkMouseCentering( args );
         }

@@ -1190,11 +1190,15 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
      * the values of m_lumThresh, m_lumMax, and m_opacityMax.
      *
      * \note Call this version with the mutex unlocked
+     * \note Overlay plugins may invoke this method on the main-window QObject from the GUI thread after positioning
+     * their text widget. The image lock is attempted without blocking; no widget ownership is transferred.
+     * Select existing text before invoking to update its background, then restore the saved cursor. Without a
+     * selection, QTextEdit updates only the current insertion format.
      *
      */
-    void mtxTry_fontLuminance(
+    Q_INVOKABLE void mtxTry_fontLuminance(
         QTextEdit *qte,    /**< [in/out] the QTextEdit to modify */
-        bool print = false /**< [in] [out] if true the average luminance is printed.  Used for debugging. */
+        bool print = false /**< [in] Whether to print the measured average luminance for diagnostics. */
     );
 
     /// Update the background opacity for all the text fields.  Called periodically.
