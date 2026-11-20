@@ -1,13 +1,11 @@
 /** \file mzmqImage.hpp
  * \brief Declarations for the mzmqImage management class
- *
- * \author Jared R. Males (jaredmales@gmail.com)
- *
  */
 
 #ifndef rtimv_mzmqImage_hpp
 #define rtimv_mzmqImage_hpp
 
+#include <ctime>
 #include <thread>
 
 #ifndef ZMQ_BUILD_DRAFT_API
@@ -51,6 +49,9 @@ struct mzmqImage : public rtimvImage
 
     /// Previous frame number, stored to detect new image
     uint64_t m_lastCnt0{ std::numeric_limits<uint64_t>::max() }; // make huge so we don't skip the 0 image
+
+    timespec m_writeTime{};     ///< Write timestamp of the latest decoded frame.
+    timespec m_lastWriteTime{}; ///< Write timestamp of the last frame presented to the viewer.
 
     /// Counts how many times the FPS has been updated
     int m_fps_counter{ 0 };

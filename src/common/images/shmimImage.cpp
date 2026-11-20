@@ -1,3 +1,7 @@
+/** \file shmimImage.cpp
+ * \brief Read and monitor ImageStreamIO frames in local shared memory.
+ */
+
 #include "shmimImage.hpp"
 
 #include <fcntl.h>
@@ -200,7 +204,6 @@ int shmimImage::update()
     }
 
     int64_t curr_image;
-    uint64_t cnt0;
 
     uint32_t snx, sny;
 
@@ -242,16 +245,19 @@ int shmimImage::update()
         return RTIMVIMAGE_NOUPDATE;
     }
 
-    cnt0 = m_image.md->cnt0;
+    const uint64_t cnt0 = m_image.md->cnt0;
+    const timespec writeTime = m_image.md->writetime;
 
-    if( cnt0 != m_lastCnt0 ) // Only redraw if it's actually a new image.
+    if( m_image.md->write == 0 && ( !m_data || cnt0 != m_lastCnt0 || writeTime.tv_sec != m_lastWriteTime.tv_sec ||
+                                    writeTime.tv_nsec != m_lastWriteTime.tv_nsec ) )
     {
         std::lock_guard<std::mutex> guard( *m_accessMutex );
 
         m_data = ( (char *)( m_image.array.raw ) ) + curr_image * snx * sny * m_typeSize;
-        m_imageTime = m_image.md->writetime.tv_sec + ( (double)m_image.md->writetime.tv_nsec ) / 1e9;
+        m_imageTime = writeTime.tv_sec + ( (double)writeTime.tv_nsec ) / 1e9;
 
         m_lastCnt0 = cnt0;
+        m_lastWriteTime = writeTime;
         m_age_counter = 0;
 
         if( m_fps_counter > 1000 / m_timeout )

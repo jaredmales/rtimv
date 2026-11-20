@@ -1,3 +1,7 @@
+/** \file mzmqImage.cpp
+ * \brief Receive and display ImageStreamIO frames over milkzmq.
+ */
+
 #include "mzmqImage.hpp"
 
 #include <iostream>
@@ -386,8 +390,6 @@ void mzmqImage::imageThreadExec()
                 xrif_set_compress_method( xrif, *( (int16_t *)( raw_image + xrifCompressOffset ) ) );
 
                 xe = xrif_allocate( xrif );
-
-                m_imageAttached = true;
             }
 
             atype = new_atype;
@@ -395,20 +397,23 @@ void mzmqImage::imageThreadExec()
             nx = new_nx;
             ny = new_ny;
 
-            m_cnt0 = *( (uint64_t *)( raw_image + cnt0Offset ) );
-            uint64_t tv_sec = *( (uint64_t *)( raw_image + tv_secOffset ) );
-            uint64_t tv_nsec = *( (uint64_t *)( raw_image + tv_nsecOffset ) );
-
-            m_imageTime = tv_sec + ( (double)tv_nsec ) / 1e9;
-
             xrif->compressed_size = *( (uint32_t *)( raw_image + xrifSizeOffset ) );
 
             memcpy( xrif->raw_buffer, raw_image + imageOffset, xrif->compressed_size );
             xe = xrif_decode( xrif );
 
-            if( !m_imageAttached || m_timeToDie )
-                continue; // Check that detach wasn't called.
-            memcpy( m_data, xrif->raw_buffer, nx * ny * typesize );
+            { // mutex scope
+                std::lock_guard<std::mutex> guard( *m_accessMutex );
+                if( !m_data || m_timeToDie )
+                    continue;
+
+                memcpy( m_data, xrif->raw_buffer, nx * ny * typesize );
+                m_cnt0 = *( (uint64_t *)( raw_image + cnt0Offset ) );
+                m_writeTime.tv_sec = *( (uint64_t *)( raw_image + tv_secOffset ) );
+                m_writeTime.tv_nsec = *( (uint64_t *)( raw_image + tv_nsecOffset ) );
+                m_imageTime = m_writeTime.tv_sec + ( (double)m_writeTime.tv_nsec ) / 1e9;
+                m_imageAttached = true;
+            }
 
 #ifdef MZMQ_FPS_MONITORING
             if( Nrecvd >= 10 )
@@ -469,7 +474,9 @@ void mzmqImage::imageThreadExec()
 
 int mzmqImage::update()
 {
-    if( !m_data )
+    std::lock_guard<std::mutex> guard( *m_accessMutex );
+
+    if( !m_imageAttached )
     {
         if( m_age_counter > 1000 / m_timeout )
         {
@@ -485,9 +492,11 @@ int mzmqImage::update()
         }
     }
 
-    if( m_cnt0 != m_lastCnt0 ) // Only redraw if it's actually a new image.
+    if( m_cnt0 != m_lastCnt0 || m_writeTime.tv_sec != m_lastWriteTime.tv_sec ||
+        m_writeTime.tv_nsec != m_lastWriteTime.tv_nsec )
     {
         m_lastCnt0 = m_cnt0;
+        m_lastWriteTime = m_writeTime;
         m_age_counter = 0;
 
         if( m_fps_counter > 1000 / m_timeout )
