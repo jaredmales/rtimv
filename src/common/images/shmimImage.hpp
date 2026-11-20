@@ -1,14 +1,13 @@
 /** \file shmimImage.hpp
  * \brief Declarations for the shmimImage shared memory management class
- *
- * \author Jared R. Males (jaredmales@gmail.com)
- *
  */
 
 #ifndef rtimv_shmimImage_hpp
 #define rtimv_shmimImage_hpp
 
 #ifdef MXLIB_MILK
+
+    #include <ctime>
 
     #include "../rtimvImage.hpp"
     #include "pixaccess.hpp"
@@ -46,6 +45,8 @@ struct shmimImage : public rtimvImage
 
     /// Previous frame number, stored to detect new image
     uint64_t m_lastCnt0{ std::numeric_limits<uint64_t>::max() }; // make huge so we don't skip the 0 image
+
+    timespec m_lastWriteTime{}; ///< Write timestamp of the last frame presented to the viewer.
 
     /// Counts how many times the FPS has been updated
     int m_fps_counter{ 0 };
