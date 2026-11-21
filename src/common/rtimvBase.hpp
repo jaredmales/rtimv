@@ -12,6 +12,7 @@
 #include <shared_mutex>
 #include <string_view>
 
+#include <QBitArray>
 #include <QImage>
 
 #include <mx/app/application.hpp>
@@ -1245,7 +1246,13 @@ class rtimvBase : public mx::app::application
 
     std::vector<uint8_t> m_lightness; ///< The perceived lightness values of the colormap RGB values
 
+    /// Ordinary mask bits for the current rendered frame, in top-down display order.
+    QBitArray m_displayMask;
+
   private:
+    /// Zero-valued ordinary mask locations sampled with the calibrated input, before display overrides.
+    QBitArray m_calibratedDisplayMask;
+
     /// An internal mutex to track if image data is being changed
     /**
      * This is used to avoid unecessary/redundant recolors
@@ -1275,6 +1282,9 @@ class rtimvBase : public mx::app::application
     void mtxL_applyFilter();
 
   private:
+    /// Snapshot zero-valued mask pixels, with the calibration and raw-data mutexes held.
+    void mtxL_snapshotDisplayMask( pixelF pixel /**< [in] calibration function selected for the current input */ );
+
     /// Color the image based on the current colormap configuration and stretch
     /** This uses the specified color scale (linear, log, etc), and the
      * specified stretch.  If all pixels are equal they are all set to 0.

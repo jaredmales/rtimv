@@ -202,6 +202,15 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
   protected:
     QPixmap m_qpm; ///< A QT pixmap, used to prep the QImage for display.
 
+    /// Configured mask color. An invalid color selects the window background.
+    QColor m_displayMaskColor;
+
+    /// Resolve the masked-pixel color against the current window palette.
+    QColor displayMaskColor() const;
+
+    /// Refresh the rendered mask when the window palette changes.
+    void changeEvent( QEvent *event /**< [in] widget change notification */ ) override;
+
     /// Owned graphics scene containing the image and overlay items.
     QGraphicsScene *m_qgs{ nullptr };
     /// Scene-owned item presenting the current image pixmap.

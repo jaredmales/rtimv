@@ -1209,6 +1209,7 @@ void rtimvClientBase::ImagePlease()
             state->m_context = std::make_unique<grpc::ClientContext>();
             state->m_context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 10000 ) );
             state->m_connectionGeneration = connectionGeneration;
+            state->m_request.set_include_display_mask( true );
 
             const uint64_t requestId = m_nextImageRequestId++;
             m_inflightImageRequests.emplace( requestId, state );
@@ -1562,6 +1563,18 @@ void rtimvClientBase::ImageReceived()
         compressedBytes = static_cast<size_t>( grpcImage.image().size() );
         hasImagePayload = m_qim->loadFromData(
             reinterpret_cast<const uchar *>( grpcImage.image().data() ), grpcImage.image().size(), "jpeg" );
+        m_displayMask.clear();
+        if( hasImagePayload && m_qim->width() == nx && m_qim->height() == ny )
+        {
+            using bitIndexT = decltype( m_displayMask.size() );
+            const uint64_t pixelCount = static_cast<uint64_t>( nx ) * ny;
+            const auto &mask = grpcImage.display_mask();
+            if( !mask.empty() && pixelCount <= static_cast<uint64_t>( std::numeric_limits<bitIndexT>::max() ) &&
+                mask.size() == ( pixelCount + 7 ) / 8 )
+            {
+                m_displayMask = QBitArray::fromBits( mask.data(), static_cast<bitIndexT>( pixelCount ) );
+            }
+        }
     }
 
     std::shared_mutex dummy; // Used just to satisfy the requirement, not needed

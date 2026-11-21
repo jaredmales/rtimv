@@ -377,6 +377,8 @@ message CubeFrameDeltaResponse
 
 message ImageRequest
 {
+    // The viewer supports receiving mask locations independently of JPEG colors.
+    bool include_display_mask = 1;
 }
 
 enum ImageStatus
@@ -459,6 +461,10 @@ message Image
     reserved "mask_stats";
 
     GlobalStatsState global_stats = 209;
+
+    // Optional ordinary display mask for the JPEG above. Bits are packed from least to most
+    // significant in top-down row-major order, with no row padding. A set bit marks a masked pixel.
+    bytes display_mask = 210;
 }
 
 message GlobalStatsRequest

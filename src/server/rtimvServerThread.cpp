@@ -261,9 +261,9 @@ void rtimvServerThread::mtxL_postColormode( rtimv::colormode m, const sharedLock
     static_cast<void>( lock );
 }
 
-void rtimvServerThread::mtxuL_render( std::string *image )
+void rtimvServerThread::mtxL_render( remote_rtimv::Image &reply, bool includeDisplayMask, const uniqueLockT &lock )
 {
-    sharedLockT lock( m_calMutex );
+    assert( lock.owns_lock() );
 
     QByteArray renderedImage;
     QBuffer buffer( &renderedImage );
@@ -271,7 +271,11 @@ void rtimvServerThread::mtxuL_render( std::string *image )
 
     m_qim->save( &buffer, "jpeg", m_quality.load( std::memory_order_relaxed ) );
 
-    *image = renderedImage.toStdString();
+    reply.set_image( renderedImage.constData(), renderedImage.size() );
+    if( includeDisplayMask && !m_displayMask.isEmpty() )
+    {
+        reply.set_display_mask( m_displayMask.bits(), ( static_cast<size_t>( m_displayMask.size() ) + 7 ) / 8 );
+    }
 }
 
 void rtimvServerThread::setImageTimeout( int to )
@@ -356,10 +360,12 @@ uint32_t rtimvServerThread::rpcActive()
     return m_activeRpc.load( std::memory_order_relaxed );
 }
 
-grpc::ServerUnaryReactor *rtimvServerThread::newImagePleaseReactor( remote_rtimv::Image *reply )
+grpc::ServerUnaryReactor *rtimvServerThread::newImagePleaseReactor( remote_rtimv::Image *reply,
+                                                                    bool includeDisplayMask )
 {
     std::shared_ptr<pendingImageRequest> request = std::make_shared<pendingImageRequest>();
     request->m_reply = reply;
+    request->m_includeDisplayMask = includeDisplayMask;
     request->m_enqueueTime = mx::sys::get_curr_time();
 
     auto *reactor = new pendingImageReactor( this, request );
@@ -527,19 +533,13 @@ void rtimvServerThread::servicePendingImageRequests()
 
     const uint64_t deliverSerial = m_responseSerial.load( std::memory_order_relaxed );
 
-    std::string *image = new std::string;
-    mtxuL_render( image );
-
     if( request->m_reply != nullptr )
     {
+        uniqueLockT lock( m_calMutex );
         request->m_reply->set_status( remote_rtimv::IMAGE_STATUS_VALID );
         request->m_reply->set_response_serial( deliverSerial );
         populateImageReply( request->m_reply );
-        request->m_reply->set_allocated_image( image );
-    }
-    else
-    {
-        delete image;
+        mtxL_render( *request->m_reply, request->m_includeDisplayMask, lock );
     }
 
     request->finish( grpc::Status::OK );

@@ -543,6 +543,16 @@ void rtimvMainWindow::setupConfig()
                 false,
                 "bool",
                 "Show the stats box in dialog mode at startup. Default is false." );
+
+    config.add( "mask.color",
+                "",
+                "mask.color",
+                mx::app::argType::Required,
+                "mask",
+                "color",
+                false,
+                "string",
+                "Opaque color for masked pixels, as a color name or #RRGGBB. Defaults to the window background." );
 }
 
 void rtimvMainWindow::loadConfig()
@@ -574,6 +584,17 @@ void rtimvMainWindow::loadConfig()
     config( m_userItemCrossWidthMin, "tools.crossWidthMin" );
     config( m_warningBorderWidth, "tools.warningBorderWidth" );
     config( m_statsShowDialogOnStartup, "stats.showDialog" );
+
+    if( config.isSet( "mask.color" ) )
+    {
+        std::string colorName;
+        config( colorName, "mask.color" );
+        m_displayMaskColor = QColor( QString::fromStdString( colorName ) );
+        if( !m_displayMaskColor.isValid() || m_displayMaskColor.alpha() != 255 )
+        {
+            throw std::runtime_error( "rtimv: invalid mask.color '" + colorName + "'. Use an opaque color." );
+        }
+    }
 }
 
 void rtimvMainWindow::onConnect()
@@ -743,6 +764,29 @@ void rtimvMainWindow::post_zoomLevel()
     RTIMV_DEBUG_BREADCRUMB
 }
 
+QColor rtimvMainWindow::displayMaskColor() const
+{
+    return m_displayMaskColor.isValid() ? m_displayMaskColor : palette().color( QPalette::Window );
+}
+
+void rtimvMainWindow::changeEvent( QEvent *event )
+{
+    QWidget::changeEvent( event );
+    if( event->type() == QEvent::PaletteChange && !m_displayMaskColor.isValid() && m_qpmi )
+    {
+        QTimer::singleShot( 0,
+                            this,
+                            [this]()
+                            {
+                                sharedLockT lock( m_calMutex );
+                                if( !m_displayMask.isEmpty() )
+                                {
+                                    mtxL_postRecolor( lock );
+                                }
+                            } );
+    }
+}
+
 template <class lockT>
 void rtimvMainWindow::mtxL_postRecolorImpl( const lockT &lock )
 {
@@ -752,7 +796,29 @@ void rtimvMainWindow::mtxL_postRecolorImpl( const lockT &lock )
 
     RTIMV_DEBUG_BREADCRUMB
 
-    m_qpm.convertFromImage( *m_qim, Qt::AutoColor | Qt::ThresholdDither );
+    if( m_displayMask.isEmpty() )
+    {
+        m_qpm.convertFromImage( *m_qim, Qt::AutoColor | Qt::ThresholdDither );
+    }
+    else
+    {
+        QImage image = m_qim->convertToFormat( QImage::Format_RGB32 );
+        const QRgb color = displayMaskColor().rgb();
+        using bitIndexT = decltype( m_displayMask.size() );
+        for( int y = 0; y < image.height(); ++y )
+        {
+            auto *line = reinterpret_cast<QRgb *>( image.scanLine( y ) );
+            const bitIndexT row = static_cast<bitIndexT>( y ) * image.width();
+            for( int x = 0; x < image.width(); ++x )
+            {
+                if( m_displayMask.testBit( row + x ) )
+                {
+                    line[x] = color;
+                }
+            }
+        }
+        m_qpm.convertFromImage( image, Qt::AutoColor | Qt::ThresholdDither );
+    }
 
     RTIMV_DEBUG_BREADCRUMB
 
@@ -779,6 +845,17 @@ void rtimvMainWindow::mtxL_postRecolorImpl( const lockT &lock )
     {
         m_qpmi->setPixmap( m_qpm );
         RTIMV_DEBUG_BREADCRUMB
+    }
+
+    if( imcp && imcp->m_viewViewMode == ViewViewEnabled )
+    {
+        if( !imcp->m_qpmiView )
+        {
+            imcp->m_qpmiView = imcp->m_qgsView->addPixmap( m_qpm );
+        }
+
+        imcp->m_qpmiView->setPixmap( m_qpm );
+        imcp->m_qpmiView->stackBefore( imcp->m_viewLineVert );
     }
 
     RTIMV_DEBUG_BREADCRUMB
@@ -857,23 +934,6 @@ void rtimvMainWindow::mtxL_postChangeImdata( const sharedLockT &lock )
     if( m_northArrowTip )
     {
         m_qpmi->stackBefore( m_northArrowTip );
-    }
-
-    RTIMV_DEBUG_BREADCRUMB
-
-    if( imcp )
-    {
-        if( imcp->m_viewViewMode == ViewViewEnabled )
-        {
-            if( !imcp->m_qpmiView )
-            {
-                imcp->m_qpmiView = imcp->m_qgsView->addPixmap( m_qpm );
-            }
-
-            imcp->m_qpmiView->setPixmap( m_qpm );
-
-            imcp->m_qpmiView->stackBefore( imcp->m_viewLineVert );
-        }
     }
 
     RTIMV_DEBUG_BREADCRUMB
@@ -4246,11 +4306,17 @@ void rtimvMainWindow::mtxL_fontLuminance( QTextEdit *qte, const sharedLockT &loc
 
     double avgLum = 0;
     size_t N = 0;
+    using bitIndexT = decltype( m_displayMask.size() );
+    const uint64_t pixelCount = static_cast<uint64_t>( m_qim->width() ) * m_qim->height();
+    const bool hasDisplayMask = static_cast<uint64_t>( m_displayMask.size() ) == pixelCount;
+    const int maskLightness = hasDisplayMask ? displayMaskColor().lightness() : 0;
     for( int x = xBegin; x < xEnd; ++x )
     {
         for( int y = yBegin; y < yEnd; ++y )
         {
-            avgLum += pow( lightness( x, y ), m_lumPwr );
+            const uint64_t index = static_cast<uint64_t>( y ) * m_qim->width() + x;
+            const bool masked = hasDisplayMask && m_displayMask.testBit( static_cast<bitIndexT>( index ) );
+            avgLum += pow( masked ? maskLightness : lightness( x, y ), m_lumPwr );
             ++N;
         }
     }

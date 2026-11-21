@@ -1,5 +1,5 @@
 /** \file rtimvGlobalStats_gui_test.cpp
- * \brief Check statistics controls, viewport centering, and overlay clipping with real FITS images.
+ * \brief Check statistics controls, masked-pixel rendering, and viewport behavior with real FITS images.
  */
 
 #include <QApplication>
@@ -11,6 +11,7 @@
 #include <QKeyEvent>
 #include <QLineEdit>
 #include <QMouseEvent>
+#include <QPalette>
 #include <QProcess>
 #include <QScrollBar>
 #include <QTabWidget>
@@ -673,6 +674,59 @@ void checkValues( const rtimv::globalStatsState &stats, /**< [in] measured globa
     }
 }
 
+/// Check the configured display color on an asymmetric mask and distinguish it from a real zero.
+void checkMaskColor( std::vector<std::string> args, /**< [in] viewer arguments */
+                     QColor configuredColor         /**< [in] expected override, or invalid for the window color */
+)
+{
+    std::vector<char *> pointers;
+    for( auto &arg : args )
+    {
+        pointers.push_back( arg.data() );
+    }
+    pointers.push_back( nullptr );
+    TestWindow window( static_cast<int>( args.size() ), pointers.data() );
+    window.show();
+    require( waitUntil( [&]() { return window.connected() && window.getPixmap()->size() == QSize( 13, 9 ); } ),
+             "viewer did not render the mask-color fixture" );
+
+    window.launchControlPanel();
+    const auto *panel = window.findChild<rtimvControlPanel *>();
+    require( panel, "control panel missing" );
+    const auto expected = [&]()
+    { return configuredColor.isValid() ? configuredColor : panel->palette().color( QPalette::Window ); };
+    QImage rendered = window.getPixmap()->toImage();
+    require( rendered.pixelColor( 1, 8 ) == expected(), "masked pixel did not have the expected display color" );
+    require( rendered.pixelColor( 0, 8 ) != expected(), "an unmasked zero acquired the mask color" );
+    require( rendered.pixelColor( 2, 8 ) != expected(), "a weighted pixel acquired the mask color" );
+    require( rendered.pixelColor( 1, 0 ) != expected(), "the display mask was flipped vertically" );
+
+    const QPalette original = QApplication::palette();
+    const QColor newWindowColor( "#451351" );
+    QPalette updated = original;
+    updated.setColor( QPalette::Window, newWindowColor );
+    QApplication::setPalette( updated );
+    const bool colorSettled = waitUntil(
+        [&]()
+        {
+            return panel->palette().color( QPalette::Window ) == newWindowColor &&
+                   window.getPixmap()->toImage().pixelColor( 1, 8 ) == expected();
+        } );
+    QApplication::setPalette( original );
+    require( colorSettled, "masked pixels handled a palette change incorrectly" );
+
+    window.setApplyMask( false );
+    require(
+        waitUntil( [&]()
+                   { return !window.applyMask() && window.getPixmap()->toImage().pixelColor( 1, 8 ) != expected(); } ),
+        "disabling masking left the mask color visible" );
+    window.setApplyMask( true );
+    require(
+        waitUntil( [&]()
+                   { return window.applyMask() && window.getPixmap()->toImage().pixelColor( 1, 8 ) == expected(); } ),
+        "re-enabling masking did not restore the mask color" );
+}
+
 /// Verify configured startup state through the real viewer and, when applicable, its remote backend.
 void checkStartup( std::vector<std::string> args, /**< [in] viewer arguments */
                    bool enabled,                  /**< [in] expected global-statistics mode */
@@ -839,6 +893,35 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
         }
         else
         {
+            const auto colorImagePath = directory.filePath( "mask-color-image.fits" ).toStdString();
+            const auto colorMaskPath = directory.filePath( "mask-color-mask.fits" ).toStdString();
+            std::vector<float> colorPixels( 13 * 9, 80.0f );
+            std::vector<float> colorMask( colorPixels.size(), 1.0f );
+            colorPixels[0] = 0.0f;
+            colorMask[1] = 0.0f;
+            colorMask[2] = 0.5f;
+            fits.write( colorImagePath, colorPixels.data(), 13, 9, 1 );
+            fits.write( colorMaskPath, colorMask.data(), 13, 9, 1 );
+            auto colorArgs = args;
+            colorArgs[1] = "--image.key=" + colorImagePath;
+            colorArgs[2] = "--mask.key=" + colorMaskPath;
+            const QPalette originalPalette = QApplication::palette();
+            QPalette testPalette = originalPalette;
+            testPalette.setColor( QPalette::Window, QColor( "#283B56" ) );
+            QApplication::setPalette( testPalette );
+            checkMaskColor( colorArgs, QColor() );
+
+            QFile maskConfig( directory.filePath( "mask-color.conf" ) );
+            require( maskConfig.open( QIODevice::WriteOnly ), "could not write mask-color configuration" );
+            maskConfig.write( "[mask]\ncolor=#305070\n" );
+            maskConfig.close();
+            colorArgs.push_back( "-c" );
+            colorArgs.push_back( maskConfig.fileName().toStdString() );
+            checkMaskColor( colorArgs, QColor( "#305070" ) );
+            colorArgs.push_back( "--mask.color=magenta" );
+            checkMaskColor( colorArgs, QColor( "magenta" ) );
+            QApplication::setPalette( originalPalette );
+
             auto unmaskedArgs = args;
             unmaskedArgs.push_back( "--mask=false" );
             unmaskedArgs.push_back( "--stats.global=true" );

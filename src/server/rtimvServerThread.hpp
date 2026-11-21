@@ -1,8 +1,5 @@
 /** \file rtimvServerThread.hpp
  * \brief Declarations for the rtimvServerThread class
- *
- * \author Jared R. Males (jaredmales@gmail.com)
- *
  */
 
 #ifndef rtimvServerThread_hpp
@@ -79,6 +76,9 @@ class rtimvServerThread : public QThread, public rtimvBase
 
         remote_rtimv::Image *m_reply{ nullptr }; ///< Reply payload populated when the request is fulfilled.
 
+        /// Whether this client can use the optional display-mask payload.
+        bool m_includeDisplayMask{ false };
+
         double m_enqueueTime{ 0 }; ///< Monotonic enqueue time in seconds for timeout accounting.
 
         std::atomic<bool> m_cancelled{ false }; ///< True once gRPC reports client-side cancellation for this request.
@@ -102,6 +102,12 @@ class rtimvServerThread : public QThread, public rtimvBase
 
     /// Populate reply metadata from the current server-thread state.
     void populateImageReply( remote_rtimv::Image *reply /**< [in] reply payload to populate */ );
+
+    /// Encode the current JPEG and the matching display mask if requested.
+    void mtxL_render( remote_rtimv::Image &reply, /**< [out] reply receiving the frame payloads */
+                      bool includeDisplayMask,    /**< [in] whether to include mask bits */
+                      const uniqueLockT &lock     /**< [in] held exclusive calibration lock */
+    );
 
     /// Schedule queued servicing of pending image requests on the Qt side.
     void schedulePendingImageService();
@@ -149,8 +155,6 @@ class rtimvServerThread : public QThread, public rtimvBase
 
     virtual void mtxL_postColormode( rtimv::colormode m, const sharedLockT &lock );
 
-    void mtxuL_render( std::string *image /**< [out] rendered JPEG payload */ );
-
     /// Apply a new minimum image timeout on the Qt event thread.
     void setImageTimeout( int to /**< [in] the new minimum image timeout in ms */ );
 
@@ -181,7 +185,9 @@ class rtimvServerThread : public QThread, public rtimvBase
 
     /// Create and enqueue a custom unary reactor for one ImagePlease request.
     grpc::ServerUnaryReactor *
-    newImagePleaseReactor( remote_rtimv::Image *reply /**< [in] reply payload owned by gRPC */ );
+    newImagePleaseReactor( remote_rtimv::Image *reply, /**< [in] reply payload owned by gRPC */
+                           bool includeDisplayMask     /**< [in] whether to include mask bits */
+    );
 
     /// Drop cancelled pending requests and expire old ones.
     void prunePendingImageRequests( double timeoutSeconds /**< [in] timeout applied to queued requests in seconds */ );

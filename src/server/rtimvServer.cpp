@@ -1018,8 +1018,6 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
                                               const remote_rtimv::ImageRequest *request,
                                               remote_rtimv::Image *reply )
 {
-    static_cast<void>( request );
-
     sharedLockT slock( m_clientMutex );
 
     auto clientIt = m_clients.find( context->peer() );
@@ -1045,7 +1043,7 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
         imageTh->emit_awaken();
     }
 
-    ServerUnaryReactor *reactor = imageTh->newImagePleaseReactor( reply );
+    ServerUnaryReactor *reactor = imageTh->newImagePleaseReactor( reply, request->include_display_mask() );
 
     return reactor;
 }

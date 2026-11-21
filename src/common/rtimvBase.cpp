@@ -2458,6 +2458,8 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
 
         RTIMV_DEBUG_BREADCRUMB
 
+        mtxL_snapshotDisplayMask( _pixel );
+
         m_saturated = 0;
         for( uint64_t n = 0; n < m_nx * m_ny; ++n )
         {
@@ -2722,6 +2724,39 @@ void rtimvBase::mtxL_applyFilter()
     }
 }
 
+void rtimvBase::mtxL_snapshotDisplayMask( pixelF pixel )
+{
+    m_calibratedDisplayMask.clear();
+    if( pixel != &pixel_applyMask && pixel != &pixel_subDarkApplyMask )
+    {
+        return;
+    }
+
+    const size_t count = static_cast<size_t>( m_nx ) * m_ny;
+    using bitIndexT = decltype( m_calibratedDisplayMask.size() );
+    if( count > static_cast<size_t>( std::numeric_limits<bitIndexT>::max() ) )
+    {
+        return;
+    }
+
+    for( uint32_t y = 0; y < m_ny; ++y )
+    {
+        const size_t inputRow = static_cast<size_t>( y ) * m_nx;
+        const size_t displayRow = static_cast<size_t>( m_ny - 1 - y ) * m_nx;
+        for( uint32_t x = 0; x < m_nx; ++x )
+        {
+            if( m_images[2]->pixel( inputRow + x ) == 0.0f )
+            {
+                if( m_calibratedDisplayMask.isEmpty() )
+                {
+                    m_calibratedDisplayMask.fill( false, static_cast<bitIndexT>( count ) );
+                }
+                m_calibratedDisplayMask.setBit( static_cast<bitIndexT>( displayRow + x ) );
+            }
+        }
+    }
+}
+
 void rtimvBase::mtxL_recolorImpl()
 {
     /* Here is where we color the qImage*/
@@ -2732,6 +2767,9 @@ void rtimvBase::mtxL_recolorImpl()
     {
         return;
     }
+
+    // The ordinary mask is in image coordinates. Saturation highlights retain display precedence.
+    m_displayMask = m_applyMTF ? QBitArray{} : m_calibratedDisplayMask;
 
     RTIMV_DEBUG_BREADCRUMB
 
@@ -2806,7 +2844,13 @@ void rtimvBase::mtxL_recolorImpl()
             {
                 if( satPixel( i, j ) == 1 )
                 {
-                    m_qim->setPixel( i, m_ny - j - 1, m_satColor );
+                    const uint32_t y = m_ny - j - 1;
+                    m_qim->setPixel( i, y, m_satColor );
+                    if( !m_displayMask.isEmpty() )
+                    {
+                        const size_t index = static_cast<size_t>( y ) * m_nx + i;
+                        m_displayMask.clearBit( static_cast<decltype( m_displayMask.size() )>( index ) );
+                    }
                 }
             }
         }

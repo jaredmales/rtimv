@@ -18,6 +18,7 @@
 #include <string_view>
 #include <unordered_map>
 
+#include <QBitArray>
 #include <QImage>
 
 #include <mx/app/application.hpp>
@@ -1522,6 +1523,10 @@ class rtimvClientBase : public mx::app::application
     //****** The display *************
   protected:
     QImage *m_qim{ nullptr }; ///< A QT image, used to store the color-map encoded data
+
+    /// Ordinary mask bits for the current rendered frame, in top-down display order.
+    /** The calibrated mask snapshot is owned by rtimvBase on the server. */
+    QBitArray m_displayMask;
 
   public:
     /// Get the lightness for a pixel
