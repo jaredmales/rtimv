@@ -552,7 +552,8 @@ void rtimvMainWindow::setupConfig()
                 "color",
                 false,
                 "string",
-                "Opaque color for masked pixels, as a color name or #RRGGBB. Defaults to the window background." );
+                "Color for masked pixels. Use a color name, #RRGGBB, mean, median, or mode. Defaults to the window "
+                "background." );
 }
 
 void rtimvMainWindow::loadConfig()
@@ -589,10 +590,28 @@ void rtimvMainWindow::loadConfig()
     {
         std::string colorName;
         config( colorName, "mask.color" );
-        m_displayMaskColor = QColor( QString::fromStdString( colorName ) );
-        if( !m_displayMaskColor.isValid() || m_displayMaskColor.alpha() != 255 )
+        const QString color = QString::fromStdString( colorName );
+        const QString statistic = color.toLower();
+        if( statistic == "mean" )
         {
-            throw std::runtime_error( "rtimv: invalid mask.color '" + colorName + "'. Use an opaque color." );
+            m_maskColorMode = rtimv::maskColorMode::mean;
+        }
+        else if( statistic == "median" )
+        {
+            m_maskColorMode = rtimv::maskColorMode::median;
+        }
+        else if( statistic == "mode" )
+        {
+            m_maskColorMode = rtimv::maskColorMode::mode;
+        }
+        else
+        {
+            m_displayMaskColor = QColor( color );
+            if( !m_displayMaskColor.isValid() || m_displayMaskColor.alpha() != 255 )
+            {
+                throw std::runtime_error( "rtimv: invalid mask.color '" + colorName +
+                                          "'. Use an opaque color, mean, median, or mode." );
+            }
         }
     }
 }
@@ -766,13 +785,18 @@ void rtimvMainWindow::post_zoomLevel()
 
 QColor rtimvMainWindow::displayMaskColor() const
 {
-    return m_displayMaskColor.isValid() ? m_displayMaskColor : palette().color( QPalette::Window );
+    if( m_displayMaskColor.isValid() )
+    {
+        return m_displayMaskColor;
+    }
+    return m_adaptiveMaskColor.isValid() ? m_adaptiveMaskColor : palette().color( QPalette::Window );
 }
 
 void rtimvMainWindow::changeEvent( QEvent *event )
 {
     QWidget::changeEvent( event );
-    if( event->type() == QEvent::PaletteChange && !m_displayMaskColor.isValid() && m_qpmi )
+    if( event->type() == QEvent::PaletteChange && !m_displayMaskColor.isValid() && !m_adaptiveMaskColor.isValid() &&
+        m_qpmi )
     {
         QTimer::singleShot( 0,
                             this,

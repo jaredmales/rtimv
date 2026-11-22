@@ -1,8 +1,5 @@
 /** \file rtimvColor.hpp
  * \brief Management of the color table in rtimv
- *
- * \author Jared R. Males (jaredmales@gmail.com)
- *
  */
 
 #ifndef rtimv_rtimvColor_hpp
@@ -37,7 +34,8 @@ enum class colorbar
     blue
 };
 
-inline std::string_view colorbarName( colorbar cb )
+/// Get the configuration name of a colorbar.
+inline std::string_view colorbarName( colorbar cb /**< [in] colorbar to name */ )
 {
     switch( cb )
     {
@@ -64,7 +62,10 @@ inline std::string_view colorbarName( colorbar cb )
     return "grey";
 }
 
-inline bool colorbarFromString( colorbar &cb, std::string_view name )
+/// Resolve a configured colorbar name.
+inline bool colorbarFromString( colorbar &cb,         /**< [out] resolved colorbar */
+                                std::string_view name /**< [in] configured name */
+)
 {
     if( name == "grey" || name == "gray" )
     {
@@ -128,6 +129,15 @@ enum class colormode
     minmaxglobal,
     minmaxbox,
     user
+};
+
+/// How to choose the display color for ordinary masked pixels.
+enum class maskColorMode
+{
+    fixed,  ///< Use the configured color or the window background.
+    mean,   ///< Use the rounded mean of the displayed palette indices.
+    median, ///< Use the lower median of the displayed palette indices.
+    mode    ///< Use the most frequent displayed palette index.
 };
 
 } // namespace rtimv

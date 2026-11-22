@@ -375,10 +375,21 @@ message CubeFrameDeltaResponse
 {
 }
 
+enum MaskColorMode
+{
+    MASK_COLOR_MODE_FIXED = 0;
+    MASK_COLOR_MODE_MEAN = 1;
+    MASK_COLOR_MODE_MEDIAN = 2;
+    MASK_COLOR_MODE_MODE = 3;
+}
+
 message ImageRequest
 {
     // The viewer supports receiving mask locations independently of JPEG colors.
     bool include_display_mask = 1;
+
+    // Statistic requested for the masked-pixel fill. Fixed colors are resolved by the viewer.
+    MaskColorMode mask_color_mode = 2;
 }
 
 enum ImageStatus
@@ -465,6 +476,9 @@ message Image
     // Optional ordinary display mask for the JPEG above. Bits are packed from least to most
     // significant in top-down row-major order, with no row padding. A set bit marks a masked pixel.
     bytes display_mask = 210;
+
+    // The requested adaptive fill with opaque alpha (0xFFRRGGBB), or zero when unavailable.
+    fixed32 adaptive_mask_color = 211;
 }
 
 message GlobalStatsRequest

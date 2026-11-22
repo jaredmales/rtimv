@@ -8,8 +8,10 @@
 #include "rtimvBaseObject.hpp"
 #include "rtimvLog.hpp"
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
+#include <numeric>
 
 #ifdef MXLIB_MILK
     #include "images/shmimImage.hpp"
@@ -2757,6 +2759,110 @@ void rtimvBase::mtxL_snapshotDisplayMask( pixelF pixel )
     }
 }
 
+QColor rtimvBase::mtxL_calculateAdaptiveMaskColor( rtimv::maskColorMode mode ) const
+{
+    if( mode == rtimv::maskColorMode::fixed || m_displayMask.isEmpty() )
+    {
+        return {};
+    }
+
+    std::array<uint64_t, 256> histogram{};
+    const int width = m_qim->width();
+    const int height = m_qim->height();
+    using bitIndexT = decltype( m_displayMask.size() );
+    const auto bin = [&]( uint8_t color, bitIndexT pixel )
+    {
+        if( color >= m_minColor && color <= m_maxColor && !m_displayMask.testBit( pixel ) )
+        {
+            ++histogram[color];
+        }
+    };
+
+    uint64_t count = 0;
+    constexpr size_t exactPixelLimit = 256 * 256;
+    constexpr int sampleTileSize = 4;
+    constexpr uint64_t minSampleCount = 16;
+    if( static_cast<size_t>( width ) * height > exactPixelLimit )
+    {
+        // Vary the offset between tiles without changing the sampling pattern from one frame to the next.
+        uint32_t sampleState = 0;
+        const auto *pixels = m_qim->constBits();
+        const auto stride = static_cast<size_t>( m_qim->bytesPerLine() );
+        for( int y = 0; y < height; y += sampleTileSize )
+        {
+            for( int x = 0; x < width; x += sampleTileSize )
+            {
+                sampleState = 1664525u * sampleState + 1013904223u;
+                const auto offset = sampleState >> 28;
+                const int sx = std::min( x + static_cast<int>( offset % sampleTileSize ), width - 1 );
+                const int sy = std::min( y + static_cast<int>( offset / sampleTileSize ), height - 1 );
+                bin( pixels[static_cast<size_t>( sy ) * stride + sx], static_cast<bitIndexT>( sy ) * width + sx );
+            }
+        }
+        count = std::accumulate( histogram.begin(), histogram.end(), uint64_t{ 0 } );
+        if( count == 0 && m_displayMask.count( false ) == 0 )
+        {
+            return {};
+        }
+    }
+
+    // Use all eligible pixels in small frames and when the sample misses a sparse aperture.
+    if( count < minSampleCount )
+    {
+        histogram.fill( 0 );
+        for( int y = 0; y < height; ++y )
+        {
+            const auto *line = m_qim->constScanLine( y );
+            const bitIndexT row = static_cast<bitIndexT>( y ) * width;
+            for( int x = 0; x < width; ++x )
+            {
+                bin( line[x], row + x );
+            }
+        }
+        count = std::accumulate( histogram.begin(), histogram.end(), uint64_t{ 0 } );
+    }
+    if( count == 0 )
+    {
+        return {};
+    }
+
+    int index = m_minColor;
+    switch( mode )
+    {
+    case rtimv::maskColorMode::mean:
+    {
+        uint64_t sum = 0;
+        for( int i = m_minColor; i <= m_maxColor; ++i )
+        {
+            sum += i * histogram[i];
+        }
+        index = static_cast<int>( ( sum + count / 2 ) / count );
+        break;
+    }
+    case rtimv::maskColorMode::median:
+    {
+        const uint64_t rank = ( count + 1 ) / 2;
+        uint64_t cumulative = 0;
+        for( ; index < m_maxColor; ++index )
+        {
+            cumulative += histogram[index];
+            if( cumulative >= rank )
+            {
+                break;
+            }
+        }
+        break;
+    }
+    case rtimv::maskColorMode::mode:
+        index = static_cast<int>( std::max_element( histogram.begin(), histogram.end() ) - histogram.begin() );
+        break;
+    default:
+        return {};
+    }
+
+    return QColor::fromRgb( m_qim->color( index ) );
+}
+
 void rtimvBase::mtxL_recolorImpl()
 {
     /* Here is where we color the qImage*/
@@ -2855,6 +2961,8 @@ void rtimvBase::mtxL_recolorImpl()
             }
         }
     }
+
+    m_adaptiveMaskColor = mtxL_calculateAdaptiveMaskColor( m_maskColorMode );
 
     RTIMV_DEBUG_BREADCRUMB
 }

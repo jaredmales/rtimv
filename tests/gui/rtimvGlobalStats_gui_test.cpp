@@ -727,6 +727,30 @@ void checkMaskColor( std::vector<std::string> args, /**< [in] viewer arguments *
         "re-enabling masking did not restore the mask color" );
 }
 
+/// Verify an adaptive color against a known stretched palette distribution.
+void checkAdaptiveMaskColor( std::vector<std::string> args, /**< [in] viewer arguments */
+                             int expected                   /**< [in] expected channel value in the grey palette */
+)
+{
+    std::vector<char *> pointers;
+    for( auto &arg : args )
+    {
+        pointers.push_back( arg.data() );
+    }
+    pointers.push_back( nullptr );
+    TestWindow window( static_cast<int>( args.size() ), pointers.data() );
+    window.show();
+    require( waitUntil( [&]() { return window.connected() && window.getPixmap()->size() == QSize( 13, 9 ); } ),
+             "viewer did not render the adaptive mask-color fixture" );
+    require( window.getPixmap()->toImage().pixelColor( 12, 8 ) == QColor( expected, expected, expected ),
+             "masked pixel did not have the expected adaptive color" );
+
+    window.mtxUL_load_colorbar( rtimv::colorbar::red, true );
+    require(
+        waitUntil( [&]() { return window.getPixmap()->toImage().pixelColor( 12, 8 ) == QColor( expected, 0, 0 ); } ),
+        "adaptive mask color did not follow recoloring" );
+}
+
 /// Verify configured startup state through the real viewer and, when applicable, its remote backend.
 void checkStartup( std::vector<std::string> args, /**< [in] viewer arguments */
                    bool enabled,                  /**< [in] expected global-statistics mode */
@@ -921,6 +945,28 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
             colorArgs.push_back( "--mask.color=magenta" );
             checkMaskColor( colorArgs, QColor( "magenta" ) );
             QApplication::setPalette( originalPalette );
+
+            const std::vector<float> eligible{ 0, 0, 0, 64, 96, 128, 192, 255, 255 };
+            colorPixels.assign( colorPixels.size(), 80.0f );
+            colorMask.assign( colorMask.size(), 0.0f );
+            std::copy( eligible.begin(), eligible.end(), colorPixels.begin() );
+            std::fill_n( colorMask.begin(), eligible.size(), 1.0f );
+            colorPixels[9] = std::numeric_limits<float>::quiet_NaN();
+            colorMask[9] = 1.0f;
+            const auto adaptiveImagePath = directory.filePath( "adaptive-color-image.fits" ).toStdString();
+            const auto adaptiveMaskPath = directory.filePath( "adaptive-color-mask.fits" ).toStdString();
+            fits.write( adaptiveImagePath, colorPixels.data(), 13, 9, 1 );
+            fits.write( adaptiveMaskPath, colorMask.data(), 13, 9, 1 );
+            auto adaptiveArgs = args;
+            adaptiveArgs[1] = "--image.key=" + adaptiveImagePath;
+            adaptiveArgs[2] = "--mask.key=" + adaptiveMaskPath;
+            adaptiveArgs.push_back( "--colorbar=grey" );
+            adaptiveArgs.push_back( "--mask.color=mean" );
+            checkAdaptiveMaskColor( adaptiveArgs, 110 );
+            adaptiveArgs.back() = "--mask.color=median";
+            checkAdaptiveMaskColor( adaptiveArgs, 96 );
+            adaptiveArgs.back() = "--mask.color=mode";
+            checkAdaptiveMaskColor( adaptiveArgs, 0 );
 
             auto unmaskedArgs = args;
             unmaskedArgs.push_back( "--mask=false" );

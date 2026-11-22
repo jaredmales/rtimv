@@ -1,5 +1,5 @@
 /** \file rtimvBase_globalStats_test.cpp
- * \brief Exercise mask selection, processing, and input lifecycle through rtimvBase.
+ * \brief Exercise statistics, adaptive mask colors, and input lifecycle through rtimvBase.
  */
 
 #include <QCoreApplication>
@@ -186,6 +186,9 @@ class TestBase : public rtimvBase
     /// Return a synthetic source for single-threaded fixture setup.
     TestImage &source( size_t index /**< [in] source slot */ );
 
+    /// Get the adaptive fill for the current rendered frame.
+    QColor adaptiveMaskColor( rtimv::maskColorMode mode /**< [in] requested palette statistic */ );
+
   protected:
     /// Ignore GUI image allocation work in the backend test.
     void mtxL_postSetImsize( const uniqueLockT &lock /**< [in] held lock */ ) override;
@@ -230,6 +233,12 @@ TestBase::~TestBase()
 TestImage &TestBase::source( size_t index )
 {
     return *static_cast<TestImage *>( m_images.at( index ) );
+}
+
+QColor TestBase::adaptiveMaskColor( rtimv::maskColorMode mode )
+{
+    sharedLockT lock( m_calMutex );
+    return mtxL_calculateAdaptiveMaskColor( mode );
 }
 
 void TestBase::mtxL_postSetImsize( const uniqueLockT &lock )
@@ -467,6 +476,36 @@ void testProcessing()
     checkProcessedSelection( base );
 }
 
+/// Exercise sampling, sparse-aperture fallback, and an empty selection above the exact-scan limit.
+void testAdaptiveMaskSampling()
+{
+    TestBase base;
+    auto &image = base.source( 0 );
+    auto &mask = base.source( 2 );
+    image.m_width = mask.m_width = 259;
+    image.m_height = mask.m_height = 257;
+    image.m_pixels.assign( image.m_width * image.m_height, 64.0f );
+    mask.m_pixels.assign( image.m_pixels.size(), 1.0f );
+    image.m_pixels[0] = 0.0f;
+    image.m_pixels[1] = 255.0f;
+    mask.m_pixels.back() = 0.0f;
+    base.applyMask( true );
+    base.mtxUL_load_colorbar( rtimv::colorbar::grey, true );
+    require( base.adaptiveMaskColor( rtimv::maskColorMode::median ) == QColor( 63, 63, 63 ),
+             "sampled mask color did not resolve the dominant palette color" );
+
+    std::fill( mask.m_pixels.begin(), mask.m_pixels.end(), 0.0f );
+    mask.m_pixels[1] = 1.0f;
+    base.mtxUL_changeImdata();
+    require( base.adaptiveMaskColor( rtimv::maskColorMode::median ) == QColor( 255, 255, 255 ),
+             "sparse mask color did not fall back to an exact scan" );
+
+    mask.m_pixels[1] = 0.0f;
+    base.mtxUL_changeImdata();
+    require( !base.adaptiveMaskColor( rtimv::maskColorMode::median ).isValid(),
+             "an entirely masked frame produced an adaptive color" );
+}
+
 } // namespace
 
 /// Run backend regression checks.
@@ -478,6 +517,7 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
         testGlobalSelection();
         testSelection();
         testProcessing();
+        testAdaptiveMaskSampling();
     }
     catch( const std::exception &error )
     {

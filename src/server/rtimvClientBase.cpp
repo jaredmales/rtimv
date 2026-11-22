@@ -1210,6 +1210,7 @@ void rtimvClientBase::ImagePlease()
             state->m_context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 10000 ) );
             state->m_connectionGeneration = connectionGeneration;
             state->m_request.set_include_display_mask( true );
+            state->m_request.set_mask_color_mode( rtimv::maskColorMode2grpc( m_maskColorMode ) );
 
             const uint64_t requestId = m_nextImageRequestId++;
             m_inflightImageRequests.emplace( requestId, state );
@@ -1564,6 +1565,7 @@ void rtimvClientBase::ImageReceived()
         hasImagePayload = m_qim->loadFromData(
             reinterpret_cast<const uchar *>( grpcImage.image().data() ), grpcImage.image().size(), "jpeg" );
         m_displayMask.clear();
+        m_adaptiveMaskColor = QColor{};
         if( hasImagePayload && m_qim->width() == nx && m_qim->height() == ny )
         {
             using bitIndexT = decltype( m_displayMask.size() );
@@ -1573,6 +1575,10 @@ void rtimvClientBase::ImageReceived()
                 mask.size() == ( pixelCount + 7 ) / 8 )
             {
                 m_displayMask = QBitArray::fromBits( mask.data(), static_cast<bitIndexT>( pixelCount ) );
+                if( m_maskColorMode != rtimv::maskColorMode::fixed && grpcImage.adaptive_mask_color() != 0 )
+                {
+                    m_adaptiveMaskColor = QColor::fromRgb( grpcImage.adaptive_mask_color() );
+                }
             }
         }
     }

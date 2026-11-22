@@ -202,10 +202,10 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
   protected:
     QPixmap m_qpm; ///< A QT pixmap, used to prep the QImage for display.
 
-    /// Configured mask color. An invalid color selects the window background.
+    /// Explicit mask color override, when configured as a fixed color.
     QColor m_displayMaskColor;
 
-    /// Resolve the masked-pixel color against the current window palette.
+    /// Resolve the fixed, adaptive, or window background fill.
     QColor displayMaskColor() const;
 
     /// Refresh the rendered mask when the window palette changes.

@@ -238,7 +238,7 @@ This means local client overrides always win for options/keys set locally, while
 |  | `--image.key` | `image.key` | string | The main image key. Specifies the protocol, location, and name of the main image. |
 |  | `--dark.key` | `dark.key` | string | The dark image key. Specifies the protocol, location, and name of the dark image. |
 |  | `--mask.key` | `mask.key` | string | The mask image key. Specifies the protocol, location, and name of the mask image. |
-|  | `--mask.color` | `mask.color` | string | Opaque color for pixels where the applied mask is zero. Defaults to the window background. Accepts a color name or `#RRGGBB`. |
+|  | `--mask.color` | `mask.color` | string | Color for pixels where the applied mask is zero. Defaults to the window background. Accepts an opaque color name, `#RRGGBB`, `mean`, `median`, or `mode`. |
 |  | `--stats.global` | `stats.global` | bool | Enable global statistics at startup. Default is false. Use `--stats.global=true` or `--stats.global=false`. |
 |  | `--stats.mask` | `stats.mask` | bool | Restrict global statistics to pixels where the ordinary mask equals `1`. Default is true. Independent of `--mask`; use an explicit `true` or `false` value. |
 |  | `--satMask.key` | `satMask.key` | string | The saturation mask image key. Specifies the protocol, location, and name of the saturation mask image. |
@@ -282,8 +282,15 @@ in the configuration file.
 Settings on the command line override settings in the config file.  So the same config file could be used for several images, changing only the image name on the command line for instance.
 
 Set `--mask.color='#305070'` in either viewer to override the masked-pixel color. In a config file, set `color=#305070`
-in the `[mask]` section alongside `key`. For remote viewing, the color is a local `rtimvClient` setting and the server
-supplies the masked pixel locations.
+in the `[mask]` section alongside `key`. For an adaptive fill, use `--mask.color=median` or set `color=median`.
+The adaptive modes look at the displayed palette indices of the current frame after stretching. They include finite,
+unmasked pixels and exclude saturation highlights. `mean` rounds to the nearest index, `median` uses the lower middle
+index, and `mode` uses the most frequent index, choosing the lowest index on a tie.
+
+Up to 65,536 pixels (256×256), the scan is exact. Larger frames use one sample per 4×4 tile, with an exact scan if
+fewer than 16 eligible samples are found. The window background is the fallback when there are no eligible pixels.
+For remote viewing, select the mode in `rtimvClient`. An updated `rtimvServer` computes the adaptive color before
+JPEG encoding and sends it along with the mask locations.
 
 ### Config Path Environment Variable
 

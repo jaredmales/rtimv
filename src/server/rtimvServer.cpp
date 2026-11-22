@@ -1043,7 +1043,7 @@ ServerUnaryReactor *rtimvServer::ImagePlease( CallbackServerContext *context,
         imageTh->emit_awaken();
     }
 
-    ServerUnaryReactor *reactor = imageTh->newImagePleaseReactor( reply, request->include_display_mask() );
+    ServerUnaryReactor *reactor = imageTh->newImagePleaseReactor( reply, *request );
 
     return reactor;
 }

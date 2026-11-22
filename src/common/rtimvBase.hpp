@@ -1249,6 +1249,16 @@ class rtimvBase : public mx::app::application
     /// Ordinary mask bits for the current rendered frame, in top-down display order.
     QBitArray m_displayMask;
 
+    /// Statistic requested by the local viewer for the masked-pixel fill.
+    rtimv::maskColorMode m_maskColorMode{ rtimv::maskColorMode::fixed };
+
+    /// Adaptive fill for the current local frame, or an invalid color for the window background.
+    QColor m_adaptiveMaskColor;
+
+    /// Find the requested representative palette color with the calibration lock held.
+    /** Invalid when the frame has no displayed ordinary mask or no eligible pixels. */
+    QColor mtxL_calculateAdaptiveMaskColor( rtimv::maskColorMode mode /**< [in] requested statistic */ ) const;
+
   private:
     /// Zero-valued ordinary mask locations sampled with the calibrated input, before display overrides.
     QBitArray m_calibratedDisplayMask;

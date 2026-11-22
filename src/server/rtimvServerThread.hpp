@@ -79,6 +79,9 @@ class rtimvServerThread : public QThread, public rtimvBase
         /// Whether this client can use the optional display-mask payload.
         bool m_includeDisplayMask{ false };
 
+        /// Statistic requested for the display-mask fill in this reply.
+        rtimv::maskColorMode m_maskColorMode{ rtimv::maskColorMode::fixed };
+
         double m_enqueueTime{ 0 }; ///< Monotonic enqueue time in seconds for timeout accounting.
 
         std::atomic<bool> m_cancelled{ false }; ///< True once gRPC reports client-side cancellation for this request.
@@ -103,9 +106,10 @@ class rtimvServerThread : public QThread, public rtimvBase
     /// Populate reply metadata from the current server-thread state.
     void populateImageReply( remote_rtimv::Image *reply /**< [in] reply payload to populate */ );
 
-    /// Encode the current JPEG and the matching display mask if requested.
+    /// Encode the current JPEG and any requested display-mask data.
     void mtxL_render( remote_rtimv::Image &reply, /**< [out] reply receiving the frame payloads */
                       bool includeDisplayMask,    /**< [in] whether to include mask bits */
+                      rtimv::maskColorMode mode,  /**< [in] requested adaptive fill statistic */
                       const uniqueLockT &lock     /**< [in] held exclusive calibration lock */
     );
 
@@ -185,8 +189,8 @@ class rtimvServerThread : public QThread, public rtimvBase
 
     /// Create and enqueue a custom unary reactor for one ImagePlease request.
     grpc::ServerUnaryReactor *
-    newImagePleaseReactor( remote_rtimv::Image *reply, /**< [in] reply payload owned by gRPC */
-                           bool includeDisplayMask     /**< [in] whether to include mask bits */
+    newImagePleaseReactor( remote_rtimv::Image *reply,               /**< [in] reply payload owned by gRPC */
+                           const remote_rtimv::ImageRequest &options /**< [in] requested frame options */
     );
 
     /// Drop cancelled pending requests and expire old ones.

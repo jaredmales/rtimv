@@ -1,8 +1,5 @@
 /** \file rtimvColorGRPC.hpp
  * \brief Conversion of color table enums in grpc for rtimv
- *
- * \author Jared R. Males (jaredmales@gmail.com)
- *
  */
 
 #ifndef rtimv_rtimvColorGRPC_hpp
@@ -13,7 +10,8 @@
 namespace rtimv
 {
 
-inline remote_rtimv::Colorbar colorbar2grpc( rtimv::colorbar cb )
+/// Encode a colorbar as its gRPC enum value.
+inline remote_rtimv::Colorbar colorbar2grpc( rtimv::colorbar cb /**< [in] colorbar to encode */ )
 {
     if( cb == rtimv::colorbar::grey )
     {
@@ -55,7 +53,8 @@ inline remote_rtimv::Colorbar colorbar2grpc( rtimv::colorbar cb )
     return remote_rtimv::COLORBAR_UNKNOWN;
 }
 
-inline rtimv::colorbar grpc2colorbar( remote_rtimv::Colorbar colorbar )
+/// Decode a colorbar from its gRPC enum value.
+inline rtimv::colorbar grpc2colorbar( remote_rtimv::Colorbar colorbar /**< [in] colorbar to decode */ )
 {
     if( colorbar == remote_rtimv::COLORBAR_GREY )
     {
@@ -97,7 +96,8 @@ inline rtimv::colorbar grpc2colorbar( remote_rtimv::Colorbar colorbar )
     return static_cast<rtimv::colorbar>( -1 );
 }
 
-inline remote_rtimv::Colormode colormode2grpc( rtimv::colormode cm )
+/// Encode a color mode as its gRPC enum value.
+inline remote_rtimv::Colormode colormode2grpc( rtimv::colormode cm /**< [in] color mode to encode */ )
 {
     if( cm == rtimv::colormode::minmaxglobal )
     {
@@ -115,7 +115,8 @@ inline remote_rtimv::Colormode colormode2grpc( rtimv::colormode cm )
     return remote_rtimv::COLORMODE_UNKNOWN;
 }
 
-inline rtimv::colormode grpc2colormode( remote_rtimv::Colormode colormode )
+/// Decode a color mode from its gRPC enum value.
+inline rtimv::colormode grpc2colormode( remote_rtimv::Colormode colormode /**< [in] color mode to decode */ )
 {
     if( colormode == remote_rtimv::COLORMODE_GLOBAL )
     {
@@ -133,7 +134,8 @@ inline rtimv::colormode grpc2colormode( remote_rtimv::Colormode colormode )
     return static_cast<rtimv::colormode>( -1 );
 }
 
-inline remote_rtimv::Colorstretch stretch2grpc( rtimv::stretch cs )
+/// Encode a color stretch as its gRPC enum value.
+inline remote_rtimv::Colorstretch stretch2grpc( rtimv::stretch cs /**< [in] color stretch to encode */ )
 {
     if( cs == rtimv::stretch::linear )
     {
@@ -159,7 +161,8 @@ inline remote_rtimv::Colorstretch stretch2grpc( rtimv::stretch cs )
     return remote_rtimv::COLORSTRETCH_UNKNOWN;
 }
 
-inline rtimv::stretch grpc2stretch( remote_rtimv::Colorstretch stretch )
+/// Decode a color stretch from its gRPC enum value.
+inline rtimv::stretch grpc2stretch( remote_rtimv::Colorstretch stretch /**< [in] color stretch to decode */ )
 {
     if( stretch == remote_rtimv::COLORSTRETCH_LINEAR )
     {
@@ -183,6 +186,38 @@ inline rtimv::stretch grpc2stretch( remote_rtimv::Colorstretch stretch )
     }
 
     return static_cast<rtimv::stretch>( -1 );
+}
+
+/// Encode the requested masked-pixel color statistic.
+inline remote_rtimv::MaskColorMode maskColorMode2grpc( maskColorMode mode /**< [in] mode to encode */ )
+{
+    switch( mode )
+    {
+    case maskColorMode::mean:
+        return remote_rtimv::MASK_COLOR_MODE_MEAN;
+    case maskColorMode::median:
+        return remote_rtimv::MASK_COLOR_MODE_MEDIAN;
+    case maskColorMode::mode:
+        return remote_rtimv::MASK_COLOR_MODE_MODE;
+    default:
+        return remote_rtimv::MASK_COLOR_MODE_FIXED;
+    }
+}
+
+/// Decode the requested masked-pixel color statistic.
+inline maskColorMode grpc2maskColorMode( remote_rtimv::MaskColorMode mode /**< [in] mode to decode */ )
+{
+    switch( mode )
+    {
+    case remote_rtimv::MASK_COLOR_MODE_MEAN:
+        return maskColorMode::mean;
+    case remote_rtimv::MASK_COLOR_MODE_MEDIAN:
+        return maskColorMode::median;
+    case remote_rtimv::MASK_COLOR_MODE_MODE:
+        return maskColorMode::mode;
+    default:
+        return maskColorMode::fixed;
+    }
 }
 
 } // namespace rtimv

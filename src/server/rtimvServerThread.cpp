@@ -261,9 +261,22 @@ void rtimvServerThread::mtxL_postColormode( rtimv::colormode m, const sharedLock
     static_cast<void>( lock );
 }
 
-void rtimvServerThread::mtxL_render( remote_rtimv::Image &reply, bool includeDisplayMask, const uniqueLockT &lock )
+void rtimvServerThread::mtxL_render( remote_rtimv::Image &reply,
+                                     bool includeDisplayMask,
+                                     rtimv::maskColorMode mode,
+                                     const uniqueLockT &lock )
 {
     assert( lock.owns_lock() );
+
+    if( includeDisplayMask && !m_displayMask.isEmpty() )
+    {
+        reply.set_display_mask( m_displayMask.bits(), ( static_cast<size_t>( m_displayMask.size() ) + 7 ) / 8 );
+        const QColor color = mtxL_calculateAdaptiveMaskColor( mode );
+        if( color.isValid() )
+        {
+            reply.set_adaptive_mask_color( color.rgb() );
+        }
+    }
 
     QByteArray renderedImage;
     QBuffer buffer( &renderedImage );
@@ -272,10 +285,6 @@ void rtimvServerThread::mtxL_render( remote_rtimv::Image &reply, bool includeDis
     m_qim->save( &buffer, "jpeg", m_quality.load( std::memory_order_relaxed ) );
 
     reply.set_image( renderedImage.constData(), renderedImage.size() );
-    if( includeDisplayMask && !m_displayMask.isEmpty() )
-    {
-        reply.set_display_mask( m_displayMask.bits(), ( static_cast<size_t>( m_displayMask.size() ) + 7 ) / 8 );
-    }
 }
 
 void rtimvServerThread::setImageTimeout( int to )
@@ -361,11 +370,12 @@ uint32_t rtimvServerThread::rpcActive()
 }
 
 grpc::ServerUnaryReactor *rtimvServerThread::newImagePleaseReactor( remote_rtimv::Image *reply,
-                                                                    bool includeDisplayMask )
+                                                                    const remote_rtimv::ImageRequest &options )
 {
     std::shared_ptr<pendingImageRequest> request = std::make_shared<pendingImageRequest>();
     request->m_reply = reply;
-    request->m_includeDisplayMask = includeDisplayMask;
+    request->m_includeDisplayMask = options.include_display_mask();
+    request->m_maskColorMode = rtimv::grpc2maskColorMode( options.mask_color_mode() );
     request->m_enqueueTime = mx::sys::get_curr_time();
 
     auto *reactor = new pendingImageReactor( this, request );
@@ -539,7 +549,7 @@ void rtimvServerThread::servicePendingImageRequests()
         request->m_reply->set_status( remote_rtimv::IMAGE_STATUS_VALID );
         request->m_reply->set_response_serial( deliverSerial );
         populateImageReply( request->m_reply );
-        mtxL_render( *request->m_reply, request->m_includeDisplayMask, lock );
+        mtxL_render( *request->m_reply, request->m_includeDisplayMask, request->m_maskColorMode, lock );
     }
 
     request->finish( grpc::Status::OK );

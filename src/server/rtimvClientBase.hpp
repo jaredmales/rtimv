@@ -1528,6 +1528,12 @@ class rtimvClientBase : public mx::app::application
     /** The calibrated mask snapshot is owned by rtimvBase on the server. */
     QBitArray m_displayMask;
 
+    /// Statistic requested by the local viewer for the masked-pixel fill.
+    rtimv::maskColorMode m_maskColorMode{ rtimv::maskColorMode::fixed };
+
+    /// Adaptive fill received with the current frame, or an invalid color for the window background.
+    QColor m_adaptiveMaskColor;
+
   public:
     /// Get the lightness for a pixel
     uint8_t lightness( int x, /**< [in] the x location of the pixel */
