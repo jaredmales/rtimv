@@ -248,6 +248,8 @@ This means local client overrides always win for options/keys set locally, while
 |  | `--update.rollingStatsFrames` | `update.rollingStatsFrames` | int | Number of frames used for rolling averages of compression ratio and frame rate. `rtimvClient` only. Default is 10. |
 |  | `--quality` | `quality` | int | JPEG transport quality for the remote image stream. `rtimvClient` only. Range is 0 to 100. |
 |  | `--autoscale` | `autoscale` | bool | Set autoscaling at startup. Bare `--autoscale` is true; `--autoscale=true` and `--autoscale=false` are also accepted. |
+|  | `--scale.min` | `scale.min` | float | Minimum display value at startup when autoscale is off. |
+|  | `--scale.max` | `scale.max` | float | Maximum display value at startup when autoscale is off. |
 |  | `--nofpsgage` | `nofpsgage` | bool | Turn the FPS gauge off at startup. |
 |  | `--darksub` | `darksub` | bool | Set dark subtraction at startup. Bare `--darksub` is true; `--darksub=true` and `--darksub=false` are also accepted. If a dark is supplied, `darksub` is otherwise on. |
 |  | `--mask` | `mask` | bool | Set ordinary image masking at startup with `--mask=true` or `--mask=false`. If a mask is supplied, masking is otherwise on. Independent of `stats.global` and `stats.mask`. |
@@ -280,6 +282,22 @@ keyword=value
 in the configuration file.
 
 Settings on the command line override settings in the config file.  So the same config file could be used for several images, changing only the image name on the command line for instance.
+
+To set the starting color scale, use `--scale.min=-0.1 --scale.max=0.1`, or set:
+
+```ini
+autoscale=false
+
+[scale]
+min=-0.1
+max=0.1
+```
+
+An effective `autoscale=true` takes precedence over both limits. With autoscale off, the first frame supplies any
+omitted limit. If its data are entirely outside a one-sided limit, the display clips at that limit. Configured limits
+must be finite, with `min < max` when both are set. The limits initialize the display scale. You can adjust them
+afterward in the control panel. For `rtimvClient`, an updated `rtimvServer` applies the limits before rendering the
+first frame.
 
 Set `--mask.color='#305070'` in either viewer to override the masked-pixel color. In a config file, set `color=#305070`
 in the `[mask]` section alongside `key`. For an adaptive fill, use `--mask.color=median` or set `color=median`.
@@ -319,6 +337,9 @@ $ rtimvServer -c /path/to/rtimvServer.conf
 |  | `--client.sleep` | `client.sleep` | real | Time in seconds after which a thread with no requests will be put to sleep. Default is 10 s. |
 |  | `--client.disconnect` | `client.disconnect` | real | Time in seconds after which a thread with no requests will be disconnected. Default is 120 s. |
 |  | `--quality` | `quality` | int | Default JPEG quality for served images when no per-image quality is configured. Range is 0 to 100. |
+|  | `--autoscale` | `autoscale` | bool | Default autoscale setting for served images. When true, fixed startup limits are ignored. |
+|  | `--scale.min` | `scale.min` | float | Default minimum display value at startup for served images when autoscale is off. |
+|  | `--scale.max` | `scale.max` | float | Default maximum display value at startup for served images when autoscale is off. |
 |  | `--log.appname` | `log.appname` | bool | Set true or false to include or exclude the called program name in log prefixes. |
 |  | `--no-log-appname` | `no-log-appname` | bool | Disable the called program name in log prefixes. |
 

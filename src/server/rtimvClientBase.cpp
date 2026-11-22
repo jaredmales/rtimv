@@ -7,6 +7,7 @@
 #include "rtimvLog.hpp"
 #include "rtimvColorGRPC.hpp"
 #include "rtimvFilterGRPC.hpp"
+#include "rtimvScaleConfig.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -463,6 +464,8 @@ void rtimvClientBase::setupConfig()
                 "bool",
                 "Set autoscaling at startup. Bare --autoscale is true; also accepts =true or =false." );
 
+    rtimv::setupScaleLimitsConfig( config );
+
     config.add( "darksub",
                 "",
                 "darksub",
@@ -793,6 +796,18 @@ void rtimvClientBase::loadConfig()
         bool autoscale = configBoolOption( config, "autoscale" );
         m_configReq->set_autoscale( autoscale );
         m_configReq->set_autoscale_set( true );
+    }
+
+    const auto scale = rtimv::loadScaleLimitsConfig( config );
+    if( scale.m_min )
+    {
+        m_configReq->set_min_scale_data_set( true );
+        m_configReq->set_min_scale_data( *scale.m_min );
+    }
+    if( scale.m_max )
+    {
+        m_configReq->set_max_scale_data_set( true );
+        m_configReq->set_max_scale_data( *scale.m_max );
     }
 
     if( config.isSet( "darksub" ) )

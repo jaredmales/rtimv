@@ -209,6 +209,8 @@ void rtimvBase::setupBaseConfig( mx::app::appConfigurator &configurator, bool in
                       "bool",
                       "Set autoscaling at startup. Bare --autoscale is true; also accepts =true or =false." );
 
+    rtimv::setupScaleLimitsConfig( configurator );
+
     configurator.add( "darksub",
                       "",
                       "darksub",
@@ -413,6 +415,8 @@ void rtimvBase::loadBaseConfig( startupConfig &settings, mx::app::appConfigurato
         settings.m_autoscaleSet = true;
     }
 
+    settings.m_scaleLimits = rtimv::loadScaleLimitsConfig( configurator );
+
     if( configurator.isSet( "darksub" ) )
     {
         settings.m_darkSub = configBoolOption( configurator, "darksub" );
@@ -511,6 +515,8 @@ void rtimvBase::appendBaseConfigArgs( std::vector<std::string> &argv, const star
     {
         argv.push_back( settings.m_autoscale ? "--autoscale" : "--autoscale=false" );
     }
+
+    rtimv::appendScaleLimitsArgs( argv, settings.m_scaleLimits );
 
     if( settings.m_darkSubSet )
     {
@@ -632,6 +638,7 @@ void rtimvBase::loadConfig()
     {
         m_autoScale = settings.m_autoscale;
     }
+    m_startupScaleLimits = settings.m_scaleLimits;
 
     m_subtractDarkSet = settings.m_darkSubSet;
     if( m_subtractDarkSet )
@@ -2578,7 +2585,40 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
             m_minImageData = 0;
         }
 
-        if( ( resized || m_autoScale ) && m_colormode != rtimv::colormode::minmaxbox )
+        if( !m_autoScale && ( m_startupScaleLimits.m_min || m_startupScaleLimits.m_max ) )
+        {
+            float min = m_startupScaleLimits.m_min.value_or( m_minImageData );
+            float max = m_startupScaleLimits.m_max.value_or( m_maxImageData );
+
+            // Keep a one-sided limit usable even when the entire image is outside it.
+            if( min >= max )
+            {
+                if( m_startupScaleLimits.m_min )
+                {
+                    max = std::nextafter( min, std::numeric_limits<float>::max() );
+                }
+                else
+                {
+                    min = std::nextafter( max, std::numeric_limits<float>::lowest() );
+                }
+            }
+            if( !std::isfinite( max - min ) )
+            {
+                if( m_startupScaleLimits.m_min )
+                {
+                    max = std::midpoint( min, max );
+                }
+                else
+                {
+                    min = std::midpoint( min, max );
+                }
+            }
+
+            minScaleData( min );
+            maxScaleData( max );
+            m_colormode = rtimv::colormode::user;
+        }
+        else if( ( resized || m_autoScale ) && m_colormode != rtimv::colormode::minmaxbox )
         {
             minScaleData( m_minImageData );
             maxScaleData( m_maxImageData );
@@ -2632,6 +2672,8 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
             minScaleData( m_colorBox_min );
             maxScaleData( m_colorBox_max );
         }
+
+        m_startupScaleLimits = {};
 
         if( m_statsBox )
         {

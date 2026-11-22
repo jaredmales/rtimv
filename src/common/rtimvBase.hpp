@@ -22,6 +22,7 @@
 #include "rtimvColor.hpp"
 #include "rtimvFilters.hpp"
 #include "rtimvGlobalStats.hpp"
+#include "rtimvScaleConfig.hpp"
 
 #include "rtimvBaseObject.hpp"
 
@@ -113,6 +114,9 @@ class rtimvBase : public mx::app::application
 
         /// Explicit autoscale startup state.
         bool m_autoscale{ false };
+
+        /// Explicit display bounds for the first frame when autoscaling is off.
+        rtimv::scaleLimits m_scaleLimits;
 
         /// True when dark subtraction was explicitly configured.
         bool m_darkSubSet{ false };
@@ -1076,8 +1080,7 @@ class rtimvBase : public mx::app::application
 
     ///@}
 
-    /** @name Colorbar Scale Control
-     *
+    /** @name Colorbar Scale Control - Data
      * @{
      */
 
@@ -1085,33 +1088,56 @@ class rtimvBase : public mx::app::application
     /*** Color Map ***/
     float m_minScaleData{ 0 }; ///< The minimum data value used for scaling
 
-    float m_maxScaleData{ 0 }; ///< The maximum data valuse used for scaling
+    float m_maxScaleData{ 0 }; ///< The maximum data value used for scaling
 
+    /// Whether to derive the scale limits from each frame.
     bool m_autoScale{ false };
 
-  public:
-    void minScaleData( float md );
+  private:
+    /// Optional limits consumed when the first frame is ready to render.
+    rtimv::scaleLimits m_startupScaleLimits;
 
+    ///@}
+
+    /** @name Colorbar Scale Control
+     *
+     * @{
+     */
+  public:
+    /// Set the lower display scale endpoint.
+    void minScaleData( float md /**< [in] value at the low end of the colorbar */ );
+
+    /// Get the lower display scale endpoint.
     float minScaleData();
 
-    void maxScaleData( float md );
+    /// Set the upper display scale endpoint.
+    void maxScaleData( float md /**< [in] value at the high end of the colorbar */ );
 
+    /// Get the upper display scale endpoint.
     float maxScaleData();
 
-    void bias( float b );
+    /// Set the center of the display scale.
+    void bias( float b /**< [in] new colorbar midpoint in image units */ );
 
+    /// Get the center of the display scale in image units.
     float bias();
 
-    void bias_rel( float b );
+    /// Set the display bias relative to the image range.
+    void bias_rel( float b /**< [in] midpoint as a fraction of the image range */ );
 
+    /// Get the bias ratio used by the display controls.
     float bias_rel();
 
-    void contrast( float c );
+    /// Set the width of the display scale.
+    void contrast( float c /**< [in] new colorbar width in image units */ );
 
+    /// Get the width of the display scale in image units.
     float contrast();
 
-    void contrast_rel( float cr );
+    /// Set the display contrast relative to the image range.
+    void contrast_rel( float cr /**< [in] image range divided by the requested colorbar width */ );
 
+    /// Get the image range divided by the display scale width.
     float contrast_rel();
 
     /// Set the auto scale flag

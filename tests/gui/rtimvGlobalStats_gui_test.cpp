@@ -28,6 +28,7 @@
 #include <functional>
 #include <iostream>
 #include <limits>
+#include <optional>
 #include <stdexcept>
 #include <thread>
 
@@ -751,11 +752,25 @@ void checkAdaptiveMaskColor( std::vector<std::string> args, /**< [in] viewer arg
         "adaptive mask color did not follow recoloring" );
 }
 
+/// Expected display scale for the first rendered frame.
+struct startupScale
+{
+    /// Expected autoscale state.
+    bool m_autoscale;
+
+    /// Expected lower limit.
+    float m_min;
+
+    /// Expected upper limit.
+    float m_max;
+};
+
 /// Verify configured startup state through the real viewer and, when applicable, its remote backend.
-void checkStartup( std::vector<std::string> args, /**< [in] viewer arguments */
-                   bool enabled,                  /**< [in] expected global-statistics mode */
-                   bool applyMask,                /**< [in] expected ordinary masking mode */
-                   bool useMask                   /**< [in] expected statistical mask-selection policy */
+void checkStartup( std::vector<std::string> args,         /**< [in] viewer arguments */
+                   bool enabled,                          /**< [in] expected global-statistics mode */
+                   bool applyMask,                        /**< [in] expected ordinary masking mode */
+                   bool useMask,                          /**< [in] expected statistical mask-selection policy */
+                   std::optional<startupScale> scale = {} /**< [in] expected scale when tested */
 )
 {
     std::vector<char *> pointers;
@@ -771,11 +786,20 @@ void checkStartup( std::vector<std::string> args, /**< [in] viewer arguments */
                  {
                      const auto stats = window.globalStats();
                      return window.connected() && window.nx() == 32 && window.ny() == 32 &&
-                            stats.m_enabled == enabled && stats.m_useMask == useMask &&
+                            !window.getPixmap()->isNull() && stats.m_enabled == enabled && stats.m_useMask == useMask &&
                             window.applyMask() == applyMask && !window.globalStatsPending() &&
                             ( !enabled || stats.m_status == rtimv::globalStatsStatus::valid );
                  } ),
              "configured global-statistics startup state did not settle" );
+    if( scale )
+    {
+        require( window.minScaleData() == scale->m_min && window.maxScaleData() == scale->m_max,
+                 "first frame did not use the expected startup scale limits" );
+        require( window.RTIMV_BASE::autoScale() == scale->m_autoscale,
+                 "startup autoscale precedence was not reflected in the viewer" );
+        const auto expectedMode = scale->m_autoscale ? rtimv::colormode::minmaxglobal : rtimv::colormode::user;
+        require( window.colormode() == expectedMode, "first frame did not use the expected color scale mode" );
+    }
     window.launchControlPanel();
     auto *check = window.findChild<QCheckBox *>( "globalStatsCheck" );
     auto *maskCheck = window.findChild<QCheckBox *>( "globalStatsMaskCheck" );
@@ -843,6 +867,7 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
         const bool viewportTests = qEnvironmentVariableIsSet( "RTIMV_TEST_VIEWPORT_BOUNDS" );
         const bool mouseCenterTests = qEnvironmentVariableIsSet( "RTIMV_TEST_MOUSE_CENTER" );
         const QString valueDisplayPlugin = qEnvironmentVariable( "RTIMV_TEST_VALUE_DISPLAY_PLUGIN" );
+        float defaultScaleMin = 0;
 #ifdef RTIMV_GRPC
         require( argc > 1, "server executable path missing" );
         int port = 0;
@@ -860,6 +885,9 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
             serverArgs.push_back( "--stats.global=true" );
             serverArgs.push_back( "--stats.mask=true" );
             serverArgs.push_back( "--mask=false" );
+            serverArgs.push_back( "--scale.min=-4e-7" );
+            serverArgs.push_back( "--scale.max=100" );
+            defaultScaleMin = -4e-7f;
         }
         serverProcess.start( argv[1], serverArgs );
         require( serverProcess.waitForStarted(), "could not start rtimvServer" );
@@ -883,30 +911,33 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
             const QString configPath = directory.filePath( "startup.conf" );
             QFile configFile( configPath );
             require( configFile.open( QIODevice::WriteOnly ), "could not create startup configuration" );
-            configFile.write( "mask=false\n[stats]\nglobal=true\n" );
+            configFile.write( "mask=false\nautoscale=false\n[scale]\nmin=-10\nmax=55\n[stats]\nglobal=true\n" );
             configFile.close();
             auto configuredArgs = args;
             configuredArgs.push_back( "-c" );
             configuredArgs.push_back( configPath.toStdString() );
-            checkStartup( configuredArgs, true, false, true );
+            checkStartup( configuredArgs, true, false, true, startupScale{ false, -10, 55 } );
 
             auto overrideArgs = configuredArgs;
             overrideArgs.push_back( "--stats.global=false" );
             overrideArgs.push_back( "--mask=true" );
             overrideArgs.push_back( "--stats.mask=false" );
-            checkStartup( overrideArgs, false, true, false );
+            overrideArgs.push_back( "--scale.min=-20" );
+            overrideArgs.push_back( "--scale.max=70" );
+            checkStartup( overrideArgs, false, true, false, startupScale{ false, -20, 70 } );
 
             require( configFile.open( QIODevice::WriteOnly | QIODevice::Truncate ),
                      "could not replace startup configuration" );
-            configFile.write( "mask=true\n[stats]\nglobal=false\nmask=false\n" );
+            configFile.write( "mask=true\n[scale]\nmax=55\n[stats]\nglobal=false\nmask=false\n" );
             configFile.close();
-            checkStartup( configuredArgs, false, true, false );
+            checkStartup( configuredArgs, false, true, false, startupScale{ false, defaultScaleMin, 55 } );
             configuredArgs.push_back( "--stats.global=true" );
             configuredArgs.push_back( "--mask=false" );
             configuredArgs.push_back( "--stats.mask=true" );
-            checkStartup( configuredArgs, true, false, true );
+            configuredArgs.push_back( "--autoscale=true" );
+            checkStartup( configuredArgs, true, false, true, startupScale{ true, 0, 62 } );
 #ifdef RTIMV_GRPC
-            checkStartup( args, true, false, true );
+            checkStartup( args, true, false, true, startupScale{ false, defaultScaleMin, 100 } );
             auto policyOverride = args;
             policyOverride.push_back( "--stats.mask=false" );
             checkStartup( policyOverride, true, false, false );

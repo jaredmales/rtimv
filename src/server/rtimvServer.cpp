@@ -172,6 +172,15 @@ std::string summarizeBaseConfigOverrides( const rtimvBase::startupConfig &settin
         addValue( "autoscale", boolString( settings.m_autoscale ) );
     }
 
+    if( settings.m_scaleLimits.m_min )
+    {
+        addValue( "scale.min", std::format( "{}", *settings.m_scaleLimits.m_min ) );
+    }
+    if( settings.m_scaleLimits.m_max )
+    {
+        addValue( "scale.max", std::format( "{}", *settings.m_scaleLimits.m_max ) );
+    }
+
     if( settings.m_darkSubSet )
     {
         addValue( "darksub", boolString( settings.m_darkSub ) );
@@ -1466,6 +1475,17 @@ void rtimvServer::doConfigure( const configSpec *cspec )
     {
         argv->push_back( cspec->m_config.autoscale() ? "--autoscale" : "--autoscale=false" );
     }
+
+    rtimv::scaleLimits scale;
+    if( cspec->m_config.min_scale_data_set() )
+    {
+        scale.m_min = cspec->m_config.min_scale_data();
+    }
+    if( cspec->m_config.max_scale_data_set() )
+    {
+        scale.m_max = cspec->m_config.max_scale_data();
+    }
+    rtimv::appendScaleLimitsArgs( *argv, scale );
 
     if( cspec->m_config.darksub_set() )
     {

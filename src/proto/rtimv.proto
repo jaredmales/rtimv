@@ -125,6 +125,12 @@ message Config
 
     bool apply_mask_set = 30;
     bool apply_mask = 31;
+
+    bool min_scale_data_set = 32;
+    float min_scale_data = 33;
+
+    bool max_scale_data_set = 34;
+    float max_scale_data = 35;
 }
 
 message ConfigResult

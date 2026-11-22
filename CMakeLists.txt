@@ -129,6 +129,7 @@ install( EXPORT rtimv-sharedTargets
 set( commonsrcs src/common/rtimvBaseObject.cpp
                              src/common/rtimvBase.cpp
                              src/common/rtimvFilters.cpp
+                             src/common/rtimvScaleConfig.cpp
                              src/common/images/shmimImage.cpp
                              src/common/images/fitsImage.cpp
                              src/common/images/fitsDirectory.cpp)
@@ -277,6 +278,7 @@ if(Protobuf_FOUND AND GRPCPP_FOUND )
     add_executable(rtimvClient src/server/rtimvClientBase.cpp
                                src/server/rtimvClientMain.cpp
                                src/common/rtimvBaseObject.cpp
+                               src/common/rtimvScaleConfig.cpp
                                src/proto/rtimv.proto
                                src/gui/rtimvMainWindow.cpp
               src/gui/rtimvControlPanel.cpp

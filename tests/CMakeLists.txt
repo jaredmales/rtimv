@@ -60,6 +60,7 @@ endif()
 add_library(rtimvClientBaseTestSupport STATIC
             ${CMAKE_SOURCE_DIR}/src/server/rtimvClientBase.cpp
             ${CMAKE_SOURCE_DIR}/src/common/rtimvBaseObject.cpp
+            ${CMAKE_SOURCE_DIR}/src/common/rtimvScaleConfig.cpp
             ${CMAKE_SOURCE_DIR}/src/proto/rtimv.proto)
 
 target_compile_options(rtimvClientBaseTestSupport PUBLIC -DRTIMV_BASE=rtimvClientBase -DRTIMV_BASE_INCLUDE="rtimvClientBase.hpp" -DRTIMV_GRPC)
