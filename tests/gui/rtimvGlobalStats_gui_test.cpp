@@ -1,5 +1,5 @@
 /** \file rtimvGlobalStats_gui_test.cpp
- * \brief Check statistics controls, masked-pixel rendering, and viewport behavior with real FITS images.
+ * \brief Check statistics controls, display scaling, masked-pixel rendering, and viewport behavior with FITS images.
  */
 
 #include <QApplication>
@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <filesystem>
 #include <functional>
 #include <iostream>
 #include <limits>
@@ -71,6 +72,12 @@ class TestWindow : public rtimvMainWindow
 
     /// Expose the existing notification source for observing processed pixel values.
     using RTIMV_BASE::m_foundation;
+
+    /// Expose the cached color mode to simulate an image received before a mode change.
+    using RTIMV_BASE::m_colormode;
+
+    /// Expose the statistics box for simulating scene selection notifications.
+    using rtimvMainWindow::m_statsBox;
 
     /// Evaluate overlay opacity using a temporary image without running the image update pipeline.
     void sampleOverlay( QTextEdit *overlay, /**< [in,out] overlay whose background is updated */
@@ -446,6 +453,122 @@ void sendViewerKey( int key,                         /**< [in] Qt key code */
     QApplication::sendEvent( QApplication::focusWidget(), &press );
     QKeyEvent release( QEvent::KeyRelease, key, modifiers, text );
     QApplication::sendEvent( QApplication::focusWidget(), &release );
+}
+
+/// Check that hiding a stats box or disabling a user box clears its readouts.
+void checkBoxReadouts( TestWindow &window,     /**< [in,out] viewer owning the boxes */
+                       rtimvGraphicsView *view /**< [in] graphics surface with shared readouts */
+)
+{
+    window.toggleStatsBox();
+    auto *statsBox = window.m_statsBox;
+    emit statsBox->selected( statsBox );
+    require( view->userItemSize()->isVisible() && view->userItemMouseCoords()->isVisible(),
+             "selecting the stats box did not show its readouts" );
+
+    window.doHideStatsBox();
+    emit statsBox->selected( statsBox );
+    emit statsBox->moved( statsBox );
+    require( !view->userItemSize()->isVisible() && !view->userItemMouseCoords()->isVisible() &&
+                 view->userItemMouseCoords()->toPlainText().isEmpty(),
+             "hiding the stats box left its readouts behind" );
+
+    auto *userBox = new StretchBox( QRectF( 3, 5, 7, 10 ) );
+    window.addInteractiveBox( userBox );
+    emit userBox->selected( userBox );
+    require( view->userItemMouseCoords()->isVisible(), "selecting the user box did not show its coordinates" );
+
+    emit statsBox->deSelected( statsBox );
+    require( view->userItemMouseCoords()->isVisible(), "a stale stats-box event hid the user-box coordinates" );
+
+    userBox->setEnabled( false );
+    emit userBox->selected( userBox );
+    require( !view->userItemSize()->isVisible() && !view->userItemMouseCoords()->isVisible() &&
+                 view->userItemMouseCoords()->toPlainText().isEmpty(),
+             "disabling the user box left its readouts behind" );
+    window.userBoxRemove( userBox );
+}
+
+/// Exercise color-box scaling and disable behavior through the local or remote viewer.
+void checkColorBoxAutoscale( TestWindow &window,       /**< [in,out] viewer with the unmasked test image */
+                             rtimvGraphicsView *view,  /**< [in,out] viewer graphics surface */
+                             const std::string &path,  /**< [in] FITS image to replace */
+                             std::vector<float> pixels /**< [in] initial ramp pixels */
+)
+{
+    window.activateWindow();
+    view->setFocus( Qt::OtherFocusReason );
+    QCoreApplication::processEvents();
+    window.autoScale( false );
+    require( waitUntil( [&]() { return !window.RTIMV_BASE::autoScale(); } ), "autoscale did not turn off" );
+
+    window.toggleColorBoxOn();
+    require( waitUntil( [&]() { return window.minScaleData() == 24 && window.maxScaleData() == 40; } ),
+             "opening the color box did not fit its range" );
+
+    const auto brightenImage = [&]()
+    {
+        for( float &pixel : pixels )
+        {
+            pixel += 100;
+        }
+        const auto replacement = path + ".new.fits";
+        mx::fits::fitsFile<float> fits;
+        fits.write( replacement, pixels.data(), 32, 32, 1 );
+        std::filesystem::rename( replacement, path );
+    };
+    brightenImage();
+    require( waitUntil( [&]() { return window.minImageData() == 100; } ), "viewer did not receive the new frame" );
+    require( window.minScaleData() == 24 && window.maxScaleData() == 40,
+             "new frame changed the color-box limits with autoscale off" );
+
+    window.mtxTry_colorBoxSelected( window.m_colorBox );
+    window.dispatchColorBoxRequest();
+    sendViewerKey( Qt::Key_L, Qt::ShiftModifier, "L" );
+    require( waitUntil( [&]() { return window.stretch() == rtimv::stretch::log; } ), "log stretch did not activate" );
+    require( window.minScaleData() == 24 && window.maxScaleData() == 40,
+             "selecting the box or switching stretch changed the manual limits" );
+
+    sendViewerKey( Qt::Key_R, Qt::NoModifier, "r" );
+    require( waitUntil( [&]() { return window.minScaleData() == 124 && window.maxScaleData() == 140; } ),
+             "pressing r did not refresh the color-box limits" );
+
+    window.m_colormode = rtimv::colormode::minmaxglobal;
+    window.m_colorBox->moveBy( 3, 0 );
+    emit window.m_colorBox->moved( window.m_colorBox );
+    require( waitUntil( [&]() { return window.minScaleData() == 127 && window.maxScaleData() == 143; } ),
+             "moving the visible box did not refresh its limits with a stale cached color mode" );
+
+    window.autoScale( true );
+    require( waitUntil( [&]() { return window.RTIMV_BASE::autoScale(); } ), "autoscale did not turn on" );
+    brightenImage();
+    require( waitUntil( [&]() { return window.minScaleData() == 227 && window.maxScaleData() == 243; } ),
+             "the color-box limits did not follow the new frame with autoscale on" );
+
+    auto *colorBox = window.m_colorBox;
+    emit colorBox->selected( colorBox );
+    require( view->userItemSize()->isVisible(), "selecting the color box did not show its limits" );
+
+    colorBox->moveBy( 2, 0 );
+    emit colorBox->moved( colorBox );
+    window.dispatchColorBoxRequest();
+    colorBox->moveBy( 1, 0 );
+    emit colorBox->moved( colorBox );
+    window.mtxUL_colormode( rtimv::colormode::minmaxglobal );
+
+    emit colorBox->selected( colorBox );
+    emit colorBox->moved( colorBox );
+    window.dispatchColorBoxRequest();
+    require( !colorBox->isVisible() && !view->userItemSize()->isVisible() &&
+                 view->userItemSize()->toPlainText().isEmpty(),
+             "switching away from color-box mode left its readout visible" );
+
+    brightenImage();
+    require( waitUntil( [&]() { return window.minScaleData() == 300 && window.maxScaleData() == 362; } ),
+             "a pending box move overrode the change to global scaling" );
+    require( view->userItemSize()->toPlainText().isEmpty(), "a delayed color-box response restored its readout" );
+
+    checkBoxReadouts( window, view );
 }
 
 /// Check the reported middle-click, zoom, Ctrl+C, and zoom sequence with an off-center mouse anchor.
@@ -866,6 +989,7 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
         const bool startupTests = qEnvironmentVariableIsSet( "RTIMV_TEST_GLOBAL_STARTUP" );
         const bool viewportTests = qEnvironmentVariableIsSet( "RTIMV_TEST_VIEWPORT_BOUNDS" );
         const bool mouseCenterTests = qEnvironmentVariableIsSet( "RTIMV_TEST_MOUSE_CENTER" );
+        const bool colorBoxTests = qEnvironmentVariableIsSet( "RTIMV_TEST_COLOR_BOX" );
         const QString valueDisplayPlugin = qEnvironmentVariable( "RTIMV_TEST_VALUE_DISPLAY_PLUGIN" );
         float defaultScaleMin = 0;
 #ifdef RTIMV_GRPC
@@ -905,6 +1029,23 @@ int main( int argc /**< [in] argument count */, char **argv /**< [in] arguments 
         else if( viewportTests )
         {
             checkViewportBounds( args );
+        }
+        else if( colorBoxTests )
+        {
+            args.push_back( "--mask=false" );
+            std::vector<char *> pointers;
+            for( auto &arg : args )
+            {
+                pointers.push_back( arg.data() );
+            }
+            pointers.push_back( nullptr );
+            TestWindow window( static_cast<int>( args.size() ), pointers.data() );
+            window.show();
+            require( waitUntil( [&]() { return window.connected() && window.getPixmap()->size() == QSize( 32, 32 ); } ),
+                     "viewer did not render the color-box fixture" );
+            auto *view = window.findChild<rtimvGraphicsView *>( "graphicsView" );
+            require( view, "graphics view missing" );
+            checkColorBoxAutoscale( window, view, imagePath, pixels );
         }
         else if( startupTests )
         {

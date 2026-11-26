@@ -17,6 +17,7 @@
 #include <memory>
 #include <string_view>
 #include <unordered_map>
+#include <variant>
 
 #include <QBitArray>
 #include <QImage>
@@ -235,7 +236,7 @@ class rtimvClientBase : public mx::app::application
     /// Context for the GetPixel rpc.
     grpc::ClientContext *m_GetPixelContext{ nullptr };
 
-    /// Context for the ColorBox rpc.
+    /// Context for the in-flight box or color-mode RPC.
     grpc::ClientContext *m_ColorBoxContext{ nullptr };
 
     /// Context for the StatsBox rpc.
@@ -389,29 +390,20 @@ class rtimvClientBase : public mx::app::application
     /// Response payload for GetPixel.
     remote_rtimv::Pixel m_getPixelReply;
 
-    /// True while a ColorBox request is outstanding.
+    /// True while a ColorBox or SetColormode request is outstanding.
     bool m_colorBoxPending{ false };
 
-    /// True when a newer ColorBox request should be sent after current completion.
-    bool m_colorBoxQueued{ false };
+    /// True when the outstanding color-mode request carries box geometry and returns its limits.
+    bool m_colorBoxRequestHasGeometry{ false };
+
+    /// Latest requested box geometry or color mode waiting for the in-flight change to finish.
+    std::variant<std::monostate, remote_rtimv::Box, rtimv::colormode> m_queuedColorModeRequest;
 
     /// Request payload for ColorBox.
     remote_rtimv::Box m_colorBoxRequest;
 
     /// Response payload for ColorBox.
     remote_rtimv::MinvalMaxval m_colorBoxReply;
-
-    /// In-flight upper-left x coordinate for ColorBox.
-    int64_t m_colorBoxInflight_i0{ 0 };
-
-    /// In-flight lower-right x coordinate for ColorBox.
-    int64_t m_colorBoxInflight_i1{ 0 };
-
-    /// In-flight upper-left y coordinate for ColorBox.
-    int64_t m_colorBoxInflight_j0{ 0 };
-
-    /// In-flight lower-right y coordinate for ColorBox.
-    int64_t m_colorBoxInflight_j1{ 0 };
 
     /// True while a StatsBox request is outstanding.
     bool m_statsBoxPending{ false };
@@ -550,6 +542,9 @@ class rtimvClientBase : public mx::app::application
     void ImageReceived();
 
   protected:
+    /// Send the queued color-mode change with m_connectedMutex and m_asyncRpcMutex held.
+    void mtxL_dispatchColorModeRequest();
+
     /// Handle a Ping response from the server.
     void Ping_callback( grpc::Status status /**< [in] transport completion status */ );
 
@@ -562,7 +557,7 @@ class rtimvClientBase : public mx::app::application
     /// Handle a GetPixel response from the server.
     void GetPixel_callback( grpc::Status status /**< [in] transport completion status */ );
 
-    /// Handle a ColorBox response from the server.
+    /// Handle completion of the current ColorBox or SetColormode request.
     void ColorBox_callback( grpc::Status status /**< [in] transport completion status */ );
 
     /// Handle a StatsBox response from the server.

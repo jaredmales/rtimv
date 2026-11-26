@@ -1370,39 +1370,59 @@ void rtimvClientBase::requestColorBoxValues()
         return;
     }
 
-    if( m_colorBoxPending )
+    auto &request = m_queuedColorModeRequest.emplace<remote_rtimv::Box>();
+    request.mutable_upper_left()->set_x( m_colorBox_i0 );
+    request.mutable_upper_left()->set_y( m_colorBox_j0 );
+    request.mutable_lower_right()->set_x( m_colorBox_i1 );
+    request.mutable_lower_right()->set_y( m_colorBox_j1 );
+
+    mtxL_dispatchColorModeRequest();
+}
+
+void rtimvClientBase::mtxL_dispatchColorModeRequest()
+{
+    if( m_colorBoxPending || std::holds_alternative<std::monostate>( m_queuedColorModeRequest ) )
     {
-        m_colorBoxQueued = true;
         return;
     }
 
     if( m_ColorBoxContext )
     {
-        std::cerr << formatBaseLogMessage( std::format(
-                         "bug: in requestColorBoxValues but ColorBoxContext is allocated {} {}", __FILE__, __LINE__ ) )
+        std::cerr << formatBaseLogMessage(
+                         std::format( "bug: in mtxL_dispatchColorModeRequest but ColorBoxContext is allocated {} {}",
+                                      __FILE__,
+                                      __LINE__ ) )
                   << '\n';
         return;
     }
 
-    m_colorBoxRequest.mutable_upper_left()->set_x( m_colorBox_i0 );
-    m_colorBoxRequest.mutable_upper_left()->set_y( m_colorBox_j0 );
-    m_colorBoxRequest.mutable_lower_right()->set_x( m_colorBox_i1 );
-    m_colorBoxRequest.mutable_lower_right()->set_y( m_colorBox_j1 );
-
-    m_colorBoxInflight_i0 = m_colorBox_i0;
-    m_colorBoxInflight_i1 = m_colorBox_i1;
-    m_colorBoxInflight_j0 = m_colorBox_j0;
-    m_colorBoxInflight_j1 = m_colorBox_j1;
-
     m_ColorBoxContext = new grpc::ClientContext;
     m_ColorBoxContext->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
-
     m_colorBoxPending = true;
 
-    stub_->async()->ColorBox( m_ColorBoxContext,
-                              &m_colorBoxRequest,
-                              &m_colorBoxReply,
-                              [this]( grpc::Status status ) { this->ColorBox_callback( status ); } );
+    if( auto *box = std::get_if<remote_rtimv::Box>( &m_queuedColorModeRequest ) )
+    {
+        m_colorBoxRequestHasGeometry = true;
+        m_colorBoxRequest = std::move( *box );
+        m_queuedColorModeRequest = std::monostate{};
+        stub_->async()->ColorBox( m_ColorBoxContext,
+                                  &m_colorBoxRequest,
+                                  &m_colorBoxReply,
+                                  [this]( grpc::Status status ) { this->ColorBox_callback( status ); } );
+    }
+    else
+    {
+        m_colorBoxRequestHasGeometry = false;
+        auto request = std::make_shared<remote_rtimv::ColormodeRequest>();
+        auto response = std::make_shared<remote_rtimv::ColormodeResponse>();
+        request->set_colormode( rtimv::colormode2grpc( std::get<rtimv::colormode>( m_queuedColorModeRequest ) ) );
+        m_queuedColorModeRequest = std::monostate{};
+        stub_->async()->SetColormode( m_ColorBoxContext,
+                                      request.get(),
+                                      response.get(),
+                                      [this, request, response]( grpc::Status status )
+                                      { this->ColorBox_callback( status ); } );
+    }
 }
 
 void rtimvClientBase::requestStatsBoxValues()
@@ -2062,6 +2082,7 @@ void rtimvClientBase::ColorBox_callback( grpc::Status status )
     std::unique_ptr<grpc::ClientContext> contextHolder;
 
     bool queueNext{ false };
+    bool hasGeometry{ false };
     bool valid{ false };
     int64_t i0{ 0 }, i1{ 0 }, j0{ 0 }, j1{ 0 };
     float min{ 0 }, max{ 0 };
@@ -2075,27 +2096,18 @@ void rtimvClientBase::ColorBox_callback( grpc::Status status )
             return;
         }
 
-        i0 = m_colorBoxInflight_i0;
-        i1 = m_colorBoxInflight_i1;
-        j0 = m_colorBoxInflight_j0;
-        j1 = m_colorBoxInflight_j1;
-
-        if( status.ok() )
+        hasGeometry = m_colorBoxRequestHasGeometry;
+        if( hasGeometry )
         {
-            valid = m_colorBoxReply.valid();
+            i0 = m_colorBoxRequest.upper_left().x();
+            i1 = m_colorBoxRequest.lower_right().x();
+            j0 = m_colorBoxRequest.upper_left().y();
+            j1 = m_colorBoxRequest.lower_right().y();
+            valid = status.ok() && m_colorBoxReply.valid();
             if( valid )
             {
                 min = m_colorBoxReply.min();
                 max = m_colorBoxReply.max();
-
-                m_colorBox_i0 = i0;
-                m_colorBox_i1 = i1;
-                m_colorBox_j0 = j0;
-                m_colorBox_j1 = j1;
-                m_colorBox_min = min;
-                m_colorBox_max = max;
-                m_minScaleData = min;
-                m_maxScaleData = max;
             }
         }
 
@@ -2103,8 +2115,7 @@ void rtimvClientBase::ColorBox_callback( grpc::Status status )
         m_ColorBoxContext = nullptr;
 
         m_colorBoxPending = false;
-        queueNext = m_colorBoxQueued && !m_shuttingDown;
-        m_colorBoxQueued = false;
+        queueNext = !std::holds_alternative<std::monostate>( m_queuedColorModeRequest ) && !m_shuttingDown;
     }
 
     m_asyncRpcCv.notify_all();
@@ -2116,14 +2127,24 @@ void rtimvClientBase::ColorBox_callback( grpc::Status status )
         REPORT_SERVER_DISCONNECTED
     }
 
-    if( m_foundation )
+    if( hasGeometry && m_foundation )
     {
         m_foundation->emit_colorBoxUpdated( i0, i1, j0, j1, min, max, valid );
     }
 
     if( queueNext && m_foundation != nullptr )
     {
-        QTimer::singleShot( 0, m_foundation, [this]() { requestColorBoxValues(); } );
+        QTimer::singleShot( 0,
+                            m_foundation,
+                            [this]()
+                            {
+                                sharedLockT connLock( m_connectedMutex );
+                                std::lock_guard<std::mutex> asyncLock( m_asyncRpcMutex );
+                                if( m_connected && !m_shuttingDown )
+                                {
+                                    mtxL_dispatchColorModeRequest();
+                                }
+                            } );
     }
 }
 
@@ -3548,29 +3569,15 @@ void rtimvClientBase::mtxL_colormode( rtimv::colormode m, const sharedLockT &loc
     {
         SHARED_CONN_LOCK
 
-        auto request = std::make_shared<remote_rtimv::ColormodeRequest>();
-        auto response = std::make_shared<remote_rtimv::ColormodeResponse>();
-        auto *context = new grpc::ClientContext;
-
-        { // mutex scope
-            std::lock_guard<std::mutex> asyncLock( m_asyncRpcMutex );
-            if( m_shuttingDown )
-            {
-                delete context;
-                return;
-            }
-            m_emptyRpcContexts.push_back( context );
-            ++m_emptyRpcPending;
+        std::lock_guard<std::mutex> asyncLock( m_asyncRpcMutex );
+        if( m_shuttingDown )
+        {
+            return;
         }
 
-        request->set_colormode( rtimv::colormode2grpc( m ) );
-
-        context->set_deadline( std::chrono::system_clock::now() + std::chrono::milliseconds( 2000 ) );
-        stub_->async()->SetColormode( context,
-                                      request.get(),
-                                      response.get(),
-                                      [this, context, request, response]( grpc::Status status )
-                                      { this->EmptyRpc_callback( context, status ); } );
+        // An older box RPC must finish before switching away from box mode.
+        m_queuedColorModeRequest = m;
+        mtxL_dispatchColorModeRequest();
     }
 
     m_colormode = m;

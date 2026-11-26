@@ -530,10 +530,8 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
      * @{
      */
   protected:
-    /// Flag indicating that one of the user items is selected
-    /** This causes its stats to be updated with the image
-     */
-    bool m_userItemSelected{ false };
+    /// Selected scene item that owns the shared size and coordinate readouts.
+    QPointer<QObject> m_selectedUserItem;
 
     float m_userItemXCen{ 0 }; ///< Center of active user item in scene coordinates
     float m_userItemYCen{ 0 }; ///< Center of active user item in scene coordinates
@@ -586,11 +584,15 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     /** Clears the size and coordinate text fields and sets their color and visibility.  Does
      * the same for the center cross.
      */
-    void userItemSelected( const QColor &color, /**< [in] the color of this user item */
+    void userItemSelected( QObject *item,       /**< [in] the selected scene item */
+                           const QColor &color, /**< [in] the color of this user item */
                            bool sizeVis,        /**< [in] whether or not the size text is visible */
                            bool coordsVis,      /**< [in] whether or not the coordinate text is visible */
                            bool cenVis          /**< [in] whether or not the center cross is visible */
     );
+
+    /// Clear the shared readouts when their owner is deselected.
+    void userItemDeselected( const QObject *item /**< [in] the scene item releasing its readouts */ );
 
     /// Position the cross marking the center of a user box or circle
     /** Sets the center coordinate and updates the cross position and pen.
@@ -611,13 +613,11 @@ class rtimvMainWindow : public QWidget, public RTIMV_BASE
     int m_colorBoxTimeout{ RTIMV_COLOR_BOX_TIMEOUT_DEFAULT }; ///< Debounce timeout for color-box requests, ms.
     bool m_colorBoxRequestPending{ false };                   ///< True when color-box request should be dispatched.
 
-    bool m_colorBoxCacheValid{ false }; ///< True when cached color-box min/max are valid.
-    int64_t m_colorBoxCache_i0{ 0 };    ///< Cached color-box upper-left x coordinate.
-    int64_t m_colorBoxCache_i1{ 0 };    ///< Cached color-box lower-right x coordinate.
-    int64_t m_colorBoxCache_j0{ 0 };    ///< Cached color-box upper-left y coordinate.
-    int64_t m_colorBoxCache_j1{ 0 };    ///< Cached color-box lower-right y coordinate.
-    float m_colorBoxCacheMin{ 0 };      ///< Cached color-box minimum value.
-    float m_colorBoxCacheMax{ 0 };      ///< Cached color-box maximum value.
+    /// Hide the color box and cancel any debounced move request.
+    void hideColorBox();
+
+    /// Set the backend region from the current geometry of the displayed color box.
+    void updateColorBoxRegion();
 
     /// Update the on-image color-box min/max text.
     void mtxTry_updateColorBoxText( StretchBox *sb, /**< [in] color box to annotate */

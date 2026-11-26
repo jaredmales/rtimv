@@ -75,6 +75,20 @@ void StretchBox::keyPressEvent( QKeyEvent *ke )
     handleKeyPressEvent( ke );
 }
 
+QVariant StretchBox::itemChange( GraphicsItemChange change, const QVariant &value )
+{
+    if( ( ( change == ItemVisibleHasChanged || change == ItemEnabledHasChanged ) && !value.toBool() ) ||
+        ( change == ItemSceneHasChanged && scene() == nullptr ) )
+    {
+        m_selectionTimer.stop();
+        setCursorStatus( cursorOff );
+        cancelEdit();
+        emitDeSelected();
+    }
+
+    return QGraphicsRectItem::itemChange( change, value );
+}
+
 void StretchBox::focusOutEvent( QFocusEvent *e )
 {
     handleFocusOutEvent( e );

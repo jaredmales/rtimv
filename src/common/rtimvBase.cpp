@@ -1700,60 +1700,14 @@ void rtimvBase::mtxL_colormode( rtimv::colormode m, const sharedLockT &lock )
 
     if( m == rtimv::colormode::minmaxbox )
     {
-        float imval;
-
-        normalizeColorBox();
-
-        m_colorBox_min = std::numeric_limits<float>::max();
-        m_colorBox_max = -std::numeric_limits<float>::max();
-
-        for( int i = m_colorBox_i0; i <= m_colorBox_i1; i++ )
-        {
-            for( int j = m_colorBox_j0; j <= m_colorBox_j1; j++ )
-            {
-                imval = calPixel( i, j );
-
-                if( !std::isfinite( imval ) )
-                {
-                    continue;
-                }
-
-                if( imval < m_colorBox_min )
-                {
-                    m_colorBox_min = imval;
-                }
-                if( imval > m_colorBox_max )
-                {
-                    m_colorBox_max = imval;
-                }
-            }
-        }
-
-        if( m_colorBox_min == std::numeric_limits<float>::max() &&
-            m_colorBox_max == -std::numeric_limits<float>::max() ) // If all nans
-        {
-            m_colorBox_min = 0;
-            m_colorBox_max = 0;
-        }
-
-        minScaleData( m_colorBox_min );
-        maxScaleData( m_colorBox_max );
-
-        m_colormode = rtimv::colormode::minmaxbox;
-
-        RTIMV_DEBUG_BREADCRUMB
+        mtxL_updateColorBoxScale();
     }
-    else
+    else if( m == rtimv::colormode::user )
     {
-        // We turn off autoscale for user
-        if( m == rtimv::colormode::user )
-        {
-            m_autoScale = false;
-        }
-
-        m_colormode = m;
+        m_autoScale = false;
     }
 
+    m_colormode = m;
     mtxL_recolorImpl();
 
     RTIMV_DEBUG_BREADCRUMB
@@ -1825,6 +1779,11 @@ float rtimvBase::colorBox_max()
 void rtimvBase::requestColorBoxValues()
 {
     sharedLockT lock( m_calMutex );
+    if( m_calData == nullptr )
+    {
+        return;
+    }
+
     mtxL_colormode( rtimv::colormode::minmaxbox, lock );
 
     if( m_foundation == nullptr )
@@ -1832,8 +1791,14 @@ void rtimvBase::requestColorBoxValues()
         return;
     }
 
-    m_foundation->emit_colorBoxUpdated(
-        m_colorBox_i0, m_colorBox_i1, m_colorBox_j0, m_colorBox_j1, m_colorBox_min, m_colorBox_max, true );
+    const auto i0 = m_colorBox_i0;
+    const auto i1 = m_colorBox_i1;
+    const auto j0 = m_colorBox_j0;
+    const auto j1 = m_colorBox_j1;
+    const auto min = m_colorBox_min;
+    const auto max = m_colorBox_max;
+    lock.unlock();
+    m_foundation->emit_colorBoxUpdated( i0, i1, j0, j1, min, max, true );
 }
 
 void rtimvBase::statsBox( bool sb )
@@ -2284,7 +2249,14 @@ void rtimvBase::mtxUL_autoScale( bool as )
                 m_colormode = rtimv::colormode::minmaxglobal;
             }
 
-            mtxUL_recolor();
+            if( m_colormode == rtimv::colormode::minmaxbox )
+            {
+                mtxUL_reStretch();
+            }
+            else
+            {
+                mtxUL_recolor();
+            }
         }
     }
 }
@@ -2296,6 +2268,12 @@ bool rtimvBase::autoScale()
 
 void rtimvBase::mtxUL_reStretch()
 {
+    if( colormode() == rtimv::colormode::minmaxbox )
+    {
+        requestColorBoxValues();
+        return;
+    }
+
     if( colormode() == rtimv::colormode::user )
     {
         mtxUL_colormode( rtimv::colormode::minmaxglobal );
@@ -2306,12 +2284,6 @@ void rtimvBase::mtxUL_reStretch()
         minScaleData( minImageData() );
         maxScaleData( maxImageData() );
     }
-    else if( colormode() == rtimv::colormode::minmaxbox )
-    {
-        minScaleData( m_colorBox_min );
-        maxScaleData( m_colorBox_max );
-    }
-
     sharedLockT lock( m_calMutex );
     mtxL_recolor( lock );
 }
@@ -2623,54 +2595,9 @@ void rtimvBase::mtxUL_changeImdata( bool newdata )
             minScaleData( m_minImageData );
             maxScaleData( m_maxImageData );
         }
-        else if( m_colormode == rtimv::colormode::minmaxbox )
+        else if( m_autoScale && m_colormode == rtimv::colormode::minmaxbox )
         {
-            normalizeColorBox();
-
-            m_colorBox_min = std::numeric_limits<float>::max();
-            m_colorBox_max = -std::numeric_limits<float>::max();
-
-            float imval;
-
-            for( uint32_t j = m_colorBox_j0; j <= m_colorBox_j1; ++j )
-            {
-                for( uint32_t i = m_colorBox_i0; i <= m_colorBox_i1; ++i )
-                {
-                    imval = calPixel( i, j );
-
-                    /*if(valid(2))
-                    {
-                       if(_pixel_mask(i,j)) // no get a mask function, that just returns 1 if not valid
-                       {
-                          continue;
-                       }
-                    }
-                    */
-                    if( !std::isfinite( imval ) )
-                    {
-                        continue;
-                    }
-
-                    if( imval < m_colorBox_min )
-                    {
-                        m_colorBox_min = imval;
-                    }
-                    if( imval > m_colorBox_max )
-                    {
-                        m_colorBox_max = imval;
-                    }
-                }
-            }
-
-            if( !std::isfinite( m_colorBox_max ) || !std::isfinite( m_colorBox_min ) )
-            {
-                // It should be impossible for them to be infinite by themselves unless it's all NaNs in the box.
-                m_colorBox_max = 0;
-                m_colorBox_min = 0;
-            }
-
-            minScaleData( m_colorBox_min );
-            maxScaleData( m_colorBox_max );
+            mtxL_updateColorBoxScale();
         }
 
         m_startupScaleLimits = {};
@@ -3067,6 +2994,36 @@ void rtimvBase::zoomLevel( float zl )
     post_zoomLevel();
 
     RTIMV_DEBUG_BREADCRUMB
+}
+
+void rtimvBase::mtxL_updateColorBoxScale()
+{
+    if( m_calData == nullptr )
+    {
+        return;
+    }
+
+    normalizeColorBox();
+
+    float min = std::numeric_limits<float>::infinity();
+    float max = -std::numeric_limits<float>::infinity();
+    for( int64_t j = m_colorBox_j0; j <= m_colorBox_j1; ++j )
+    {
+        for( int64_t i = m_colorBox_i0; i <= m_colorBox_i1; ++i )
+        {
+            const float value = calPixel( i, j );
+            if( std::isfinite( value ) )
+            {
+                min = std::min( min, value );
+                max = std::max( max, value );
+            }
+        }
+    }
+
+    m_colorBox_min = std::isfinite( min ) ? min : 0;
+    m_colorBox_max = std::isfinite( max ) ? max : 0;
+    minScaleData( m_colorBox_min );
+    maxScaleData( m_colorBox_max );
 }
 
 void rtimvBase::normalizeColorBox()

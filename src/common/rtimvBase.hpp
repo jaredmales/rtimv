@@ -788,11 +788,14 @@ class rtimvBase : public mx::app::application
     /// Adjusts the color box coordinates to ensure they are valid
     void normalizeColorBox();
 
+    /// Measure the processed pixels in the color box and apply their range with m_calMutex held.
+    void mtxL_updateColorBoxScale();
+
   protected:
-    /// The minimum calibrated value in the color box
+    /// The maximum calibrated value from the last color-box rescale.
     float m_colorBox_max;
 
-    /// The maximum calibrated value in the color box
+    /// The minimum calibrated value from the last color-box rescale.
     float m_colorBox_min;
 
     ///@}

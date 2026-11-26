@@ -154,7 +154,7 @@ settings such as `mask=false`. The existing **Stats Display** setting applies on
 | `s` | toggle the statistics box | Show or hide the statistics box overlay. |
 | `t` | toggle the target cross | Show or hide the target cross. |
 | `x` | freeze the display | Stop updating until `x` is pressed again. |
-| `z` | toggle color box | Toggle the yellow box used to set color-table limits from the values inside it. |
+| `z` | toggle color box | Fit the color-table limits to the yellow box. With autoscale off, the limits stay fixed until you press `r` or move or resize the box. |
 | `C` | toggle cube control GUI | Opens automatically when a cube is opened. |
 | `D` | toggle dark subtraction | Enable or disable dark subtraction. |
 | `F` | toggle spatial filtering | Toggle the currently configured filters. Configure them on the control panel. |

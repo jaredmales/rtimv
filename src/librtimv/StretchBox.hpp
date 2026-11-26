@@ -93,6 +93,11 @@ class StretchBox : public QObject, public QGraphicsRectItem, public StretchGraph
     /// Process removal keys and forward other input to the scene item.
     void keyPressEvent( QKeyEvent *ke /**< [in] Keyboard event to dispatch. */ );
 
+    /// End interaction when the rectangle is hidden, disabled, or removed from its scene.
+    QVariant itemChange( GraphicsItemChange change, /**< [in] Qt item state that changed */
+                         const QVariant &value      /**< [in] New value for the item state */
+                         ) override;
+
     ///@}
 
     /** \name StretchGraphicsItem Interface

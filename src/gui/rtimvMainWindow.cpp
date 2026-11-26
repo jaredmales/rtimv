@@ -655,26 +655,13 @@ void rtimvMainWindow::mtxL_postSetImsize( const uniqueLockT &lock )
 
     if( m_colorBox )
     {
-        if( m_colorBox->isSelected() )
-        {
-            colorBoxDeselected( m_colorBox );
-        }
-
+        hideColorBox();
         m_colormode = rtimv::colormode::minmaxglobal;
-        m_colorBoxRequestPending = false;
-        m_colorBoxTimer.stop();
 
         m_colorBox->disconnect();
         disconnect( m_colorBox );
         m_colorBox->deleteLater();
         m_colorBox = nullptr;
-
-        ui.graphicsView->userItemSize()->setVisible( false );
-        ui.graphicsView->userItemMouseCoords()->setVisible( false );
-        m_objCenH->setVisible( false );
-        m_objCenV->setVisible( false );
-        m_nullMouseCoords = false;
-        m_userItemSelected = false;
     }
 
     auto ubit = m_userBoxes.begin();
@@ -1380,10 +1367,13 @@ void rtimvMainWindow::mtxL_updateMouseCoords( const sharedLockT &lock, bool requ
         nullMouseCoords();
     }
 
-    if( m_userItemSelected )
+    if( m_selectedUserItem )
     {
         nullMouseCoords();
-        mtxTry_userItemMouseCoords( m_userItemMouseViewX, m_userItemMouseViewY, m_userItemXCen, m_userItemYCen );
+        if( ui.graphicsView->userItemMouseCoords()->isVisible() )
+        {
+            mtxTry_userItemMouseCoords( m_userItemMouseViewX, m_userItemMouseViewY, m_userItemXCen, m_userItemYCen );
+        }
     }
 
     if( !m_nullMouseCoords )
@@ -1746,8 +1736,10 @@ void rtimvMainWindow::mtxTry_userItemMouseCoords( float mx, float my, float dx, 
     mtxL_fontLuminance( ui.graphicsView->userItemMouseCoords(), lock );
 }
 
-void rtimvMainWindow::userItemSelected( const QColor &color, bool sizeVis, bool coordsVis, bool cenVis )
+void rtimvMainWindow::userItemSelected( QObject *item, const QColor &color, bool sizeVis, bool coordsVis, bool cenVis )
 {
+    m_selectedUserItem = item;
+    m_lineHead->hide();
     ui.graphicsView->userItemColor( color.name() );
 
     ui.graphicsView->userItemSizeText( " " );
@@ -1775,8 +1767,24 @@ void rtimvMainWindow::userItemSelected( const QColor &color, bool sizeVis, bool 
     }
 
     nullMouseCoords();
+}
 
-    m_userItemSelected = true;
+void rtimvMainWindow::userItemDeselected( const QObject *item )
+{
+    if( item == nullptr || m_selectedUserItem != item )
+    {
+        return;
+    }
+
+    m_selectedUserItem.clear();
+    ui.graphicsView->userItemSize()->hide();
+    ui.graphicsView->userItemSize()->clear();
+    ui.graphicsView->userItemMouseCoords()->hide();
+    ui.graphicsView->userItemMouseCoords()->clear();
+    m_objCenH->hide();
+    m_objCenV->hide();
+    m_lineHead->hide();
+    m_nullMouseCoords = false;
 }
 
 void rtimvMainWindow::userItemCross( const QPointF &pos, const QRectF &rect, const QPen &pen )
@@ -1805,33 +1813,10 @@ void rtimvMainWindow::userItemCross( const QPointF &pos, const QRectF &rect, con
 
 void rtimvMainWindow::mtxTry_colorBoxMoved( StretchBox *sb )
 {
-    sharedLockT lock( m_calMutex );
-
-    if( !m_colorBox )
+    if( !sb || sb != m_colorBox || !sb->isVisible() || !sb->isEnabled() || !m_qpmi )
     {
         return;
     }
-
-    if( !m_qpmi )
-    {
-        return;
-    }
-
-    if( colormode() != rtimv::colormode::minmaxbox )
-    {
-        std::cerr << formatBaseLogMessage( "bug: got colorbar moved but not in color box mode" ) << '\n';
-        return;
-    }
-
-    QRectF newr = sb->rect();
-
-    QPointF np = m_qpmi->mapFromItem( m_colorBox, QPointF( newr.x(), newr.y() ) );
-    QPointF np2 = m_qpmi->mapFromItem( m_colorBox, QPointF( newr.x() + newr.width(), newr.y() + newr.height() ) );
-
-    colorBox_i0( (int64_t)( np2.x() + .5 ) );
-    colorBox_i1( (int64_t)np.x() );
-    colorBox_j0( (int64_t)m_ny - (int64_t)( np2.y() + .5 ) );
-    colorBox_j1( (int64_t)m_ny - (int64_t)np.y() );
 
     m_colorBoxRequestPending = true;
     if( !m_colorBoxTimer.isActive() )
@@ -1839,13 +1824,21 @@ void rtimvMainWindow::mtxTry_colorBoxMoved( StretchBox *sb )
         m_colorBoxTimer.start( m_colorBoxTimeout );
     }
 
-    bool hasValues = m_colorBoxCacheValid && m_colorBoxCache_i0 == colorBox_i0() &&
-                     m_colorBoxCache_i1 == colorBox_i1() && m_colorBoxCache_j0 == colorBox_j0() &&
-                     m_colorBoxCache_j1 == colorBox_j1();
+    if( m_selectedUserItem == sb )
+    {
+        mtxTry_updateColorBoxText( sb, false, 0, 0 );
+        mtxTry_fontLuminance( ui.graphicsView->userItemSize() );
+    }
+}
 
-    mtxTry_updateColorBoxText( sb, hasValues, m_colorBoxCacheMin, m_colorBoxCacheMax );
-
-    mtxL_fontLuminance( ui.graphicsView->userItemSize(), lock );
+void rtimvMainWindow::hideColorBox()
+{
+    m_colorBoxRequestPending = false;
+    m_colorBoxTimer.stop();
+    if( m_colorBox )
+    {
+        m_colorBox->hide();
+    }
 }
 
 void rtimvMainWindow::mtxTry_updateColorBoxText( StretchBox *sb, bool hasValues, float minVal, float maxVal )
@@ -1901,21 +1894,29 @@ void rtimvMainWindow::dispatchColorBoxRequest()
     }
 
     m_colorBoxRequestPending = false;
+
+    if( !m_colorBox || !m_colorBox->isVisible() || !m_colorBox->isEnabled() || !m_qpmi )
+    {
+        return;
+    }
+
+    updateColorBoxRegion();
     requestColorBoxValues();
+}
+
+void rtimvMainWindow::updateColorBoxRegion()
+{
+    const QRectF rect = m_qpmi->mapRectFromItem( m_colorBox, m_colorBox->rect() );
+    colorBox_i0( std::max<int64_t>( 0, static_cast<int64_t>( rect.left() ) ) );
+    colorBox_i1( std::max<int64_t>( 0, static_cast<int64_t>( rect.right() + 0.5 ) ) );
+    colorBox_j0( std::max<int64_t>( 0, m_ny - static_cast<int64_t>( rect.bottom() + 0.5 ) ) );
+    colorBox_j1( std::max<int64_t>( 0, m_ny - static_cast<int64_t>( rect.top() ) ) );
 }
 
 void rtimvMainWindow::colorBoxUpdated(
     int64_t i0, int64_t i1, int64_t j0, int64_t j1, float min, float max, bool valid )
 {
-    m_colorBoxCacheValid = valid;
-    m_colorBoxCache_i0 = i0;
-    m_colorBoxCache_i1 = i1;
-    m_colorBoxCache_j0 = j0;
-    m_colorBoxCache_j1 = j1;
-    m_colorBoxCacheMin = min;
-    m_colorBoxCacheMax = max;
-
-    if( m_colorBox == nullptr )
+    if( m_colorBox == nullptr || !m_colorBox->isVisible() || !m_colorBox->isEnabled() || m_colorBoxRequestPending )
     {
         return;
     }
@@ -1925,10 +1926,11 @@ void rtimvMainWindow::colorBoxUpdated(
         return;
     }
 
-    sharedLockT lock( m_calMutex );
-    mtxTry_updateColorBoxText( m_colorBox, valid, min, max );
-
-    mtxL_fontLuminance( ui.graphicsView->userItemSize(), lock );
+    if( m_selectedUserItem == m_colorBox )
+    {
+        mtxTry_updateColorBoxText( m_colorBox, valid, min, max );
+        mtxTry_fontLuminance( ui.graphicsView->userItemSize() );
+    }
 
     if( imcp )
     {
@@ -1938,44 +1940,38 @@ void rtimvMainWindow::colorBoxUpdated(
 
 void rtimvMainWindow::mtxTry_colorBoxSelected( StretchBox *sb )
 {
-    userItemSelected( RTIMV_DEF_COLORBOXCOLOR, true, false, false );
-
-    mtxTry_colorBoxMoved( sb );
-}
-
-void rtimvMainWindow::colorBoxDeselected( StretchBox *sb )
-{
-    static_cast<void>( sb );
-    ui.graphicsView->userItemSizeText( "" );
-    ui.graphicsView->userItemSize()->setVisible( false );
-    m_nullMouseCoords = false;
-    m_userItemSelected = false;
-}
-
-void rtimvMainWindow::colorBoxRemove( StretchBox *sb )
-{
-    static_cast<void>( sb );
-
-    if( sb == nullptr || m_colorBox == nullptr )
+    if( !sb || sb != m_colorBox || !sb->isVisible() || !sb->isEnabled() )
     {
         return;
     }
 
-    mtxUL_colormode( rtimv::colormode::minmaxglobal );
-    m_colorBoxRequestPending = false;
-    m_colorBoxTimer.stop();
+    userItemSelected( sb, RTIMV_DEF_COLORBOXCOLOR, true, false, false );
+    mtxTry_updateColorBoxText( sb, !m_colorBoxRequestPending, colorBox_min(), colorBox_max() );
+    mtxTry_fontLuminance( ui.graphicsView->userItemSize() );
+}
+
+void rtimvMainWindow::colorBoxDeselected( StretchBox *sb )
+{
+    userItemDeselected( sb );
+}
+
+void rtimvMainWindow::colorBoxRemove( StretchBox *sb )
+{
+    if( sb == nullptr || sb != m_colorBox )
+    {
+        return;
+    }
+
+    if( sb->isVisible() )
+    {
+        hideColorBox();
+        mtxUL_colormode( rtimv::colormode::minmaxglobal );
+    }
 
     m_colorBox->disconnect();
     disconnect( m_colorBox );
     m_colorBox->deleteLater();
     m_colorBox = nullptr;
-
-    ui.graphicsView->userItemSize()->setVisible( false );
-    ui.graphicsView->userItemMouseCoords()->setVisible( false );
-    m_objCenH->setVisible( false );
-    m_objCenV->setVisible( false );
-    m_nullMouseCoords = false;
-    m_userItemSelected = false;
 }
 
 /*---- Stats Box and Display ----*/
@@ -2025,11 +2021,6 @@ void rtimvMainWindow::doHideStatsBox()
 
     if( m_statsBox )
     {
-        if( m_statsBox->isSelected() )
-        {
-            m_statsBox->setSelected( false );
-            userBoxDeSelected( m_statsBox );
-        }
         m_statsBox->setVisible( false );
     }
 }
@@ -2041,7 +2032,6 @@ void rtimvMainWindow::imStatsClosed( int result )
     if( !m_statsBox )
         return;
 
-    m_statsBox->setVisible( false );
     imStats = 0; // imStats is set to delete on close
 
     doHideStatsBox();
@@ -2055,7 +2045,7 @@ void rtimvMainWindow::imStatsClosed( int result )
 
 void rtimvMainWindow::mtxTry_statsBoxMoved( StretchBox *sb )
 {
-    if( !m_statsBox )
+    if( !sb || sb != m_statsBox || !sb->isVisible() || !sb->isEnabled() )
         return;
 
     if( !m_qpmi )
@@ -2506,23 +2496,24 @@ void rtimvMainWindow::statsBoxUpdated(
 
 void rtimvMainWindow::mtxTry_statsBoxSelected( StretchBox *sb )
 {
-    userItemSelected( RTIMV_DEF_STATSBOXCOLOR, true, true, true );
+    if( !sb || sb != m_statsBox || !sb->isVisible() || !sb->isEnabled() )
+    {
+        return;
+    }
+
+    userItemSelected( sb, RTIMV_DEF_STATSBOXCOLOR, true, true, true );
 
     mtxTry_statsBoxMoved( sb );
 }
 
 void rtimvMainWindow::statsBoxRemove( StretchBox *sb )
 {
-    static_cast<void>( sb );
-
-    if( sb == nullptr || m_statsBox == nullptr )
+    if( sb == nullptr || sb != m_statsBox )
     {
         return;
     }
 
     doHideStatsBox();
-    m_statsBoxRequestPending = false;
-    m_statsBoxTimer.stop();
     m_statsBox->disconnect();
     disconnect( m_statsBox );
     m_statsBox->deleteLater();
@@ -2530,12 +2521,6 @@ void rtimvMainWindow::statsBoxRemove( StretchBox *sb )
     m_statsBox = nullptr;
 
     updateStatsBoxOverlayVisibility();
-    ui.graphicsView->userItemSize()->setVisible( false );
-    ui.graphicsView->userItemMouseCoords()->setVisible( false );
-    m_objCenH->setVisible( false );
-    m_objCenV->setVisible( false );
-    m_nullMouseCoords = false;
-    m_userItemSelected = false;
 }
 
 /*---- User Boxes ----*/
@@ -2571,6 +2556,7 @@ void rtimvMainWindow::addInteractiveBox( StretchBox *box )
     connect( box, &StretchBox::resized, this, &rtimvMainWindow::mtxTry_userBoxMoved );
     connect( box, &StretchBox::selected, this, &rtimvMainWindow::mtxTry_userBoxSelected );
     connect( box, &StretchBox::deSelected, this, &rtimvMainWindow::userBoxDeSelected );
+    connect( box, &StretchBox::mouseOut, this, &rtimvMainWindow::userBoxDeSelected );
 }
 
 void rtimvMainWindow::addUserBox()
@@ -2595,6 +2581,7 @@ void rtimvMainWindow::addUserBox()
     connect( sb, SIGNAL( remove( StretchBox * ) ), this, SLOT( userBoxRemove( StretchBox * ) ) );
     connect( sb, SIGNAL( selected( StretchBox * ) ), this, SLOT( mtxTry_userBoxSelected( StretchBox * ) ) );
     connect( sb, SIGNAL( deSelected( StretchBox * ) ), this, SLOT( userBoxDeSelected( StretchBox * ) ) );
+    connect( sb, &StretchBox::mouseOut, this, &rtimvMainWindow::userBoxDeSelected );
 
     m_qgs->addItem( sb );
 }
@@ -2649,6 +2636,11 @@ void rtimvMainWindow::addStretchBox( StretchBox *sb )
 
 void rtimvMainWindow::mtxTry_userBoxMoved( StretchBox *sb )
 {
+    if( !sb || m_selectedUserItem != sb || !sb->isVisible() || !sb->isEnabled() )
+    {
+        return;
+    }
+
     mtxTry_userBoxSize( sb );
     mtxTry_userBoxMouseCoords( sb );
     userBoxCross( sb );
@@ -2694,33 +2686,27 @@ void rtimvMainWindow::userBoxRemove( StretchBox *sb )
     m_qgs->removeItem( sb ); // Remove it from the scene
     sb->deleteLater();       // clean it up after we're no longer in an async function
 
-    ui.graphicsView->userItemSize()->setVisible( false );
-    ui.graphicsView->userItemMouseCoords()->setVisible( false );
-    m_objCenH->setVisible( false );
-    m_objCenV->setVisible( false );
-    m_nullMouseCoords = false;
-    m_userItemSelected = false;
+    userItemDeselected( sb );
 }
 
 void rtimvMainWindow::mtxTry_userBoxSelected( StretchBox *sb )
 {
+    if( !sb || !sb->isVisible() || !sb->isEnabled() )
+    {
+        return;
+    }
+
     m_userItemXCen = sb->rect().x() + sb->pos().x() + 0.5 * sb->rect().width();
     m_userItemYCen = sb->rect().y() + sb->pos().y() + 0.5 * sb->rect().height();
 
     const bool overlay = std::find( m_overlayBoxes.begin(), m_overlayBoxes.end(), sb ) != m_overlayBoxes.end();
-    userItemSelected( overlay ? sb->penColor() : ui.graphicsView->userItemDefColor(), true, true, true );
+    userItemSelected( sb, overlay ? sb->penColor() : ui.graphicsView->userItemDefColor(), true, true, true );
     mtxTry_userBoxMoved( sb );
 }
 
 void rtimvMainWindow::userBoxDeSelected( StretchBox *sb )
 {
-    static_cast<void>( sb );
-    ui.graphicsView->userItemSize()->setVisible( false );
-    ui.graphicsView->userItemMouseCoords()->setVisible( false );
-    m_objCenH->setVisible( false );
-    m_objCenV->setVisible( false );
-    m_nullMouseCoords = false;
-    m_userItemSelected = false;
+    userItemDeselected( sb );
 }
 
 /*---- User Circles ----*/
@@ -2808,6 +2794,11 @@ void rtimvMainWindow::addStretchCircle( StretchCircle *sc )
 
 void rtimvMainWindow::userCircleMoved( StretchCircle *sc )
 {
+    if( m_selectedUserItem != sc )
+    {
+        return;
+    }
+
     userCircleSize( sc );
     userCircleCross( sc );
     mtxTry_userCircleMouseCoords( sc );
@@ -2848,11 +2839,7 @@ void rtimvMainWindow::userCircleRemove( StretchCircle *sc )
     m_qgs->removeItem( sc );   // Remove it from the scene
     sc->deleteLater();         // clean it up after we're no longer in an asynch function
 
-    ui.graphicsView->userItemSize()->setVisible( false );
-    ui.graphicsView->userItemMouseCoords()->setVisible( false );
-    m_objCenH->setVisible( false );
-    m_objCenV->setVisible( false );
-    m_userItemSelected = false;
+    userItemDeselected( sc );
 }
 
 void rtimvMainWindow::userCircleSelected( StretchCircle *sc )
@@ -2860,18 +2847,13 @@ void rtimvMainWindow::userCircleSelected( StretchCircle *sc )
     m_userItemXCen = sc->rect().x() + sc->pos().x() + 0.5 * sc->rect().width();
     m_userItemYCen = sc->rect().y() + sc->pos().y() + 0.5 * sc->rect().height();
 
-    userItemSelected( ui.graphicsView->userItemDefColor(), true, true, true );
+    userItemSelected( sc, ui.graphicsView->userItemDefColor(), true, true, true );
     userCircleMoved( sc );
 }
 
-void rtimvMainWindow::userCircleDeSelected( StretchCircle *sb )
+void rtimvMainWindow::userCircleDeSelected( StretchCircle *sc )
 {
-    static_cast<void>( sb );
-    ui.graphicsView->userItemSize()->setVisible( false );
-    ui.graphicsView->userItemMouseCoords()->setVisible( false );
-    m_objCenH->setVisible( false );
-    m_objCenV->setVisible( false );
-    m_userItemSelected = false;
+    userItemDeselected( sc );
 }
 
 /*---- User Lines ----*/
@@ -3001,6 +2983,11 @@ void rtimvMainWindow::addStretchLine( StretchLine *sl )
 
 void rtimvMainWindow::mtxTry_userLineMoved( StretchLine *sl )
 {
+    if( m_selectedUserItem != sl )
+    {
+        return;
+    }
+
     mtxTry_userLineSize( sl );
     userLineHead( sl );
     mtxTry_userLineMouseCoords( sl );
@@ -3040,10 +3027,7 @@ void rtimvMainWindow::userLineRemove( StretchLine *sl )
     m_userLines.erase( sl ); // Remove it from our list
     m_qgs->removeItem( sl ); // Remove it from the scene
     sl->deleteLater();       // clean it up after we're no longer in an asynch function
-    ui.graphicsView->userItemMouseCoords()->setVisible( false );
-    ui.graphicsView->userItemSize()->setVisible( false );
-    m_lineHead->setVisible( false );
-    m_userItemSelected = false;
+    userItemDeselected( sl );
 }
 
 void rtimvMainWindow::mtxTry_userLineSelected( StretchLine *sl )
@@ -3051,18 +3035,14 @@ void rtimvMainWindow::mtxTry_userLineSelected( StretchLine *sl )
     m_userItemXCen = sl->line().x1();
     m_userItemYCen = sl->line().y1();
 
+    userItemSelected( sl, ui.graphicsView->userItemDefColor(), true, true, false );
     m_lineHead->setVisible( true );
-    userItemSelected( ui.graphicsView->userItemDefColor(), true, true, false );
     mtxTry_userLineMoved( sl );
 }
 
 void rtimvMainWindow::userLineDeSelected( StretchLine *sl )
 {
-    static_cast<void>( sl );
-    ui.graphicsView->userItemSize()->setVisible( false );
-    ui.graphicsView->userItemMouseCoords()->setVisible( false );
-    m_lineHead->setVisible( false );
-    m_userItemSelected = false;
+    userItemDeselected( sl );
 }
 
 float rtimvMainWindow::targetXc()
@@ -3199,10 +3179,7 @@ void rtimvMainWindow::mtxL_postColormode( rtimv::colormode m, const sharedLockT 
     }
     else
     {
-        if( m_colorBox )
-        {
-            m_colorBox->setVisible( false );
-        }
+        hideColorBox();
     }
 }
 
@@ -3436,7 +3413,7 @@ void rtimvMainWindow::mtxUL_center()
 
 void rtimvMainWindow::toggleColorBox()
 {
-    if( colormode() != rtimv::colormode::minmaxbox || !m_colorBox )
+    if( !m_colorBox || !m_colorBox->isVisible() )
     {
         toggleColorBoxOn();
     }
@@ -3448,6 +3425,11 @@ void rtimvMainWindow::toggleColorBox()
 
 void rtimvMainWindow::toggleColorBoxOn()
 {
+    if( !m_qpmi )
+    {
+        return;
+    }
+
     if( m_colorBox == nullptr )
     {
         float w;
@@ -3460,12 +3442,7 @@ void rtimvMainWindow::toggleColorBoxOn()
             w = ( m_ny / zoomLevel() ) / 4;
         }
 
-        colorBox_i0( 0.5 * (m_nx)-w / 2 );
-        colorBox_i1( colorBox_i0() + w );
-        colorBox_j0( 0.5 * (m_ny)-w / 2 );
-        colorBox_j1( colorBox_j0() + w );
-
-        m_colorBox = new StretchBox( colorBox_i0(), colorBox_j0(), w, w );
+        m_colorBox = new StretchBox( 0.5 * m_nx - w / 2, 0.5 * m_ny - w / 2, w, w );
 
         m_colorBox->setPenColor( RTIMV_DEF_COLORBOXCOLOR );
         m_colorBox->setPenWidth( m_userItemLineWidth / m_screenZoom / zoomLevel() );
@@ -3481,13 +3458,14 @@ void rtimvMainWindow::toggleColorBoxOn()
         connect(
             m_colorBox, SIGNAL( selected( StretchBox * ) ), this, SLOT( mtxTry_colorBoxSelected( StretchBox * ) ) );
         connect( m_colorBox, SIGNAL( deSelected( StretchBox * ) ), this, SLOT( colorBoxDeselected( StretchBox * ) ) );
+        connect( m_colorBox, &StretchBox::mouseOut, this, &rtimvMainWindow::colorBoxDeselected );
         connect( m_colorBox, SIGNAL( remove( StretchBox * ) ), this, SLOT( colorBoxRemove( StretchBox * ) ) );
 
         m_qgs->addItem( m_colorBox );
     }
 
     m_colorBox->setVisible( true );
-
+    updateColorBoxRegion();
     mtxUL_colormode( rtimv::colormode::minmaxbox );
 
     ui.graphicsView->zoomText( "color box scale" );
@@ -3496,13 +3474,7 @@ void rtimvMainWindow::toggleColorBoxOn()
 
 void rtimvMainWindow::toggleColorBoxOff()
 {
-    if( m_colorBox->isSelected() )
-    {
-        colorBoxDeselected( m_colorBox );
-    }
-
-    m_colorBox->setVisible( false );
-
+    hideColorBox();
     mtxUL_colormode( rtimv::colormode::minmaxglobal );
 
     ui.graphicsView->zoomText( "global scale" );
@@ -3534,6 +3506,7 @@ void rtimvMainWindow::toggleStatsBox()
         connect(
             m_statsBox, SIGNAL( selected( StretchBox * ) ), this, SLOT( mtxTry_statsBoxSelected( StretchBox * ) ) );
         connect( m_statsBox, SIGNAL( deSelected( StretchBox * ) ), this, SLOT( userBoxDeSelected( StretchBox * ) ) );
+        connect( m_statsBox, &StretchBox::mouseOut, this, &rtimvMainWindow::userBoxDeSelected );
         connect( m_statsBox, SIGNAL( remove( StretchBox * ) ), this, SLOT( statsBoxRemove( StretchBox * ) ) );
         m_qgs->addItem( m_statsBox );
     }
@@ -3775,13 +3748,20 @@ void rtimvMainWindow::toggleLogLinear()
         stretch( rtimv::stretch::linear );
         ui.graphicsView->zoomText( "linear stretch" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
-        mtxUL_reStretch();
     }
     else
     {
         stretch( rtimv::stretch::log );
         ui.graphicsView->zoomText( "log stretch" );
         mtxTry_fontLuminance( ui.graphicsView->zoomText() );
+    }
+
+    if( colormode() == rtimv::colormode::minmaxbox && !RTIMV_BASE::autoScale() )
+    {
+        mtxUL_recolor();
+    }
+    else
+    {
         mtxUL_reStretch();
     }
 }
